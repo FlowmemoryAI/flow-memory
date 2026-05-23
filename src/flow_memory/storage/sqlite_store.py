@@ -28,6 +28,8 @@ _TABLES = (
     "memory_records",
 )
 
+TABLES = _TABLES
+
 
 class SQLiteStore:
     def __init__(self, path: str | Path = ":memory:") -> None:
@@ -81,6 +83,9 @@ class SQLiteStore:
         with self._connection() as conn:
             rows = conn.execute(f"select payload from {table} order by id").fetchall()
             return tuple(json.loads(row["payload"]) for row in rows)
+
+    def tables(self) -> tuple[str, ...]:
+        return TABLES
 
     def close(self) -> None:
         if self._memory:

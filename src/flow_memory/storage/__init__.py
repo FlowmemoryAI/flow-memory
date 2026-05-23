@@ -4,6 +4,7 @@ from flow_memory.storage.agent_store import AgentStore
 from flow_memory.storage.audit_store import AuditStore
 from flow_memory.storage.event_store import EventStore
 from flow_memory.storage.checkpoints import AuditCheckpoint, create_audit_checkpoint, verify_audit_checkpoint
+from flow_memory.storage.backup import BackupManifest, BackupTableSummary, create_backup, read_backup, restore_backup, restore_backup_file, validate_backup, write_backup
 from flow_memory.storage.export import export_jsonl
 from flow_memory.storage.marketplace_store import MarketplaceStore
 from flow_memory.storage.memory_store import MemoryStore
@@ -16,6 +17,8 @@ __all__ = [
     "AgentStore",
     "AuditStore",
     "AuditCheckpoint",
+    "BackupManifest",
+    "BackupTableSummary",
     "EventStore",
     "MarketplaceStore",
     "MemoryStore",
@@ -29,4 +32,10 @@ __all__ = [
     "verify_chained_events",
     "create_audit_checkpoint",
     "verify_audit_checkpoint",
+    "create_backup",
+    "read_backup",
+    "restore_backup",
+    "restore_backup_file",
+    "validate_backup",
+    "write_backup",
 ]

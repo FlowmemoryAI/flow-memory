@@ -106,6 +106,8 @@ Added:
 - `scripts/replay_audit_log.py` for replaying and checkpointing SQLite audit logs.
 - `src/flow_memory/release/gates.py` and `scripts/release_gate.py` for offline release gates.
 - `scripts/verify.sh` now runs the release gate after tests, CLI smoke, and perception benchmark.
+- `src/flow_memory/storage/backup.py` for deterministic whole-store backup/restore bundles.
+- `scripts/backup_storage.py` and `scripts/restore_storage.py` for local recovery workflows.
 
 
 ### Production API seams
@@ -161,13 +163,15 @@ git diff --check
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/replay_audit_log.py --db C:/tmp/flow-memory-audit-replay.sqlite3 --checkpoint --require-events
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_gate.py --root E:/FlowMemory/flow-memory
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/backup_storage.py --db C:/tmp/flow-memory-backup-source.sqlite3 --out C:/tmp/flow-memory-storage-backup.json
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/restore_storage.py --backup C:/tmp/flow-memory-storage-backup.json --db C:/tmp/flow-memory-backup-restored.sqlite3
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `196 passed` |
+| `python -m pytest -q` | Pass: `200 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -179,6 +183,8 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_gate.py --roo
 | `python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json` | Pass |
 | `python scripts/replay_audit_log.py --db C:/tmp/flow-memory-audit-replay.sqlite3 --checkpoint --require-events` | Pass |
 | `python scripts/release_gate.py --root E:/FlowMemory/flow-memory` | Pass |
+| `python scripts/backup_storage.py --db C:/tmp/flow-memory-backup-source.sqlite3 --out C:/tmp/flow-memory-storage-backup.json` | Pass |
+| `python scripts/restore_storage.py --backup C:/tmp/flow-memory-storage-backup.json --db C:/tmp/flow-memory-backup-restored.sqlite3` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -188,7 +194,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_gate.py --roo
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `196 passed`.
+`python -m pytest -q` currently passes with `200 passed`.
 
 ## Honest limitations
 

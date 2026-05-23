@@ -18,6 +18,7 @@ Status: functional local prototype.
 - `src/flow_memory/storage/skill_store.py` persists skill manifests.
 - `src/flow_memory/storage/export.py` exports table contents to JSONL.
 - `src/flow_memory/storage/replay.py` builds deterministic replay chains and verifies stored audit hash chains.
+- `src/flow_memory/storage/backup.py` creates deterministic whole-store backups and validates restore bundles.
 
 ## Audit replay and tamper evidence
 
@@ -50,17 +51,33 @@ Replay and checkpoint a SQLite audit database with:
 python scripts/replay_audit_log.py --db flow-memory.sqlite3 --checkpoint --require-events
 ```
 
+## Backup and restore
+
+Create a portable backup:
+
+```bash
+python scripts/backup_storage.py --db flow-memory.sqlite3 --out backups/flow-memory-backup.json
+```
+
+Restore into an empty SQLite database:
+
+```bash
+python scripts/restore_storage.py --backup backups/flow-memory-backup.json --db restored-flow-memory.sqlite3
+```
+
+Backup bundles include every known SQLiteStore table plus per-table content hashes and a root hash. Restore fails closed if the target store already contains data unless `--overwrite` is explicitly supplied.
+
 
 ## Limitations
 
 - SQLite is local persistence, not a distributed or high-availability database.
 - Hash chaining detects tampering after the fact; it does not prevent a compromised host from deleting or rewriting the whole database.
 - External Redis/Qdrant/Neo4j adapters remain optional seams.
-- Backup, encryption-at-rest, retention, and multi-process operational policy still need production hardening.
+- Backup is implemented for local recovery, but encryption-at-rest, retention, offsite replication, and multi-process operational policy still need production hardening.
 
 ## Next steps
 
-- Add signed audit checkpoints and optional external notarization.
+- Add optional external notarization for signed audit checkpoints.
 - Add migration files with upgrade/downgrade metadata.
-- Add backup/restore and corruption-recovery commands.
+- Add corruption-recovery commands that compare live state against backup root hashes.
 - Add retention policy and compaction tools.

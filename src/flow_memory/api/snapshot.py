@@ -43,9 +43,17 @@ def validate_api_snapshot(snapshot: Mapping[str, Any]) -> ApiSnapshotValidation:
     """Validate a stored snapshot against the current manifest/OpenAPI output."""
 
     current = api_snapshot()
+    normalized = _normalize(snapshot)
     errors = tuple(
-        f"{key} mismatch: expected {current.get(key)!r}, got {snapshot.get(key)!r}"
+        f"{key} mismatch: expected {current.get(key)!r}, got {normalized.get(key)!r}"
         for key in ("version", "endpoint_count", "path_count", "paths", "operations", "manifest_hash", "openapi_hash")
-        if snapshot.get(key) != current.get(key)
+        if normalized.get(key) != current.get(key)
     )
     return ApiSnapshotValidation(ok=not errors, errors=errors)
+
+
+def _normalize(snapshot: Mapping[str, Any]) -> Mapping[str, Any]:
+    return {
+        str(key): tuple(value) if key in {"paths", "operations"} and isinstance(value, list) else value
+        for key, value in snapshot.items()
+    }

@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `193 passed` |
+| `python -m pytest -q` | Pass: `196 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -48,6 +48,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | MCP/A2A/libp2p gateways | Adapter seams tested locally |
 | Dashboard | Scaffold/mock data only |
 | CI workflows | Added; GitHub execution not yet observed here |
+| Release gate | Implemented offline gate for API snapshot, audit replay, Base dry-run, and secret scan |
 
 ## Top risks
 

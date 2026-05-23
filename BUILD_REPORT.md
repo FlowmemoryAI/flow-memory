@@ -113,6 +113,7 @@ Added:
 - `src/flow_memory/storage/migrations.py` and `scripts/verify_storage_schema.py` for schema fingerprints and migration metadata verification.
 - `scripts/release_gate.py` now includes storage schema verification.
 - `src/flow_memory/release/manifest.py` and `scripts/generate_release_manifest.py` for offline release manifest generation.
+- `src/flow_memory/release/evidence.py` and `scripts/export_release_evidence.py` for exporting a hashed release evidence bundle.
 
 
 ### Production API seams
@@ -177,13 +178,15 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_backup
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_schema.py
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/generate_release_manifest.py --root E:/FlowMemory/flow-memory --sign-local
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_contract_config.py
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_release_evidence.py --root E:/FlowMemory/flow-memory --out C:/tmp/flow-memory-release-evidence
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_release_evidence.py --out C:/tmp/flow-memory-release-evidence --verify-only
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `216 passed` |
+| `python -m pytest -q` | Pass: `219 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -202,6 +205,8 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_contract_confi
 | `python scripts/verify_storage_schema.py` | Pass |
 | `python scripts/generate_release_manifest.py --root E:/FlowMemory/flow-memory --sign-local` | Pass |
 | `python scripts/verify_contract_config.py` | Pass |
+| `python scripts/export_release_evidence.py --root E:/FlowMemory/flow-memory --out C:/tmp/flow-memory-release-evidence` | Pass |
+| `python scripts/export_release_evidence.py --out C:/tmp/flow-memory-release-evidence --verify-only` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -211,7 +216,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_contract_confi
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `216 passed`.
+`python -m pytest -q` currently passes with `219 passed`.
 
 ## Honest limitations
 

@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `216 passed` |
+| `python -m pytest -q` | Pass: `219 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -55,6 +55,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Storage integrity verification | Implemented live-state-to-backup root-hash comparison |
 | Storage schema verification | Implemented migration plan, schema fingerprint, and release gate check |
 | Release manifest | Implemented offline manifest with commit, API, schema, Base dry-run, and gate status |
+| Release evidence bundle | Implemented hashed bundle export and verification |
 
 ## Top risks
 

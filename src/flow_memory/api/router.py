@@ -11,6 +11,7 @@ from flow_memory.economy.attestations import Attestation
 from flow_memory.economy.reputation import NonTransferableReputation
 from flow_memory.swarm.agent_card import AgentCard
 from flow_memory.swarm.delegation import DelegationContract
+from flow_memory.flowlang import EXAMPLE_FLOWLANG, compile_flowlang, run_flowlang_agent, validate_flowlang
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
 
@@ -133,6 +134,45 @@ class LocalApiRouter:
         self.marketplace_tasks[task_id] = task
         return {"settlement": {"task_id": task_id, "status": "settled"}}
 
+    def _marketplace_assign(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        task_id = str(payload.get("task_id", ""))
+        task = dict(self.marketplace_tasks.get(task_id) or {})
+        if not task:
+            raise KeyError(f"Unknown task: {task_id}")
+        task["status"] = "assigned"
+        task["agent_did"] = str(payload.get("agent_did", ""))
+        self.marketplace_tasks[task_id] = task
+        return {"task": task}
+
+    def _marketplace_submit(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        task_id = str(payload.get("task_id", ""))
+        task = dict(self.marketplace_tasks.get(task_id) or {})
+        if not task:
+            raise KeyError(f"Unknown task: {task_id}")
+        task["status"] = "submitted"
+        task["artifact"] = payload.get("artifact", {})
+        self.marketplace_tasks[task_id] = task
+        return {"task": task}
+
+    def _marketplace_verify(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        task_id = str(payload.get("task_id", ""))
+        task = dict(self.marketplace_tasks.get(task_id) or {})
+        if not task:
+            raise KeyError(f"Unknown task: {task_id}")
+        task["status"] = "verified" if bool(payload.get("accepted", True)) else "rejected"
+        self.marketplace_tasks[task_id] = task
+        return {"task": task}
+
+    def _marketplace_dispute(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        task_id = str(payload.get("task_id", ""))
+        task = dict(self.marketplace_tasks.get(task_id) or {})
+        if not task:
+            raise KeyError(f"Unknown task: {task_id}")
+        task["status"] = "disputed"
+        task["dispute_reason"] = str(payload.get("reason", ""))
+        self.marketplace_tasks[task_id] = task
+        return {"task": task}
+
     def _reputation_lookup(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         did = params["did"]
         reputation = self.reputations.get(did)
@@ -182,6 +222,37 @@ class LocalApiRouter:
             return {"verification": self._delegation(contract_id).as_record()}
         return {"verification": dict(self.latest_verification)}
 
+    def _flowlang_compile(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        source = str(payload.get("source", EXAMPLE_FLOWLANG))
+        return compile_flowlang(source).as_record()
+
+    def _flowlang_validate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        source = str(payload.get("source", EXAMPLE_FLOWLANG))
+        return {"errors": validate_flowlang(source)}
+
+    def _flowlang_run(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        source = str(payload.get("source", EXAMPLE_FLOWLANG))
+        prompt = str(payload.get("prompt", "Run the declared agent"))
+        result = compile_flowlang(source)
+        if not result.ok:
+            return result.as_record()
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.NamedTemporaryFile("w", suffix=".flow", delete=False, encoding="utf-8") as handle:
+            handle.write(source)
+            path = Path(handle.name)
+        try:
+            return run_flowlang_agent(path, prompt)
+        finally:
+            try:
+                path.unlink()
+            except OSError:
+                pass
+
+    def _flowlang_examples(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"examples": {"default": EXAMPLE_FLOWLANG}}
+
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -211,6 +282,10 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")
+    router.register("POST", "/marketplace/assign", router._marketplace_assign, "marketplace_assign")
+    router.register("POST", "/marketplace/submit", router._marketplace_submit, "marketplace_submit")
+    router.register("POST", "/marketplace/verify", router._marketplace_verify, "marketplace_verify")
+    router.register("POST", "/marketplace/dispute", router._marketplace_dispute, "marketplace_dispute")
     router.register("GET", "/reputation/{did}", router._reputation_lookup, "reputation_lookup")
     router.register("POST", "/attestations", router._attestation_create, "attestation_create")
     router.register("GET", "/audit", router._audit, "audit_log")
@@ -220,6 +295,10 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/verification/{contract_id}", router._verification_submit, "verification_submit")
     router.register("GET", "/verification/result", router._verification_result, "verification_result_alias")
     router.register("GET", "/verification/{contract_id}", router._verification_result, "verification_result")
+    router.register("POST", "/flowlang/compile", router._flowlang_compile, "flowlang_compile")
+    router.register("POST", "/flowlang/validate", router._flowlang_validate, "flowlang_validate")
+    router.register("POST", "/flowlang/run", router._flowlang_run, "flowlang_run")
+    router.register("GET", "/flowlang/examples", router._flowlang_examples, "flowlang_examples")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

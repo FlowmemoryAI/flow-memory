@@ -41,6 +41,11 @@ def parse_flowlang(source: str) -> AgentSpec:
     identity = ""
     beliefs: list[str] = []
     goals: list[str] = []
+    constraints: list[str] = []
+    capabilities: list[str] = []
+    allowed_tools: list[str] = []
+    autonomy_mode = "supervised"
+    risk_budget = 0.0
     memory_data: dict[str, Any] = {}
     economy_data: dict[str, Any] = {}
     policies: list[PolicySpec] = []
@@ -111,6 +116,16 @@ def parse_flowlang(source: str) -> AgentSpec:
             beliefs.append(str(_parse_value(value)))
         elif key == "goal":
             goals.append(str(_parse_value(value)))
+        elif key == "constraint":
+            constraints.append(str(_parse_value(value)))
+        elif key == "capability":
+            capabilities.append(str(_parse_value(value)))
+        elif key == "tool":
+            allowed_tools.append(str(_parse_value(value)))
+        elif key == "autonomy":
+            autonomy_mode = str(_parse_value(value))
+        elif key == "risk_budget":
+            risk_budget = float(_parse_value(value) or 0.0)
         else:
             raise FlowLangParseError(f"line {line_number}: unknown top-level directive {key!r}")
 
@@ -125,6 +140,13 @@ def parse_flowlang(source: str) -> AgentSpec:
         skills=tuple(skills),
         plans=tuple(plans),
         economy=_economy_from_data(economy_data),
+        metadata={
+            "constraints": tuple(constraints),
+            "capabilities": tuple(capabilities),
+            "allowed_tools": tuple(allowed_tools),
+            "autonomy_mode": autonomy_mode,
+            "risk_budget": risk_budget,
+        },
     )
 
 

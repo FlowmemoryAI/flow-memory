@@ -47,6 +47,14 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/verification/result", "verification_result_alias", "Get the latest verification result"),
     EndpointSpec("GET", "/verification/{contract_id}", "verification_result", "Get delegation verification status"),
     EndpointSpec("GET", "/manifest", "manifest", "List router endpoints"),
+    EndpointSpec("POST", "/flowlang/compile", "flowlang_compile", "Compile FlowLang source to FlowIR manifest", request_fields=("source",)),
+    EndpointSpec("POST", "/flowlang/validate", "flowlang_validate", "Validate FlowLang source", request_fields=("source",)),
+    EndpointSpec("POST", "/flowlang/run", "flowlang_run", "Run a FlowLang-declared agent", request_fields=("source", "prompt")),
+    EndpointSpec("GET", "/flowlang/examples", "flowlang_examples", "Return bundled FlowLang examples"),
+    EndpointSpec("POST", "/marketplace/assign", "marketplace_assign", "Assign a marketplace task"),
+    EndpointSpec("POST", "/marketplace/submit", "marketplace_submit", "Submit marketplace work"),
+    EndpointSpec("POST", "/marketplace/verify", "marketplace_verify", "Verify marketplace work"),
+    EndpointSpec("POST", "/marketplace/dispute", "marketplace_dispute", "Open marketplace dispute"),
 )
 
 

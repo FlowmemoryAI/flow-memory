@@ -1,0 +1,19 @@
+agent FlowSkillAgent
+identity did:flow:skill-001
+autonomy autonomous_local
+capability research
+tool respond
+goal Run a safe local skill.
+
+policy safe-skill:
+  permissions: [memory.read, audit.emit]
+  risk: low
+
+skill research-brief:
+  description: Produce a safe local research brief.
+  permissions: [memory.read, audit.emit]
+  risk: low
+
+plan safe-skill-plan:
+  steps: [research-brief]
+  risk: low

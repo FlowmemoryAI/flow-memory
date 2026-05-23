@@ -1,0 +1,41 @@
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - "docs/**"
+      - "dashboard/README.md"
+      - "dashboard/src/mock-data/runtime.json"
+      - ".github/workflows/docs.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - "docs/**"
+      - "dashboard/README.md"
+      - "dashboard/src/mock-data/runtime.json"
+      - ".github/workflows/docs.yml"
+
+jobs:
+  validate:
+    name: Validate docs and dashboard fixture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate dashboard fixture JSON
+        run: python -m json.tool dashboard/src/mock-data/runtime.json > /dev/null
+      - name: Verify dashboard scaffold disclosure
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          readme = Path("dashboard/README.md").read_text(encoding="utf-8").lower()
+          required = ["scaffold", "mock", "no live api", "not part of the python test suite"]
+          missing = [term for term in required if term not in readme]
+          if missing:
+              raise SystemExit(f"dashboard README missing disclosure terms: {missing}")
+          PY

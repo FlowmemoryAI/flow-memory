@@ -1,108 +1,84 @@
 # Flow Memory Architecture
 
-Flow Memory is a local-first cognitive agent operating system with an autonomous-agent-economy layer. The architecture is intentionally split into local implementations, functional prototypes, and explicit adapter seams so the project can evolve toward production without pretending that trained ML, hardened sandboxes, or mainnet systems already exist.
-
-## System spine
+Flow Memory is a production-shaped autonomous AI agent OS prototype. The central path is:
 
 ```text
-perceive -> predict -> remember -> reason -> act -> evaluate -> learn -> transact
+FlowLang -> FlowIR -> AgentProfile -> AgentRuntime -> cognitive loop -> memory -> skills/tools -> policy/safety -> economy -> swarm/delegation -> verification -> settlement -> reputation -> audit/event store
 ```
 
-The loop is implemented through `src/flow_memory/core/`, perception modules, memory modules, safety policies, action execution, and optional economy settlement. A CLI smoke path exercises the loop through `python -m flow_memory --json "Explore and report"`.
+## Core layers
 
-## Major subsystems
+| Layer | Path | Status |
+| --- | --- | --- |
+| FlowLang | `src/flow_memory/flowlang/` | v0 parser/prototype |
+| FlowIR | `src/flow_memory/ir/` | v0 dataclasses + manifest envelopes/adapters |
+| AI agents | `src/flow_memory/agents/` | Functional local prototype |
+| Runtime managers | `src/flow_memory/runtime/` | Local lifecycle/health/tick managers |
+| Memory | `src/flow_memory/memory/`, `src/flow_memory/storage/` | Local memory + SQLite persistence |
+| Skills/tools | `src/flow_memory/skills/`, `src/flow_memory/action/` | Local registry/executor + sandbox interfaces |
+| Safety/policy | `src/flow_memory/safety/`, `rules/` | Local policy gates + Datalog starter rules |
+| Economy V3 | `src/flow_memory/economy/economy_v3.py` | Local emulator with receipts/risk controls |
+| Swarm/protocols | `src/flow_memory/swarm/`, `src/flow_memory/protocols/` | Local prototype and network adapter seams |
+| API | `src/flow_memory/api/` | Internal router, optional server seam, OpenAPI generation |
+| Crypto | `src/flow_memory/crypto/` | Local HMAC signing/provenance prototype |
+| Web3 | `src/flow_memory/web3/`, `scripts/base_sepolia_dry_run.py` | Base Sepolia/ERC-4337 dry-run seams |
+| Dashboard | `dashboard/` | Mock-data scaffold |
 
-| Subsystem | Primary paths | Status | Responsibility |
-| --- | --- | --- | --- |
-| Core cognitive loop | `src/flow_memory/core/` | Functional prototype | Typed cycle objects, plan execution, evaluation, learning, optional settlement. |
-| Perception | `src/flow_memory/perception/` | Functional prototype | Ventral semantic/entity stream, dorsal motion/geometry stream, foveation, appearance-invariant toy constraints. |
-| World model | `src/flow_memory/world_model/`, `src/flow_memory/perception/world_model.py` | Adapter seam + proxy | Deterministic latent prediction/free-energy proxy and V-JEPA-compatible seam. |
-| Layered memory | `src/flow_memory/memory/` | Implemented local prototype | Working, episodic, semantic, procedural, economic memory and constitutional graph. |
-| Safety | `src/flow_memory/safety/`, `src/flow_memory/action/sandbox.py` | Functional prototype | Policy gating, approval decisions, hash-chained audit, subprocess sandbox, rate limits, circuit breaker. |
-| Runtime managers | `src/flow_memory/runtime/` | Implemented local runtime | Manager lifecycle, health, event handling, orchestrator coordination. |
-| Skills | `src/flow_memory/skills/` | Implemented local runtime | Skill manifests, registry, scheduler, runner, quality evaluation, repair planning, built-ins. |
-| Economy V2 | `src/flow_memory/economy/` | Implemented local emulator | DID, mock wallet, marketplace, escrow, settlement, disputes, slashing, attestations, treasury, reputation. |
-| Swarm | `src/flow_memory/swarm/` | Implemented local prototype | Agent cards, discovery, delegation, coalition formation, verification, local bus. |
-| API | `src/flow_memory/api/` | Implemented local router | Endpoint manifest and dependency-light request router; optional FastAPI app seam. |
-| Contracts | `contracts/`, `test/` | Expanded prototype | Agent-economy Solidity contracts with Foundry tests; unaudited. |
-| Adapters | `src/flow_memory/adapters/`, `src/flow_memory/memory/adapters/`, `src/flow_memory/blockchain/`, `src/flow_memory/protocols/` | Adapter seams | Redis, Qdrant, Neo4j, Web3, libp2p, MCP/A2A, model adapters. |
+## AI agent layer
 
-## Cognitive loop walkthrough
+`AgentProfile` defines identity, goals, constraints, capabilities, allowed tools/skills, memory/economy config, autonomy mode, risk budget, reputation, and metadata.
 
-1. **Perceive**: `src/flow_memory/perception/ventral_stream.py` extracts entity/semantic signals. `src/flow_memory/perception/dorsal_stream.py` extracts motion/geometry affordances and tracks invariance constraints such as temporal consistency, optical-flow invariance, depth consistency, egomotion compensation, and appearance suppression.
-2. **Predict**: `src/flow_memory/world_model/predictive.py` creates a deterministic latent forecast and surprise/free-energy proxy. Heavy ML is an adapter seam, not bundled behavior.
-3. **Remember**: `src/flow_memory/memory/system.py` coordinates layered memory. `src/flow_memory/memory/constitutional_graph.py` adds typed domains for identity, goals, constraints, strategy, tasks, observations, outcomes, and reputation.
-4. **Reason**: `src/flow_memory/reasoning/planner.py` and core loop planning create safe local plan steps.
-5. **Act**: `src/flow_memory/action/executor.py` routes actions through policy checks and tool/sandbox execution.
-6. **Evaluate**: `src/flow_memory/evaluation/evaluator.py` scores cycle outcomes and surprise.
-7. **Learn**: `src/flow_memory/learning/learner.py` records local learning events.
-8. **Transact**: `src/flow_memory/economy/economy_v2.py` can optionally run marketplace settlement, escrow release, reputation update, dispute, and slashing flows.
+`AgentState` tracks lifecycle, current goal/plan/task graph, memory snapshot, events, approvals, marketplace tasks, delegations, health, evaluation, and errors.
 
-## Runtime manager layer
+`AgentRunner` executes:
 
-`src/flow_memory/runtime/manager.py` defines the lifecycle contract: `start()`, `stop()`, `status()`, `health()`, `tick()`, and `handle_event()`. Specialized managers wrap that contract:
+1. Resolve input into goal.
+2. Load memory context.
+3. Generate typed plan.
+4. Build task graph.
+5. Check autonomy/policy.
+6. Require approval when needed.
+7. Execute skill/tool steps.
+8. Optionally run Economy V3 settlement.
+9. Evaluate output.
+10. Reflect and recommend repair/consolidation.
+11. Write memory and audit events.
 
-- `AgentRuntimeManager`
-- `SkillRuntimeManager`
-- `MemoryRuntimeManager`
-- `EconomyRuntimeManager`
-- `PolicyRuntimeManager`
-- `MarketplaceRuntimeManager`
-- `SwarmRuntimeManager`
-- `VerificationRuntimeManager`
+## FlowLang integration
 
-`RuntimeOrchestrator` coordinates managers and emits health summaries. Runtime events are local and auditable; no network services are required.
+FlowLang source compiles to `AgentSpec`; adapters map `AgentSpec` to `AgentProfile`, skills to `SkillManifest`, policies to policy config, memory/economy to config mappings, and plans to runtime plans/task graphs.
 
-## Skill system
-
-`src/flow_memory/skills/manifest.py` defines `SkillManifest` with input/output schemas, permissions, schedule, economic value, required capabilities, and risk level. `SkillRegistry`, `SkillScheduler`, `SkillRunner`, `SkillEvaluator`, provenance records, and repair planning support local skill execution. Unsafe or economic skills are surfaced for approval rather than silently executed.
-
-## Economy V2
-
-`src/flow_memory/economy/economy_v2.py` implements a local task lifecycle:
+CLI support:
 
 ```text
-create task -> bid -> assign -> escrow -> submit work -> verify -> settle -> reputation update -> audit
+python -m flow_memory --flow examples/flowlang_agent.flow --json "Run the declared agent"
 ```
 
-It also implements failure handling:
+API support:
 
-```text
-bad work -> dispute -> slash -> audit
-```
+- `POST /flowlang/compile`
+- `POST /flowlang/validate`
+- `POST /flowlang/run`
+- `GET /flowlang/examples`
 
-`escrow.py`, `dispute.py`, `attestations.py`, `slashing.py`, `settlement.py`, `treasury.py`, `pricing.py`, and `incentives.py` are local/offline primitives. No live funds or real signing keys are required.
+## Economy V3
 
-## API architecture
+Economy V3 is local/testnet-ready architecture. It supports success and failure lifecycles, typed receipts, risk controls, verifier selection, non-transferable reputation, audit receipts, and memory outcome records. It does not move real funds.
 
-`src/flow_memory/api/manifest.py` is the source of truth for endpoint groups. `src/flow_memory/api/router.py` implements in-process handlers so tests can verify behavior without launching a server. Endpoint groups cover health, runtime, agents, memory, skills, marketplace, reputation, attestations, audit, swarm, delegation, and verification. `src/flow_memory/api/app.py` exposes an optional FastAPI seam if FastAPI is installed.
+## Persistence
 
-## Memory governance
+SQLite is the default durable local store. It persists agents, agent state, goals, plans, task graphs, runtime events, audit events, skills, marketplace tasks, bids, escrows, settlements, disputes, slashing events, reputation updates, and memory records.
 
-`src/flow_memory/memory/memory_policy.py` gates writes to constitutional graph domains. `src/flow_memory/memory/adapters/local_adapter.py` is the default working persistence seam. Redis, Qdrant, and Neo4j adapters fail clearly when optional dependencies or services are unavailable.
+## Signing/provenance
 
-## Self-improvement
+Local development signing uses HMAC-SHA256 over canonical JSON. It supports manifest, receipt, DID payload, skill manifest, agent profile, and provenance hash-chain tests. Production should replace this with asymmetric DID/account signing.
 
-`src/flow_memory/self_improvement/` tracks health degradation flags, scores outputs, detects repeated failures, generates repair plans, records diagnostics, and logs proposed changes. It does not automatically modify code without safety policy and approval.
+## Boundaries and limitations
 
-## Contracts
-
-The Solidity suite includes agent registry, task marketplace, escrow, reputation, attestation registry, delegation registry, dispute resolver, slashing registry, capability registry, and treasury prototypes. Foundry tests pass locally, but contracts are unaudited and not production-ready.
-
-## Dependency direction
-
-- Core loop may use perception, memory, safety, action, evaluation, learning, and economy.
-- Runtime managers coordinate subsystems but do not own their internal persistence.
-- Skills may call memory/economy/safety through typed interfaces.
-- API handlers call runtime/economy/swarm primitives in-process.
-- Contracts are a parallel on-chain prototype and must not be treated as live deployment state.
-
-## Adapter seams that remain intentional
-
-- V-JEPA/VideoMAE/PyTorch model checkpoints.
-- Redis/Qdrant/Neo4j production services.
-- OPA external enforcement service.
-- Web3/Base/ERC-4337 account abstraction.
-- libp2p networking.
-- MCP/A2A gateways beyond local manifests/adapters.
-- Hardened sandbox isolation.
+- FlowLang is not production-stable.
+- Rust preflight validator is minimal; full hardened Rust runtime remains future work.
+- WIT ABI exists, but no Wasm host is implemented yet.
+- Sandbox profiles are not hardened isolation.
+- Base Sepolia and ERC-4337 adapters are dry-run seams.
+- Protocol gateways do not open network transports by default.
+- Contracts are unaudited.

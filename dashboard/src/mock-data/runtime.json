@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-05-23T00:00:00Z",
+  "source": "mock-data-only",
+  "environment": {
+    "name": "local-scaffold",
+    "network": "none",
+    "liveApiEnabled": false,
+    "mainnetEnabled": false
+  },
+  "runtime": {
+    "status": "scaffold",
+    "uptimeSeconds": 0,
+    "activeAgents": 3,
+    "queuedTasks": 4,
+    "completedTasks24h": 12,
+    "failedTasks24h": 1
+  },
+  "agents": [
+    {
+      "id": "agent-alpha",
+      "displayName": "Alpha Memory Curator",
+      "role": "memory-curation",
+      "status": "idle",
+      "reputationScore": 82,
+      "stakedTokens": "1000.0000"
+    },
+    {
+      "id": "agent-beta",
+      "displayName": "Beta Skill Runner",
+      "role": "skill-execution",
+      "status": "running",
+      "reputationScore": 76,
+      "stakedTokens": "750.0000"
+    },
+    {
+      "id": "agent-gamma",
+      "displayName": "Gamma Verifier",
+      "role": "verification",
+      "status": "reviewing",
+      "reputationScore": 91,
+      "stakedTokens": "1250.0000"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task-001",
+      "title": "Consolidate episodic memory shard",
+      "state": "queued",
+      "rewardTokens": "25.0000",
+      "assignedAgentId": null
+    },
+    {
+      "id": "task-002",
+      "title": "Run WASM skill compatibility check",
+      "state": "in_progress",
+      "rewardTokens": "40.0000",
+      "assignedAgentId": "agent-beta"
+    },
+    {
+      "id": "task-003",
+      "title": "Review marketplace attestation",
+      "state": "review",
+      "rewardTokens": "15.0000",
+      "assignedAgentId": "agent-gamma"
+    }
+  ],
+  "treasury": {
+    "currency": "FLOW-MOCK",
+    "availableBalance": "100000.0000",
+    "escrowedBalance": "2500.0000",
+    "slashedBalance24h": "0.0000"
+  },
+  "contracts": {
+    "deploymentStatus": "not-deployed",
+    "audited": false,
+    "network": "none",
+    "addresses": {}
+  },
+  "notes": [
+    "Static fixture for dashboard scaffolding only.",
+    "Not production telemetry.",
+    "Not mainnet contract data."
+  ]
+}

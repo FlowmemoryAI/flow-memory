@@ -10,6 +10,7 @@ from typing import Any
 
 from flow_memory import Agent
 from flow_memory.protocols import CapabilityManifest
+from flow_memory.flowlang import run_flowlang_agent
 
 
 def _json_default(value: Any) -> str:
@@ -29,6 +30,15 @@ def _run(prompt_parts: list[str], name: str, json_output: bool) -> int:
         print(cycle.final_output)
     return 0
 
+
+def _run_flow(flow_path: str, prompt_parts: list[str], json_output: bool) -> int:
+    prompt = " ".join(prompt_parts)
+    result = run_flowlang_agent(flow_path, prompt)
+    if json_output:
+        print(json.dumps(result, indent=2, default=_json_default))
+    else:
+        print(result.get("output", {}).get("execution", {}).get("output", result))
+    return 0
 
 def _manifest(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory manifest")
@@ -57,8 +67,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory", description="Run a local Flow Memory agent")
     parser.add_argument("prompt", nargs="+", help="Observation/goal for the agent")
     parser.add_argument("--name", default="alpha", help="Agent name")
+    parser.add_argument("--flow", default="", help="FlowLang .flow file to compile and run")
     parser.add_argument("--json", action="store_true", help="Print full cognitive-cycle trace as JSON")
     args = parser.parse_args(argv)
+    if args.flow:
+        return _run_flow(args.flow, args.prompt, args.json)
     return _run(args.prompt, args.name, args.json)
 
 

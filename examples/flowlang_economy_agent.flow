@@ -1,0 +1,36 @@
+agent FlowEconomist
+identity did:flow:economist-001
+autonomy autonomous_economic
+risk_budget 3
+capability marketplace
+tool respond
+constraint Keep settlement local unless explicitly configured.
+goal Settle verified marketplace work.
+
+memory:
+  working_capacity: 7
+  episodic: true
+  semantic: true
+  economic: true
+
+policy economic-approval:
+  permissions: [marketplace.settle]
+  risk: high
+  requires_approval: true
+
+skill economic-task:
+  description: Complete local marketplace settlement.
+  permissions: [marketplace.settle]
+  risk: high
+
+plan settle-local:
+  goal: Settle verified marketplace work.
+  steps: [economic-task]
+  risk: high
+
+economy:
+  settlement: local
+  budget: 3
+  currency: FLOW
+  marketplace: local
+  allow_slashing: true

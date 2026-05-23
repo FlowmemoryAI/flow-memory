@@ -1,0 +1,111 @@
+name: release-dry-run
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version or tag to dry-run; does not publish or deploy"
+        required: false
+        default: "dry-run"
+      dry_run:
+        description: "Must remain true; this workflow has no publish or deploy path"
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+  pull_request:
+    paths:
+      - ".github/workflows/release-dry-run.yml"
+      - "pyproject.toml"
+      - "contracts/**"
+      - "script/**"
+      - "docs/THREAT_MODEL.md"
+      - "docs/PRODUCTION_READINESS.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-dry-run.yml"
+      - "pyproject.toml"
+      - "contracts/**"
+      - "script/**"
+      - "docs/THREAT_MODEL.md"
+      - "docs/PRODUCTION_READINESS.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-dry-run-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dry-run:
+    name: Dry-run release checks only
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELEASE_DRY_RUN: "true"
+      REQUESTED_VERSION: ${{ inputs.version || 'dry-run' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Refuse non-dry-run invocation
+        shell: bash
+        run: |
+          if [ "${{ inputs.dry_run || 'true' }}" != "true" ]; then
+            echo "This workflow is dry-run only and cannot deploy or publish."
+            exit 1
+          fi
+
+      - name: Confirm production guardrails are documented
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          required_phrases = [
+              "Contracts are unaudited",
+              "sandbox is not hardened",
+              "Real funds and mainnet deployment are not enabled by default",
+          ]
+          docs = [
+              Path("docs/THREAT_MODEL.md"),
+              Path("docs/PRODUCTION_READINESS.md"),
+          ]
+          for path in docs:
+              text = path.read_text(encoding="utf-8")
+              missing = [phrase for phrase in required_phrases if phrase not in text]
+              if missing:
+                  raise SystemExit(f"{path} is missing required guardrail text: {missing}")
+          PY
+
+      - name: Build Python distribution artifacts locally
+        shell: bash
+        run: |
+          python -m pip install --upgrade build
+          python -m build --sdist --wheel --outdir dist
+
+      - name: Inspect release artifacts without publishing
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          artifacts = sorted(path.name for path in Path("dist").iterdir() if path.is_file())
+          if not artifacts:
+              raise SystemExit("No dry-run artifacts were produced")
+          print("Dry-run artifacts:")
+          for artifact in artifacts:
+              print(f"- {artifact}")
+          print("No deploy or publish step is present in this workflow.")
+          PY
+
+      - name: Upload dry-run artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-memory-release-dry-run-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

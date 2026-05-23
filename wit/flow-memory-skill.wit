@@ -1,0 +1,59 @@
+package flow-memory:skill;
+
+/// Flow Memory skill ABI for sandboxed WebAssembly Component Model skills.
+interface skill-api {
+  enum risk-level {
+    low,
+    medium,
+    high,
+    critical,
+  }
+
+  record skill-metadata {
+    id: string,
+    name: string,
+    description: string,
+    permissions: list<string>,
+    risk: risk-level,
+    input-schema-json: string,
+    output-schema-json: string,
+  }
+
+  record skill-input {
+    payload-json: string,
+    memory-context-json: string,
+    trace-id: string,
+  }
+
+  record audit-event {
+    kind: string,
+    payload-json: string,
+    trace-id: string,
+  }
+
+  record skill-output {
+    payload-json: string,
+    audit-events: list<audit-event>,
+  }
+
+  record policy-approval-request {
+    permission: string,
+    risk: risk-level,
+    reason: string,
+    trace-id: string,
+  }
+
+  record policy-approval-decision {
+    approved: bool,
+    reason: string,
+  }
+
+  metadata: func() -> skill-metadata;
+  run: func(input: skill-input) -> result<skill-output, string>;
+  request-approval: func(request: policy-approval-request) -> policy-approval-decision;
+  emit-audit: func(event: audit-event) -> result<_, string>;
+}
+
+world flow-memory-skill {
+  export skill-api;
+}

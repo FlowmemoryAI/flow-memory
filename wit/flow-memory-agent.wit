@@ -1,0 +1,53 @@
+package flow-memory:agent;
+
+/// Flow Memory agent ABI for language-neutral cognitive runtimes.
+interface agent-api {
+  enum cycle-status {
+    accepted,
+    blocked,
+    failed,
+  }
+
+  record agent-manifest {
+    name: string,
+    identity: string,
+    capabilities: list<string>,
+    flowir-json: string,
+  }
+
+  record observation {
+    modality: string,
+    content-json: string,
+    source: string,
+    trace-id: string,
+  }
+
+  record plan-step {
+    skill-id: string,
+    input-json: string,
+    permission: string,
+  }
+
+  record cycle-result {
+    status: cycle-status,
+    output-json: string,
+    audit-root: string,
+    trace-id: string,
+  }
+
+  record policy-approval-request {
+    permission: string,
+    risk: string,
+    reason: string,
+    trace-id: string,
+  }
+
+  manifest: func() -> agent-manifest;
+  propose-plan: func(observation: observation) -> result<list<plan-step>, string>;
+  run-cycle: func(observation: observation) -> result<cycle-result, string>;
+  request-policy-approval: func(request: policy-approval-request) -> result<bool, string>;
+}
+
+world flow-memory-agent {
+  export agent-api;
+}

@@ -1,0 +1,28 @@
+// Memory consolidation rules: prioritize relevant, recent, repeated observations.
+
+.decl memory_record(record: symbol, domain: symbol, relevance: number, age_hours: number)
+.decl repeated_observation(record: symbol, count: number)
+.decl consolidate(record: symbol, target_domain: symbol, reason: symbol)
+.decl forget_candidate(record: symbol, reason: symbol)
+.output consolidate
+.output forget_candidate
+
+consolidate(record, "semantic", "high_relevance_recent") :-
+  memory_record(record, "episodic", relevance, age_hours),
+  relevance >= 0.80,
+  age_hours <= 72.
+
+consolidate(record, "semantic", "repeated_observation") :-
+  repeated_observation(record, count),
+  count >= 3.
+
+consolidate(record, "procedural", "successful_skill_trace") :-
+  memory_record(record, "episodic", relevance, _),
+  relevance >= 0.70,
+  repeated_observation(record, count),
+  count >= 2.
+
+forget_candidate(record, "low_relevance_stale") :-
+  memory_record(record, "episodic", relevance, age_hours),
+  relevance < 0.20,
+  age_hours > 720.

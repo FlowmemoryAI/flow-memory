@@ -1,0 +1,15 @@
+// Slashing rules: confirmed bad work creates a slash event and dispute outcome.
+
+.decl dispute(task: symbol, accused: symbol, status: symbol, finding: symbol)
+.decl slash_event(agent: symbol, task: symbol, severity: symbol, reason: symbol)
+.decl escrow_refund(task: symbol, requester: symbol)
+.decl task_requester(task: symbol, requester: symbol)
+.output slash_event
+.output escrow_refund
+
+slash_event(accused, task, "major", "confirmed_bad_work") :-
+  dispute(task, accused, "resolved", "bad_work_confirmed").
+
+escrow_refund(task, requester) :-
+  dispute(task, _, "resolved", "bad_work_confirmed"),
+  task_requester(task, requester).

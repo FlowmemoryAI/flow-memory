@@ -1,0 +1,41 @@
+// Flow Memory starter policy rules (Souffle/Datalog-style).
+// Unsafe actions require explicit approval before execution.
+
+.decl action(agent: symbol, action_id: symbol, permission: symbol, risk: symbol)
+.decl policy(agent: symbol, permission: symbol, requires_approval: symbol)
+.decl unsafe_permission(permission: symbol)
+.decl approval_required(agent: symbol, action_id: symbol, permission: symbol)
+.decl allowed_without_approval(agent: symbol, action_id: symbol)
+.output approval_required
+.output allowed_without_approval
+
+unsafe_permission("wallet.sign").
+unsafe_permission("marketplace.settle").
+unsafe_permission("marketplace.bid").
+unsafe_permission("memory.write").
+unsafe_permission("tool.exec").
+unsafe_permission("shell.run").
+unsafe_permission("contracts.call").
+
+approval_required(agent, action_id, permission) :-
+  action(agent, action_id, permission, _),
+  unsafe_permission(permission).
+
+approval_required(agent, action_id, permission) :-
+  action(agent, action_id, permission, risk),
+  risk = "high".
+
+approval_required(agent, action_id, permission) :-
+  action(agent, action_id, permission, risk),
+  risk = "critical".
+
+allowed_without_approval(agent, action_id) :-
+  action(agent, action_id, permission, risk),
+  !unsafe_permission(permission),
+  risk = "low".
+
+allowed_without_approval(agent, action_id) :-
+  action(agent, action_id, permission, risk),
+  !unsafe_permission(permission),
+  risk = "medium",
+  policy(agent, permission, "false").

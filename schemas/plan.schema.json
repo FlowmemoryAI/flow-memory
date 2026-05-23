@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowmemory.dev/schemas/plan.schema.json",
+  "title": "Flow Memory Plan",
+  "type": "object",
+  "required": [
+    "goal",
+    "steps"
+  ],
+  "properties": {
+    "goal": {
+      "type": "string"
+    },
+    "plan_id": {
+      "type": "string"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "action",
+          "required_permission"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "args": {
+            "type": "object"
+          },
+          "required_permission": {
+            "type": "string"
+          },
+          "approval_required": {
+            "type": "boolean"
+          },
+          "economic_value": {
+            "type": "number",
+            "minimum": 0
+          },
+          "step_id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}

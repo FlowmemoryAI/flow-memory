@@ -1,0 +1,12 @@
+name: alpha
+capabilities:
+  - perception
+  - memory
+  - reasoning
+runtime:
+  allow_network_tools: false
+  allow_code_execution: false
+  max_working_memory_items: 7
+safety:
+  default_policy: deny_high_risk_without_human
+  audit_log: .flow_memory/audit.jsonl

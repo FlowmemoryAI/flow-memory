@@ -11,6 +11,7 @@ from flow_memory.api.snapshot import api_snapshot
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.release.gates import run_release_gates
 from flow_memory.release.manifest import build_release_manifest
+from flow_memory.release.dependencies import build_dependency_inventory
 from flow_memory.storage.migrations import migration_plan
 from flow_memory.web3.deployment_plan import generate_deployment_plan
 
@@ -36,6 +37,7 @@ def build_evidence_documents(root: str | Path = ".") -> Mapping[str, Mapping[str
         "api_snapshot.json": dict(api_snapshot()),
         "storage_schema.json": migration_plan().as_record(),
         "base_deployment_plan.json": dict(generate_deployment_plan()),
+        "dependency_inventory.json": build_dependency_inventory(root_path).as_record(),
     }
 
 

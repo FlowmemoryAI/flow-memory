@@ -17,6 +17,7 @@ class ReleaseEvidenceTests(unittest.TestCase):
 
             self.assertEqual(bundle.index["bundle_hash"], verified.index["bundle_hash"])
             self.assertIn("release_manifest.json", bundle.index["files"])
+            self.assertIn("dependency_inventory.json", bundle.index["files"])
 
     def test_verify_release_evidence_detects_tamper(self) -> None:
         root = Path(__file__).resolve().parents[1]

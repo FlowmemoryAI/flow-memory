@@ -72,6 +72,7 @@ Before public release:
 - [ ] `python scripts/export_release_evidence.py --root . --out release-evidence` is attached to the release record.
 - [ ] `python scripts/release_decision.py --root . --target local` returns a local release candidate decision.
 - [ ] `python scripts/export_dependency_inventory.py --root . --out dependency-inventory.json` is attached to the release record.
+- [ ] `python scripts/export_dependency_inventory.py --root . --policy` passes.
 
 ## Observability and operations
 
@@ -103,8 +104,8 @@ Each release candidate should attach or link:
 - Sandbox hardening status, if tools/browser/shell execution are in scope.
 - Deployment manifest for any non-local contract environment.
 - Known limitations, including whether funds, mainnet, untrusted execution, or production data are intentionally disabled.
-- Release-gate JSON from `scripts/release_gate.py`, including API snapshot, audit replay, Base dry-run, and secret-scan status.
+- Release-gate JSON from `scripts/release_gate.py`, including API snapshot, audit replay, Base dry-run, storage schema, dependency policy, and secret-scan status.
 - Release manifest JSON from `scripts/generate_release_manifest.py`, including commit, branch, API snapshot, storage schema, Base dry-run plan, and release-gate status.
 - Release evidence bundle from `scripts/export_release_evidence.py`, including `index.json`, release manifest, release gates, API snapshot, storage schema, Base deployment dry-run, and dependency inventory.
 - Release decision JSON from `scripts/release_decision.py`, with explicit target, classification, blockers, and required evidence including dependency inventory.
-- Dependency inventory JSON from `scripts/export_dependency_inventory.py`, covering Python optional extras, dashboard package metadata, and Rust helper crate metadata.
+- Dependency inventory JSON and policy report from `scripts/export_dependency_inventory.py`, covering Python optional extras, dashboard package metadata, Rust helper crate metadata, and disallowed dependency-source checks.

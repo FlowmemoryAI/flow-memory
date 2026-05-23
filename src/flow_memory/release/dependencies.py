@@ -20,6 +20,22 @@ class DependencyInventory:
         return {"root": self.root, "manifests": dict(self.manifests), "inventory_hash": self.inventory_hash}
 
 
+@dataclass(frozen=True)
+class DependencyPolicyReport:
+    ok: bool
+    inventory_hash: str
+    errors: tuple[str, ...]
+    warnings: tuple[str, ...] = ()
+
+    def as_record(self) -> Mapping[str, Any]:
+        return {
+            "ok": self.ok,
+            "inventory_hash": self.inventory_hash,
+            "errors": self.errors,
+            "warnings": self.warnings,
+        }
+
+
 def build_dependency_inventory(root: str | Path = ".") -> DependencyInventory:
     root_path = Path(root).resolve()
     manifests: dict[str, Any] = {}
@@ -42,6 +58,71 @@ def write_dependency_inventory(root: str | Path, output: str | Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(build_dependency_inventory(root).as_record(), indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     return path
+
+
+def validate_dependency_policy(root: str | Path = ".") -> DependencyPolicyReport:
+    inventory = build_dependency_inventory(root)
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    for required in ("python", "dashboard", "rust"):
+        if required not in inventory.manifests:
+            errors.append(f"missing dependency manifest: {required}")
+
+    python_manifest = inventory.manifests.get("python", {})
+    if python_manifest.get("dependencies"):
+        errors.append("pyproject base dependencies must remain empty for the offline default install")
+    for group, specs in dict(python_manifest.get("optional_dependencies", {})).items():
+        for spec in tuple(specs):
+            _validate_python_spec(str(group), str(spec), errors)
+
+    dashboard_manifest = inventory.manifests.get("dashboard", {})
+    if dashboard_manifest and not dashboard_manifest.get("private", False):
+        errors.append("dashboard package must stay private until an explicit package-publishing release")
+    for section in ("dependencies", "dev_dependencies"):
+        for name, version in dict(dashboard_manifest.get(section, {})).items():
+            _validate_dashboard_spec(str(name), str(version), errors)
+
+    rust_manifest = inventory.manifests.get("rust", {})
+    if rust_manifest.get("dependencies"):
+        warnings.append("rust helper crate has dependencies; verify Cargo.lock and cargo audit before release")
+
+    return DependencyPolicyReport(
+        ok=not errors,
+        inventory_hash=inventory.inventory_hash,
+        errors=tuple(errors),
+        warnings=tuple(warnings),
+    )
+
+
+_VERSION_MARKERS = (">=", "==", "~=", "<=", ">", "<")
+
+
+def _validate_python_spec(group: str, spec: str, errors: list[str]) -> None:
+    normalized = spec.strip()
+    lowered = normalized.lower()
+    if not normalized:
+        errors.append(f"empty dependency spec in optional group {group}")
+        return
+    if " @ " in normalized or lowered.startswith(("git+", "http://", "https://", "file:")):
+        errors.append(
+            f"non-registry dependency is not allowed in optional group {group}: {normalized}"
+        )
+    if not any(marker in normalized for marker in _VERSION_MARKERS):
+        errors.append(
+            f"dependency must declare an explicit version constraint in optional group {group}: {normalized}"
+        )
+
+
+def _validate_dashboard_spec(name: str, version: str, errors: list[str]) -> None:
+    normalized = version.strip().lower()
+    if not normalized:
+        errors.append(f"dashboard dependency {name} has an empty version")
+        return
+    if normalized in {"*", "latest"}:
+        errors.append(f"dashboard dependency {name} must not use {version!r}")
+    if normalized.startswith(("git+", "http://", "https://", "file:")):
+        errors.append(f"dashboard dependency {name} must not use non-registry source {version!r}")
 
 
 def _parse_pyproject(path: Path) -> Mapping[str, Any]:

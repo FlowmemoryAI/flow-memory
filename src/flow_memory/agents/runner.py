@@ -14,6 +14,7 @@ from flow_memory.agents.policy_binding import AgentPolicyBinding
 from flow_memory.agents.profile import AgentProfile
 from flow_memory.agents.reflection import AgentReflector
 from flow_memory.agents.state import AgentState
+from flow_memory.agents.swarm_binding import AgentSwarmBinding
 from flow_memory.agents.task_graph import graph_from_steps
 
 
@@ -48,12 +49,14 @@ class AgentRunner:
     economy: AgentEconomyBinding = field(default_factory=AgentEconomyBinding)
     evaluator: AgentEvaluator = field(default_factory=AgentEvaluator)
     reflector: AgentReflector = field(default_factory=AgentReflector)
+    swarm: AgentSwarmBinding = field(default_factory=AgentSwarmBinding)
 
     def run_cycle(self, user_input: str) -> AgentRunResult:
         self.state.lifecycle_status = "running"
         goal = user_input or (self.profile.goals[0] if self.profile.goals else "Explore and report")
         self.state.current_goal = goal
         context = self.memory.load_context(goal)
+        discovered_agents = self.swarm.discover(self.profile.capabilities[0]) if self.profile.capabilities else ()
         plan = self.cognition.plan(self.profile, goal)
         graph = graph_from_steps(tuple(step.action for step in plan.steps))
         self.state.current_plan = plan.as_record()
@@ -76,7 +79,7 @@ class AgentRunner:
             audit_events.append({"event": "agent_cycle_blocked", "reason": decision.reason})
             return AgentRunResult(False, True, {"evaluation": evaluation.as_record(), "reflection": reflection.as_record(), **output}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
 
-        payload = {"goal": goal, "context": tuple(context), "agent_id": self.profile.agent_id}
+        payload = {"goal": goal, "context": tuple(context), "agent_id": self.profile.agent_id, "discovered_agents": discovered_agents}
         execution = self.executor.execute(plan, payload)
         settlement = self.economy.maybe_settle(self.profile.identity or self.profile.agent_id, self.profile.identity or self.profile.agent_id, goal, plan.economic_value) if plan.economic_intent else None
         evaluation = self.evaluator.evaluate(execution, expected=plan.success_criteria)

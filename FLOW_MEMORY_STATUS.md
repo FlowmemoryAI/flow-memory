@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `184 passed` |
+| `python -m pytest -q` | Pass: `190 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -38,7 +38,9 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | SQLite durable storage | Implemented local persistence |
 | Signed manifests/receipts | Local development HMAC prototype |
 | Provenance hash chain | Implemented local prototype |
+| Audit replay hash-chain verification | Implemented local tamper-evidence prototype |
 | OpenAPI generation | Implemented local manifest-driven output |
+| API snapshot validation | Implemented and committed as `docs/API_SNAPSHOT.json` |
 | Base Sepolia dry run | Implemented no-key/no-funds plan generator |
 | ERC-4337 adapter | Interface seam tested locally |
 | Sandbox profiles/receipts | Implemented interface; not hardened isolation |
@@ -64,7 +66,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 1. Replace HMAC dev signing with asymmetric DID/account signing.
 2. Add Rust FlowIR validator and Wasm host.
 3. Wire Datalog inference into policy decisions.
-4. Add durable audit replay CLI.
+4. Add signed audit checkpoints and an audit replay CLI around the new replay verifier.
 5. Add contract threat model review and external audit preparation.
 6. Add Base Sepolia dry-run to CI artifacts.
 7. Add FastAPI integration tests behind optional dependency flag.

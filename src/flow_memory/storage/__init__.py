@@ -9,6 +9,7 @@ from flow_memory.storage.memory_store import MemoryStore
 from flow_memory.storage.reputation_store import ReputationStore
 from flow_memory.storage.skill_store import SkillStore
 from flow_memory.storage.sqlite_store import SQLiteStore
+from flow_memory.storage.replay import ReplayRecord, ReplayResult, replay_events, verify_chained_events
 
 __all__ = [
     "AgentStore",
@@ -20,4 +21,8 @@ __all__ = [
     "SQLiteStore",
     "SkillStore",
     "export_jsonl",
+    "ReplayRecord",
+    "ReplayResult",
+    "replay_events",
+    "verify_chained_events",
 ]

@@ -14,10 +14,18 @@ Define the boundary between Flow Memory's in-process API manifest/router and any
 - Local handlers should use deterministic state, explicit inputs, and no hidden network calls.
 - Value-bearing or externally visible operations must remain behind policy, approval, audit, and adapter boundaries.
 
+## Auth seam
+
+- `src/flow_memory/api/auth.py` supports local API-key checks and an explicit signed-request decision helper.
+- Header matching is case-insensitive for `x-flow-memory-api-key`.
+- Signed requests use the local development signing seam and verify method, path, and payload binding.
+- This is test coverage for the API boundary contract, not production authentication, replay protection, tenant isolation, or key custody.
+
+
 ## Limitations
 
 - Not production-authenticated or internet-facing.
-- No complete authorization model, session handling, replay protection, tenant isolation, request signing, rate-limit enforcement at the HTTP edge, or production observability.
+- API-key and signed-request helpers are local seams only; there is no production authorization model, session handling, replay protection, tenant isolation, rate-limit enforcement at the HTTP edge, or production observability.
 - Optional FastAPI support is an application seam, not a deployment architecture.
 - Endpoint presence does not imply that downstream blockchain, MCP/A2A, libp2p, Redis, Qdrant, Neo4j, or OPA integrations are implemented.
 

@@ -6,6 +6,7 @@ import secrets
 from dataclasses import dataclass, field
 from typing import Mapping
 
+from flow_memory.crypto.asymmetric import DEV_HMAC_ALGORITHM
 
 @dataclass(frozen=True)
 class LocalKeyPair:
@@ -16,7 +17,7 @@ class LocalKeyPair:
         return self.key_id
 
     def as_public_record(self) -> Mapping[str, str]:
-        return {"key_id": self.key_id, "algorithm": "hmac-sha256-dev"}
+        return {"key_id": self.key_id, "algorithm": DEV_HMAC_ALGORITHM}
 
 
 def generate_local_keypair(key_id: str = "local-dev") -> LocalKeyPair:

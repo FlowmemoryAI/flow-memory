@@ -2,10 +2,12 @@
   "name": "@flow-memory/dashboard",
   "version": "0.0.0",
   "private": true,
-  "description": "Scaffold dashboard package for Flow Memory mock-runtime exploration.",
+  "description": "Public-alpha operator console scaffold for Flow Memory mock/API integration.",
   "type": "module",
   "scripts": {
-    "validate:mock-data": "node -e \"JSON.parse(require('node:fs').readFileSync('src/mock-data/runtime.json', 'utf8'))\""
+    "validate:mock-data": "node -e \"JSON.parse(require('node:fs').readFileSync('src/mock-data/runtime.json', 'utf8'))\"",
+    "test": "node tests/mock-api.test.mjs",
+    "build": "node tests/mock-api.test.mjs"
   },
   "dependencies": {},
   "devDependencies": {}

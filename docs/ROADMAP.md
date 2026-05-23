@@ -1,35 +1,35 @@
 # Flow Memory Roadmap
 
-## Current V3 baseline
+## Current public-alpha RC1 baseline
 
-Implemented local production-shaped prototype:
+Implemented local/testnet-preflight prototype:
 
 - AI agent layer
 - FlowLang-to-runtime integration
 - Economy V3 local lifecycles
-- SQLite durable storage
-- signed manifests/receipts/provenance prototype
-- API server/auth/signed request seams
-- Base Sepolia/ERC-4337 dry-run adapters
-- sandbox profile/receipt interfaces
+- SQLite durable storage and audit replay JSONL
+- local HMAC signing plus deterministic asymmetric/DID signing seams
+- API server/auth/signed request/scope/error/rate-limit seams
+- Base Sepolia/ERC-4337 dry-run artifact set
+- sandbox profile/receipt interfaces plus optional Docker backend seam
 - MCP/A2A/libp2p protocol seams
-- dashboard scaffold
-- CI and production docs
+- typed dashboard mock API scaffold
+- clean-clone validation and release evidence bundle
+- adversarial economy simulation
+- expanded contract security tests
 
 ## Next milestones
 
-1. Replace local HMAC signing with asymmetric DID/account signing.
+1. Replace local deterministic asymmetric signing with audited DID/account signing and key custody.
 2. Add Rust FlowIR validator with full schema checks.
 3. Implement Rust Wasm Component Model host for WIT skill ABI.
 4. Wire Datalog policy inference into runtime policy decisions.
-5. Add durable audit replay CLI and tamper verification commands.
-6. Add Base Sepolia contract deployment dry-run artifacts in CI.
-7. Add no-funds testnet smoke path with explicit operator confirmation gate.
-8. Add FastAPI integration tests behind optional dependency flag.
-9. Implement container sandbox execution with strict resource limits.
-10. Add dashboard API integration and generated SDK.
-11. Add contract threat model review and external audit preparation.
-12. Add policy-gated self-repair workflows that produce signed patch proposals.
+5. Promote Docker sandbox from optional seam to hardened isolated backend with platform-specific controls.
+6. Run no-funds Base Sepolia deployment rehearsal with disposable reviewed keys after manual approval.
+7. Add FastAPI integration tests behind optional dependency flag.
+8. Add dashboard live read-only API integration and generated SDK.
+9. Add contract threat model review and external audit preparation.
+10. Build Neural Agent Layer v1 for optional PyTorch-backed perception/world-model/advisory scoring.
 
 ## Non-goals until proven
 

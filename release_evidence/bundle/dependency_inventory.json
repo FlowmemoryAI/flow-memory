@@ -1,0 +1,65 @@
+{
+  "inventory_hash": "490c159f8d6328d55cc745cd771dd9b93eb33663208d557a6ab61396955ac2db",
+  "manifests": {
+    "dashboard": {
+      "dependencies": {},
+      "dev_dependencies": {},
+      "name": "@flow-memory/dashboard",
+      "path": "dashboard/package.json",
+      "private": true,
+      "version": "0.0.0"
+    },
+    "python": {
+      "dependencies": [],
+      "name": "flow-memory",
+      "optional_dependencies": {
+        "all": [
+          "torch>=2.3",
+          "transformers>=4.43",
+          "opencv-python>=4.10",
+          "numpy>=1.26",
+          "redis>=5.0",
+          "qdrant-client>=1.9",
+          "neo4j>=5.20",
+          "web3>=6.20",
+          "eth-account>=0.11",
+          "langgraph>=0.2"
+        ],
+        "dev": [
+          "pytest>=8.0",
+          "ruff>=0.5",
+          "mypy>=1.10"
+        ],
+        "langgraph": [
+          "langgraph>=0.2"
+        ],
+        "memory": [
+          "redis>=5.0",
+          "qdrant-client>=1.9",
+          "neo4j>=5.20"
+        ],
+        "ml": [
+          "torch>=2.3",
+          "transformers>=4.43",
+          "opencv-python>=4.10",
+          "numpy>=1.26"
+        ],
+        "web3": [
+          "web3>=6.20",
+          "eth-account>=0.11"
+        ]
+      },
+      "path": "pyproject.toml",
+      "requires_python": ">=3.10",
+      "version": "0.2.0"
+    },
+    "rust": {
+      "dependencies": [],
+      "edition": "2021",
+      "name": "flow-memory-core",
+      "path": "rust/flow-memory-core/Cargo.toml",
+      "version": "0.1.0"
+    }
+  },
+  "root": "E:\\FlowMemory\\flow-memory"
+}

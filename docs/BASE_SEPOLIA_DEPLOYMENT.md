@@ -14,6 +14,26 @@ Describe the safe path for rehearsing Flow Memory contract and Web3 adapter beha
 - Deployment scripts should emit addresses, transaction hashes, constructor args, chain id, compiler settings, and verification status as audit artifacts.
 - Dry-run receipts should be consumed by adapters as test references, not as proof of production settlement.
 
+## Public-alpha RC1 artifacts
+
+Generated and committed dry-run artifacts live in `deployments/base-sepolia/`:
+
+- `deployment-plan.json`
+- `dry-run-transactions.json`
+- `contract-registry.json`
+- `constructor-args.json`
+- `dependency-graph.json`
+- `risk-notes.md`
+- `verification-checklist.md`
+
+Validate them with:
+
+```bash
+python scripts/validate_base_sepolia_artifacts.py --dir deployments/base-sepolia
+```
+
+The validator checks chain id, dry-run mode, no-private-key requirements, deployment order, dry-run transaction payloads, and required contract coverage.
+
 ## Limitations
 
 - Base Sepolia is a public testnet; it provides integration signal, not security assurance.

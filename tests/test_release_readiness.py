@@ -26,6 +26,18 @@ class ReleaseReadinessTests(unittest.TestCase):
         self.assertIn("contracts_unaudited", decision.blockers)
         self.assertIn("hardened_sandbox_evidence", decision.required_evidence)
 
+
+    def test_public_alpha_fails_without_clean_clone_evidence(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        clean_clone = root / "release_evidence" / "clean_clone_validation.json"
+        if clean_clone.exists():
+            self.skipTest("clean clone evidence exists in this checkout")
+        decision = decide_release_readiness(root, target="public-alpha")
+
+        self.assertFalse(decision.ok)
+        self.assertIn("clean_clone_validation_missing", decision.blockers)
+        self.assertIn("base_sepolia_artifacts", decision.required_evidence)
+
     def test_release_decision_script(self) -> None:
         root = Path(__file__).resolve().parents[1]
         completed = subprocess.run(
@@ -40,6 +52,26 @@ class ReleaseReadinessTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual("local", payload["target"])
         self.assertIn("dependency_inventory", payload["required_evidence"])
+
+    def test_release_decision_script_accepts_public_alpha_target(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "scripts/release_decision.py",
+                "--root",
+                str(root),
+                "--target",
+                "public-alpha",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+        )
+
+        payload = json.loads(completed.stdout)
+        self.assertEqual("public-alpha", payload["target"])
+        self.assertIn("clean_clone_validation", payload["required_evidence"])
 
     def test_release_decision_script_fails_closed_for_production(self) -> None:
         root = Path(__file__).resolve().parents[1]

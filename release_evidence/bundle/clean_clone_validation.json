@@ -1,0 +1,139 @@
+{
+  "clone_root": "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory",
+  "install_attempted": true,
+  "ok": true,
+  "smoke": {
+    "ok": true,
+    "results": [
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "-m",
+          "pytest",
+          "-q"
+        ],
+        "elapsed_seconds": 26.944,
+        "name": "pytest",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "........................................................................ [ 25%]\n........................................................................ [ 50%]\n..................................................s..................... [ 75%]\n........................................................................ [100%]\n287 passed, 1 skipped in 26.59s"
+      },
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "examples/flowlang_compile_demo.py"
+        ],
+        "elapsed_seconds": 0.198,
+        "name": "flowlang_compile_demo",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "{\n  \"errors\": [],\n  \"manifest\": {\n    \"beliefs\": [\n      \"Verified memory is stronger than prompt-only context.\",\n      \"Economic actions require provenance, policy, and audit.\"\n    ],\n    \"economy\": {\n      \"allow_slashing\": true,\n      \"budget\": 5.0,\n      \"currency\": \"FLOW\",\n      \"marketplace\": \"local\",\n      \"metadata\": {},\n      \"settlement\": \"local\"\n    },\n    \"goals\": [\n      \"Produce grounded research briefs.\",\n      \"Settle only verified local work.\"\n    ],\n    \"identity\": \"did:flow:researcher-001\",\n    \"memory\": {\n      \"adapters\": [\n        \"local\"\n      ],\n      \"economic\": true,\n      \"episodic\": true,\n      \"metadata\": {},\n      \"procedural\": true,\n      \"semantic\": true,\n      \"working_capacity\": 7\n    },\n    \"metadata\": {\n      \"allowed_tools\": [\n        \"respond\"\n      ],\n      \"autonomy_mode\": \"supervised\",\n      \"capabilities\": [\n        \"research\"\n      ],\n      \"constraints\": [\n        \"Do not use external settlement without approval.\"\n      ],\n      \"risk_budget\": 5.0\n    },\n    \"name\": \"FlowResearcher\",\n    \"plans\": [\n      {\n        \"goal\": \"Research and summarize one verified topic.\",\n        \"id\": \"daily-research\",\n        \"metadata\": {},\n        \"risk_level\": \"low\",\n        \"steps\": [\n          \"research-brief\"\n        ]\n      }\n    ],\n    \"policies\": [\n      {\n        \"allow_unsafe\": false,\n        \"id\": \"safe-local\",\n        \"metadata\": {},\n        \"permissions\": [\n          \"respond\",\n          \"memory.read\",\n          \"audit.emit\"\n        ],\n        \"requires_approval\": false,\n        \"risk_level\": \"low\"\n      },\n      {\n        \"allow_unsafe\": false,\n        \"id\": \"economic-approval\",\n        \"metadata\": {},\n        \"permissions\": [\n          \"wallet.sign\",\n          \"marketplace.settle\"\n        ],\n        \"requires_approval\": true,\n        \"risk_level\": \"high\"\n      }\n    ],\n    \"skills\": [\n      {\n        \"description\": \"Produce a cited local research brief from memory and observations.\",\n        \"id\": \"research-brief\",\n        \"inputs_schema\": {},\n        \"metadata\": {},\n        \"outputs_schema\": {},\n        \"permissions\": [\n          {\n            \"description\": \"\",\n            \"name\": \"memory.read\",\n            \"requires_approval\": false\n          },\n          {\n            \"description\": \"\",\n            \"name\": \"audit.emit\",\n            \"requires_approval\": false\n          }\n        ],\n        \"risk_level\": \"low\",\n        \"wasm_component\": \"\"\n      },\n      {\n        \"description\": \"Request local marketplace settlement after verification.\",\n        \"id\": \"settle-verified-work\",\n        \"inputs_schema\": {},\n        \"metadata\": {},\n        \"outputs_schema\": {},\n        \"permissions\": [\n          {\n            \"description\": \"\",\n            \"name\": \"wallet.sign\",\n            \"requires_approval\": false\n          },\n          {\n            \"description\": \"\",\n            \"name\": \"marketplace.settle\",\n            \"requires_approval\": false\n          }\n        ],\n        \"risk_level\": \"high\",\n        \"wasm_component\": \"\"\n      }\n    ]\n  },\n  \"ok\": true,\n  \"warnings\": []\n}"
+      },
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "examples/flowlang_runtime_demo.py"
+        ],
+        "elapsed_seconds": 0.197,
+        "name": "flowlang_runtime_demo",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "{'accepted': True, 'requires_approval': False}"
+      },
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "examples/flowlang_economy_demo.py"
+        ],
+        "elapsed_seconds": 0.196,
+        "name": "flowlang_economy_demo",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "{'accepted': True, 'settlement': {'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'status': 'settled', 'settlement': {'receipt_id': 'receipt_3b54d81b044245dfa5920f6a8ee84530', 'receipt_type': 'settlement', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'status': 'settled', 'worker': 'did:flow:economist-001'}}, 'receipts': ({'receipt_id': 'receipt_df4e233e92cf482eb09f3de3f6757ff8', 'receipt_type': 'task_created', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'title': 'settle verified marketplace work', 'reward': 1.0, 'category': 'general'}}, {'receipt_id': 'receipt_878aaca5b4134e3c8b50235f68fd8c5b', 'receipt_type': 'bid_submitted', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'price': 1.0}}, {'receipt_id': 'receipt_b11540fea20746c5878b7b405493e0a8', 'receipt_type': 'task_assigned', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'agent': 'did:flow:economist-001', 'bid_id': 'bidv3_f760771b8f91458bb24b17e7c954af07'}}, {'receipt_id': 'receipt_70591c82c8f847babcffe4f5b4396a5c', 'receipt_type': 'escrow_created', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'amount': 1.0}}, {'receipt_id': 'receipt_cabf42c6383c405a9a375caaebbf7ddc', 'receipt_type': 'work_submitted', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'submission_id': 'work_3e2270a13b5e499daa86ef704baa11ab', 'signed': True}}, {'receipt_id': 'receipt_1cff293137e6466896b38af96ae533ae', 'receipt_type': 'verification', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'status': 'verified'}}, {'receipt_id': 'receipt_a6bf385e2a7947cf9034c7662aeddc46', 'receipt_type': 'reputation_update', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'delta': 5.0}}, {'receipt_id': 'receipt_3b54d81b044245dfa5920f6a8ee84530', 'receipt_type': 'settlement', 'task_id': 'taskv3_a3d20f9ee6224609ad219c5348376acb', 'actor': 'did:flow:economist-001', 'payload': {'status': 'settled', 'worker': 'did:flow:economist-001'}})}}"
+      },
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "examples/agent_economy_v3_demo.py"
+        ],
+        "elapsed_seconds": 0.142,
+        "name": "agent_economy_v3_demo",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "{'status': 'settled', 'receipts': 8}"
+      },
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "-m",
+          "flow_memory",
+          "--json",
+          "Explore and report"
+        ],
+        "elapsed_seconds": 0.203,
+        "name": "cli_smoke",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "0.552,\n      \"horizon_steps\": 1,\n      \"free_energy_proxy\": 0.4803,\n      \"regularization\": 0.05,\n      \"objective\": \"minimize_prediction_error\"\n    },\n    \"horizon_steps\": 1,\n    \"confidence\": 0.552,\n    \"prediction_id\": \"prediction_9c54df6ce8f442f3bea8ee90438cd433\",\n    \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n  },\n  \"retrieved_memories\": [\n    {\n      \"kind\": \"observation\",\n      \"text\": \"Explore and report\",\n      \"payload\": {\n        \"modality\": \"text\",\n        \"source\": \"user\"\n      },\n      \"importance\": 0.55,\n      \"record_id\": \"memory_3cbc969a88c54052bd29882910cf3b8e\",\n      \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n    }\n  ],\n  \"plan\": {\n    \"goal\": \"Explore and report\",\n    \"steps\": [\n      {\n        \"action\": \"observe_environment\",\n        \"args\": {\n          \"mode\": \"safe_local_simulation\",\n          \"entities\": [\n            \"Explore\"\n          ],\n          \"affordances\": [\n            \"navigate\",\n            \"communicate\"\n          ]\n        },\n        \"required_permission\": \"environment.observe\",\n        \"approval_required\": false,\n        \"economic_value\": 0.0,\n        \"step_id\": \"step_4acbdb9156a54649bac8174e779161bb\"\n      },\n      {\n        \"action\": \"respond\",\n        \"args\": {\n          \"message\": \"Processed goal: Explore and report | Perceived entities: Explore | Available affordances: navigate, communicate | Prediction confidence: 0.55 | Retrieved memories: 1 relevant record(s) | Status: plan approved and executed in the local safety sandbox\"\n        },\n        \"required_permission\": \"respond\",\n        \"approval_required\": false,\n        \"economic_value\": 0.0,\n        \"step_id\": \"step_cb3870fd9e584cc18452423c73148d8c\"\n      }\n    ],\n    \"plan_id\": \"plan_7290730a094244c284b8ee235186ae05\",\n    \"metadata\": {\n      \"perception_summary\": \"entities=Explore; affordances=navigate, communicate\",\n      \"prediction_confidence\": 0.552,\n      \"memory_count\": 1,\n      \"economic_intent_detected\": false\n    },\n    \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n  },\n  \"policy_decision\": {\n    \"approved\": true,\n    \"reasons\": [],\n    \"requires_human\": false,\n    \"risk_level\": \"low\",\n    \"decision_id\": \"decision_77c692bb23994aad90d4e6abccd573b8\",\n    \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n  },\n  \"action_result\": {\n    \"success\": true,\n    \"output\": \"Processed goal: Explore and report | Perceived entities: Explore | Available affordances: navigate, communicate | Prediction confidence: 0.55 | Retrieved memories: 1 relevant record(s) | Status: plan approved and executed in the local safety sandbox\",\n    \"step_results\": [\n      {\n        \"step_id\": \"step_4acbdb9156a54649bac8174e779161bb\",\n        \"action\": \"observe_environment\",\n        \"success\": true,\n        \"output\": {\n          \"environment\": \"local_simulation\",\n          \"observations\": [\n            \"sandbox is active\",\n            \"tracked_entities=1\",\n            \"affordances=navigate,communicate\"\n          ],\n          \"risk\": \"low\"\n        }\n      },\n      {\n        \"step_id\": \"step_cb3870fd9e584cc18452423c73148d8c\",\n        \"action\": \"respond\",\n        \"success\": true\n      }\n    ],\n    \"side_effects\": [\n      {\n        \"kind\": \"read_only_observation\",\n        \"tool\": \"observe_environment\"\n      }\n    ],\n    \"error\": null,\n    \"result_id\": \"result_ca204bd25af5496ba1f71e5a254c11de\",\n    \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n  },\n  \"evaluation\": {\n    \"surprise_score\": 0.448,\n    \"metrics\": {\n      \"expected_success\": 0.552,\n      \"observed_success\": 1.0,\n      \"result_error\": null\n    },\n    \"evaluation_id\": \"evaluation_0d48d2e7b26f455cb4e713eabda73fd9\",\n    \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n  },\n  \"learned\": {\n    \"plan_id\": \"plan_7290730a094244c284b8ee235186ae05\",\n    \"success\": true,\n    \"surprise_score\": 0.448,\n    \"requires_consolidation\": false,\n    \"step_count\": 2\n  },\n  \"economic_settlement\": null,\n  \"cycle_id\": \"cycle_338250e70398498f8905082f44300cab\",\n  \"created_at\": \"2026-05-23T15:04:27.607557+00:00\"\n}"
+      },
+      {
+        "command": [
+          "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+          "-m",
+          "flow_memory",
+          "--flow",
+          "examples/flowlang_agent.flow",
+          "--json",
+          "Run the declared agent"
+        ],
+        "elapsed_seconds": 0.2,
+        "name": "cli_flow",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "s\": [\n                  \"skill_output\"\n                ],\n                \"economic_value\": 0.0\n              }\n            ],\n            \"risk_level\": \"low\",\n            \"success_criteria\": [\n              \"produce auditable result\"\n            ],\n            \"rollback_strategy\": \"stop and preserve audit trail\",\n            \"economic_intent\": false,\n            \"economic_value\": 0.0\n          },\n          \"execution\": {\n            \"success\": true,\n            \"output\": {\n              \"goal\": \"Run the declared agent\",\n              \"context\": [],\n              \"agent_id\": \"agent_1c02e14ed178443b873ac49a06930278\",\n              \"discovered_agents\": []\n            },\n            \"step_results\": [\n              {\n                \"success\": true,\n                \"skill_id\": \"research-brief\",\n                \"output\": {\n                  \"goal\": \"Run the declared agent\",\n                  \"context\": [],\n                  \"agent_id\": \"agent_1c02e14ed178443b873ac49a06930278\",\n                  \"discovered_agents\": []\n                }\n              }\n            ]\n          },\n          \"settlement\": null\n        }\n      }\n    ],\n    \"recent_events\": [\n      {\n        \"event\": \"agent_cycle_completed\",\n        \"success\": true\n      }\n    ],\n    \"outstanding_approvals\": [],\n    \"open_marketplace_tasks\": [],\n    \"active_delegations\": [],\n    \"health\": {\n      \"ok\": true,\n      \"status\": \"healthy\",\n      \"failures\": 0,\n      \"warnings\": []\n    },\n    \"last_evaluation\": {\n      \"quality_score\": 1.0,\n      \"surprise_score\": 0.0,\n      \"success\": true,\n      \"safety_incident\": false,\n      \"notes\": \"\"\n    },\n    \"error_state\": \"\",\n    \"updated_at\": \"2026-05-23T15:04:27.808566+00:00\"\n  },\n  \"audit_events\": [\n    {\n      \"event\": \"agent_cycle_started\",\n      \"agent_id\": \"agent_1c02e14ed178443b873ac49a06930278\",\n      \"goal\": \"Run the declared agent\"\n    },\n    {\n      \"event\": \"plan_created\",\n      \"plan_id\": \"agent_plan_ab4b84ade65e4d6087aa6bee55a4e1c9\",\n      \"risk_level\": \"low\"\n    },\n    {\n      \"event\": \"policy_decision\",\n      \"allowed\": true,\n      \"requires_approval\": false,\n      \"reason\": \"supervised safe local action\"\n    },\n    {\n      \"event\": \"agent_cycle_completed\",\n      \"success\": true\n    }\n  ],\n  \"memory_records\": [\n    {\n      \"kind\": \"agent_run\",\n      \"payload\": {\n        \"goal\": \"Run the declared agent\",\n        \"plan\": {\n          \"plan_id\": \"agent_plan_ab4b84ade65e4d6087aa6bee55a4e1c9\",\n          \"goal\": \"Run the declared agent\",\n          \"steps\": [\n            {\n              \"step_id\": \"plan_step_c1c4f3228c714bc6a34ce56e5c967755\",\n              \"action\": \"run_skill\",\n              \"required_tools\": [],\n              \"required_skills\": [\n                \"research-brief\"\n              ],\n              \"required_permissions\": [\n                \"memory.read\",\n                \"audit.emit\"\n              ],\n              \"risk_level\": \"low\",\n              \"expected_outputs\": [\n                \"skill_output\"\n              ],\n              \"economic_value\": 0.0\n            }\n          ],\n          \"risk_level\": \"low\",\n          \"success_criteria\": [\n            \"produce auditable result\"\n          ],\n          \"rollback_strategy\": \"stop and preserve audit trail\",\n          \"economic_intent\": false,\n          \"economic_value\": 0.0\n        },\n        \"execution\": {\n          \"success\": true,\n          \"output\": {\n            \"goal\": \"Run the declared agent\",\n            \"context\": [],\n            \"agent_id\": \"agent_1c02e14ed178443b873ac49a06930278\",\n            \"discovered_agents\": []\n          },\n          \"step_results\": [\n            {\n              \"success\": true,\n              \"skill_id\": \"research-brief\",\n              \"output\": {\n                \"goal\": \"Run the declared agent\",\n                \"context\": [],\n                \"agent_id\": \"agent_1c02e14ed178443b873ac49a06930278\",\n                \"discovered_agents\": []\n              }\n            }\n          ]\n        },\n        \"settlement\": null\n      }\n    }\n  ]\n}"
+      },
+      {
+        "command": [
+          "bash",
+          "scripts/verify.sh"
+        ],
+        "elapsed_seconds": 40.15,
+        "name": "verify_script",
+        "ok": true,
+        "returncode": 0,
+        "stdout_tail": "tion\": \"respond\",\n        \"args\": {\n          \"message\": \"Processed goal: Explore and report | Perceived entities: Explore | Available affordances: navigate, communicate | Prediction confidence: 0.55 | Retrieved memories: 1 relevant record(s) | Status: plan approved and executed in the local safety sandbox\"\n        },\n        \"required_permission\": \"respond\",\n        \"approval_required\": false,\n        \"economic_value\": 0.0,\n        \"step_id\": \"step_ef08aff492cc411dbea2c2743f8c1431\"\n      }\n    ],\n    \"plan_id\": \"plan_475d45c9b9074fc58245cb77a7739e81\",\n    \"metadata\": {\n      \"perception_summary\": \"entities=Explore; affordances=navigate, communicate\",\n      \"prediction_confidence\": 0.552,\n      \"memory_count\": 1,\n      \"economic_intent_detected\": false\n    },\n    \"created_at\": \"2026-05-23T15:05:06.841476+00:00\"\n  },\n  \"policy_decision\": {\n    \"approved\": true,\n    \"reasons\": [],\n    \"requires_human\": false,\n    \"risk_level\": \"low\",\n    \"decision_id\": \"decision_ee97a4de6b85471a826d0b3d4e64cb02\",\n    \"created_at\": \"2026-05-23T15:05:06.841476+00:00\"\n  },\n  \"action_result\": {\n    \"success\": true,\n    \"output\": \"Processed goal: Explore and report | Perceived entities: Explore | Available affordances: navigate, communicate | Prediction confidence: 0.55 | Retrieved memories: 1 relevant record(s) | Status: plan approved and executed in the local safety sandbox\",\n    \"step_results\": [\n      {\n        \"step_id\": \"step_1ae80586f7b94179b1ec5a1ef388c737\",\n        \"action\": \"observe_environment\",\n        \"success\": true,\n        \"output\": {\n          \"environment\": \"local_simulation\",\n          \"observations\": [\n            \"sandbox is active\",\n            \"tracked_entities=1\",\n            \"affordances=navigate,communicate\"\n          ],\n          \"risk\": \"low\"\n        }\n      },\n      {\n        \"step_id\": \"step_ef08aff492cc411dbea2c2743f8c1431\",\n        \"action\": \"respond\",\n        \"success\": true\n      }\n    ],\n    \"side_effects\": [\n      {\n        \"kind\": \"read_only_observation\",\n        \"tool\": \"observe_environment\"\n      }\n    ],\n    \"error\": null,\n    \"result_id\": \"result_adda1a6b60a14994a37b84403ee5d9a5\",\n    \"created_at\": \"2026-05-23T15:05:06.842476+00:00\"\n  },\n  \"evaluation\": {\n    \"surprise_score\": 0.448,\n    \"metrics\": {\n      \"expected_success\": 0.552,\n      \"observed_success\": 1.0,\n      \"result_error\": null\n    },\n    \"evaluation_id\": \"evaluation_8e9863a7f74840c38b3771b487a4f919\",\n    \"created_at\": \"2026-05-23T15:05:06.842476+00:00\"\n  },\n  \"learned\": {\n    \"plan_id\": \"plan_475d45c9b9074fc58245cb77a7739e81\",\n    \"success\": true,\n    \"surprise_score\": 0.448,\n    \"requires_consolidation\": false,\n    \"step_count\": 2\n  },\n  \"economic_settlement\": null,\n  \"cycle_id\": \"cycle_63b1a58c35f340f4a96db5367bdc141e\",\n  \"created_at\": \"2026-05-23T15:05:06.842476+00:00\"\n}\n{'text_motion_confidence': 0.64, 'frame_motion_confidence': 0.95, 'invariance_count': 5.0}\n{\n  \"ok\": true,\n  \"results\": [\n    {\n      \"details\": {\n        \"errors\": []\n      },\n      \"name\": \"api_snapshot\",\n      \"ok\": true\n    },\n    {\n      \"details\": {\n        \"checkpoint_ok\": true,\n        \"event_count\": 2,\n        \"replay_ok\": true\n      },\n      \"name\": \"audit_replay\",\n      \"ok\": true\n    },\n    {\n      \"details\": {\n        \"mode\": \"dry-run\",\n        \"requires_private_key\": false\n      },\n      \"name\": \"base_dry_run\",\n      \"ok\": true\n    },\n    {\n      \"details\": {\n        \"expected_version\": 1,\n        \"missing_tables\": [],\n        \"observed_version\": 1,\n        \"schema_hash\": \"d5b29b054e5dfa167c69d91713819bbaed716d5a5095d5283261425cbe47f897\"\n      },\n      \"name\": \"storage_schema\",\n      \"ok\": true\n    },\n    {\n      \"details\": {\n        \"match_count\": 0,\n        \"paths\": []\n      },\n      \"name\": \"secret_scan\",\n      \"ok\": true\n    },\n    {\n      \"details\": {\n        \"errors\": [],\n        \"inventory_hash\": \"490c159f8d6328d55cc745cd771dd9b93eb33663208d557a6ab61396955ac2db\",\n        \"warnings\": []\n      },\n      \"name\": \"dependency_policy\",\n      \"ok\": true\n    }\n  ]\n}"
+      }
+    ]
+  },
+  "source_root": "E:\\FlowMemory\\flow-memory",
+  "steps": [
+    {
+      "command": [
+        "E:\\FlowMemory\\flow-memory\\.venv\\Scripts\\python.exe",
+        "-m",
+        "venv",
+        ".venv"
+      ],
+      "elapsed_seconds": 7.981,
+      "name": "create_venv",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": ""
+    },
+    {
+      "command": [
+        "D:\\CDriveRelief\\Temp\\flow-memory-clean-clone-p9yulen2\\flow-memory\\.venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "install",
+        "-e",
+        ".[dev]"
+      ],
+      "elapsed_seconds": 20.961,
+      "name": "install_editable_dev",
+      "ok": true,
+      "returncode": 0,
+      "stdout_tail": "Obtaining file:///D:/CDriveRelief/Temp/flow-memory-clean-clone-p9yulen2/flow-memory\n  Installing build dependencies: started\n  Installing build dependencies: finished with status 'done'\n  Checking if build backend supports build_editable: started\n  Checking if build backend supports build_editable: finished with status 'done'\n  Getting requirements to build editable: started\n  Getting requirements to build editable: finished with status 'done'\n  Preparing editable metadata (pyproject.toml): started\n  Preparing editable metadata (pyproject.toml): finished with status 'done'\nCollecting mypy>=1.10\n  Using cached mypy-2.1.0-cp310-cp310-win_amd64.whl (11.1 MB)\nCollecting ruff>=0.5\n  Using cached ruff-0.15.14-py3-none-win_amd64.whl (11.9 MB)\nCollecting pytest>=8.0\n  Using cached pytest-9.0.3-py3-none-any.whl (375 kB)\nCollecting mypy_extensions>=1.0.0\n  Using cached mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)\nCollecting typing_extensions>=4.6.0\n  Using cached typing_extensions-4.15.0-py3-none-any.whl (44 kB)\nCollecting librt>=0.11.0\n  Using cached librt-0.11.0-cp310-cp310-win_amd64.whl (117 kB)\nCollecting ast-serialize<1.0.0,>=0.3.0\n  Using cached ast_serialize-0.5.0-cp39-abi3-win_amd64.whl (1.1 MB)\nCollecting pathspec>=1.0.0\n  Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)\nCollecting tomli>=1.1.0\n  Using cached tomli-2.4.1-py3-none-any.whl (14 kB)\nCollecting pygments>=2.7.2\n  Using cached pygments-2.20.0-py3-none-any.whl (1.2 MB)\nCollecting pluggy<2,>=1.5\n  Using cached pluggy-1.6.0-py3-none-any.whl (20 kB)\nCollecting colorama>=0.4\n  Using cached colorama-0.4.6-py2.py3-none-any.whl (25 kB)\nCollecting exceptiongroup>=1\n  Using cached exceptiongroup-1.3.1-py3-none-any.whl (16 kB)\nCollecting iniconfig>=1.0.1\n  Using cached iniconfig-2.3.0-py3-none-any.whl (7.5 kB)\nCollecting packaging>=22\n  Using cached packaging-26.2-py3-none-any.whl (100 kB)\nBuilding wheels for collected packages: flow-memory\n  Building editable for flow-memory (pyproject.toml): started\n  Building editable for flow-memory (pyproject.toml): finished with status 'done'\n  Created wheel for flow-memory: filename=flow_memory-0.2.0-0.editable-py3-none-any.whl size=6489 sha256=a7e9ef26a175deba8500aec281743c42bb6285ac32c7f275df7ddba787e9704f\n  Stored in directory: D:\\CDriveRelief\\Temp\\pip-ephem-wheel-cache-ey6gn8i0\\wheels\\e6\\a0\\91\\e71617afe3b6f446f0ea1e7604e6bf3e348cf55c320fc6afd3\nSuccessfully built flow-memory\nInstalling collected packages: typing_extensions, tomli, ruff, pygments, pluggy, pathspec, packaging, mypy_extensions, librt, iniconfig, flow-memory, colorama, ast-serialize, mypy, exceptiongroup, pytest\nSuccessfully installed ast-serialize-0.5.0 colorama-0.4.6 exceptiongroup-1.3.1 flow-memory-0.2.0 iniconfig-2.3.0 librt-0.11.0 mypy-2.1.0 mypy_extensions-1.1.0 packaging-26.2 pathspec-1.1.1 pluggy-1.6.0 pygments-2.20.0 pytest-9.0.3 ruff-0.15.14 tomli-2.4.1 typing_extensions-4.15.0"
+    }
+  ]
+}

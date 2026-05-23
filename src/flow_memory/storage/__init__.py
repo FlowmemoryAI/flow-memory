@@ -4,17 +4,53 @@ from flow_memory.storage.agent_store import AgentStore
 from flow_memory.storage.audit_store import AuditStore
 from flow_memory.storage.event_store import EventStore
 from flow_memory.storage.checkpoints import AuditCheckpoint, create_audit_checkpoint, verify_audit_checkpoint
-from flow_memory.storage.backup import BackupManifest, BackupTableSummary, create_backup, read_backup, restore_backup, restore_backup_file, validate_backup, write_backup
+from flow_memory.storage.backup import (
+    BackupManifest,
+    BackupTableSummary,
+    create_backup,
+    read_backup,
+    restore_backup,
+    restore_backup_file,
+    validate_backup,
+    write_backup,
+)
 from flow_memory.storage.export import export_jsonl
+from flow_memory.storage.evidence import (
+    EventLogEvidence,
+    event_log_evidence,
+    evidence_from_jsonl,
+    export_audit_event_log,
+    read_jsonl_events,
+    write_jsonl_events,
+)
 from flow_memory.storage.marketplace_store import MarketplaceStore
 from flow_memory.storage.memory_store import MemoryStore
 from flow_memory.storage.reputation_store import ReputationStore
 from flow_memory.storage.skill_store import SkillStore
 from flow_memory.storage.sqlite_store import SQLiteStore
 from flow_memory.storage.replay import ReplayRecord, ReplayResult, replay_events, verify_chained_events
-from flow_memory.storage.retention import RetentionPolicy, RetentionReport, RetentionRule, apply_retention_policy, policy_from_mapping
-from flow_memory.storage.integrity import StorageIntegrityReport, compare_store_to_backup, compare_store_to_backup_file, live_backup_manifest
-from flow_memory.storage.migrations import MigrationPlan, MigrationStep, SchemaVerification, migration_plan, schema_fingerprint, verify_schema
+from flow_memory.storage.retention import (
+    RetentionPolicy,
+    RetentionReport,
+    RetentionRule,
+    apply_retention_policy,
+    policy_from_mapping,
+)
+from flow_memory.storage.integrity import (
+    StorageIntegrityReport,
+    compare_store_to_backup,
+    compare_store_to_backup_file,
+    live_backup_manifest,
+)
+from flow_memory.storage.diff import EventLogDiff, diff_replay_results
+from flow_memory.storage.migrations import (
+    MigrationPlan,
+    MigrationStep,
+    SchemaVerification,
+    migration_plan,
+    schema_fingerprint,
+    verify_schema,
+)
 
 __all__ = [
     "AgentStore",
@@ -29,12 +65,20 @@ __all__ = [
     "SQLiteStore",
     "SkillStore",
     "export_jsonl",
+    "EventLogEvidence",
+    "event_log_evidence",
+    "evidence_from_jsonl",
+    "export_audit_event_log",
+    "read_jsonl_events",
+    "write_jsonl_events",
     "MigrationPlan",
     "MigrationStep",
     "ReplayRecord",
     "ReplayResult",
     "replay_events",
     "verify_chained_events",
+    "EventLogDiff",
+    "diff_replay_results",
     "create_audit_checkpoint",
     "verify_audit_checkpoint",
     "create_backup",

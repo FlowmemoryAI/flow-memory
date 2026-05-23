@@ -1,0 +1,86 @@
+{
+  "chain": "base-sepolia",
+  "chain_id": 84532,
+  "transactions": [
+    {
+      "chain_id": 84532,
+      "contract": "AgentRegistry",
+      "data": "0x0001",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "TaskMarketplace",
+      "data": "0x0002",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "TaskEscrow",
+      "data": "0x0003",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "Reputation",
+      "data": "0x0004",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "AttestationRegistry",
+      "data": "0x0005",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "DelegationRegistry",
+      "data": "0x0006",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "DisputeResolver",
+      "data": "0x0007",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "SlashingRegistry",
+      "data": "0x0008",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "CapabilityRegistry",
+      "data": "0x0009",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    },
+    {
+      "chain_id": 84532,
+      "contract": "AgentTreasury",
+      "data": "0x000a",
+      "dry_run": true,
+      "to": "0x0000000000000000000000000000000000000000",
+      "value": 0
+    }
+  ]
+}

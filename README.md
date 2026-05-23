@@ -1,6 +1,6 @@
 # Flow Memory
 
-Flow Memory is an open-source autonomous AI agent operating system and local/testnet-ready agent economy prototype.
+Flow Memory is an open-source autonomous AI agent operating system and local/testnet public-alpha preflight prototype.
 
 The project now combines:
 
@@ -18,7 +18,9 @@ The project now combines:
 - MCP/A2A/libp2p protocol seams
 - dashboard scaffold and CI workflows
 
-Flow Memory is production-shaped, not production-certified. It does not claim audited contracts, hardened sandboxing, mainnet readiness, or trained ML model performance.
+
+Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
+Flow Memory is production-shaped, not production-certified. It does not claim audited contracts, hardened sandboxing, production API authentication, mainnet readiness, safe real-funds custody, or trained ML model performance.
 
 ## Install
 
@@ -53,17 +55,29 @@ docker compose config
 forge build
 forge test
 git diff --check
+.\.venv\Scripts\python.exe scripts\public_alpha_smoke.py --root .
+.\.venv\Scripts\python.exe scripts\clean_clone_validation.py --root . --out release_evidence\clean_clone_validation.json
+.\.venv\Scripts\python.exe scripts\validate_base_sepolia_artifacts.py --dir deployments\base-sepolia
+.\.venv\Scripts\python.exe scripts\export_event_log.py
+.\.venv\Scripts\python.exe scripts\replay_event_log.py
+.\.venv\Scripts\python.exe scripts\verify_storage_integrity.py
+.\.venv\Scripts\python.exe scripts\sandbox_smoke_test.py
+.\.venv\Scripts\python.exe scripts\release_decision.py --target public-alpha
 ```
 
-Observed during the V3 build:
+Observed during the public-alpha RC1 preflight build:
 
-- Python tests: `184 passed`
+- Python tests: `287 passed, 1 skipped`
 - FlowLang compile demo: passed
 - FlowLang runtime demo: passed
 - FlowLang economy demo: passed
 - CLI smoke: passed
 - CLI `--flow`: passed
 - deployment dry-run scripts: passed
+- agent reliability gauntlet demo: passed
+- adversarial economy simulation demo: passed
+- clean clone validation: passed
+- public-alpha release decision: passed
 
 ## Run FlowLang agent
 
@@ -84,6 +98,15 @@ Observed during the V3 build:
 ## Important docs
 
 - `docs/AI_AGENT_LAYER.md`
+- `docs/PUBLIC_ALPHA_QUICKSTART.md`
+- `docs/PUBLIC_ALPHA_READINESS.md`
+- `docs/CLEAN_CLONE_VALIDATION.md`
+- `docs/TESTNET_PREFLIGHT.md`
+- `docs/RELEASE_GATES.md`
+- `docs/CONTRACT_SECURITY_TESTS.md`
+- `docs/DASHBOARD.md`
+- `docs/AUDIT_REPLAY.md`
+- `docs/ADVERSARIAL_ECONOMY_SIMULATION.md`
 - `docs/AGENT_ECONOMY_V3.md`
 - `docs/FLOWLANG_RUNTIME_INTEGRATION.md`
 - `docs/STORAGE.md`
@@ -103,8 +126,8 @@ Observed during the V3 build:
 - FlowLang remains v0/prototype.
 - Economy V3 is local/testnet-ready architecture, not a live funds system.
 - Contracts are unaudited.
-- Signing uses local development HMAC by default.
-- Base Sepolia scripts produce dry-run payloads only.
-- Sandbox hardening is an interface and policy layer; it is not hardened VM/container isolation.
+- Signing uses local HMAC by default plus local deterministic asymmetric seams; production key custody is not implemented.
+- Base Sepolia scripts produce dry-run payloads and artifacts only.
+- Sandbox hardening includes profiles, receipts, policy checks, and an optional Docker backend seam; default local sandboxing is not hardened isolation.
 - Protocol gateways are local/offline-safe seams, not production transports.
-- Dashboard is a scaffold with mock data.
+- Dashboard is a typed mock API scaffold, not a live operator console.

@@ -1,0 +1,27 @@
+{
+  "addresses": {
+    "AgentRegistry": "0x0000000000000000000000000000000000000000",
+    "AgentTreasury": "0x0000000000000000000000000000000000000000",
+    "AttestationRegistry": "0x0000000000000000000000000000000000000000",
+    "CapabilityRegistry": "0x0000000000000000000000000000000000000000",
+    "DelegationRegistry": "0x0000000000000000000000000000000000000000",
+    "DisputeResolver": "0x0000000000000000000000000000000000000000",
+    "Reputation": "0x0000000000000000000000000000000000000000",
+    "SlashingRegistry": "0x0000000000000000000000000000000000000000",
+    "TaskEscrow": "0x0000000000000000000000000000000000000000",
+    "TaskMarketplace": "0x0000000000000000000000000000000000000000"
+  },
+  "chain": "base-sepolia",
+  "required_contracts": [
+    "AgentRegistry",
+    "TaskMarketplace",
+    "TaskEscrow",
+    "Reputation",
+    "AttestationRegistry",
+    "DelegationRegistry",
+    "DisputeResolver",
+    "SlashingRegistry",
+    "CapabilityRegistry",
+    "AgentTreasury"
+  ]
+}

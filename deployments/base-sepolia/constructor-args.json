@@ -1,0 +1,20 @@
+{
+  "AgentRegistry": [],
+  "AgentTreasury": [
+    "dry_run_controller"
+  ],
+  "AttestationRegistry": [],
+  "CapabilityRegistry": [],
+  "DelegationRegistry": [],
+  "DisputeResolver": [
+    "dry_run_resolver"
+  ],
+  "Reputation": [
+    "dry_run_authority"
+  ],
+  "SlashingRegistry": [
+    "dry_run_authority"
+  ],
+  "TaskEscrow": [],
+  "TaskMarketplace": []
+}

@@ -1,0 +1,65 @@
+"""Request context primitives for dependency-free API tests and local tools."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Any, Mapping
+
+
+@dataclass(frozen=True)
+class RequestContext:
+    method: str
+    path: str
+    request_id: str = ""
+    principal: str = "anonymous"
+    scopes: tuple[str, ...] = ()
+    client_id: str = "local"
+
+    def as_record(self) -> dict[str, Any]:
+        return {
+            "method": self.method,
+            "path": self.path,
+            "request_id": self.request_id,
+            "principal": self.principal,
+            "scopes": self.scopes,
+            "client_id": self.client_id,
+        }
+
+
+def build_request_context(
+    method: str,
+    path: str,
+    headers: Mapping[str, str] | None = None,
+    *,
+    request_id: str = "",
+    principal: str = "",
+    scopes: tuple[str, ...] = (),
+    client_id: str = "",
+) -> RequestContext:
+    header_map = headers or {}
+    resolved_request_id = request_id or _header(header_map, "x-request-id")
+    resolved_principal = principal or _header(header_map, "x-flow-memory-principal") or "anonymous"
+    resolved_client = client_id or _header(header_map, "x-flow-memory-client") or "local"
+    return RequestContext(
+        method=method.upper(),
+        path=_normalize_path(path),
+        request_id=resolved_request_id,
+        principal=resolved_principal,
+        scopes=tuple(sorted(set(scopes))),
+        client_id=resolved_client,
+    )
+
+
+def _header(headers: Mapping[str, str], name: str) -> str:
+    lowered = name.lower()
+    for key, value in headers.items():
+        if key.lower() == lowered:
+            return value.strip()
+    return ""
+
+
+def _normalize_path(path: str) -> str:
+    if not path:
+        return "/"
+    normalized = path if path.startswith("/") else f"/{path}"
+    return normalized.rstrip("/") or "/"

@@ -51,11 +51,11 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
     if target == "local":
         blockers: tuple[str, ...] = () if gates.ok else ("release_gates_failed",)
         classification = "local_release_candidate" if gates.ok else "blocked_local_release"
-        evidence = ("release_gates", "api_snapshot", "storage_schema", "base_dry_run")
+        evidence = ("release_gates", "api_snapshot", "storage_schema", "base_dry_run", "dependency_inventory")
     elif target == "testnet":
         blockers = ("testnet_manual_review_required",) if gates.ok else ("release_gates_failed", "testnet_manual_review_required")
         classification = "testnet_review_candidate" if gates.ok else "blocked_testnet_release"
-        evidence = ("release_gates", "release_manifest", "contract_registry", "dry_run_deployment_plan")
+        evidence = ("release_gates", "release_manifest", "contract_registry", "dry_run_deployment_plan", "dependency_inventory")
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -65,6 +65,7 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
             "production_key_custody_runbook",
             "mainnet_deployment_approval",
             "incident_response_runbook",
+            "dependency_inventory",
         )
     else:
         raise ValueError(f"unknown release target: {target}")

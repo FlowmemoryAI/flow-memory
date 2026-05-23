@@ -112,6 +112,7 @@ Added:
 - `src/flow_memory/storage/integrity.py` and `scripts/verify_storage_backup.py` for live-state-to-backup root-hash verification.
 - `src/flow_memory/storage/migrations.py` and `scripts/verify_storage_schema.py` for schema fingerprints and migration metadata verification.
 - `scripts/release_gate.py` now includes storage schema verification.
+- `src/flow_memory/release/manifest.py` and `scripts/generate_release_manifest.py` for offline release manifest generation.
 
 
 ### Production API seams
@@ -172,13 +173,14 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/restore_storage.py --
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/apply_retention_policy.py --db C:/tmp/flow-memory-retention.sqlite3 --policy C:/tmp/flow-memory-retention-policy.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_backup.py --db C:/tmp/flow-memory-backup-source.sqlite3 --backup C:/tmp/flow-memory-storage-backup.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_schema.py
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/generate_release_manifest.py --root E:/FlowMemory/flow-memory --sign-local
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `210 passed` |
+| `python -m pytest -q` | Pass: `213 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -195,6 +197,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_schema
 | `python scripts/apply_retention_policy.py --db C:/tmp/flow-memory-retention.sqlite3 --policy C:/tmp/flow-memory-retention-policy.json` | Pass |
 | `python scripts/verify_storage_backup.py --db C:/tmp/flow-memory-backup-source.sqlite3 --backup C:/tmp/flow-memory-storage-backup.json` | Pass |
 | `python scripts/verify_storage_schema.py` | Pass |
+| `python scripts/generate_release_manifest.py --root E:/FlowMemory/flow-memory --sign-local` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -204,7 +207,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_schema
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `210 passed`.
+`python -m pytest -q` currently passes with `213 passed`.
 
 ## Honest limitations
 

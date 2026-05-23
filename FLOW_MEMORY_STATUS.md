@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `196 passed` |
+| `python -m pytest -q` | Pass: `200 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -49,6 +49,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Dashboard | Scaffold/mock data only |
 | CI workflows | Added; GitHub execution not yet observed here |
 | Release gate | Implemented offline gate for API snapshot, audit replay, Base dry-run, and secret scan |
+| Storage backup/restore | Implemented deterministic local backup bundles and CLI restore workflow |
 
 ## Top risks
 

@@ -68,6 +68,7 @@ Before public release:
 - [ ] Maintainers review any workflow that requests write tokens, package publishing permissions, deployment credentials, or mainnet RPC access.
 - [ ] Release notes clearly label unaudited, experimental, local-only, or testnet-only features.
 - [ ] `python scripts/release_gate.py --root .` passes and its output is attached to the release record.
+- [ ] `python scripts/generate_release_manifest.py --root . --out release-manifest.json` is attached to the release record.
 
 ## Observability and operations
 
@@ -100,3 +101,4 @@ Each release candidate should attach or link:
 - Deployment manifest for any non-local contract environment.
 - Known limitations, including whether funds, mainnet, untrusted execution, or production data are intentionally disabled.
 - Release-gate JSON from `scripts/release_gate.py`, including API snapshot, audit replay, Base dry-run, and secret-scan status.
+- Release manifest JSON from `scripts/generate_release_manifest.py`, including commit, branch, API snapshot, storage schema, Base dry-run plan, and release-gate status.

@@ -9,6 +9,7 @@ Storage makes agent state, audit trails, manifests, memory records, and economy 
 Status: functional local prototype.
 
 - `src/flow_memory/storage/sqlite_store.py` owns schema bootstrap and the schema version table.
+- `src/flow_memory/storage/migrations.py` exposes migration metadata, schema fingerprints, and schema verification.
 - `src/flow_memory/storage/agent_store.py` persists agent profiles and state snapshots.
 - `src/flow_memory/storage/event_store.py` persists runtime events.
 - `src/flow_memory/storage/audit_store.py` persists audit events and now supports hash-chained audit appends through `append_chained()`.
@@ -21,6 +22,16 @@ Status: functional local prototype.
 - `src/flow_memory/storage/backup.py` creates deterministic whole-store backups and validates restore bundles.
 - `src/flow_memory/storage/retention.py` applies row-count retention policies and optional SQLite compaction.
 - `src/flow_memory/storage/integrity.py` compares live SQLite state against deterministic backup root hashes.
+
+## Migration metadata
+
+Verify local schema metadata:
+
+```bash
+python scripts/verify_storage_schema.py
+```
+
+The current schema is version `1` and creates the generic JSON payload tables used by agent, runtime, audit, skill, marketplace, reputation, and memory stores. `scripts/release_gate.py` includes this schema check in the offline release gate.
 
 ## Audit replay and tamper evidence
 
@@ -109,6 +120,6 @@ Protected tables (`audit_events`, `settlements`, `slashing_events`, `reputation_
 ## Next steps
 
 - Add optional external notarization for signed audit checkpoints.
-- Add migration files with upgrade/downgrade metadata.
+- Add migration upgrade/downgrade operations when schema version `2` introduces typed/indexed tables.
 - Add deeper corruption-recovery repair commands after root-hash mismatch detection.
 - Add retention age policies once every persisted table has trusted timestamps.

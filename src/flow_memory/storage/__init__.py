@@ -14,6 +14,7 @@ from flow_memory.storage.sqlite_store import SQLiteStore
 from flow_memory.storage.replay import ReplayRecord, ReplayResult, replay_events, verify_chained_events
 from flow_memory.storage.retention import RetentionPolicy, RetentionReport, RetentionRule, apply_retention_policy, policy_from_mapping
 from flow_memory.storage.integrity import StorageIntegrityReport, compare_store_to_backup, compare_store_to_backup_file, live_backup_manifest
+from flow_memory.storage.migrations import MigrationPlan, MigrationStep, SchemaVerification, migration_plan, schema_fingerprint, verify_schema
 
 __all__ = [
     "AgentStore",
@@ -28,6 +29,8 @@ __all__ = [
     "SQLiteStore",
     "SkillStore",
     "export_jsonl",
+    "MigrationPlan",
+    "MigrationStep",
     "ReplayRecord",
     "ReplayResult",
     "replay_events",
@@ -49,4 +52,8 @@ __all__ = [
     "compare_store_to_backup",
     "compare_store_to_backup_file",
     "live_backup_manifest",
+    "SchemaVerification",
+    "migration_plan",
+    "schema_fingerprint",
+    "verify_schema",
 ]

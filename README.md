@@ -136,3 +136,8 @@ Observed during the public-alpha RC1 preflight build:
 ## Neural Agent Layer v1
 
 Flow Memory now includes an optional Neural Agent Layer v1. The base install still has no PyTorch requirement. Install `flow-memory[ml]` to run tiny CPU-safe PyTorch prototypes for dual-stream perception, appearance-suppressed dorsal motion, tiny JEPA-style world modeling, advisory plan scoring, skill routing, risk scoring, and neural memory retrieval. V-JEPA 2 and VideoMAE are adapter seams that require explicit local checkpoints; Flow Memory never downloads checkpoints automatically. Neural scores never override policy or approval gates.
+
+
+## Local HTTP API server
+
+Flow Memory now includes a dependency-free local HTTP API server for public-alpha operator testing. Run it with `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`. Add `--api-key dev-local-only --require-scopes` to exercise local API-key and scope gates. This is not production internet authentication; it is a local server boundary for smoke tests, demos, and preflight tools.

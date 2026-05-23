@@ -1,6 +1,6 @@
 # Flow Memory API
 
-Flow Memory has a dependency-free internal router plus optional server seams.
+Flow Memory has a dependency-free internal router, a dependency-free local HTTP server, and optional server seams.
 
 ## Local router
 
@@ -60,16 +60,32 @@ python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
 
 Use `validate_api_snapshot()` in release checks to detect accidental endpoint drift.
 
+## Dependency-free local HTTP server
+
+`src/flow_memory/api/http_server.py` wraps the internal router with JSON parsing, local API-key checks, optional scope enforcement, rate limiting, audit events, and the standard API error contract.
+
+Run it locally:
+
+```bash
+python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
+```
+
+With local preflight auth:
+
+```bash
+python scripts/run_local_api_server.py --api-key dev-local-only --require-scopes
+```
+
 ## Auth seams
 
 - `src/flow_memory/api/auth.py` implements local API-key checking seam.
 - `src/flow_memory/api/signed_requests.py` implements signed request test seam.
 - DID request signatures are a documented placeholder, not production auth.
 
-## Optional server
+## Optional FastAPI server
 
 `src/flow_memory/api/server.py` exposes a FastAPI server creation seam when FastAPI is installed. FastAPI is not required by the base test suite.
 
 ## Status
 
-The internal router, OpenAPI generation, signed request seam, and API snapshot validation are tested. Production server deployment, rate limiting, auth hardening, and public networking remain future work.
+The internal router, dependency-free HTTP server boundary, OpenAPI generation, signed request seam, API auth/scope/rate-limit checks, and API snapshot validation are tested. Production server deployment, replay protection, TLS termination, tenant isolation, and public networking remain future work.

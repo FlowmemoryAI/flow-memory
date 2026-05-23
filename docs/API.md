@@ -47,6 +47,19 @@ router.dispatch("GET", "/health")
 
 `src/flow_memory/api/openapi.py` generates a local OpenAPI JSON document from the endpoint manifest.
 
+
+## Snapshot validation
+
+`src/flow_memory/api/snapshot.py` creates a deterministic API snapshot with endpoint count, operation list, path list, manifest hash, and OpenAPI hash.
+
+Generate the committed snapshot with:
+
+```bash
+python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
+```
+
+Use `validate_api_snapshot()` in release checks to detect accidental endpoint drift.
+
 ## Auth seams
 
 - `src/flow_memory/api/auth.py` implements local API-key checking seam.
@@ -59,4 +72,4 @@ router.dispatch("GET", "/health")
 
 ## Status
 
-The internal router and OpenAPI generation are tested. Production server deployment, rate limiting, auth hardening, and public networking remain future work.
+The internal router, OpenAPI generation, signed request seam, and API snapshot validation are tested. Production server deployment, rate limiting, auth hardening, and public networking remain future work.

@@ -94,6 +94,16 @@ Created `src/flow_memory/crypto/` with local development HMAC signing:
 
 Also added versioned FlowIR manifest envelopes in `src/flow_memory/ir/manifest.py`.
 
+### Audit replay and API snapshot hardening
+
+Added:
+
+- `src/flow_memory/storage/replay.py` for deterministic event replay chains.
+- `AuditStore.append_chained()` and `AuditStore.verify_chained()` for local tamper-evident audit streams.
+- `src/flow_memory/api/snapshot.py` for manifest/OpenAPI snapshot validation.
+- `scripts/export_api_snapshot.py` and `docs/API_SNAPSHOT.json` for committed API drift artifacts.
+
+
 ### Production API seams
 
 Added:
@@ -144,13 +154,14 @@ forge build
 forge test
 cargo test
 git diff --check
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `184 passed` |
+| `python -m pytest -q` | Pass: `190 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -159,6 +170,7 @@ git diff --check
 | `bash scripts/verify.sh` | Pass |
 | `python scripts/generate_deployment_plan.py` | Pass |
 | `python scripts/base_sepolia_dry_run.py` | Pass |
+| `python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -168,7 +180,7 @@ git diff --check
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `184 passed`.
+`python -m pytest -q` currently passes with `190 passed`.
 
 ## Honest limitations
 

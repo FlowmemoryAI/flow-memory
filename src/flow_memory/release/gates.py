@@ -16,6 +16,7 @@ from typing import Any, Iterable, Mapping
 
 from flow_memory.api.snapshot import validate_api_snapshot
 from flow_memory.crypto.keys import generate_local_keypair
+from flow_memory.release.dependencies import validate_dependency_policy
 from flow_memory.storage import AuditStore, SQLiteStore, create_audit_checkpoint, verify_audit_checkpoint, verify_schema
 from flow_memory.web3.deployment_plan import generate_deployment_plan
 
@@ -65,6 +66,7 @@ def run_release_gates(root: str | Path = ".") -> ReleaseGateReport:
         _base_dry_run_gate(),
         _storage_schema_gate(),
         _secret_scan_gate(root_path),
+        _dependency_policy_gate(root_path),
     )
     return ReleaseGateReport(ok=all(result.ok for result in results), results=results)
 
@@ -115,6 +117,19 @@ def _storage_schema_gate() -> ReleaseGateResult:
             "expected_version": verification.expected_version,
             "missing_tables": verification.missing_tables,
             "schema_hash": verification.schema_hash,
+        },
+    )
+
+
+def _dependency_policy_gate(root: Path) -> ReleaseGateResult:
+    report = validate_dependency_policy(root)
+    return ReleaseGateResult(
+        "dependency_policy",
+        report.ok,
+        {
+            "inventory_hash": report.inventory_hash,
+            "errors": report.errors,
+            "warnings": report.warnings,
         },
     )
 

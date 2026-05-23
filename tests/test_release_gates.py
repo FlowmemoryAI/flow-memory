@@ -13,7 +13,17 @@ class ReleaseGateTests(unittest.TestCase):
         report = run_release_gates(root)
 
         self.assertTrue(report.ok, report.as_record())
-        self.assertEqual({"api_snapshot", "audit_replay", "base_dry_run", "storage_schema", "secret_scan"}, {result.name for result in report.results})
+        self.assertEqual(
+            {
+                "api_snapshot",
+                "audit_replay",
+                "base_dry_run",
+                "storage_schema",
+                "secret_scan",
+                "dependency_policy",
+            },
+            {result.name for result in report.results},
+        )
 
     def test_release_gate_script_outputs_json(self) -> None:
         root = Path(__file__).resolve().parents[1]

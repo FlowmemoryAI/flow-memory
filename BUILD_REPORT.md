@@ -104,7 +104,7 @@ Added:
 - `scripts/export_api_snapshot.py` and `docs/API_SNAPSHOT.json` for committed API drift artifacts.
 - `src/flow_memory/storage/checkpoints.py` for signed local audit checkpoints.
 - `scripts/replay_audit_log.py` for replaying and checkpointing SQLite audit logs.
-- `src/flow_memory/release/gates.py` and `scripts/release_gate.py` for offline release gates.
+- `src/flow_memory/release/gates.py` and `scripts/release_gate.py` for offline release gates, including dependency policy validation.
 - `scripts/verify.sh` now runs the release gate after tests, CLI smoke, and perception benchmark.
 - `src/flow_memory/storage/backup.py` for deterministic whole-store backup/restore bundles.
 - `scripts/backup_storage.py` and `scripts/restore_storage.py` for local recovery workflows.
@@ -115,7 +115,7 @@ Added:
 - `src/flow_memory/release/manifest.py` and `scripts/generate_release_manifest.py` for offline release manifest generation.
 - `src/flow_memory/release/evidence.py` and `scripts/export_release_evidence.py` for exporting and strictly verifying a hashed release evidence bundle, including dependency inventory.
 - `src/flow_memory/release/readiness.py` and `scripts/release_decision.py` for explicit local/testnet/production go-no-go decisions with dependency inventory evidence requirements.
-- `src/flow_memory/release/dependencies.py` and `scripts/export_dependency_inventory.py` for offline dependency inventory.
+- `src/flow_memory/release/dependencies.py` and `scripts/export_dependency_inventory.py` for offline dependency inventory and dependency policy checks.
 
 
 ### Production API seams
@@ -184,13 +184,14 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_release_eviden
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_release_evidence.py --out C:/tmp/flow-memory-release-evidence --verify-only
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_decision.py --root E:/FlowMemory/flow-memory --target local
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inventory.py --root E:/FlowMemory/flow-memory
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inventory.py --root E:/FlowMemory/flow-memory --policy
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `228 passed` |
+| `python -m pytest -q` | Pass: `231 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -213,6 +214,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inv
 | `python scripts/export_release_evidence.py --out C:/tmp/flow-memory-release-evidence --verify-only` | Pass |
 | `python scripts/release_decision.py --root E:/FlowMemory/flow-memory --target local` | Pass |
 | `python scripts/export_dependency_inventory.py --root E:/FlowMemory/flow-memory` | Pass |
+| `python scripts/export_dependency_inventory.py --root E:/FlowMemory/flow-memory --policy` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -222,7 +224,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inv
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `228 passed`.
+`python -m pytest -q` currently passes with `231 passed`.
 
 ## Honest limitations
 

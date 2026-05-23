@@ -47,6 +47,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | API snapshot validation | Implemented and committed as `docs/API_SNAPSHOT.json` |
 | API auth/signed requests | Local API-key and HMAC signed-request seam tested; not production auth |
 | API scopes/errors/rate limits/audit middleware | Functional local prototype; not production auth |
+| Dependency-free local HTTP API server | Implemented local/public-alpha server with API-key, scopes, rate limits, error contracts, and audit events; not production internet auth |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |

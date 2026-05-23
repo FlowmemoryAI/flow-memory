@@ -278,3 +278,8 @@ RC1 validation updates:
 ## Neural Agent Layer v1 build update — 2026-05-23
 
 Added optional neural subsystem, synthetic datasets, tiny dual-stream perception, predictive world model, advisory plan/skill/risk/evaluation scoring, neural memory retrieval, tiny training smoke scripts, V-JEPA 2 / VideoMAE adapter seams, CLI `--neural`, FlowLang neural config, neural examples, neural benchmarks, and documentation. PyTorch remains optional and default tests skip torch-only behavior when absent.
+
+
+## Dependency-free local HTTP API server update — 2026-05-23
+
+Added `src/flow_memory/api/http_server.py` and `scripts/run_local_api_server.py` to expose the internal API router through a standard-library local HTTP server. The gateway covers JSON parsing, API-key checks, optional scope enforcement, local fixed-window rate limiting, request audit events, and structured API errors. Added `tests/test_api_http_server.py` for direct gateway behavior plus an ephemeral localhost request. This remains a local/public-alpha server boundary, not production internet auth or deployment infrastructure.

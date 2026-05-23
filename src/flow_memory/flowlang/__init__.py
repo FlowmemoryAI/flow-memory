@@ -2,6 +2,7 @@
 
 from flow_memory.flowlang.examples import EXAMPLE_FLOWLANG, INVALID_MISSING_POLICY
 from flow_memory.flowlang.parser import FlowLangParseError, parse_flowlang, parse_flowlang_file
+from flow_memory.flowlang.runner import profile_from_flowlang, run_flowlang_agent
 from flow_memory.flowlang.validator import (
     compile_flowlang,
     compile_flowlang_file,
@@ -16,7 +17,9 @@ __all__ = [
     "compile_flowlang",
     "compile_flowlang_file",
     "parse_flowlang",
+    "profile_from_flowlang",
     "parse_flowlang_file",
     "validate_agent_spec",
     "validate_flowlang",
+    "run_flowlang_agent",
 ]

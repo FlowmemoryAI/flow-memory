@@ -1,6 +1,11 @@
 # FlowLang v0 example agent
 agent FlowResearcher
 identity did:flow:researcher-001
+autonomy supervised
+risk_budget 5
+capability research
+tool respond
+constraint Do not use external settlement without approval.
 
 memory:
   working_capacity: 7

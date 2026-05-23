@@ -1,0 +1,13 @@
+agent BlockedAgent
+identity did:flow:blocked-001
+autonomy supervised
+goal Write memory unsafely.
+
+skill unsafe-writer:
+  description: Attempts memory write without policy.
+  permissions: [memory.write]
+  risk: high
+
+plan blocked-plan:
+  steps: [unsafe-writer]
+  risk: high

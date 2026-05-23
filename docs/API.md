@@ -1,43 +1,62 @@
-# API
+# Flow Memory API
 
-Status: dependency-free internal router plus optional FastAPI boundary.
+Flow Memory has a dependency-free internal router plus optional server seams.
 
-Flow Memory v2 exposes a local API surface designed to grow into a larger protocol without creating hundreds of empty endpoints.
+## Local router
 
-## Internal router
+Path: `src/flow_memory/api/router.py`
 
-`src/flow_memory/api/router.py` implements `LocalApiRouter` with method/path dispatch and path parameters. It runs in process and does not launch a server.
+Use in tests and local tools without starting a server:
+
+```python
+from flow_memory.api.router import create_default_router
+router = create_default_router()
+router.dispatch("GET", "/health")
+```
 
 ## Endpoint groups
 
-- `GET /health`
-- `GET /runtime/status`
-- `POST /runtime/tick`
-- `GET /agents`
-- `GET /agents/{did}`
-- `GET /agents/{did}/memory`
-- `GET /agents/{did}/skills`
-- `POST /agents/{did}/run`
-- `POST /marketplace/tasks`
-- `POST /marketplace/bids`
-- `POST /marketplace/settle`
-- `GET /reputation/{did}`
-- `POST /attestations`
-- `GET /audit`
-- `GET /swarm/agents`
-- `POST /swarm/delegate`
-- `POST /verification/submit`
-- `GET /verification/result`
-- `GET /manifest`
-
-## Manifest
-
-`src/flow_memory/api/manifest.py` exposes a machine-readable endpoint manifest.
+- `/health`
+- `/agents`
+- `/agents/{id}`
+- `/agents/{id}/run`
+- `/agents/{id}/memory`
+- `/agents/{id}/skills`
+- `/flowlang/compile`
+- `/flowlang/validate`
+- `/flowlang/run`
+- `/flowlang/examples`
+- `/runtime/status`
+- `/runtime/tick`
+- `/marketplace/tasks`
+- `/marketplace/bids`
+- `/marketplace/assign`
+- `/marketplace/submit`
+- `/marketplace/verify`
+- `/marketplace/settle`
+- `/marketplace/dispute`
+- `/reputation/{agent_id}`
+- `/attestations`
+- `/audit`
+- `/swarm/agents`
+- `/swarm/delegate`
+- `/verification/submit`
+- `/verification/result`
 
 ## OpenAPI
 
-`src/flow_memory/api/openapi.py` can generate a minimal OpenAPI-like document from the manifest. If FastAPI is installed, `create_app()` returns a tiny ASGI app for `/health` and `/manifest`; otherwise it returns the local router.
+`src/flow_memory/api/openapi.py` generates a local OpenAPI JSON document from the endpoint manifest.
 
-## Boundary
+## Auth seams
 
-This is not a production API server. Authentication, authorization, replay protection, rate limiting, persistence, and external service integration remain future work.
+- `src/flow_memory/api/auth.py` implements local API-key checking seam.
+- `src/flow_memory/api/signed_requests.py` implements signed request test seam.
+- DID request signatures are a documented placeholder, not production auth.
+
+## Optional server
+
+`src/flow_memory/api/server.py` exposes a FastAPI server creation seam when FastAPI is installed. FastAPI is not required by the base test suite.
+
+## Status
+
+The internal router and OpenAPI generation are tested. Production server deployment, rate limiting, auth hardening, and public networking remain future work.

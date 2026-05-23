@@ -1,153 +1,73 @@
 # Flow Memory Status
 
-## Current State
-
-### Completed
-- [x] Competitor analysis (Nookplot, AEON, ODEI)
-- [x] Research synthesis (3 papers)
-- [x] Architecture design
-- [x] Technology stack selection
-- [x] Economic model design
-- [x] Roadmap creation
-- [x] Build requirements extraction
-
-### In Progress
-- [ ] GPT code generation (Phase 1 cognitive kernel)
-- [ ] DeepSeek API integration (blocked - key issue)
-
-### Pending
-- [ ] GitHub repository setup
-- [ ] Docker configuration
-- [ ] CI/CD pipeline
-- [ ] Actual code implementation
-- [ ] Test suite
-- [ ] Documentation
-
-## Competitor Analysis Summary
-
-### Nookplot
-- **Strengths**: Comprehensive contracts, runtime SDK, economic layer
-- **Weaknesses**: Complexity, cloud-dependent, no local-first
-- **Files Analyzed**: 800+ TypeScript, 25 Solidity contracts
-
-### AEON
-- **Strengths**: 121 skills, self-healing, zero infrastructure
-- **Weaknesses**: No blockchain, minimal MCP/A2A, no sandboxing
-- **Files Analyzed**: 162 Markdown skills, 32 TypeScript files
-
-### ODEI
-- **Strengths**: Graph-native memory, constitutional AI, auditability
-- **Weaknesses**: Documentation-heavy, minimal code, no economics
-- **Files Analyzed**: 19 Markdown docs, 1 TypeScript file
-
-## Key Differentiators
-
-1. **Dual-stream perception** (unique)
-2. **Appearance-invariant motion** (unique)
-3. **Local-first architecture** (gap)
-4. **Constitutional + economic** (combines ODEI + Nookplot)
-5. **Functional A2A** (gap)
-
-## Next Actions
-
-1. **Resolve DeepSeek API** - Get working key for additional research
-2. **Capture GPT build** - Extract code from GPT's generation
-3. **Setup repository** - Create GitHub repo with proper structure
-4. **Implement Phase 1** - Cognitive kernel with tests
-5. **Docker setup** - Local development environment
-
-## Blockers
-
-1. **DeepSeek API key** - Masked in memory, need full key
-2. **GPT code extraction** - Need to capture generated code
-3. **Time** - Complex project requires sustained effort
-
-## Resources
-
-### Research Papers
-- Bai et al. (2026): `chrome-gpt-automation/mit-dorsal-stream-paper.pdf`
-- Dunnhofer et al. (2026): `chrome-gpt-automation/2601.03392v1.pdf`
-- Lee et al. (2022): `chrome-gpt-automation/scirobotics.abq7278_sm.pdf`
-
-### Competitor Repos
-- Nookplot: `E:\FlowMemory\nookplot`
-- AEON: `E:\FlowMemory\aeon`
-- ODEI: `E:\FlowMemory\mcp-odei`, `E:\FlowMemory\memory`
-
-### Documents
-- Deep dives: `docs/competitors/*_DEEP_DIVE.md`
-- Matrices: `docs/competitors/*_MATRIX.md`
-- Requirements: `docs/competitors/BUILD_REQUIREMENTS_FROM_COMPETITORS.md`
-- Economy: `docs/AUTONOMOUS_AGENT_ECONOMY_V2.md`
-- Roadmap: `docs/ROADMAP.md`
-
-## Classification of Flow Memory Capabilities
-
-| Capability | Status |
-|------------|--------|
-| Cognitive kernel | Scaffold |
-| Working memory | Scaffold |
-| Episodic memory | Scaffold |
-| Semantic memory | Scaffold |
-| Safety sandbox | Scaffold |
-| Policy engine | Scaffold |
-| Economic layer | Scaffold |
-| Dual-stream perception | Missing |
-| MCP server | Scaffold |
-| A2A server | Missing |
-| Blockchain contracts | Missing |
-| Self-healing | Missing |
-| Embodiment | Missing |
-
-## Target: End of Week 1
-
-- [ ] Working repository
-- [ ] Docker setup
-- [ ] Basic agent loop
-- [ ] 5 skills
-- [ ] Memory system
-- [ ] Safety framework
-
-## Updated: 2026-05-23
-
----
-
-# Current Status Addendum: Language Strategy + FlowLang
-
 Date: 2026-05-23
 
-## Completed in language layer
+## Current status
 
-- FlowIR dataclass layer in `src/flow_memory/ir/`.
-- FlowLang v0 parser/compiler/validator in `src/flow_memory/flowlang/`.
-- WIT skill/agent/memory/economy ABI files in `wit/`.
-- Datalog-style starter rules in `rules/`.
-- Language strategy and experimental-language docs in `docs/`.
-- FlowLang example source and compile demo in `examples/`.
-- Tests for FlowIR, FlowLang, WIT files, and rule files.
+Flow Memory is now a production-shaped local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run adapters, sandbox profiles, protocol gateway seams, dashboard scaffold, CI workflows, and production-readiness docs.
 
-## Current validation
+It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, and FlowLang remains v0/prototype.
+
+## Validation
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `121 passed` |
+| `python -m pytest -q` | Pass: `184 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
-| `python -m flow_memory --json "Explore and report"` | Pass |
-| `bash scripts/verify.sh` | Pass |
+| `python examples/flowlang_runtime_demo.py` | Pass |
+| `python examples/flowlang_economy_demo.py` | Pass |
+| `python -m flow_memory --flow examples/flowlang_agent.flow --json "Run the declared agent"` | Pass |
+| Deployment plan script | Pass |
+| Base Sepolia dry-run script | Pass |
 
-## Current maturity
+## Maturity table
 
 | Capability | Status |
 | --- | --- |
-| FlowIR | Implemented v0 Python dataclasses |
-| FlowLang | v0 parser/prototype, not production-ready |
-| WIT ABI | Specification files only |
-| Datalog policy rules | Starter rules only |
-| Rust runtime | Roadmap |
-| Zig sidecars | Experiment only |
-| Mojo kernels | Experiment only |
-| Wasm host | Roadmap |
+| AI agent layer | Functional prototype |
+| AgentProfile / AgentState | Implemented local dataclasses |
+| Goal system | Implemented local prototype |
+| Autonomy modes | Implemented local policy gate |
+| Typed planner/task graph | Implemented local prototype |
+| Agent runner | Functional prototype integrated with memory, skills, policy, economy, audit |
+| FlowLang to AgentProfile | Implemented local prototype |
+| CLI `--flow` | Implemented |
+| FlowLang API endpoints | Implemented in internal router |
+| Economy V3 success/failure lifecycle | Implemented local emulator |
+| Economy V3 receipts/risk controls | Implemented local prototype |
+| SQLite durable storage | Implemented local persistence |
+| Signed manifests/receipts | Local development HMAC prototype |
+| Provenance hash chain | Implemented local prototype |
+| OpenAPI generation | Implemented local manifest-driven output |
+| Base Sepolia dry run | Implemented no-key/no-funds plan generator |
+| ERC-4337 adapter | Interface seam tested locally |
+| Sandbox profiles/receipts | Implemented interface; not hardened isolation |
+| MCP/A2A/libp2p gateways | Adapter seams tested locally |
+| Dashboard | Scaffold/mock data only |
+| CI workflows | Added; GitHub execution not yet observed here |
 
-## Important limitation
+## Top risks
 
-Earlier status entries in this file reflected pre-build planning. The current validated local test state is the table above.
+1. Contracts are unaudited.
+2. Sandbox is not hardened VM/container isolation.
+3. Web3 deployment is dry-run only.
+4. Signing is local HMAC prototype only.
+5. API auth is a seam, not production security.
+6. FlowLang schema is not stable.
+7. SQLite is local persistence only.
+8. Protocol gateways are not live network transports.
+9. Trained ML/world-model integration remains future work.
+10. Dashboard is scaffold/mock data only.
+
+## Next milestones
+
+1. Replace HMAC dev signing with asymmetric DID/account signing.
+2. Add Rust FlowIR validator and Wasm host.
+3. Wire Datalog inference into policy decisions.
+4. Add durable audit replay CLI.
+5. Add contract threat model review and external audit preparation.
+6. Add Base Sepolia dry-run to CI artifacts.
+7. Add FastAPI integration tests behind optional dependency flag.
+8. Add container sandbox implementation with strict resource limits.
+9. Add dashboard API integration.
+10. Add GitHub release dry-run verification after push.

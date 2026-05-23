@@ -144,6 +144,10 @@ class RuntimeOrchestrator:
         messages = tuple(name for name, healthy in checks.items() if not healthy)
         return RuntimeHealth(name="runtime", ok=ok, running=running, ticks=len(self._events), checks=checks, messages=messages)
 
+    def health_summary(self) -> Mapping[str, object]:
+        health = self.health()
+        return {"status": "ok" if health.ok else "degraded", "running": health.running, "checks": dict(health.checks)}
+
     def events(self) -> tuple[RuntimeEvent, ...]:
         return tuple(self._events)
 

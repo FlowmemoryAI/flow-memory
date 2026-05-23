@@ -20,6 +20,7 @@ Status: functional local prototype.
 - `src/flow_memory/storage/replay.py` builds deterministic replay chains and verifies stored audit hash chains.
 - `src/flow_memory/storage/backup.py` creates deterministic whole-store backups and validates restore bundles.
 - `src/flow_memory/storage/retention.py` applies row-count retention policies and optional SQLite compaction.
+- `src/flow_memory/storage/integrity.py` compares live SQLite state against deterministic backup root hashes.
 
 ## Audit replay and tamper evidence
 
@@ -68,6 +69,13 @@ python scripts/restore_storage.py --backup backups/flow-memory-backup.json --db 
 
 Backup bundles include every known SQLiteStore table plus per-table content hashes and a root hash. Restore fails closed if the target store already contains data unless `--overwrite` is explicitly supplied.
 
+Verify a live database still matches a backup:
+
+```bash
+python scripts/verify_storage_backup.py --db flow-memory.sqlite3 --backup backups/flow-memory-backup.json
+```
+
+
 ## Retention and compaction
 
 Apply a retention policy:
@@ -102,5 +110,5 @@ Protected tables (`audit_events`, `settlements`, `slashing_events`, `reputation_
 
 - Add optional external notarization for signed audit checkpoints.
 - Add migration files with upgrade/downgrade metadata.
-- Add corruption-recovery commands that compare live state against backup root hashes.
+- Add deeper corruption-recovery repair commands after root-hash mismatch detection.
 - Add retention age policies once every persisted table has trusted timestamps.

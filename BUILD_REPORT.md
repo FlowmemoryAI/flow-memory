@@ -113,7 +113,7 @@ Added:
 - `src/flow_memory/storage/migrations.py` and `scripts/verify_storage_schema.py` for schema fingerprints and migration metadata verification.
 - `scripts/release_gate.py` now includes storage schema verification.
 - `src/flow_memory/release/manifest.py` and `scripts/generate_release_manifest.py` for offline release manifest generation.
-- `src/flow_memory/release/evidence.py` and `scripts/export_release_evidence.py` for exporting a hashed release evidence bundle.
+- `src/flow_memory/release/evidence.py` and `scripts/export_release_evidence.py` for exporting a hashed release evidence bundle, including dependency inventory.
 - `src/flow_memory/release/readiness.py` and `scripts/release_decision.py` for explicit local/testnet/production go-no-go decisions.
 - `src/flow_memory/release/dependencies.py` and `scripts/export_dependency_inventory.py` for offline dependency inventory.
 

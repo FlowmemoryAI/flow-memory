@@ -133,6 +133,8 @@ Created `src/flow_memory/web3/` and scripts:
 - `scripts/base_sepolia_dry_run.py`
 - `scripts/export_contract_addresses.py`
 - `scripts/verify_contract_config.py`
+- Hardened `src/flow_memory/web3/contract_registry.py` with address, required-contract, zero-address, and unknown-contract validation.
+- Upgraded `scripts/verify_contract_config.py` to validate optional registry JSON.
 
 No real funds, private keys, providers, or deployments are required.
 
@@ -174,13 +176,14 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/apply_retention_polic
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_backup.py --db C:/tmp/flow-memory-backup-source.sqlite3 --backup C:/tmp/flow-memory-storage-backup.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_schema.py
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/generate_release_manifest.py --root E:/FlowMemory/flow-memory --sign-local
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_contract_config.py
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `213 passed` |
+| `python -m pytest -q` | Pass: `216 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -198,6 +201,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/generate_release_mani
 | `python scripts/verify_storage_backup.py --db C:/tmp/flow-memory-backup-source.sqlite3 --backup C:/tmp/flow-memory-storage-backup.json` | Pass |
 | `python scripts/verify_storage_schema.py` | Pass |
 | `python scripts/generate_release_manifest.py --root E:/FlowMemory/flow-memory --sign-local` | Pass |
+| `python scripts/verify_contract_config.py` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -207,7 +211,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/generate_release_mani
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `213 passed`.
+`python -m pytest -q` currently passes with `216 passed`.
 
 ## Honest limitations
 

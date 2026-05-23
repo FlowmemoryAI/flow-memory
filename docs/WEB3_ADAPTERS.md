@@ -14,6 +14,20 @@ Specify how Flow Memory's local agent economy can map to Web3 systems without le
 - Core economy state remains authoritative until a verified adapter result is accepted.
 - Private keys, RPC URLs, hosted wallet credentials, and bundler credentials must come from explicit runtime configuration and must never be committed.
 
+## Contract registry verification
+
+`src/flow_memory/web3/contract_registry.py` validates Base Sepolia contract registry JSON. The registry rejects unknown contract names and malformed addresses, reports missing required contracts, and flags zero addresses unless explicitly allowed for dry-run manifests.
+
+Verify chain and registry configuration:
+
+```bash
+python scripts/verify_contract_config.py
+python scripts/verify_contract_config.py --registry base-sepolia-registry.json
+python scripts/verify_contract_config.py --registry dry-run-registry.json --allow-zero
+```
+
+The default no-argument command only verifies the built-in Base Sepolia chain configuration and an empty dry-run registry. Real deployment registries must include every required contract before they can pass without `--partial`.
+
 ## Limitations
 
 - No production wallet custody, ERC-4337 bundler/paymaster flow, gas policy, key rotation, nonce management, chain reorg handling, or treasury controls are certified.

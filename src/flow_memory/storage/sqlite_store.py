@@ -84,6 +84,26 @@ class SQLiteStore:
             rows = conn.execute(f"select payload from {table} order by id").fetchall()
             return tuple(json.loads(row["payload"]) for row in rows)
 
+    def ids(self, table: str) -> tuple[str, ...]:
+        with self._connection() as conn:
+            rows = conn.execute(f"select id from {table} order by id").fetchall()
+            return tuple(str(row["id"]) for row in rows)
+
+    def delete(self, table: str, item_id: str) -> bool:
+        with self._connection() as conn:
+            cursor = conn.execute(f"delete from {table} where id = ?", (item_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
+    def count(self, table: str) -> int:
+        with self._connection() as conn:
+            row = conn.execute(f"select count(*) as count from {table}").fetchone()
+            return int(row["count"])
+
+    def vacuum(self) -> None:
+        with self._connection() as conn:
+            conn.execute("vacuum")
+
     def tables(self) -> tuple[str, ...]:
         return TABLES
 

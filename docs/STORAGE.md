@@ -19,6 +19,7 @@ Status: functional local prototype.
 - `src/flow_memory/storage/export.py` exports table contents to JSONL.
 - `src/flow_memory/storage/replay.py` builds deterministic replay chains and verifies stored audit hash chains.
 - `src/flow_memory/storage/backup.py` creates deterministic whole-store backups and validates restore bundles.
+- `src/flow_memory/storage/retention.py` applies row-count retention policies and optional SQLite compaction.
 
 ## Audit replay and tamper evidence
 
@@ -67,17 +68,39 @@ python scripts/restore_storage.py --backup backups/flow-memory-backup.json --db 
 
 Backup bundles include every known SQLiteStore table plus per-table content hashes and a root hash. Restore fails closed if the target store already contains data unless `--overwrite` is explicitly supplied.
 
+## Retention and compaction
+
+Apply a retention policy:
+
+```bash
+python scripts/apply_retention_policy.py --db flow-memory.sqlite3 --policy retention-policy.json
+```
+
+Example policy:
+
+```json
+{
+  "rules": [
+    {"table": "memory_records", "max_rows": 10000},
+    {"table": "runtime_events", "max_rows": 50000}
+  ],
+  "vacuum_after": true
+}
+```
+
+Protected tables (`audit_events`, `settlements`, `slashing_events`, `reputation_updates`) are skipped unless `allow_protected_prune` is explicitly true. This prevents accidental destruction of audit/economic evidence.
+
 
 ## Limitations
 
 - SQLite is local persistence, not a distributed or high-availability database.
 - Hash chaining detects tampering after the fact; it does not prevent a compromised host from deleting or rewriting the whole database.
 - External Redis/Qdrant/Neo4j adapters remain optional seams.
-- Backup is implemented for local recovery, but encryption-at-rest, retention, offsite replication, and multi-process operational policy still need production hardening.
+- Backup and retention are implemented for local recovery and hygiene, but encryption-at-rest, offsite replication, and multi-process operational policy still need production hardening.
 
 ## Next steps
 
 - Add optional external notarization for signed audit checkpoints.
 - Add migration files with upgrade/downgrade metadata.
 - Add corruption-recovery commands that compare live state against backup root hashes.
-- Add retention policy and compaction tools.
+- Add retention age policies once every persisted table has trusted timestamps.

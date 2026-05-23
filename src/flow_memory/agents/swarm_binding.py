@@ -12,4 +12,5 @@ class AgentSwarmBinding:
         self.discovery = discovery or AgentDiscoveryRegistry()
 
     def discover(self, capability: str) -> tuple[Mapping[str, Any], ...]:
-        return tuple(card.as_manifest() for card in self.discovery.find_by_capability(capability))
+        finder = getattr(self.discovery, "find_by_capability", self.discovery.discover)
+        return tuple(card.as_manifest() for card in finder(capability))

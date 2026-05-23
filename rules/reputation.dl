@@ -1,0 +1,14 @@
+// Reputation rules: verified settlement increases non-transferable reputation.
+
+.decl settlement(task: symbol, worker: symbol, verifier: symbol, status: symbol)
+.decl reputation_delta(agent: symbol, task: symbol, delta: number, reason: symbol)
+.output reputation_delta
+
+reputation_delta(worker, task, 5, "verified_settlement") :-
+  settlement(task, worker, _, "verified").
+
+reputation_delta(verifier, task, 1, "verification_participation") :-
+  settlement(task, _, verifier, "verified").
+
+reputation_delta(worker, task, -2, "rejected_work") :-
+  settlement(task, worker, _, "rejected").

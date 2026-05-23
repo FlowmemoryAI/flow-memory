@@ -1,0 +1,49 @@
+package flow-memory:memory;
+
+/// Flow Memory memory ABI for sandboxed components.
+interface memory-api {
+  enum memory-domain {
+    working,
+    episodic,
+    semantic,
+    procedural,
+    economic,
+    constitutional,
+  }
+
+  record memory-read-request {
+    domain: memory-domain,
+    query-json: string,
+    max-records: u32,
+    trace-id: string,
+  }
+
+  record memory-record {
+    id: string,
+    domain: memory-domain,
+    payload-json: string,
+    relevance: f32,
+    created-at-unix-ms: u64,
+  }
+
+  record memory-write-request {
+    domain: memory-domain,
+    payload-json: string,
+    policy-context-json: string,
+    trace-id: string,
+  }
+
+  record audit-event {
+    kind: string,
+    payload-json: string,
+    trace-id: string,
+  }
+
+  read-memory: func(request: memory-read-request) -> result<list<memory-record>, string>;
+  write-memory: func(request: memory-write-request) -> result<memory-record, string>;
+  emit-audit: func(event: audit-event) -> result<_, string>;
+}
+
+world flow-memory-memory {
+  export memory-api;
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowmemory.dev/schemas/event.schema.json",
+  "title": "Flow Memory Audit Event",
+  "type": "object",
+  "required": ["kind", "timestamp", "previous_hash", "hash"],
+  "properties": {
+    "kind": {"type": "string"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "previous_hash": {"type": "string"},
+    "hash": {"type": "string"},
+    "plan_id": {"type": "string"},
+    "decision": {"type": "object"},
+    "result": {"type": "object"}
+  }
+}

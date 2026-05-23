@@ -1,0 +1,25 @@
+// Task eligibility rules: capability match plus minimum reputation.
+
+.decl task(task_id: symbol, required_capability: symbol, min_reputation: number)
+.decl agent_capability(agent: symbol, capability: symbol)
+.decl reputation(agent: symbol, score: number)
+.decl eligible(agent: symbol, task_id: symbol)
+.decl ineligible(agent: symbol, task_id: symbol, reason: symbol)
+.output eligible
+.output ineligible
+
+eligible(agent, task_id) :-
+  task(task_id, capability, min_reputation),
+  agent_capability(agent, capability),
+  reputation(agent, score),
+  score >= min_reputation.
+
+ineligible(agent, task_id, "missing_capability") :-
+  task(task_id, capability, _),
+  !agent_capability(agent, capability).
+
+ineligible(agent, task_id, "insufficient_reputation") :-
+  task(task_id, capability, min_reputation),
+  agent_capability(agent, capability),
+  reputation(agent, score),
+  score < min_reputation.

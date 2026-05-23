@@ -1,0 +1,18 @@
+name: alpha
+capabilities:
+  - perception
+  - memory
+  - reasoning
+  - tool_use
+runtime:
+  data_dir: .flow_memory
+  allow_network_tools: false
+  allow_code_execution: false
+  max_working_memory_items: 7
+safety:
+  require_human_for:
+    - code.execute
+    - wallet.transfer
+    - marketplace.bid
+    - filesystem.write
+    - browser.automation

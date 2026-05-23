@@ -1,0 +1,10 @@
+[package]
+name = "flow-memory-core"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Optional Rust helpers for Flow Memory motion math."
+
+[lib]
+name = "flow_memory_core"
+path = "src/lib.rs"

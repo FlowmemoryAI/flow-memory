@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flowmemory.dev/schemas/agent_manifest.schema.json",
+  "title": "Flow Memory Agent Manifest",
+  "type": "object",
+  "required": ["name", "did", "capabilities", "permissions"],
+  "properties": {
+    "name": {"type": "string"},
+    "did": {"type": "string", "pattern": "^did:"},
+    "capabilities": {"type": "array", "items": {"type": "string"}},
+    "permissions": {"type": "array", "items": {"type": "string"}},
+    "endpoints": {"type": "object"},
+    "reputation": {"type": "object"}
+  }
+}

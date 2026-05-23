@@ -1,0 +1,54 @@
+"""API endpoint manifest for the dependency-free local router."""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Mapping, Sequence
+
+
+@dataclass(frozen=True)
+class EndpointSpec:
+    method: str
+    path: str
+    name: str
+    description: str
+    request_fields: Sequence[str] = field(default_factory=tuple)
+    response_fields: Sequence[str] = field(default_factory=tuple)
+
+    def as_record(self) -> Mapping[str, Any]:
+        return {
+            "method": self.method,
+            "path": self.path,
+            "name": self.name,
+            "description": self.description,
+            "request_fields": tuple(self.request_fields),
+            "response_fields": tuple(self.response_fields),
+        }
+
+
+API_ENDPOINTS: tuple[EndpointSpec, ...] = (
+    EndpointSpec("GET", "/health", "health", "Router health check", response_fields=("ok", "service")),
+    EndpointSpec("GET", "/runtime/status", "runtime_status", "Local runtime status"),
+    EndpointSpec("POST", "/runtime/tick", "runtime_tick", "Advance local runtime tick"),
+    EndpointSpec("GET", "/agents", "agents_list", "List registered agent cards"),
+    EndpointSpec("GET", "/agents/{did}", "agents_get", "Get a registered agent card"),
+    EndpointSpec("GET", "/agents/{did}/memory", "agent_memory", "Get local memory records for an agent"),
+    EndpointSpec("GET", "/agents/{did}/skills", "agent_skills", "Get skills associated with an agent"),
+    EndpointSpec("POST", "/agents/{did}/run", "agent_run", "Run a local agent cycle placeholder"),
+    EndpointSpec("POST", "/marketplace/tasks", "marketplace_task_create", "Create a local marketplace task", request_fields=("title", "reward", "requester", "metadata")),
+    EndpointSpec("POST", "/marketplace/bids", "marketplace_bid_create", "Create a local marketplace bid", request_fields=("task_id", "agent_did", "price")),
+    EndpointSpec("POST", "/marketplace/settle", "marketplace_settle", "Settle a local marketplace task"),
+    EndpointSpec("GET", "/reputation/{did}", "reputation_lookup", "Look up DID-bound reputation"),
+    EndpointSpec("POST", "/attestations", "attestation_create", "Record a local attestation"),
+    EndpointSpec("GET", "/audit", "audit_log", "Read local API audit events"),
+    EndpointSpec("GET", "/swarm/agents", "swarm_agents", "List local swarm agents"),
+    EndpointSpec("POST", "/swarm/delegate", "swarm_delegate", "Create and assign a local delegation contract", request_fields=("delegator_did", "delegate_did", "capability", "objective", "budget", "constraints")),
+    EndpointSpec("POST", "/verification/submit", "verification_submit_alias", "Submit a verification result"),
+    EndpointSpec("POST", "/verification/{contract_id}", "verification_submit", "Submit completion and optional verification for a delegation", request_fields=("result", "accepted", "evidence")),
+    EndpointSpec("GET", "/verification/result", "verification_result_alias", "Get the latest verification result"),
+    EndpointSpec("GET", "/verification/{contract_id}", "verification_result", "Get delegation verification status"),
+    EndpointSpec("GET", "/manifest", "manifest", "List router endpoints"),
+)
+
+
+def endpoint_manifest() -> Mapping[str, Any]:
+    return {"endpoints": tuple(endpoint.as_record() for endpoint in API_ENDPOINTS)}

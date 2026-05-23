@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    command: ["flow-memory", "run", "Explore and report"]
+    environment:
+      FLOW_MEMORY_REDIS_URL: redis://redis:6379/0
+      FLOW_MEMORY_QDRANT_URL: http://qdrant:6333
+      FLOW_MEMORY_NEO4J_URI: bolt://neo4j:7687
+      FLOW_MEMORY_OPA_URL: http://opa:8181
+    depends_on:
+      - redis
+      - qdrant
+      - neo4j
+      - opa
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+  qdrant:
+    image: qdrant/qdrant:v1.9.5
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/flowmemory
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j_data:/data
+  opa:
+    image: openpolicyagent/opa:0.70.0
+    command: ["run", "--server", "--addr", ":8181", "/policies"]
+    volumes:
+      - ./policies:/policies:ro
+    ports:
+      - "8181:8181"
+
+volumes:
+  qdrant_storage:
+  neo4j_data:

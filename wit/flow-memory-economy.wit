@@ -1,0 +1,53 @@
+package flow-memory:economy;
+
+/// Flow Memory economy ABI for local/testnet settlement components.
+interface economy-api {
+  enum settlement-mode {
+    none,
+    local,
+    base-sepolia,
+    base,
+  }
+
+  record economic-settlement-request {
+    task-id: string,
+    requester: string,
+    worker: string,
+    verifier: string,
+    amount: f64,
+    currency: string,
+    mode: settlement-mode,
+    evidence-hash: string,
+    trace-id: string,
+  }
+
+  record settlement-result {
+    accepted: bool,
+    settlement-id: string,
+    status: string,
+    reason: string,
+  }
+
+  record attestation-request {
+    subject: string,
+    claim: string,
+    evidence-hash: string,
+    issuer: string,
+    trace-id: string,
+  }
+
+  record policy-approval-request {
+    permission: string,
+    risk: string,
+    reason: string,
+    trace-id: string,
+  }
+
+  request-settlement: func(request: economic-settlement-request) -> result<settlement-result, string>;
+  create-attestation: func(request: attestation-request) -> result<string, string>;
+  request-policy-approval: func(request: policy-approval-request) -> result<bool, string>;
+}
+
+world flow-memory-economy {
+  export economy-api;
+}

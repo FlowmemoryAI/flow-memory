@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `223 passed` |
+| `python -m pytest -q` | Pass: `226 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -57,6 +57,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Release manifest | Implemented offline manifest with commit, API, schema, Base dry-run, and gate status |
 | Release evidence bundle | Implemented hashed bundle export and verification |
 | Release readiness decision | Implemented local/testnet/production go-no-go classifier |
+| Dependency inventory | Implemented offline inventory for Python, dashboard, and Rust manifests |
 
 ## Top risks
 

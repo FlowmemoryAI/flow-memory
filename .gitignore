@@ -34,3 +34,13 @@ htmlcov/
 
 # Local Flow Memory runtime artifacts
 .flow_memory/
+
+# Neural/cloud GPU artifacts
+artifacts/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+wandb/
+runs/

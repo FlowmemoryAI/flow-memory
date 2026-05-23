@@ -1,0 +1,32 @@
+name: Neural CPU Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/flow_memory/neural/**"
+      - "tests/test_neural*.py"
+      - "tests/test_tiny*.py"
+      - "examples/neural_*.py"
+      - "benchmarks/neural_*.py"
+      - "scripts/*gpu*.py"
+      - ".github/workflows/neural-cpu-smoke.yml"
+
+jobs:
+  neural-cpu-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install base dev dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev]"
+      - name: Run non-GPU neural smoke tests
+        run: |
+          python -m pytest -q tests/test_neural_optional_imports.py tests/test_neural_config.py tests/test_neural_backend_registry.py tests/test_neural_checkpoint_registry.py tests/test_cli_neural_flag.py
+          python scripts/gpu_env_check.py --json
+          python examples/neural_agent_demo.py
+          python examples/neural_plan_scoring_demo.py

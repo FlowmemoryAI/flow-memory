@@ -106,5 +106,5 @@ Each release candidate should attach or link:
 - Release-gate JSON from `scripts/release_gate.py`, including API snapshot, audit replay, Base dry-run, and secret-scan status.
 - Release manifest JSON from `scripts/generate_release_manifest.py`, including commit, branch, API snapshot, storage schema, Base dry-run plan, and release-gate status.
 - Release evidence bundle from `scripts/export_release_evidence.py`, including `index.json`, release manifest, release gates, API snapshot, storage schema, Base deployment dry-run, and dependency inventory.
-- Release decision JSON from `scripts/release_decision.py`, with explicit target, classification, blockers, and required evidence.
+- Release decision JSON from `scripts/release_decision.py`, with explicit target, classification, blockers, and required evidence including dependency inventory.
 - Dependency inventory JSON from `scripts/export_dependency_inventory.py`, covering Python optional extras, dashboard package metadata, and Rust helper crate metadata.

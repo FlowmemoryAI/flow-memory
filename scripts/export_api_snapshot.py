@@ -17,7 +17,7 @@ def main() -> int:
     text = json.dumps(api_snapshot(), indent=2, sort_keys=True) + "\n"
     if args.write:
         args.write.parent.mkdir(parents=True, exist_ok=True)
-        args.write.write_text(text, encoding="utf-8")
+        args.write.write_text(text, encoding="utf-8", newline="\n")
     else:
         print(text, end="")
     return 0

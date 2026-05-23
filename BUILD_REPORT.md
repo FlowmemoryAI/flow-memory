@@ -115,6 +115,7 @@ Added:
 - `src/flow_memory/release/manifest.py` and `scripts/generate_release_manifest.py` for offline release manifest generation.
 - `src/flow_memory/release/evidence.py` and `scripts/export_release_evidence.py` for exporting a hashed release evidence bundle.
 - `src/flow_memory/release/readiness.py` and `scripts/release_decision.py` for explicit local/testnet/production go-no-go decisions.
+- `src/flow_memory/release/dependencies.py` and `scripts/export_dependency_inventory.py` for offline dependency inventory.
 
 
 ### Production API seams
@@ -182,13 +183,14 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_contract_confi
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_release_evidence.py --root E:/FlowMemory/flow-memory --out C:/tmp/flow-memory-release-evidence
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_release_evidence.py --out C:/tmp/flow-memory-release-evidence --verify-only
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_decision.py --root E:/FlowMemory/flow-memory --target local
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inventory.py --root E:/FlowMemory/flow-memory
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `223 passed` |
+| `python -m pytest -q` | Pass: `226 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -210,6 +212,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_decision.py -
 | `python scripts/export_release_evidence.py --root E:/FlowMemory/flow-memory --out C:/tmp/flow-memory-release-evidence` | Pass |
 | `python scripts/export_release_evidence.py --out C:/tmp/flow-memory-release-evidence --verify-only` | Pass |
 | `python scripts/release_decision.py --root E:/FlowMemory/flow-memory --target local` | Pass |
+| `python scripts/export_dependency_inventory.py --root E:/FlowMemory/flow-memory` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -219,7 +222,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_decision.py -
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `223 passed`.
+`python -m pytest -q` currently passes with `226 passed`.
 
 ## Honest limitations
 

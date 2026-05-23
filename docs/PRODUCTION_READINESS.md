@@ -71,6 +71,7 @@ Before public release:
 - [ ] `python scripts/generate_release_manifest.py --root . --out release-manifest.json` is attached to the release record.
 - [ ] `python scripts/export_release_evidence.py --root . --out release-evidence` is attached to the release record.
 - [ ] `python scripts/release_decision.py --root . --target local` returns a local release candidate decision.
+- [ ] `python scripts/export_dependency_inventory.py --root . --out dependency-inventory.json` is attached to the release record.
 
 ## Observability and operations
 
@@ -106,3 +107,4 @@ Each release candidate should attach or link:
 - Release manifest JSON from `scripts/generate_release_manifest.py`, including commit, branch, API snapshot, storage schema, Base dry-run plan, and release-gate status.
 - Release evidence bundle from `scripts/export_release_evidence.py`, including `index.json`, release manifest, release gates, API snapshot, storage schema, and Base deployment dry-run.
 - Release decision JSON from `scripts/release_decision.py`, with explicit target, classification, blockers, and required evidence.
+- Dependency inventory JSON from `scripts/export_dependency_inventory.py`, covering Python optional extras, dashboard package metadata, and Rust helper crate metadata.

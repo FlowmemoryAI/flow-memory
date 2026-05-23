@@ -1,4 +1,6 @@
 import unittest
+import json
+from pathlib import Path
 
 from flow_memory.api.openapi import openapi_schema
 from flow_memory.api.snapshot import api_snapshot, validate_api_snapshot
@@ -12,6 +14,15 @@ class ApiSnapshotTests(unittest.TestCase):
         self.assertTrue(validation.ok)
         self.assertGreater(snapshot["endpoint_count"], 20)
         self.assertIn("POST /flowlang/run", snapshot["operations"])
+
+
+    def test_committed_json_snapshot_validates(self) -> None:
+        snapshot_path = Path(__file__).resolve().parents[1] / "docs" / "API_SNAPSHOT.json"
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+
+        validation = validate_api_snapshot(snapshot)
+
+        self.assertTrue(validation.ok, validation.errors)
 
     def test_snapshot_validation_detects_manifest_drift(self) -> None:
         snapshot = dict(api_snapshot())

@@ -104,6 +104,8 @@ Added:
 - `scripts/export_api_snapshot.py` and `docs/API_SNAPSHOT.json` for committed API drift artifacts.
 - `src/flow_memory/storage/checkpoints.py` for signed local audit checkpoints.
 - `scripts/replay_audit_log.py` for replaying and checkpointing SQLite audit logs.
+- `src/flow_memory/release/gates.py` and `scripts/release_gate.py` for offline release gates.
+- `scripts/verify.sh` now runs the release gate after tests, CLI smoke, and perception benchmark.
 
 
 ### Production API seams
@@ -158,13 +160,14 @@ cargo test
 git diff --check
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/replay_audit_log.py --db C:/tmp/flow-memory-audit-replay.sqlite3 --checkpoint --require-events
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_gate.py --root E:/FlowMemory/flow-memory
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `193 passed` |
+| `python -m pytest -q` | Pass: `196 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -175,6 +178,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/replay_audit_log.py -
 | `python scripts/base_sepolia_dry_run.py` | Pass |
 | `python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json` | Pass |
 | `python scripts/replay_audit_log.py --db C:/tmp/flow-memory-audit-replay.sqlite3 --checkpoint --require-events` | Pass |
+| `python scripts/release_gate.py --root E:/FlowMemory/flow-memory` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -184,7 +188,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/replay_audit_log.py -
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `193 passed`.
+`python -m pytest -q` currently passes with `196 passed`.
 
 ## Honest limitations
 

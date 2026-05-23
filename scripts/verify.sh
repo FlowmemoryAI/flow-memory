@@ -34,3 +34,4 @@ select_python
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 "${PYTHON_CMD[@]}" -m pytest -q
 "${PYTHON_CMD[@]}" -m flow_memory --json "Explore and report"
 "${PYTHON_CMD[@]}" benchmarks/perception_benchmark.py
+"${PYTHON_CMD[@]}" scripts/release_gate.py

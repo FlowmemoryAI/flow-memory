@@ -16,7 +16,7 @@ from typing import Any, Iterable, Mapping
 
 from flow_memory.api.snapshot import validate_api_snapshot
 from flow_memory.crypto.keys import generate_local_keypair
-from flow_memory.storage import AuditStore, SQLiteStore, create_audit_checkpoint, verify_audit_checkpoint
+from flow_memory.storage import AuditStore, SQLiteStore, create_audit_checkpoint, verify_audit_checkpoint, verify_schema
 from flow_memory.web3.deployment_plan import generate_deployment_plan
 
 _SECRET_PATTERNS: tuple[re.Pattern[str], ...] = tuple(
@@ -63,6 +63,7 @@ def run_release_gates(root: str | Path = ".") -> ReleaseGateReport:
         _api_snapshot_gate(root_path),
         _audit_replay_gate(),
         _base_dry_run_gate(),
+        _storage_schema_gate(),
         _secret_scan_gate(root_path),
     )
     return ReleaseGateReport(ok=all(result.ok for result in results), results=results)
@@ -102,6 +103,20 @@ def _base_dry_run_gate() -> ReleaseGateResult:
     plan = generate_deployment_plan()
     ok = plan.get("mode") == "dry-run" and plan.get("requires_private_key") is False
     return ReleaseGateResult("base_dry_run", ok, {"mode": plan.get("mode"), "requires_private_key": plan.get("requires_private_key")})
+
+
+def _storage_schema_gate() -> ReleaseGateResult:
+    verification = verify_schema(SQLiteStore())
+    return ReleaseGateResult(
+        "storage_schema",
+        verification.ok,
+        {
+            "observed_version": verification.observed_version,
+            "expected_version": verification.expected_version,
+            "missing_tables": verification.missing_tables,
+            "schema_hash": verification.schema_hash,
+        },
+    )
 
 
 def _secret_scan_gate(root: Path) -> ReleaseGateResult:

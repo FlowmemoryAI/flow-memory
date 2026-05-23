@@ -110,6 +110,8 @@ Added:
 - `scripts/backup_storage.py` and `scripts/restore_storage.py` for local recovery workflows.
 - `src/flow_memory/storage/retention.py` and `scripts/apply_retention_policy.py` for local retention/compaction hygiene.
 - `src/flow_memory/storage/integrity.py` and `scripts/verify_storage_backup.py` for live-state-to-backup root-hash verification.
+- `src/flow_memory/storage/migrations.py` and `scripts/verify_storage_schema.py` for schema fingerprints and migration metadata verification.
+- `scripts/release_gate.py` now includes storage schema verification.
 
 
 ### Production API seams
@@ -169,13 +171,14 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/backup_storage.py --d
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/restore_storage.py --backup C:/tmp/flow-memory-storage-backup.json --db C:/tmp/flow-memory-backup-restored.sqlite3
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/apply_retention_policy.py --db C:/tmp/flow-memory-retention.sqlite3 --policy C:/tmp/flow-memory-retention-policy.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_backup.py --db C:/tmp/flow-memory-backup-source.sqlite3 --backup C:/tmp/flow-memory-storage-backup.json
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_schema.py
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `207 passed` |
+| `python -m pytest -q` | Pass: `210 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -191,6 +194,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_backup
 | `python scripts/restore_storage.py --backup C:/tmp/flow-memory-storage-backup.json --db C:/tmp/flow-memory-backup-restored.sqlite3` | Pass |
 | `python scripts/apply_retention_policy.py --db C:/tmp/flow-memory-retention.sqlite3 --policy C:/tmp/flow-memory-retention-policy.json` | Pass |
 | `python scripts/verify_storage_backup.py --db C:/tmp/flow-memory-backup-source.sqlite3 --backup C:/tmp/flow-memory-storage-backup.json` | Pass |
+| `python scripts/verify_storage_schema.py` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -200,7 +204,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/verify_storage_backup
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `207 passed`.
+`python -m pytest -q` currently passes with `210 passed`.
 
 ## Honest limitations
 

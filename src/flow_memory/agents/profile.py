@@ -39,6 +39,7 @@ class AgentProfile:
     allowed_skills: tuple[str, ...] = field(default_factory=tuple)
     memory_config: Mapping[str, Any] = field(default_factory=dict)
     economy_config: Mapping[str, Any] = field(default_factory=dict)
+    neural_config: Mapping[str, Any] = field(default_factory=dict)
     autonomy_mode: str = "supervised"
     risk_budget: RiskBudget = field(default_factory=RiskBudget)
     reputation: float = 0.0
@@ -53,6 +54,9 @@ class AgentProfile:
             errors.append(f"unknown autonomy mode: {self.autonomy_mode}")
         if self.risk_budget.max_spend < 0:
             errors.append("risk budget max_spend must be non-negative")
+        backend = str(self.neural_config.get("backend", "none"))
+        if backend not in {"none", "tiny_torch", "vjepa2", "videomae"}:
+            errors.append(f"unknown neural backend: {backend}")
         return tuple(errors)
 
     def as_record(self) -> Mapping[str, Any]:
@@ -69,6 +73,7 @@ class AgentProfile:
             "allowed_skills": tuple(self.allowed_skills),
             "memory_config": dict(self.memory_config),
             "economy_config": dict(self.economy_config),
+            "neural_config": dict(self.neural_config),
             "autonomy_mode": self.autonomy_mode,
             "risk_budget": self.risk_budget.as_record(),
             "reputation": self.reputation,

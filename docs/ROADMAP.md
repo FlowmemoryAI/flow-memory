@@ -38,3 +38,12 @@ Implemented local/testnet-preflight prototype:
 - No hardened sandbox claims.
 - No trained ML performance claims.
 - No real funds by default.
+
+
+## Neural roadmap
+
+1. Train tiny dual-stream and world-model prototypes on richer synthetic traces.
+2. Wire local V-JEPA 2 checkpoint evaluation without downloads.
+3. Wire local VideoMAE checkpoint evaluation without downloads.
+4. Add neural scores to release evidence as prototype metrics.
+5. Expand benchmarks to real local video fixtures once licensing is clear.

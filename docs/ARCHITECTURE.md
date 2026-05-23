@@ -86,3 +86,8 @@ RC1 adds clean-clone validation, public-alpha smoke checks, deterministic releas
 - Base Sepolia and ERC-4337 adapters are dry-run seams.
 - Protocol gateways do not open network transports by default.
 - Contracts are unaudited.
+
+
+## Neural Agent Layer v1
+
+The architecture now includes an optional neural advisory layer: FlowLang neural config maps into `AgentProfile.neural_config`; `AgentRunner` calls `AgentNeuralBinding`; the binding attaches plan scores, skill route scores, risk scores, memory retrieval scores, and evaluation metadata. Optional `tiny_torch` modules provide dual-stream perception and tiny world-model prototypes when PyTorch is installed. Policy and approval remain authoritative.

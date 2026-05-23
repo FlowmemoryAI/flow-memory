@@ -131,3 +131,8 @@ Observed during the public-alpha RC1 preflight build:
 - Sandbox hardening includes profiles, receipts, policy checks, and an optional Docker backend seam; default local sandboxing is not hardened isolation.
 - Protocol gateways are local/offline-safe seams, not production transports.
 - Dashboard is a typed mock API scaffold, not a live operator console.
+
+
+## Neural Agent Layer v1
+
+Flow Memory now includes an optional Neural Agent Layer v1. The base install still has no PyTorch requirement. Install `flow-memory[ml]` to run tiny CPU-safe PyTorch prototypes for dual-stream perception, appearance-suppressed dorsal motion, tiny JEPA-style world modeling, advisory plan scoring, skill routing, risk scoring, and neural memory retrieval. V-JEPA 2 and VideoMAE are adapter seams that require explicit local checkpoints; Flow Memory never downloads checkpoints automatically. Neural scores never override policy or approval gates.

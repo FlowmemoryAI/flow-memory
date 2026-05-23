@@ -24,6 +24,7 @@ def agent_profile_from_ir(agent: AgentSpec) -> AgentProfile:
         allowed_skills=tuple(skill.id for skill in agent.skills),
         memory_config=agent.memory.as_manifest(),
         economy_config=agent.economy.as_manifest(),
+        neural_config=dict(agent.metadata.get("neural", {})),
         autonomy_mode=autonomy_mode,
         risk_budget=RiskBudget(max_spend=max_spend, max_escrow_exposure=max_spend, max_slashing_exposure=max_spend),
         metadata={"flowir": agent.as_manifest()},

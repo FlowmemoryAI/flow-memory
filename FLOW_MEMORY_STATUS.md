@@ -92,3 +92,16 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 8. Add dashboard live read-only API integration with signed requests.
 9. Add CI artifact upload for release evidence and clean-clone validation.
 10. Start Neural Agent Layer v1 as the next dedicated milestone.
+
+
+## Neural Agent Layer v1 status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Optional ML dependency layer | implemented | `flow_memory.neural` imports without torch; `ml` extra declares torch/numpy. |
+| Tiny dual-stream perception | functional prototype | CPU-safe PyTorch path when optional deps are installed. |
+| Appearance-free dorsal motion | functional prototype | Deterministic silhouette/flow/centroid encoding; not trained biological vision. |
+| Tiny JEPA world model | functional prototype | Prototype latent predictor and surprise scoring. |
+| Neural plan/risk/skill/evaluation scoring | functional prototype | Advisory only; cannot authorize execution. |
+| Neural memory retrieval | functional prototype | Local deterministic embeddings/cosine search. |
+| V-JEPA 2 / VideoMAE | adapter seam | Explicit local checkpoints required; no downloads. |

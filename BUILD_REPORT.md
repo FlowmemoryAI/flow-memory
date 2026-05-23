@@ -273,3 +273,8 @@ RC1 validation updates:
 - Sandbox profiles/receipts and optional Docker backend seams exist, but hardened container/VM isolation is not implemented.
 - MCP/A2A/libp2p modules are adapter seams without live networking by default.
 - Contracts are unaudited and not deployment-ready.
+
+
+## Neural Agent Layer v1 build update — 2026-05-23
+
+Added optional neural subsystem, synthetic datasets, tiny dual-stream perception, predictive world model, advisory plan/skill/risk/evaluation scoring, neural memory retrieval, tiny training smoke scripts, V-JEPA 2 / VideoMAE adapter seams, CLI `--neural`, FlowLang neural config, neural examples, neural benchmarks, and documentation. PyTorch remains optional and default tests skip torch-only behavior when absent.

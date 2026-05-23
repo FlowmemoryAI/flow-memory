@@ -15,6 +15,12 @@ memory:
   economic: true
   adapters: [local]
 
+neural:
+  backend: none
+  perception: dual_stream
+  world_model: tiny_jepa
+  plan_scorer: tiny
+
 belief: Verified memory is stronger than prompt-only context.
 belief: Economic actions require provenance, policy, and audit.
 goal: Produce grounded research briefs.

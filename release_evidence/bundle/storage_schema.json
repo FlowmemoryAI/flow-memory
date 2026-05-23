@@ -1,0 +1,30 @@
+{
+  "current_version": 1,
+  "schema_hash": "d5b29b054e5dfa167c69d91713819bbaed716d5a5095d5283261425cbe47f897",
+  "steps": [
+    {
+      "creates_tables": [
+        "agents",
+        "agent_state",
+        "goals",
+        "plans",
+        "task_graphs",
+        "runtime_events",
+        "audit_events",
+        "skills",
+        "marketplace_tasks",
+        "bids",
+        "escrows",
+        "settlements",
+        "disputes",
+        "slashing_events",
+        "reputation_updates",
+        "memory_records"
+      ],
+      "description": "Create generic JSON payload tables for agents, runtime, audit, skills, marketplace, reputation, and memory state.",
+      "name": "initial_local_store",
+      "reversible": false,
+      "version": 1
+    }
+  ]
+}

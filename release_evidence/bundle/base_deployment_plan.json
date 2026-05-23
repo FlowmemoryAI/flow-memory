@@ -1,0 +1,186 @@
+{
+  "chain": "base-sepolia",
+  "chain_id": 84532,
+  "constructor_args": {
+    "AgentRegistry": [],
+    "AgentTreasury": [
+      "dry_run_controller"
+    ],
+    "AttestationRegistry": [],
+    "CapabilityRegistry": [],
+    "DelegationRegistry": [],
+    "DisputeResolver": [
+      "dry_run_resolver"
+    ],
+    "Reputation": [
+      "dry_run_authority"
+    ],
+    "SlashingRegistry": [
+      "dry_run_authority"
+    ],
+    "TaskEscrow": [],
+    "TaskMarketplace": []
+  },
+  "contracts": [
+    {
+      "action": "deploy",
+      "constructor_args": [],
+      "depends_on": [],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "AgentRegistry"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [],
+      "depends_on": [
+        "AgentRegistry"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "TaskMarketplace"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [],
+      "depends_on": [
+        "TaskMarketplace"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "TaskEscrow"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [
+        "dry_run_authority"
+      ],
+      "depends_on": [
+        "AgentRegistry"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "Reputation"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [],
+      "depends_on": [
+        "AgentRegistry"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "AttestationRegistry"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [],
+      "depends_on": [
+        "AgentRegistry"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "DelegationRegistry"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [
+        "dry_run_resolver"
+      ],
+      "depends_on": [
+        "TaskMarketplace"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "DisputeResolver"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [
+        "dry_run_authority"
+      ],
+      "depends_on": [
+        "DisputeResolver",
+        "Reputation"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "SlashingRegistry"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [],
+      "depends_on": [
+        "AgentRegistry"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "CapabilityRegistry"
+    },
+    {
+      "action": "deploy",
+      "constructor_args": [
+        "dry_run_controller"
+      ],
+      "depends_on": [
+        "TaskEscrow"
+      ],
+      "expected_address": "0x0000000000000000000000000000000000000000",
+      "name": "AgentTreasury"
+    }
+  ],
+  "dependency_graph": {
+    "AgentRegistry": [],
+    "AgentTreasury": [
+      "TaskEscrow"
+    ],
+    "AttestationRegistry": [
+      "AgentRegistry"
+    ],
+    "CapabilityRegistry": [
+      "AgentRegistry"
+    ],
+    "DelegationRegistry": [
+      "AgentRegistry"
+    ],
+    "DisputeResolver": [
+      "TaskMarketplace"
+    ],
+    "Reputation": [
+      "AgentRegistry"
+    ],
+    "SlashingRegistry": [
+      "DisputeResolver",
+      "Reputation"
+    ],
+    "TaskEscrow": [
+      "TaskMarketplace"
+    ],
+    "TaskMarketplace": [
+      "AgentRegistry"
+    ]
+  },
+  "deployment_order": [
+    "AgentRegistry",
+    "TaskMarketplace",
+    "TaskEscrow",
+    "Reputation",
+    "AttestationRegistry",
+    "DelegationRegistry",
+    "DisputeResolver",
+    "SlashingRegistry",
+    "CapabilityRegistry",
+    "AgentTreasury"
+  ],
+  "expected_addresses": {
+    "AgentRegistry": "0x0000000000000000000000000000000000000000",
+    "AgentTreasury": "0x0000000000000000000000000000000000000000",
+    "AttestationRegistry": "0x0000000000000000000000000000000000000000",
+    "CapabilityRegistry": "0x0000000000000000000000000000000000000000",
+    "DelegationRegistry": "0x0000000000000000000000000000000000000000",
+    "DisputeResolver": "0x0000000000000000000000000000000000000000",
+    "Reputation": "0x0000000000000000000000000000000000000000",
+    "SlashingRegistry": "0x0000000000000000000000000000000000000000",
+    "TaskEscrow": "0x0000000000000000000000000000000000000000",
+    "TaskMarketplace": "0x0000000000000000000000000000000000000000"
+  },
+  "mode": "dry-run",
+  "requires_private_key": false,
+  "safety": {
+    "funds_required": false,
+    "private_key_required": false,
+    "real_deployment_default": false,
+    "rpc_required": false
+  }
+}

@@ -70,6 +70,15 @@ This document is a practical security baseline for Flow Memory's agent economy, 
 - Log security-relevant decisions: task creation, assignment, validation, settlement, reputation changes, policy decisions, and deployment manifests.
 - Require human approval before enabling any workflow that can publish packages, deploy contracts, transfer value, or mutate production data.
 
+## Public-alpha RC1 added mitigations
+
+- Clean-clone validation reduces "works on my machine" and packaging drift risk.
+- Release evidence bundles hash API snapshots, storage schema, Base dry-run artifacts, dependency inventory, gates, and clean-clone evidence.
+- Base Sepolia artifacts are dry-run only and validated before public-alpha release decisions.
+- Contract security tests now cover additional unauthorized-call and state-transition cases, but do not replace an audit.
+- Adversarial economy simulation models collusion, spam bidding, reputation farming, repeated disputes, and Sybil-like duplicates as local prototype signals.
+- API scope, structured error, rate-limit, and audit middleware seams make the public-alpha API boundary testable without claiming production auth.
+
 ## Production security gates
 
 Flow Memory is not ready for real funds, untrusted users, or mainnet until all of the following are complete:

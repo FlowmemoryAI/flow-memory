@@ -12,7 +12,7 @@ from flow_memory.release import export_release_evidence, verify_release_evidence
 def main() -> int:
     parser = argparse.ArgumentParser(description="Export Flow Memory release evidence bundle")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
-    parser.add_argument("--out", type=Path, required=True, help="Output directory")
+    parser.add_argument("--out", type=Path, default=Path("release_evidence/bundle"), help="Output directory")
     parser.add_argument("--verify-only", action="store_true", help="Verify an existing bundle instead of exporting")
     args = parser.parse_args()
 

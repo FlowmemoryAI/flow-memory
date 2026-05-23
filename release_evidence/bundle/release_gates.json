@@ -1,0 +1,56 @@
+{
+  "ok": true,
+  "results": [
+    {
+      "details": {
+        "errors": []
+      },
+      "name": "api_snapshot",
+      "ok": true
+    },
+    {
+      "details": {
+        "checkpoint_ok": true,
+        "event_count": 2,
+        "replay_ok": true
+      },
+      "name": "audit_replay",
+      "ok": true
+    },
+    {
+      "details": {
+        "mode": "dry-run",
+        "requires_private_key": false
+      },
+      "name": "base_dry_run",
+      "ok": true
+    },
+    {
+      "details": {
+        "expected_version": 1,
+        "missing_tables": [],
+        "observed_version": 1,
+        "schema_hash": "d5b29b054e5dfa167c69d91713819bbaed716d5a5095d5283261425cbe47f897"
+      },
+      "name": "storage_schema",
+      "ok": true
+    },
+    {
+      "details": {
+        "match_count": 0,
+        "paths": []
+      },
+      "name": "secret_scan",
+      "ok": true
+    },
+    {
+      "details": {
+        "errors": [],
+        "inventory_hash": "490c159f8d6328d55cc745cd771dd9b93eb33663208d557a6ab61396955ac2db",
+        "warnings": []
+      },
+      "name": "dependency_policy",
+      "ok": true
+    }
+  ]
+}

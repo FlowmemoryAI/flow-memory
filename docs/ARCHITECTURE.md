@@ -1,6 +1,6 @@
 # Flow Memory Architecture
 
-Flow Memory is a production-shaped autonomous AI agent OS prototype. The central path is:
+Flow Memory is a production-shaped public-alpha/testnet-preflight autonomous AI agent OS prototype. The central path is:
 
 ```text
 FlowLang -> FlowIR -> AgentProfile -> AgentRuntime -> cognitive loop -> memory -> skills/tools -> policy/safety -> economy -> swarm/delegation -> verification -> settlement -> reputation -> audit/event store
@@ -19,10 +19,10 @@ FlowLang -> FlowIR -> AgentProfile -> AgentRuntime -> cognitive loop -> memory -
 | Safety/policy | `src/flow_memory/safety/`, `rules/` | Local policy gates + Datalog starter rules |
 | Economy V3 | `src/flow_memory/economy/economy_v3.py` | Local emulator with receipts/risk controls |
 | Swarm/protocols | `src/flow_memory/swarm/`, `src/flow_memory/protocols/` | Local prototype and network adapter seams |
-| API | `src/flow_memory/api/` | Internal router, optional server seam, OpenAPI generation |
-| Crypto | `src/flow_memory/crypto/` | Local HMAC signing/provenance prototype |
-| Web3 | `src/flow_memory/web3/`, `scripts/base_sepolia_dry_run.py` | Base Sepolia/ERC-4337 dry-run seams |
-| Dashboard | `dashboard/` | Mock-data scaffold |
+| API | `src/flow_memory/api/` | Internal router, optional server seam, scopes/errors/rate limits/audit middleware, OpenAPI generation |
+| Crypto | `src/flow_memory/crypto/` | Local HMAC plus deterministic asymmetric/DID signing seams |
+| Web3 | `src/flow_memory/web3/`, `deployments/base-sepolia/` | Base Sepolia/ERC-4337 dry-run artifacts and validators |
+| Dashboard | `dashboard/` | Typed mock API scaffold |
 
 ## AI agent layer
 
@@ -72,6 +72,10 @@ SQLite is the default durable local store. It persists agents, agent state, goal
 ## Signing/provenance
 
 Local development signing uses HMAC-SHA256 over canonical JSON. It supports manifest, receipt, DID payload, skill manifest, agent profile, and provenance hash-chain tests. Production should replace this with asymmetric DID/account signing.
+
+## Public-alpha RC1 preflight layer
+
+RC1 adds clean-clone validation, public-alpha smoke checks, deterministic release evidence bundles, Base Sepolia artifact validation, adversarial economy simulation, and an agent reliability gauntlet. These systems make the prototype easier to inspect and rehearse locally, but they do not convert it into production or mainnet software.
 
 ## Boundaries and limitations
 

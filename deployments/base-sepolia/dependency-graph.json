@@ -1,0 +1,31 @@
+{
+  "AgentRegistry": [],
+  "AgentTreasury": [
+    "TaskEscrow"
+  ],
+  "AttestationRegistry": [
+    "AgentRegistry"
+  ],
+  "CapabilityRegistry": [
+    "AgentRegistry"
+  ],
+  "DelegationRegistry": [
+    "AgentRegistry"
+  ],
+  "DisputeResolver": [
+    "TaskMarketplace"
+  ],
+  "Reputation": [
+    "AgentRegistry"
+  ],
+  "SlashingRegistry": [
+    "DisputeResolver",
+    "Reputation"
+  ],
+  "TaskEscrow": [
+    "TaskMarketplace"
+  ],
+  "TaskMarketplace": [
+    "AgentRegistry"
+  ]
+}

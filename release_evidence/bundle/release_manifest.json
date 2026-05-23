@@ -1,0 +1,346 @@
+{
+  "api": {
+    "endpoint_count": 29,
+    "manifest_hash": "d4ab494099bd1c3b31141bfb87d44747ed8b11848540afc937c856559595df75",
+    "openapi_hash": "83b4d343c184038c7ff5a4a37b2d79d2d7fbc90cf7e7b34a3cf54e796fe9659c",
+    "operations": [
+      "GET /agents",
+      "GET /agents/{did}",
+      "GET /agents/{did}/memory",
+      "GET /agents/{did}/skills",
+      "GET /audit",
+      "GET /flowlang/examples",
+      "GET /health",
+      "GET /manifest",
+      "GET /reputation/{did}",
+      "GET /runtime/status",
+      "GET /swarm/agents",
+      "GET /verification/result",
+      "GET /verification/{contract_id}",
+      "POST /agents/{did}/run",
+      "POST /attestations",
+      "POST /flowlang/compile",
+      "POST /flowlang/run",
+      "POST /flowlang/validate",
+      "POST /marketplace/assign",
+      "POST /marketplace/bids",
+      "POST /marketplace/dispute",
+      "POST /marketplace/settle",
+      "POST /marketplace/submit",
+      "POST /marketplace/tasks",
+      "POST /marketplace/verify",
+      "POST /runtime/tick",
+      "POST /swarm/delegate",
+      "POST /verification/submit",
+      "POST /verification/{contract_id}"
+    ],
+    "path_count": 28,
+    "paths": [
+      "/agents",
+      "/agents/{did}",
+      "/agents/{did}/memory",
+      "/agents/{did}/run",
+      "/agents/{did}/skills",
+      "/attestations",
+      "/audit",
+      "/flowlang/compile",
+      "/flowlang/examples",
+      "/flowlang/run",
+      "/flowlang/validate",
+      "/health",
+      "/manifest",
+      "/marketplace/assign",
+      "/marketplace/bids",
+      "/marketplace/dispute",
+      "/marketplace/settle",
+      "/marketplace/submit",
+      "/marketplace/tasks",
+      "/marketplace/verify",
+      "/reputation/{did}",
+      "/runtime/status",
+      "/runtime/tick",
+      "/swarm/agents",
+      "/swarm/delegate",
+      "/verification/result",
+      "/verification/submit",
+      "/verification/{contract_id}"
+    ],
+    "version": "api-snapshot-v1"
+  },
+  "base_deployment_plan": {
+    "chain": "base-sepolia",
+    "chain_id": 84532,
+    "constructor_args": {
+      "AgentRegistry": [],
+      "AgentTreasury": [
+        "dry_run_controller"
+      ],
+      "AttestationRegistry": [],
+      "CapabilityRegistry": [],
+      "DelegationRegistry": [],
+      "DisputeResolver": [
+        "dry_run_resolver"
+      ],
+      "Reputation": [
+        "dry_run_authority"
+      ],
+      "SlashingRegistry": [
+        "dry_run_authority"
+      ],
+      "TaskEscrow": [],
+      "TaskMarketplace": []
+    },
+    "contracts": [
+      {
+        "action": "deploy",
+        "constructor_args": [],
+        "depends_on": [],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "AgentRegistry"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [],
+        "depends_on": [
+          "AgentRegistry"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "TaskMarketplace"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [],
+        "depends_on": [
+          "TaskMarketplace"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "TaskEscrow"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [
+          "dry_run_authority"
+        ],
+        "depends_on": [
+          "AgentRegistry"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "Reputation"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [],
+        "depends_on": [
+          "AgentRegistry"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "AttestationRegistry"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [],
+        "depends_on": [
+          "AgentRegistry"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "DelegationRegistry"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [
+          "dry_run_resolver"
+        ],
+        "depends_on": [
+          "TaskMarketplace"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "DisputeResolver"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [
+          "dry_run_authority"
+        ],
+        "depends_on": [
+          "DisputeResolver",
+          "Reputation"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "SlashingRegistry"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [],
+        "depends_on": [
+          "AgentRegistry"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "CapabilityRegistry"
+      },
+      {
+        "action": "deploy",
+        "constructor_args": [
+          "dry_run_controller"
+        ],
+        "depends_on": [
+          "TaskEscrow"
+        ],
+        "expected_address": "0x0000000000000000000000000000000000000000",
+        "name": "AgentTreasury"
+      }
+    ],
+    "dependency_graph": {
+      "AgentRegistry": [],
+      "AgentTreasury": [
+        "TaskEscrow"
+      ],
+      "AttestationRegistry": [
+        "AgentRegistry"
+      ],
+      "CapabilityRegistry": [
+        "AgentRegistry"
+      ],
+      "DelegationRegistry": [
+        "AgentRegistry"
+      ],
+      "DisputeResolver": [
+        "TaskMarketplace"
+      ],
+      "Reputation": [
+        "AgentRegistry"
+      ],
+      "SlashingRegistry": [
+        "DisputeResolver",
+        "Reputation"
+      ],
+      "TaskEscrow": [
+        "TaskMarketplace"
+      ],
+      "TaskMarketplace": [
+        "AgentRegistry"
+      ]
+    },
+    "deployment_order": [
+      "AgentRegistry",
+      "TaskMarketplace",
+      "TaskEscrow",
+      "Reputation",
+      "AttestationRegistry",
+      "DelegationRegistry",
+      "DisputeResolver",
+      "SlashingRegistry",
+      "CapabilityRegistry",
+      "AgentTreasury"
+    ],
+    "expected_addresses": {
+      "AgentRegistry": "0x0000000000000000000000000000000000000000",
+      "AgentTreasury": "0x0000000000000000000000000000000000000000",
+      "AttestationRegistry": "0x0000000000000000000000000000000000000000",
+      "CapabilityRegistry": "0x0000000000000000000000000000000000000000",
+      "DelegationRegistry": "0x0000000000000000000000000000000000000000",
+      "DisputeResolver": "0x0000000000000000000000000000000000000000",
+      "Reputation": "0x0000000000000000000000000000000000000000",
+      "SlashingRegistry": "0x0000000000000000000000000000000000000000",
+      "TaskEscrow": "0x0000000000000000000000000000000000000000",
+      "TaskMarketplace": "0x0000000000000000000000000000000000000000"
+    },
+    "mode": "dry-run",
+    "requires_private_key": false,
+    "safety": {
+      "funds_required": false,
+      "private_key_required": false,
+      "real_deployment_default": false,
+      "rpc_required": false
+    }
+  },
+  "format": "flow-memory-release-manifest-v1",
+  "git_branch": "public-alpha/rc1-preflight",
+  "git_commit": "d4b6dab",
+  "manifest_hash": "90e6c027a76e9794646e1acb034093bef155d4a02d15d9d45167d194ed943f20",
+  "release_gates": {
+    "ok": true,
+    "results": [
+      {
+        "details": {
+          "errors": []
+        },
+        "name": "api_snapshot",
+        "ok": true
+      },
+      {
+        "details": {
+          "checkpoint_ok": true,
+          "event_count": 2,
+          "replay_ok": true
+        },
+        "name": "audit_replay",
+        "ok": true
+      },
+      {
+        "details": {
+          "mode": "dry-run",
+          "requires_private_key": false
+        },
+        "name": "base_dry_run",
+        "ok": true
+      },
+      {
+        "details": {
+          "expected_version": 1,
+          "missing_tables": [],
+          "observed_version": 1,
+          "schema_hash": "d5b29b054e5dfa167c69d91713819bbaed716d5a5095d5283261425cbe47f897"
+        },
+        "name": "storage_schema",
+        "ok": true
+      },
+      {
+        "details": {
+          "match_count": 0,
+          "paths": []
+        },
+        "name": "secret_scan",
+        "ok": true
+      },
+      {
+        "details": {
+          "errors": [],
+          "inventory_hash": "490c159f8d6328d55cc745cd771dd9b93eb33663208d557a6ab61396955ac2db",
+          "warnings": []
+        },
+        "name": "dependency_policy",
+        "ok": true
+      }
+    ]
+  },
+  "storage_schema": {
+    "current_version": 1,
+    "schema_hash": "d5b29b054e5dfa167c69d91713819bbaed716d5a5095d5283261425cbe47f897",
+    "steps": [
+      {
+        "creates_tables": [
+          "agents",
+          "agent_state",
+          "goals",
+          "plans",
+          "task_graphs",
+          "runtime_events",
+          "audit_events",
+          "skills",
+          "marketplace_tasks",
+          "bids",
+          "escrows",
+          "settlements",
+          "disputes",
+          "slashing_events",
+          "reputation_updates",
+          "memory_records"
+        ],
+        "description": "Create generic JSON payload tables for agents, runtime, audit, skills, marketplace, reputation, and memory state.",
+        "name": "initial_local_store",
+        "reversible": false,
+        "version": 1
+      }
+    ]
+  }
+}

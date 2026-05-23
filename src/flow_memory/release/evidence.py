@@ -14,6 +14,7 @@ from flow_memory.release.manifest import build_release_manifest
 from flow_memory.release.dependencies import build_dependency_inventory
 from flow_memory.storage.migrations import migration_plan
 from flow_memory.web3.deployment_plan import generate_deployment_plan
+from flow_memory.web3.verification import validate_base_sepolia_artifacts
 
 BUNDLE_FORMAT = "flow-memory-release-evidence-v1"
 
@@ -31,14 +32,31 @@ def build_evidence_documents(root: str | Path = ".") -> Mapping[str, Mapping[str
     """Build the deterministic release evidence documents."""
 
     root_path = Path(root).resolve()
-    return {
+    documents: dict[str, Mapping[str, Any]] = {
         "release_manifest.json": build_release_manifest(root_path).as_record(),
         "release_gates.json": run_release_gates(root_path).as_record(),
         "api_snapshot.json": dict(api_snapshot()),
         "storage_schema.json": migration_plan().as_record(),
         "base_deployment_plan.json": dict(generate_deployment_plan()),
         "dependency_inventory.json": build_dependency_inventory(root_path).as_record(),
+        "base_artifacts.json": validate_base_sepolia_artifacts(root_path / "deployments" / "base-sepolia").as_record(),
     }
+    clean_clone = root_path / "release_evidence" / "clean_clone_validation.json"
+    documents["clean_clone_validation.json"] = _json_file_or_missing(clean_clone)
+    return documents
+
+
+def _json_file_or_missing(path: Path) -> Mapping[str, Any]:
+    if not path.exists():
+        return {"ok": False, "missing": str(path)}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, Mapping):
+        return {
+            "ok": False,
+            "error": "evidence file is not a JSON object",
+            "path": str(path),
+        }
+    return dict(payload)
 
 
 def export_release_evidence(root: str | Path, output_dir: str | Path) -> ReleaseEvidenceBundle:

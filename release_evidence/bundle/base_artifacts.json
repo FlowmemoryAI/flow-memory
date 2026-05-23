@@ -1,0 +1,14 @@
+{
+  "artifact_hashes": {
+    "constructor-args.json": "d20515270ced3653074e1031ebc2717b581b02c5c96cf04e5f0eca7835bb9d07",
+    "contract-registry.json": "dec195b1f6b900142e2f6705086125ed54a631db0285fd2b20482949805a1f8e",
+    "dependency-graph.json": "988f3c9a1aad4c23750f0ce1fa52bb9ee19df9f3867c9ab005e4889dffd887cb",
+    "deployment-plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
+    "dry-run-transactions.json": "c4ec2687ea883ebf2f7e5e638c49808538b9e9732ae8e8d09d6a890efb0d0d00",
+    "risk-notes.md": "8e681541450775ae17c5239978129f7ad823288c23d2236456f0e2deac6252b1",
+    "verification-checklist.md": "b844a7e1b2e3f13d4c92127f03dd7f68a37107c41bfa52b6d54ae87bb4fbca99"
+  },
+  "errors": [],
+  "missing": [],
+  "ok": true
+}

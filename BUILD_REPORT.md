@@ -224,15 +224,52 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inv
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `235 passed`.
+`python -m pytest -q` currently passes with `287 passed, 1 skipped`.
+
+## Public Alpha / Testnet Preflight RC1 update
+
+RC1 adds public-alpha preflight hardening on top of the V3 build:
+
+- `scripts/clean_clone_validation.py` and `scripts/public_alpha_smoke.py` for fresh-checkout validation.
+- `release_evidence/clean_clone_validation.json` for recorded clean-clone evidence.
+- `src/flow_memory/agents/gauntlet.py`, `scenarios.py`, and `reliability.py` for a 12-scenario offline reliability gauntlet.
+- `src/flow_memory/crypto/asymmetric.py`, `canonical_json.py`, `did_keys.py`, `key_registry.py`, `signature_policy.py`, and `receipt_verifier.py` for local deterministic asymmetric signing, DID key mapping, canonical JSON, and public-alpha signature policy checks.
+- `src/flow_memory/api/errors.py`, `request_context.py`, `scopes.py`, `rate_limits.py`, and `audit_middleware.py` for structured API errors, scope checks, local rate limiting, and request audit seams.
+- `docs/openapi/flow-memory.openapi.json` for deterministic OpenAPI snapshot coverage.
+- `dashboard/src/lib/*` and `dashboard/src/app/screens.ts` for typed mock dashboard API/client/screen scaffolding.
+- `deployments/base-sepolia/*`, `scripts/validate_base_sepolia_artifacts.py`, and expanded `src/flow_memory/web3/*` dry-run helpers for Base Sepolia artifact preflight.
+- `test/AgentEconomySecurity.t.sol` for additional unauthorized-call, double-settlement, invalid-input, and authority-check contract coverage.
+- `src/flow_memory/action/docker_sandbox.py` and `sandbox_backends.py` for optional Docker sandbox backend selection and explicit disabled-by-default behavior.
+- `scripts/export_event_log.py`, `scripts/replay_event_log.py`, and `scripts/verify_storage_integrity.py` for local audit event JSONL replay and integrity evidence.
+- `src/flow_memory/simulation/*` and `examples/agent_economy_adversarial_sim_demo.py` for deterministic adversarial multi-agent economy simulation.
+- Public-alpha docs: `docs/PUBLIC_ALPHA_QUICKSTART.md`, `docs/PUBLIC_ALPHA_READINESS.md`, `docs/CLEAN_CLONE_VALIDATION.md`, `docs/TESTNET_PREFLIGHT.md`, `docs/RELEASE_GATES.md`, `docs/SECURITY_REVIEW_CHECKLIST.md`, `docs/CONTRACT_SECURITY_TESTS.md`, `docs/DASHBOARD.md`, `docs/AUDIT_REPLAY.md`, and `docs/ADVERSARIAL_ECONOMY_SIMULATION.md`.
+
+RC1 validation updates:
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest -q` | Pass: `287 passed, 1 skipped` |
+| `python scripts/clean_clone_validation.py --root E:/FlowMemory/flow-memory --out release_evidence/clean_clone_validation.json` | Pass |
+| `python scripts/public_alpha_smoke.py --root E:/FlowMemory/flow-memory` | Pass |
+| `python examples/agent_reliability_gauntlet_demo.py` | Pass |
+| `python examples/agent_economy_adversarial_sim_demo.py` | Pass |
+| `python scripts/validate_base_sepolia_artifacts.py --dir deployments/base-sepolia` | Pass |
+| `python scripts/export_event_log.py` | Pass |
+| `python scripts/replay_event_log.py` | Pass |
+| `python scripts/verify_storage_integrity.py` | Pass |
+| `python scripts/sandbox_smoke_test.py` | Pass |
+| `python scripts/export_release_evidence.py --root E:/FlowMemory/flow-memory` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --root E:/FlowMemory/flow-memory --target public-alpha` | Pass |
+| `forge test` | Pass: `16 tests passed` |
 
 ## Honest limitations
 
 - FlowLang remains v0 and is not stable production syntax.
-- Signing uses local HMAC development keys, not production asymmetric custody.
+- Signing includes local HMAC and deterministic asymmetric/DID seams, but not production key custody.
 - SQLite storage is local and not a distributed persistence layer.
-- API server is optional; internal router remains the tested path.
+- API server/auth/scopes/rate limits are local seams; internal router remains the tested path.
 - Base Sepolia and ERC-4337 are dry-run seams only.
-- Sandbox profiles/receipts exist, but hardened container/VM isolation is not implemented.
+- Sandbox profiles/receipts and optional Docker backend seams exist, but hardened container/VM isolation is not implemented.
 - MCP/A2A/libp2p modules are adapter seams without live networking by default.
 - Contracts are unaudited and not deployment-ready.

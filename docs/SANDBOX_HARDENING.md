@@ -14,6 +14,14 @@ Define the hardening path from Flow Memory's local policy-gated action execution
 - Audit records should capture actor, requested action, policy decision, approval context, sandbox configuration, and observed result.
 - The local sandbox is suitable for deterministic development checks, not hostile-code containment.
 
+## Public-alpha RC1 additions
+
+- `SandboxProfile` now records timeout, memory, CPU, filesystem, network, environment, output limit, and approval requirements.
+- `evaluate_sandbox_profile()` blocks unsafe/default-disallowed profiles or marks them approval-required.
+- `SandboxReceipt` includes backend metadata for local evidence.
+- `DockerSandbox` and `sandbox_backends.py` provide an optional Docker backend seam that is disabled by default and fails clearly when Docker is unavailable or not explicitly enabled.
+- `scripts/sandbox_smoke_test.py` verifies the local profile/policy/receipt path without launching untrusted code.
+
 ## Limitations
 
 - No claim of escape resistance against malicious code.

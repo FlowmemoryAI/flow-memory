@@ -1,0 +1,24 @@
+{
+  "bundle_hash": "84ae1a49feb6e8d244d041ee11428865d0c09e32489666f1f930f77f870aedeb",
+  "file_hashes": {
+    "api_snapshot.json": "da9a57cefb763e79404254cf146219eeab67960f0f1f1190dcc171729b8badf3",
+    "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
+    "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
+    "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
+    "dependency_inventory.json": "66401e6f8176ccd6469f2d806d95513de100e4db2b01190ef751b24f70a7c60e",
+    "release_gates.json": "1981a9e4d04f3d6857cddeb5c3f1d1438b6c698c0187ac083d4f66860f5733f8",
+    "release_manifest.json": "04e9244c9de3cb24ad73c18ad467dc57996834b7a77795900b992d8737199773",
+    "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7"
+  },
+  "files": [
+    "api_snapshot.json",
+    "base_artifacts.json",
+    "base_deployment_plan.json",
+    "clean_clone_validation.json",
+    "dependency_inventory.json",
+    "release_gates.json",
+    "release_manifest.json",
+    "storage_schema.json"
+  ],
+  "format": "flow-memory-release-evidence-v1"
+}

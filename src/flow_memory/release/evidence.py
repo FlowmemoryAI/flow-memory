@@ -77,6 +77,21 @@ def verify_release_evidence(output_dir: str | Path) -> ReleaseEvidenceBundle:
     expected_hashes = index.get("file_hashes", {})
     if not isinstance(expected_hashes, Mapping):
         raise ValueError("release evidence file_hashes must be an object")
+    files = index.get("files", ())
+    if not isinstance(files, (list, tuple)):
+        raise ValueError("release evidence files must be a list")
+    expected_names = tuple(str(name) for name in files)
+    hash_names = tuple(str(name) for name in expected_hashes)
+    if tuple(sorted(expected_names)) != tuple(sorted(hash_names)):
+        raise ValueError("release evidence index files do not match file_hashes")
+    for name in expected_names:
+        if Path(name).name != name:
+            raise ValueError(f"release evidence file path must be a simple file name: {name}")
+    actual_files = tuple(
+        sorted(path.name for path in output.iterdir() if path.is_file() and path.name != "index.json")
+    )
+    if actual_files != tuple(sorted(expected_names)):
+        raise ValueError("release evidence directory file set does not match index")
     for name, expected_hash in expected_hashes.items():
         path = output / str(name)
         if not path.exists():

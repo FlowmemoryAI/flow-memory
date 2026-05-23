@@ -32,6 +32,31 @@ class ReleaseEvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 verify_release_evidence(evidence)
 
+    def test_verify_release_evidence_rejects_extra_files(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            evidence = Path(tmp) / "evidence"
+            export_release_evidence(root, evidence)
+            (evidence / "unexpected.json").write_text("{}", encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                verify_release_evidence(evidence)
+
+    def test_verify_release_evidence_rejects_index_file_mismatch(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as tmp:
+            evidence = Path(tmp) / "evidence"
+            export_release_evidence(root, evidence)
+            index_path = evidence / "index.json"
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+            index["files"] = [
+                name for name in index["files"] if name != "dependency_inventory.json"
+            ]
+            index_path.write_text(json.dumps(index), encoding="utf-8")
+
+            with self.assertRaises(ValueError):
+                verify_release_evidence(evidence)
+
     def test_export_release_evidence_script(self) -> None:
         root = Path(__file__).resolve().parents[1]
         with tempfile.TemporaryDirectory() as tmp:

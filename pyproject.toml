@@ -24,12 +24,12 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10"]
-ml = ["torch>=2.3", "transformers>=4.43", "opencv-python>=4.10", "numpy>=1.26"]
+ml = ["torch>=2.2", "numpy>=1.26"]
 memory = ["redis>=5.0", "qdrant-client>=1.9", "neo4j>=5.20"]
 web3 = ["web3>=6.20", "eth-account>=0.11"]
 langgraph = ["langgraph>=0.2"]
 all = [
-  "torch>=2.3", "transformers>=4.43", "opencv-python>=4.10", "numpy>=1.26",
+  "torch>=2.2", "numpy>=1.26",
   "redis>=5.0", "qdrant-client>=1.9", "neo4j>=5.20",
   "web3>=6.20", "eth-account>=0.11", "langgraph>=0.2"
 ]

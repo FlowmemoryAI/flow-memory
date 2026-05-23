@@ -31,3 +31,6 @@ dist/
 build/
 coverage.xml
 htmlcov/
+
+# Local Flow Memory runtime artifacts
+.flow_memory/

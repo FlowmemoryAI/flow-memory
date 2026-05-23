@@ -112,3 +112,8 @@ Each release candidate should attach or link:
 - Release evidence bundle from `scripts/export_release_evidence.py`, including `index.json`, release manifest, release gates, API snapshot, storage schema, Base deployment dry-run, Base artifact validation, clean-clone validation, and dependency inventory.
 - Release decision JSON from `scripts/release_decision.py`, with explicit target, classification, blockers, and required evidence including dependency inventory and public-alpha clean-clone/Base-artifact evidence.
 - Dependency inventory JSON and policy report from `scripts/export_dependency_inventory.py`, covering Python optional extras, dashboard package metadata, Rust helper crate metadata, and disallowed dependency-source checks.
+
+
+## Neural production-readiness note
+
+Neural Agent Layer v1 is not production ML. It is a functional prototype plus adapter seams. Tiny models are CPU-safe and deterministic; V-JEPA 2 and VideoMAE require explicitly configured local checkpoints and remain unvalidated in this repo. Neural output is advisory only and cannot bypass policy, approval, sandbox, or economy gates.

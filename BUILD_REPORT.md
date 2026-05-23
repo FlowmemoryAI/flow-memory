@@ -122,8 +122,8 @@ Added:
 
 Added:
 
-- local API auth seam
-- signed request seam
+- local API-key auth seam with case-insensitive header matching
+- signed request decision helper that binds method, path, and payload to the local signing seam
 - optional server seam
 - OpenAPI generation path
 - endpoint modules for agents, FlowLang, economy, memory, skills, audit, swarm
@@ -191,7 +191,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inv
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `231 passed` |
+| `python -m pytest -q` | Pass: `235 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -224,7 +224,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_dependency_inv
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `231 passed`.
+`python -m pytest -q` currently passes with `235 passed`.
 
 ## Honest limitations
 

@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `231 passed` |
+| `python -m pytest -q` | Pass: `235 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -42,6 +42,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Signed audit checkpoints | Implemented local development checkpoint prototype |
 | OpenAPI generation | Implemented local manifest-driven output |
 | API snapshot validation | Implemented and committed as `docs/API_SNAPSHOT.json` |
+| API auth/signed requests | Local API-key and HMAC signed-request seam tested; not production auth |
 | Base Sepolia dry run | Implemented no-key/no-funds plan generator |
 | ERC-4337 adapter | Interface seam tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |

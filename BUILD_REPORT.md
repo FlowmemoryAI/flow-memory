@@ -102,6 +102,8 @@ Added:
 - `AuditStore.append_chained()` and `AuditStore.verify_chained()` for local tamper-evident audit streams.
 - `src/flow_memory/api/snapshot.py` for manifest/OpenAPI snapshot validation.
 - `scripts/export_api_snapshot.py` and `docs/API_SNAPSHOT.json` for committed API drift artifacts.
+- `src/flow_memory/storage/checkpoints.py` for signed local audit checkpoints.
+- `scripts/replay_audit_log.py` for replaying and checkpointing SQLite audit logs.
 
 
 ### Production API seams
@@ -155,13 +157,14 @@ forge test
 cargo test
 git diff --check
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/replay_audit_log.py --db C:/tmp/flow-memory-audit-replay.sqlite3 --checkpoint --require-events
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `190 passed` |
+| `python -m pytest -q` | Pass: `193 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -171,6 +174,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_api_snapshot.p
 | `python scripts/generate_deployment_plan.py` | Pass |
 | `python scripts/base_sepolia_dry_run.py` | Pass |
 | `python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json` | Pass |
+| `python scripts/replay_audit_log.py --db C:/tmp/flow-memory-audit-replay.sqlite3 --checkpoint --require-events` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -180,7 +184,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/export_api_snapshot.p
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `190 passed`.
+`python -m pytest -q` currently passes with `193 passed`.
 
 ## Honest limitations
 

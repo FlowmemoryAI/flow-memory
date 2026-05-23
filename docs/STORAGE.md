@@ -40,6 +40,17 @@ python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
 
 The snapshot records endpoint count, paths, operations, manifest hash, and OpenAPI hash for CI/release drift checks.
 
+## Signed local checkpoints
+
+`src/flow_memory/storage/checkpoints.py` can sign a replay result summary with the local development signing seam. The checkpoint covers the latest audit hash and event count. This is useful for local release checks, but production use still requires real key custody and external checkpoint publication.
+
+Replay and checkpoint a SQLite audit database with:
+
+```bash
+python scripts/replay_audit_log.py --db flow-memory.sqlite3 --checkpoint --require-events
+```
+
+
 ## Limitations
 
 - SQLite is local persistence, not a distributed or high-availability database.

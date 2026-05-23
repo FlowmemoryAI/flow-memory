@@ -108,6 +108,7 @@ Added:
 - `scripts/verify.sh` now runs the release gate after tests, CLI smoke, and perception benchmark.
 - `src/flow_memory/storage/backup.py` for deterministic whole-store backup/restore bundles.
 - `scripts/backup_storage.py` and `scripts/restore_storage.py` for local recovery workflows.
+- `src/flow_memory/storage/retention.py` and `scripts/apply_retention_policy.py` for local retention/compaction hygiene.
 
 
 ### Production API seams
@@ -165,13 +166,14 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/replay_audit_log.py -
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/release_gate.py --root E:/FlowMemory/flow-memory
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/backup_storage.py --db C:/tmp/flow-memory-backup-source.sqlite3 --out C:/tmp/flow-memory-storage-backup.json
 E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/restore_storage.py --backup C:/tmp/flow-memory-storage-backup.json --db C:/tmp/flow-memory-backup-restored.sqlite3
+E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/apply_retention_policy.py --db C:/tmp/flow-memory-retention.sqlite3 --policy C:/tmp/flow-memory-retention-policy.json
 ```
 
 ## Validation results
 
 | Command | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `200 passed` |
+| `python -m pytest -q` | Pass: `204 passed` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -185,6 +187,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/restore_storage.py --
 | `python scripts/release_gate.py --root E:/FlowMemory/flow-memory` | Pass |
 | `python scripts/backup_storage.py --db C:/tmp/flow-memory-backup-source.sqlite3 --out C:/tmp/flow-memory-storage-backup.json` | Pass |
 | `python scripts/restore_storage.py --backup C:/tmp/flow-memory-storage-backup.json --db C:/tmp/flow-memory-backup-restored.sqlite3` | Pass |
+| `python scripts/apply_retention_policy.py --db C:/tmp/flow-memory-retention.sqlite3 --policy C:/tmp/flow-memory-retention-policy.json` | Pass |
 | `docker compose config` | Pass |
 | `forge build` | Pass |
 | `forge test` | Pass: `11 tests passed` |
@@ -194,7 +197,7 @@ E:/FlowMemory/flow-memory/.venv/Scripts/python.exe scripts/restore_storage.py --
 
 ## Current test count
 
-`python -m pytest -q` currently passes with `200 passed`.
+`python -m pytest -q` currently passes with `204 passed`.
 
 ## Honest limitations
 

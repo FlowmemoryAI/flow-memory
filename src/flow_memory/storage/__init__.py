@@ -12,6 +12,7 @@ from flow_memory.storage.reputation_store import ReputationStore
 from flow_memory.storage.skill_store import SkillStore
 from flow_memory.storage.sqlite_store import SQLiteStore
 from flow_memory.storage.replay import ReplayRecord, ReplayResult, replay_events, verify_chained_events
+from flow_memory.storage.retention import RetentionPolicy, RetentionReport, RetentionRule, apply_retention_policy, policy_from_mapping
 
 __all__ = [
     "AgentStore",
@@ -38,4 +39,9 @@ __all__ = [
     "restore_backup_file",
     "validate_backup",
     "write_backup",
+    "RetentionPolicy",
+    "RetentionReport",
+    "RetentionRule",
+    "apply_retention_policy",
+    "policy_from_mapping",
 ]

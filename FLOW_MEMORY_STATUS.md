@@ -193,3 +193,18 @@ Mission Control is connected to real local network/replay/API data for public-al
 | Roadmap distinction | enforced in records/docs | TEE attestation, on-chain slashing, compute futures, reserved throughput, native SQUIRE redemption, and native Dolphin inventory are labeled roadmap/adjacent unless separately verified. |
 
 Flow Memory now has a live-first Squire control-plane planning layer for agentic compute routing and cost telemetry. It is intentionally an adapter seam, not a token custody or real-funds implementation.
+
+## Mission Control V2 recovery/polish branch status
+
+Branch `work/mission-control-visual-v2` resumes Mission Control polish in an isolated worktree. Current V2 additions:
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Recovery audit | implemented | `docs/MISSION_CONTROL_V2_RECOVERY_AUDIT.md` records baseline state, inherited main work, and gaps found. |
+| Reducer lifecycle precedence | implemented | Settled/slashed tasks are terminal; duplicate or lower-priority replay events cannot regress task state. Ignored regressions surface in runtime metadata. |
+| Replay controls | implemented scaffold | Dashboard controls include play, pause, reset, step forward/backward, speed, timeline, and event filters. |
+| Data panels | hardened scaffold | Agent, neural, economy, RL, audit, and runtime panels read real `VisualNetworkState` fields instead of static placeholders. |
+| Mode UX | hardened scaffold | Mock/replay/live local API modes are explicit; live API disconnected copy is represented. |
+| Replay data | regenerated | `dashboard/src/mock-data/local-network-replay.json` is exported from a real local network `all` scenario and includes four agents, economy lifecycle, dispute/slashing, memory, neural, RL, safety, and audit signals. |
+
+This remains a local/public-alpha Mission Control scaffold. It is not a hosted production dashboard, not mainnet payment infrastructure, and not a production ML console.

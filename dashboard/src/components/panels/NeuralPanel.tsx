@@ -1,4 +1,5 @@
 import type { VisualNetworkState } from "../../lib/visual-state";
+import { gpuEvidenceLabel } from "../../lib/visual-state";
 
 export function NeuralPanel({ state }: { state: VisualNetworkState }) {
   const signal = state.neural[0];
@@ -12,10 +13,10 @@ export function NeuralPanel({ state }: { state: VisualNetworkState }) {
           <div><dt>Plan score</dt><dd>{signal.plan_score.toFixed(2)}</dd></div>
           <div><dt>Risk score</dt><dd>{signal.risk_score.toFixed(2)}</dd></div>
           <div><dt>Surprise</dt><dd>{signal.surprise_score.toFixed(2)}</dd></div>
-          <div><dt>Prediction confidence</dt><dd>{Math.max(0.12, signal.plan_score).toFixed(2)}</dd></div>
-          <div><dt>GPU evidence</dt><dd>external artifact required for GPU-gated releases</dd></div>
+          <div><dt>Prediction confidence</dt><dd>{Number(signal.prediction_confidence ?? Math.max(0.12, signal.plan_score)).toFixed(2)}</dd></div>
+          <div><dt>GPU evidence</dt><dd>{gpuEvidenceLabel(state)}</dd></div>
         </dl>
-      ) : <p>No neural signal in this replay. Neural models remain advisory.</p>}
+      ) : <p>No neural signal in this replay. Neural models remain advisory and safety remains authoritative.</p>}
     </section>
   );
 }

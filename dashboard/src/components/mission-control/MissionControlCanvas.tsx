@@ -43,6 +43,8 @@ export function MissionControlCanvas({ state }: { state: VisualNetworkState }) {
         <span>{state.runtime.agents} agents</span>
         <span>{state.runtime.tasks} tasks</span>
         <span>{state.economy.length} economy edges</span>
+        <span>{state.neural.length} neural signals</span>
+        <span>{state.rl.length} RL episodes</span>
         <span>{state.safety.filter((gate) => gate.requires_approval).length} approvals</span>
       </div>
     </section>

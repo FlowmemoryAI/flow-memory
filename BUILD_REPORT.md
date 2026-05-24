@@ -614,3 +614,36 @@ Focused validation for this slice:
 | `python -m pytest -q tests/test_squire_core.py tests/test_api_squire_endpoints.py tests/test_squire_skill_file.py` | Pass: `14 passed` |
 | `python scripts/squire_goal.py --goal "UsePod routing with budget controls"` | Pass |
 | `python examples/squire_goal_demo.py` | Pass |
+
+## Mission Control V2 recovery and visual polish branch — 2026-05-24
+
+Branch: `work/mission-control-visual-v2`
+
+This recovery pass was performed in `E:\FlowMemory\flow-memory-mission-control-v2` to avoid collisions with the main checkout.
+
+Added/hardened:
+
+- `docs/MISSION_CONTROL_V2_RECOVERY_AUDIT.md` documenting inherited Mission Control work, baseline checks, and missing pieces.
+- Visual reducer task/economy lifecycle precedence so duplicate replay events cannot regress settled/slashed task state.
+- Regression tests for task status precedence, duplicate events, and settlement terminal-state behavior.
+- Dashboard library support files for visual state helpers, local API endpoints, event-stream/mode UX, mock API data, and OpenAPI endpoint references.
+- `.gitignore` narrowed the Foundry `lib/` ignore to `/lib/` so `dashboard/src/lib/` support files are tracked in this branch.
+- Replay controls with play/pause/reset, step forward/backward, speed, event timeline, and type filters.
+- Agent, neural, economy, RL, audit, and runtime panels that read real visual state fields.
+- Regenerated deterministic dashboard replay data from `scripts/run_local_network.py --scenario all --emit-visual-events`.
+- `docs/VISUAL_SYSTEM.md` and `docs/MISSION_CONTROL_DEMO_SCRIPT.md`.
+
+Focused validation observed during this pass:
+
+| Check | Result |
+| --- | --- |
+| Baseline `python -m pytest -q` | Pass: `532 passed, 17 skipped` |
+| Reducer/visual focused tests | Pass |
+| `python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json` | Pass |
+| `python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json` | Pass |
+| `python scripts/mission_control_demo_data.py` | Pass |
+| `python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json` | Pass |
+| `cd dashboard && npm test` | Pass |
+| `cd dashboard && npm run build` | Pass |
+
+Baseline `bash scripts/verify.sh` initially failed in the fresh worktree because Git Bash selected `/usr/bin/python3` without `pytest`. This branch hardens Python selection for Windows Git Bash validation.

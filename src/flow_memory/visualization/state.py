@@ -33,6 +33,7 @@ class VisualTaskNode:
     reward: float = 0.0
     provenance: str = "live"
     source_event_id: str = ""
+    ignored_regressions: tuple[str, ...] = ()
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)
@@ -63,6 +64,8 @@ class VisualEconomyEdge:
     status: str = "observed"
     provenance: str = "live"
     source_event_id: str = ""
+    task_id: str = ""
+    reputation_delta: float = 0.0
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)
@@ -136,6 +139,7 @@ class VisualRuntimeHealth:
     tasks: int = 0
     events: int = 0
     warnings: tuple[str, ...] = ()
+    ignored_regressions: tuple[str, ...] = ()
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)

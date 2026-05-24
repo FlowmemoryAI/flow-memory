@@ -30,6 +30,8 @@ python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-r
 
 The replay file is frontend-friendly JSON with explicit `provenance = replay`.
 
+V2 reducer behavior keeps task lifecycle state deterministic: late duplicate or lower-priority events cannot regress a task from `settled` or `slashed` to an earlier state. Ignored regressions are exposed through `runtime.ignored_regressions`.
+
 ## 3. Run the local API server for live polling mode
 
 ```bash
@@ -63,6 +65,8 @@ npm test
 ```
 
 For an interactive dev server, install a React/Next shell around the existing TypeScript components. The current checked-in dashboard is intentionally dependency-light; Python validation does not require Node.
+
+The dashboard V2 checks validate replay controls, mock/replay/live mode copy, local API endpoint references, and panel wiring. They do not require a production frontend host.
 
 ## Modes
 

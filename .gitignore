@@ -18,7 +18,7 @@ __pycache__/
 out/
 cache/
 broadcast/
-lib/
+/lib/
 
 # OS / editors
 .DS_Store

@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+from scripts.test_full_system import ROOT as SCRIPT_ROOT, full_checks
 
 
 def test_full_system_quick_report_passes(tmp_path):
@@ -22,3 +23,10 @@ def test_full_system_quick_report_passes(tmp_path):
     assert {"cli_agent", "flowlang_agent", "neural_agent", "local_network", "learning_loop", "release_local"} <= names
     assert out.exists()
     assert out.with_suffix(".md").exists()
+
+
+def test_full_system_full_checks_include_cargo_workspace_cwd():
+    checks = {check.name: check for check in full_checks()}
+    assert "cargo_test" in checks
+    assert checks["cargo_test"].command == ("cargo", "test")
+    assert checks["cargo_test"].command_cwd == SCRIPT_ROOT / "rust" / "flow-memory-core"

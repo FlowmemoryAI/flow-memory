@@ -23,6 +23,11 @@ class SystemCheck:
     command: tuple[str, ...]
     required: bool = True
     allow_failure: bool = False
+    cwd: Path | None = None
+
+    @property
+    def command_cwd(self) -> Path:
+        return ROOT if self.cwd is None else self.cwd
 
 
 @dataclass(frozen=True)
@@ -35,6 +40,7 @@ class SystemCheckResult:
     returncode: int
     stdout_tail: str
     stderr_tail: str
+    cwd: str
 
     def as_record(self) -> Mapping[str, Any]:
         return {
@@ -46,8 +52,8 @@ class SystemCheckResult:
             "returncode": self.returncode,
             "stdout_tail": self.stdout_tail,
             "stderr_tail": self.stderr_tail,
+            "cwd": self.cwd,
         }
-
 
 def quick_checks() -> tuple[SystemCheck, ...]:
     py = sys.executable
@@ -82,6 +88,7 @@ def full_checks() -> tuple[SystemCheck, ...]:
         SystemCheck("docker_compose_config", ("docker", "compose", "config")),
         SystemCheck("forge_build", ("forge", "build")),
         SystemCheck("forge_test", ("forge", "test")),
+        SystemCheck("cargo_test", ("cargo", "test"), cwd=ROOT / "rust" / "flow-memory-core"),
         SystemCheck("git_diff_check", ("git", "diff", "--check")),
     )
 
@@ -90,7 +97,7 @@ def run_checks(checks: Iterable[SystemCheck]) -> tuple[SystemCheckResult, ...]:
     results: list[SystemCheckResult] = []
     for check in checks:
         try:
-            completed = subprocess.run(check.command, cwd=ROOT, capture_output=True, text=True, timeout=600)
+            completed = subprocess.run(check.command, cwd=check.command_cwd, capture_output=True, text=True, timeout=600)
             ok = completed.returncode == 0 or check.allow_failure
             results.append(
                 SystemCheckResult(
@@ -102,12 +109,13 @@ def run_checks(checks: Iterable[SystemCheck]) -> tuple[SystemCheckResult, ...]:
                     completed.returncode,
                     _tail(completed.stdout),
                     _tail(completed.stderr),
+                    str(check.command_cwd),
                 )
             )
         except FileNotFoundError as exc:
-            results.append(SystemCheckResult(check.name, check.command, not check.required, check.required, True, 127, "", str(exc)))
+            results.append(SystemCheckResult(check.name, check.command, not check.required, check.required, True, 127, "", str(exc), str(check.command_cwd)))
         except subprocess.TimeoutExpired as exc:
-            results.append(SystemCheckResult(check.name, check.command, False, check.required, False, 124, _tail(exc.stdout or ""), _tail(exc.stderr or "")))
+            results.append(SystemCheckResult(check.name, check.command, False, check.required, False, 124, _tail(exc.stdout or ""), _tail(exc.stderr or ""), str(check.command_cwd)))
     return tuple(results)
 
 

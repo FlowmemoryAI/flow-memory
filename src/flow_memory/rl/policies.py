@@ -10,7 +10,7 @@ class RandomPolicy:
     def act(self, observation:Mapping[str,Any], env:FlowEnv)->int: return self.rng.randrange(env.action_space.n)
 
 class HeuristicPolicy:
-    PREFERRED={"tool_use":"use_safe_tool","memory_retrieval":"retrieve_relevant_memory","economy_market":"bid_fair","verifier":"request_evidence","swarm_delegation":"delegate_high_rep","safety_gate":"choose_safer_plan","self_repair":"disable_failing_skill","gridworld":"right"}
+    PREFERRED={"tool_use":"use_safe_tool","memory_retrieval":"retrieve_relevant_memory","economy_market":"bid_fair","verifier":"request_evidence","swarm_delegation":"delegate_high_rep","safety_gate":"choose_safer_plan","self_repair":"disable_failing_skill","gridworld":"right","reputation_gaming":"decline_suspicious_task","sybil_risk":"quarantine_cluster","colluding_verifier":"multi_verifier_vote"}
     def act(self, observation:Mapping[str,Any], env:FlowEnv)->int:
         label=self.PREFERRED.get(env.env_id, env.action_labels[0])
         return env.action_labels.index(label) if label in env.action_labels else 0

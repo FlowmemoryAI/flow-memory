@@ -25,5 +25,8 @@ def register_default_envs() -> None:
     from flow_memory.rl.envs.safety_gate_env import SafetyGateEnv
     from flow_memory.rl.envs.self_repair_env import SelfRepairEnv
     from flow_memory.rl.envs.gridworld import GridWorld
-    for cls in (ToolUseEnv, MemoryRetrievalEnv, EconomyMarketEnv, VerifierEnv, SwarmDelegationEnv, SafetyGateEnv, SelfRepairEnv, GridWorld):
+    from flow_memory.rl.envs.reputation_gaming_env import ReputationGamingEnv
+    from flow_memory.rl.envs.sybil_risk_env import SybilRiskEnv
+    from flow_memory.rl.envs.colluding_verifier_env import ColludingVerifierEnv
+    for cls in (ToolUseEnv, MemoryRetrievalEnv, EconomyMarketEnv, VerifierEnv, SwarmDelegationEnv, SafetyGateEnv, SelfRepairEnv, GridWorld, ReputationGamingEnv, SybilRiskEnv, ColludingVerifierEnv):
         register_env(cls.env_id, cls)

@@ -1,8 +1,8 @@
 {
   "events": [
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_3594a1d0dfcc4cb1b2a99406520abecd",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0001",
       "event_type": "agent",
       "payload": {
         "agent_id": "did:flow:requester",
@@ -21,8 +21,8 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_e1098992e06e46e19d1b5fb73ed5c463",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0002",
       "event_type": "agent",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -42,8 +42,8 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_dacf9a0728ed4a05a8004063f0b5b458",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0003",
       "event_type": "agent",
       "payload": {
         "agent_id": "did:flow:verifier",
@@ -62,8 +62,8 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_d0a52ecea9564a61b188bafb3e1b556b",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0004",
       "event_type": "agent",
       "payload": {
         "agent_id": "did:flow:auditor",
@@ -82,31 +82,31 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_5de637f6bd88462e856d6b2a6d32f22e",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0005",
       "event_type": "task",
       "payload": {
-        "label": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "label": "taskv3_0001",
         "requester_id": "did:flow:requester",
         "reward": 3.0,
         "status": "settled",
-        "task_id": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "task_id": "taskv3_0001",
         "verifier_id": "did:flow:verifier",
         "worker_id": "did:flow:worker"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+      "source": "taskv3_0001",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_24ff45f3c9834eb9908c80d72592ca35",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0006",
       "event_type": "economy",
       "payload": {
         "amount": 3.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "edge_id": "taskv3_0001",
         "from_id": "did:flow:requester",
         "kind": "payment",
         "status": "settled",
@@ -114,33 +114,33 @@
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+      "source": "taskv3_0001",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_70511ccc99474064803b7905b064bc9c",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0007",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:requester",
         "decision": "approved",
-        "gate_id": "policy-taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "gate_id": "policy-taskv3_0001",
         "reason": "",
         "requires_approval": false,
         "risk_level": "low"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "policy-taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+      "source": "policy-taskv3_0001",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.556894+00:00",
-      "event_id": "visual_event_6d87eba50e9f45e7b463c86ed81755dd",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0008",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:requester",
-        "audit_id": "network_receipt_30abb78995e7427993b49cf56cf4fff2",
+        "audit_id": "network_receipt_0001",
         "event_type": "basic_economy_completed",
         "ok": true,
         "summary": "basic_economy_completed"
@@ -148,11 +148,11 @@
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:requester",
-      "source_event_id": "network_receipt_30abb78995e7427993b49cf56cf4fff2"
+      "source_event_id": "network_receipt_0001"
     },
     {
-      "created_at": "2026-05-24T12:29:01.557894+00:00",
-      "event_id": "visual_event_ad521c55c2ec4e0ab784c75eb0a86d41",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0009",
       "event_type": "neural",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -168,41 +168,41 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.557894+00:00",
-      "event_id": "visual_event_eda418af0d0a4781899075aa8d215104",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0010",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:worker",
         "decision": "approved",
-        "gate_id": "neural-policy-agent_0047be2b6c17467d9f6b0dc915f7eaac",
+        "gate_id": "neural-policy-agent_0001",
         "reason": "",
         "requires_approval": false,
         "risk_level": "low"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "neural-policy-agent_0047be2b6c17467d9f6b0dc915f7eaac",
+      "source": "neural-policy-agent_0001",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.557894+00:00",
-      "event_id": "visual_event_914547fc174f47d9b7bcc8ab0a6fbf1c",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0011",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:worker",
-        "audit_id": "network_receipt_002e19144c574c89a59e2bc131abe8bc",
-        "event_type": "neural_agent_cycle",
+        "audit_id": "network_receipt_0002",
+        "event_type": "neural_agent_0002",
         "ok": true,
-        "summary": "neural_agent_cycle"
+        "summary": "neural_agent_0002"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:worker",
-      "source_event_id": "network_receipt_002e19144c574c89a59e2bc131abe8bc"
+      "source_event_id": "network_receipt_0002"
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_a2e141dede2f42e69559dafa5019804c",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0012",
       "event_type": "rl",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -219,12 +219,12 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_a62133eef01c40008114a954ea711ac9",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0013",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:worker",
-        "audit_id": "network_receipt_ed15b2aa42874f6d907870868667b0b3",
+        "audit_id": "network_receipt_0003",
         "event_type": "rl_training_completed",
         "ok": true,
         "summary": "rl_training_completed"
@@ -232,34 +232,34 @@
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:worker",
-      "source_event_id": "network_receipt_ed15b2aa42874f6d907870868667b0b3"
+      "source_event_id": "network_receipt_0003"
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_0f144fd0f9074cbf9ceeae917488ea6a",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0014",
       "event_type": "task",
       "payload": {
-        "label": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "label": "taskv3_0002",
         "requester_id": "did:flow:requester",
         "reward": 2.0,
         "status": "slashed",
-        "task_id": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "task_id": "taskv3_0002",
         "verifier_id": "",
         "worker_id": "did:flow:worker"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+      "source": "taskv3_0002",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_c9f4351454984d3cb24183ec3646f1d4",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0015",
       "event_type": "economy",
       "payload": {
         "amount": 2.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "edge_id": "taskv3_0002",
         "from_id": "did:flow:requester",
         "kind": "slashing",
         "status": "slashed",
@@ -267,33 +267,33 @@
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+      "source": "taskv3_0002",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_51ef57125f6b493ebfbb4ee9ac475726",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0016",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:worker",
         "decision": "blocked",
-        "gate_id": "slash-taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "gate_id": "slash-taskv3_0002",
         "reason": "",
         "requires_approval": true,
         "risk_level": "high"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "slash-taskv3_c5376d77fe154790b9676cad52e5e2fd",
+      "source": "slash-taskv3_0002",
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_51e549033d124896ad6928b5d4e5ec4f",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0017",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:requester",
-        "audit_id": "network_receipt_063a59bd5752447393bd4e622d328faa",
+        "audit_id": "network_receipt_0004",
         "event_type": "dispute_slashing_completed",
         "ok": true,
         "summary": "dispute_slashing_completed"
@@ -301,17 +301,17 @@
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:requester",
-      "source_event_id": "network_receipt_063a59bd5752447393bd4e622d328faa"
+      "source_event_id": "network_receipt_0004"
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_d883231c0bb14c8da7602b33541e89c0",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0018",
       "event_type": "memory",
       "payload": {
         "agent_id": "did:flow:worker",
         "importance": 0.8,
         "kind": "episodic",
-        "memory_id": "memory-agent_0047be2b6c17467d9f6b0dc915f7eaac-1",
+        "memory_id": "memory-agent_0001-1",
         "summary": "verified local work should cite evidence"
       },
       "provenance": "live",
@@ -320,14 +320,14 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_33ef22f69d664f169c00690094f8db14",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0019",
       "event_type": "memory",
       "payload": {
         "agent_id": "did:flow:worker",
         "importance": 0.7,
         "kind": "procedural",
-        "memory_id": "memory-agent_0047be2b6c17467d9f6b0dc915f7eaac-2",
+        "memory_id": "memory-agent_0001-2",
         "summary": "use prior evidence when reporting work"
       },
       "provenance": "live",
@@ -336,12 +336,12 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_0ade2e37095f48f1b239bca6b56bc02d",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0020",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:worker",
-        "audit_id": "network_receipt_9a4ec5e7b8c945daa8d2457d2ff9d509",
+        "audit_id": "network_receipt_0005",
         "event_type": "memory_learning_completed",
         "ok": true,
         "summary": "memory_learning_completed"
@@ -349,11 +349,11 @@
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:worker",
-      "source_event_id": "network_receipt_9a4ec5e7b8c945daa8d2457d2ff9d509"
+      "source_event_id": "network_receipt_0005"
     },
     {
-      "created_at": "2026-05-24T12:29:01.558892+00:00",
-      "event_id": "visual_event_6aa6a331f8fe42ccb43bc8aba4c987b5",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0021",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:requester",
@@ -369,12 +369,12 @@
       "source_event_id": ""
     },
     {
-      "created_at": "2026-05-24T12:29:01.559892+00:00",
-      "event_id": "visual_event_f904a027331d4b3bbf7391e9e475e1d9",
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0022",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:requester",
-        "audit_id": "network_receipt_bc3c9592596d4ad7bbfacc0ee24db473",
+        "audit_id": "network_receipt_0006",
         "event_type": "safety_approval_required",
         "ok": true,
         "summary": "safety_approval_required"
@@ -382,10 +382,10 @@
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:requester",
-      "source_event_id": "network_receipt_bc3c9592596d4ad7bbfacc0ee24db473"
+      "source_event_id": "network_receipt_0006"
     }
   ],
-  "generated_at": "2026-05-24T12:29:01.875900+00:00",
+  "generated_at": "1970-01-01T00:00:00+00:00",
   "metadata": {
     "agent_count": 4,
     "event_count": 22,
@@ -395,7 +395,7 @@
   "ok": true,
   "provenance": "replay",
   "schema_version": "visual.telemetry.v1",
-  "source_report": "artifacts\\network\\local_network_report.json",
+  "source_report": "artifacts/network/local_network_report.json",
   "state": {
     "agents": [
       {
@@ -408,7 +408,7 @@
         "provenance": "live",
         "reputation": 5.0,
         "role": "requester",
-        "source_event_id": "visual_event_3594a1d0dfcc4cb1b2a99406520abecd",
+        "source_event_id": "visual_event_0001",
         "status": "idle"
       },
       {
@@ -422,7 +422,7 @@
         "provenance": "live",
         "reputation": 7.0,
         "role": "worker",
-        "source_event_id": "visual_event_e1098992e06e46e19d1b5fb73ed5c463",
+        "source_event_id": "visual_event_0002",
         "status": "idle"
       },
       {
@@ -435,7 +435,7 @@
         "provenance": "live",
         "reputation": 8.0,
         "role": "verifier",
-        "source_event_id": "visual_event_dacf9a0728ed4a05a8004063f0b5b458",
+        "source_event_id": "visual_event_0003",
         "status": "idle"
       },
       {
@@ -448,207 +448,207 @@
         "provenance": "live",
         "reputation": 6.0,
         "role": "auditor",
-        "source_event_id": "visual_event_d0a52ecea9564a61b188bafb3e1b556b",
+        "source_event_id": "visual_event_0004",
         "status": "idle"
       }
     ],
     "audit": [
       {
         "actor_id": "did:flow:requester",
-        "audit_id": "visual_event_3594a1d0dfcc4cb1b2a99406520abecd",
+        "audit_id": "visual_event_0001",
         "event_type": "agent",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_3594a1d0dfcc4cb1b2a99406520abecd",
+        "source_event_id": "visual_event_0001",
         "summary": "agent observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_e1098992e06e46e19d1b5fb73ed5c463",
+        "audit_id": "visual_event_0002",
         "event_type": "agent",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_e1098992e06e46e19d1b5fb73ed5c463",
+        "source_event_id": "visual_event_0002",
         "summary": "agent observed"
       },
       {
         "actor_id": "did:flow:verifier",
-        "audit_id": "visual_event_dacf9a0728ed4a05a8004063f0b5b458",
+        "audit_id": "visual_event_0003",
         "event_type": "agent",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_dacf9a0728ed4a05a8004063f0b5b458",
+        "source_event_id": "visual_event_0003",
         "summary": "agent observed"
       },
       {
         "actor_id": "did:flow:auditor",
-        "audit_id": "visual_event_d0a52ecea9564a61b188bafb3e1b556b",
+        "audit_id": "visual_event_0004",
         "event_type": "agent",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_d0a52ecea9564a61b188bafb3e1b556b",
+        "source_event_id": "visual_event_0004",
         "summary": "agent observed"
       },
       {
-        "actor_id": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
-        "audit_id": "visual_event_5de637f6bd88462e856d6b2a6d32f22e",
+        "actor_id": "taskv3_0001",
+        "audit_id": "visual_event_0005",
         "event_type": "task",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_5de637f6bd88462e856d6b2a6d32f22e",
+        "source_event_id": "visual_event_0005",
         "summary": "task observed"
       },
       {
-        "actor_id": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
-        "audit_id": "visual_event_24ff45f3c9834eb9908c80d72592ca35",
+        "actor_id": "taskv3_0001",
+        "audit_id": "visual_event_0006",
         "event_type": "economy",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_24ff45f3c9834eb9908c80d72592ca35",
+        "source_event_id": "visual_event_0006",
         "summary": "economy observed"
       },
       {
-        "actor_id": "policy-taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
-        "audit_id": "visual_event_70511ccc99474064803b7905b064bc9c",
+        "actor_id": "policy-taskv3_0001",
+        "audit_id": "visual_event_0007",
         "event_type": "safety",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_70511ccc99474064803b7905b064bc9c",
+        "source_event_id": "visual_event_0007",
         "summary": "safety observed"
       },
       {
         "actor_id": "did:flow:requester",
-        "audit_id": "visual_event_6d87eba50e9f45e7b463c86ed81755dd",
+        "audit_id": "visual_event_0008",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_6d87eba50e9f45e7b463c86ed81755dd",
+        "source_event_id": "visual_event_0008",
         "summary": "audit observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_ad521c55c2ec4e0ab784c75eb0a86d41",
+        "audit_id": "visual_event_0009",
         "event_type": "neural",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_ad521c55c2ec4e0ab784c75eb0a86d41",
+        "source_event_id": "visual_event_0009",
         "summary": "neural observed"
       },
       {
-        "actor_id": "neural-policy-agent_0047be2b6c17467d9f6b0dc915f7eaac",
-        "audit_id": "visual_event_eda418af0d0a4781899075aa8d215104",
+        "actor_id": "neural-policy-agent_0001",
+        "audit_id": "visual_event_0010",
         "event_type": "safety",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_eda418af0d0a4781899075aa8d215104",
+        "source_event_id": "visual_event_0010",
         "summary": "safety observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_914547fc174f47d9b7bcc8ab0a6fbf1c",
+        "audit_id": "visual_event_0011",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_914547fc174f47d9b7bcc8ab0a6fbf1c",
+        "source_event_id": "visual_event_0011",
         "summary": "audit observed"
       },
       {
         "actor_id": "rl-safety-gate",
-        "audit_id": "visual_event_a2e141dede2f42e69559dafa5019804c",
+        "audit_id": "visual_event_0012",
         "event_type": "rl",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_a2e141dede2f42e69559dafa5019804c",
+        "source_event_id": "visual_event_0012",
         "summary": "rl observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_a62133eef01c40008114a954ea711ac9",
+        "audit_id": "visual_event_0013",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_a62133eef01c40008114a954ea711ac9",
+        "source_event_id": "visual_event_0013",
         "summary": "audit observed"
       },
       {
-        "actor_id": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
-        "audit_id": "visual_event_0f144fd0f9074cbf9ceeae917488ea6a",
+        "actor_id": "taskv3_0002",
+        "audit_id": "visual_event_0014",
         "event_type": "task",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_0f144fd0f9074cbf9ceeae917488ea6a",
+        "source_event_id": "visual_event_0014",
         "summary": "task observed"
       },
       {
-        "actor_id": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
-        "audit_id": "visual_event_c9f4351454984d3cb24183ec3646f1d4",
+        "actor_id": "taskv3_0002",
+        "audit_id": "visual_event_0015",
         "event_type": "economy",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_c9f4351454984d3cb24183ec3646f1d4",
+        "source_event_id": "visual_event_0015",
         "summary": "economy observed"
       },
       {
-        "actor_id": "slash-taskv3_c5376d77fe154790b9676cad52e5e2fd",
-        "audit_id": "visual_event_51ef57125f6b493ebfbb4ee9ac475726",
+        "actor_id": "slash-taskv3_0002",
+        "audit_id": "visual_event_0016",
         "event_type": "safety",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_51ef57125f6b493ebfbb4ee9ac475726",
+        "source_event_id": "visual_event_0016",
         "summary": "safety observed"
       },
       {
         "actor_id": "did:flow:requester",
-        "audit_id": "visual_event_51e549033d124896ad6928b5d4e5ec4f",
+        "audit_id": "visual_event_0017",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_51e549033d124896ad6928b5d4e5ec4f",
+        "source_event_id": "visual_event_0017",
         "summary": "audit observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_d883231c0bb14c8da7602b33541e89c0",
+        "audit_id": "visual_event_0018",
         "event_type": "memory",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_d883231c0bb14c8da7602b33541e89c0",
+        "source_event_id": "visual_event_0018",
         "summary": "memory observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_33ef22f69d664f169c00690094f8db14",
+        "audit_id": "visual_event_0019",
         "event_type": "memory",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_33ef22f69d664f169c00690094f8db14",
+        "source_event_id": "visual_event_0019",
         "summary": "memory observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_0ade2e37095f48f1b239bca6b56bc02d",
+        "audit_id": "visual_event_0020",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_0ade2e37095f48f1b239bca6b56bc02d",
+        "source_event_id": "visual_event_0020",
         "summary": "audit observed"
       },
       {
         "actor_id": "safety-approval-demo",
-        "audit_id": "visual_event_6aa6a331f8fe42ccb43bc8aba4c987b5",
+        "audit_id": "visual_event_0021",
         "event_type": "safety",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_6aa6a331f8fe42ccb43bc8aba4c987b5",
+        "source_event_id": "visual_event_0021",
         "summary": "safety observed"
       },
       {
         "actor_id": "did:flow:requester",
-        "audit_id": "visual_event_f904a027331d4b3bbf7391e9e475e1d9",
+        "audit_id": "visual_event_0022",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_f904a027331d4b3bbf7391e9e475e1d9",
+        "source_event_id": "visual_event_0022",
         "summary": "audit observed"
       }
     ],
@@ -656,22 +656,22 @@
       {
         "amount": 3.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "edge_id": "taskv3_0001",
         "from_id": "did:flow:requester",
         "kind": "payment",
         "provenance": "live",
-        "source_event_id": "visual_event_24ff45f3c9834eb9908c80d72592ca35",
+        "source_event_id": "visual_event_0006",
         "status": "settled",
         "to_id": "did:flow:worker"
       },
       {
         "amount": 2.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "edge_id": "taskv3_0002",
         "from_id": "did:flow:requester",
         "kind": "slashing",
         "provenance": "live",
-        "source_event_id": "visual_event_c9f4351454984d3cb24183ec3646f1d4",
+        "source_event_id": "visual_event_0015",
         "status": "slashed",
         "to_id": "did:flow:worker"
       }
@@ -681,18 +681,18 @@
         "agent_id": "did:flow:worker",
         "importance": 0.8,
         "kind": "episodic",
-        "memory_id": "memory-agent_0047be2b6c17467d9f6b0dc915f7eaac-1",
+        "memory_id": "memory-agent_0001-1",
         "provenance": "live",
-        "source_event_id": "visual_event_d883231c0bb14c8da7602b33541e89c0",
+        "source_event_id": "visual_event_0018",
         "summary": "verified local work should cite evidence"
       },
       {
         "agent_id": "did:flow:worker",
         "importance": 0.7,
         "kind": "procedural",
-        "memory_id": "memory-agent_0047be2b6c17467d9f6b0dc915f7eaac-2",
+        "memory_id": "memory-agent_0001-2",
         "provenance": "live",
-        "source_event_id": "visual_event_33ef22f69d664f169c00690094f8db14",
+        "source_event_id": "visual_event_0019",
         "summary": "use prior evidence when reporting work"
       }
     ],
@@ -703,8 +703,8 @@
         "plan_score": 0.8799999999999999,
         "provenance": "live",
         "risk_score": 0.1,
-        "signal_id": "visual_event_ad521c55c2ec4e0ab784c75eb0a86d41",
-        "source_event_id": "visual_event_ad521c55c2ec4e0ab784c75eb0a86d41",
+        "signal_id": "visual_event_0009",
+        "source_event_id": "visual_event_0009",
         "status": "skipped",
         "surprise_score": 0.0
       }
@@ -719,7 +719,7 @@
         "policy": "local_tabular",
         "provenance": "live",
         "safety_violation_rate": 0.0,
-        "source_event_id": "visual_event_a2e141dede2f42e69559dafa5019804c",
+        "source_event_id": "visual_event_0012",
         "success_rate": 0.0
       }
     ],
@@ -734,32 +734,32 @@
       {
         "agent_id": "did:flow:requester",
         "decision": "approved",
-        "gate_id": "policy-taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "gate_id": "policy-taskv3_0001",
         "provenance": "live",
         "reason": "",
         "requires_approval": false,
         "risk_level": "low",
-        "source_event_id": "visual_event_70511ccc99474064803b7905b064bc9c"
+        "source_event_id": "visual_event_0007"
       },
       {
         "agent_id": "did:flow:worker",
         "decision": "approved",
-        "gate_id": "neural-policy-agent_0047be2b6c17467d9f6b0dc915f7eaac",
+        "gate_id": "neural-policy-agent_0001",
         "provenance": "live",
         "reason": "",
         "requires_approval": false,
         "risk_level": "low",
-        "source_event_id": "visual_event_eda418af0d0a4781899075aa8d215104"
+        "source_event_id": "visual_event_0010"
       },
       {
         "agent_id": "did:flow:worker",
         "decision": "blocked",
-        "gate_id": "slash-taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "gate_id": "slash-taskv3_0002",
         "provenance": "live",
         "reason": "",
         "requires_approval": true,
         "risk_level": "high",
-        "source_event_id": "visual_event_51ef57125f6b493ebfbb4ee9ac475726"
+        "source_event_id": "visual_event_0016"
       },
       {
         "agent_id": "did:flow:requester",
@@ -769,30 +769,30 @@
         "reason": "external/economic action requires approval",
         "requires_approval": true,
         "risk_level": "high",
-        "source_event_id": "visual_event_6aa6a331f8fe42ccb43bc8aba4c987b5"
+        "source_event_id": "visual_event_0021"
       }
     ],
     "schema_version": "visual.telemetry.v1",
     "tasks": [
       {
-        "label": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "label": "taskv3_0001",
         "provenance": "live",
         "requester_id": "did:flow:requester",
         "reward": 3.0,
-        "source_event_id": "visual_event_5de637f6bd88462e856d6b2a6d32f22e",
+        "source_event_id": "visual_event_0005",
         "status": "settled",
-        "task_id": "taskv3_ad2a7a5be2ce4dae9377cac2cb436b5e",
+        "task_id": "taskv3_0001",
         "verifier_id": "did:flow:verifier",
         "worker_id": "did:flow:worker"
       },
       {
-        "label": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "label": "taskv3_0002",
         "provenance": "live",
         "requester_id": "did:flow:requester",
         "reward": 2.0,
-        "source_event_id": "visual_event_0f144fd0f9074cbf9ceeae917488ea6a",
+        "source_event_id": "visual_event_0014",
         "status": "slashed",
-        "task_id": "taskv3_c5376d77fe154790b9676cad52e5e2fd",
+        "task_id": "taskv3_0002",
         "verifier_id": "",
         "worker_id": "did:flow:worker"
       }

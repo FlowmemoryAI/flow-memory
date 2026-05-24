@@ -62,11 +62,12 @@ def quick_checks() -> tuple[SystemCheck, ...]:
         SystemCheck("cli_agent", (py, "scripts/launch_local_agent.py", "--goal", "Explore and report")),
         SystemCheck("flowlang_agent", (py, "scripts/launch_flowlang_agent.py", "examples/flowlang_agent.flow", "--goal", "Run the declared agent")),
         SystemCheck("neural_agent", (py, "scripts/launch_neural_agent.py", "--backend", "tiny_torch", "--goal", "Explore and report")),
-        SystemCheck("local_network", (py, "scripts/run_local_network.py", "--scenario", "all", "--json-out", "artifacts/network/local_network_report.json")),
+        SystemCheck("local_network", (py, "scripts/run_local_network.py", "--scenario", "all", "--emit-visual-events", "--json-out", "artifacts/network/local_network_report.json")),
         SystemCheck("learning_loop", (py, "scripts/run_agent_learning_loop.py", "--json-out", "artifacts/learning/learning_report.json")),
         SystemCheck("rl_arena", (py, "examples/rl_safety_gate_demo.py")),
         SystemCheck("api_help", (py, "scripts/run_local_api_server.py", "--help")),
         SystemCheck("release_api", (py, "scripts/check_release_api.py", "--require-scopes")),
+        SystemCheck("visual_replay_export", (py, "scripts/export_visual_replay.py", "artifacts/network/local_network_report.json", "--out", "dashboard/src/mock-data/local-network-replay.json")),
         SystemCheck("release_local", (py, "scripts/release_decision.py", "--target", "local")),
     )
 

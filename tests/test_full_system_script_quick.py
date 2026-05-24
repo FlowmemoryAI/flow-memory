@@ -20,7 +20,7 @@ def test_full_system_quick_report_passes(tmp_path):
     assert payload["ok"] is True
     assert payload["mode"] == "quick"
     names = {item["name"] for item in payload["results"]}
-    assert {"cli_agent", "flowlang_agent", "neural_agent", "local_network", "learning_loop", "release_api", "release_local"} <= names
+    assert {"cli_agent", "flowlang_agent", "neural_agent", "local_network", "learning_loop", "release_api", "visual_replay_export", "release_local"} <= names
     assert out.exists()
     assert out.with_suffix(".md").exists()
 

@@ -13,6 +13,7 @@ from flow_memory.rl.evaluator import RLEvaluator
 from flow_memory.rl.policies import HeuristicPolicy, RandomPolicy, TabularQPolicy
 from flow_memory.rl.registry import make_env
 from flow_memory.rl.trainer import SimpleQLearningTrainer
+from flow_memory.rl.torch_trainer import TorchRLTrainerConfig, train_torch_actor_critic_smoke
 
 
 def compare_policies(env_id: str = "safety_gate", *, episodes: int = 20) -> dict[str, object]:
@@ -22,10 +23,16 @@ def compare_policies(env_id: str = "safety_gate", *, episodes: int = 20) -> dict
     q_policy = TabularQPolicy(epsilon=0.05, seed=2)
     training = SimpleQLearningTrainer(make_env(env_id, seed=2), q_policy).train(episodes=max(episodes, 20))
     q_report = evaluator.evaluate(make_env(env_id, seed=3), q_policy, episodes=episodes)
-    best = max(
+    torch_report = train_torch_actor_critic_smoke(TorchRLTrainerConfig(env_id=env_id, steps=2, seed=4))
+    comparable = [
         ("random", random_report),
         ("heuristic", heuristic_report),
         ("tabular_q", q_report),
+    ]
+    if not torch_report.get("skipped") and isinstance(torch_report.get("after"), dict):
+        comparable.append(("torch_actor_critic", torch_report["after"]))
+    best = max(
+        comparable,
         key=lambda item: float(item[1].get("mean_reward", 0.0)),
     )[0]
     return {
@@ -35,6 +42,7 @@ def compare_policies(env_id: str = "safety_gate", *, episodes: int = 20) -> dict
         "random": random_report,
         "heuristic": heuristic_report,
         "tabular_q": q_report,
+        "torch_actor_critic": torch_report,
         "training": training.as_record(),
         "best_policy": best,
         "tabular_q_improved": training.improved,

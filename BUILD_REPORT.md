@@ -393,3 +393,30 @@ Added `src/flow_memory/api/rl_endpoints.py`, router/manifest/scope wiring for `/
 ## Slice: RL evidence and public-alpha-neural release target
 
 Added `src/flow_memory/release/rl_evidence.py`, release bundle document `rl_benchmarks.json`, release decision target `public-alpha-neural`, and `docs/PUBLIC_ALPHA_LAUNCH_CHECKLIST.md`. The target requires public-alpha evidence, non-skipped GPU evidence, and RL benchmark evidence.
+
+
+## Final validation for long-run autonomous build queue
+
+Final validation after implementation slices:
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q` | Pass: `396 passed, 17 skipped` |
+| `bash scripts/verify.sh` | Pass: pytest, CLI smoke, perception benchmark, release gate |
+| `python -m flow_memory --json "Explore and report"` | Pass |
+| `python -m flow_memory --neural tiny_torch --json "Explore and report"` | Pass; local Torch absent so `tiny_torch` advisory metadata reports skipped |
+| New examples and RL benchmarks | Pass |
+| `python scripts/train_rl_torch_smoke.py --steps 1` | Pass; skipped Torch training locally because Torch is absent |
+| `python scripts/export_release_evidence.py` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --target local` | Pass |
+| `python scripts/release_decision.py --target neural-gpu-smoke` | Expected block: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-neural` | Expected block: `gpu_evidence_verified_run_missing` |
+| `docker compose config` | Pass |
+| `forge build` | Pass |
+| `forge test` | Pass: `16 tests passed` |
+| `cargo test` in `rust/flow-memory-core` | Pass: `2 passed` |
+| `git diff --check` | Pass |
+| Secret scan | No real secret/key material found; matches were documentation/API auth seam terms and no-key dry-run text |
+
+The only remaining launch blocker is the missing real RunPod tarball at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`. The gates correctly refuse to treat skipped GPU evidence as launch proof.

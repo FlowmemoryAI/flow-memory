@@ -17,9 +17,9 @@
       "name": "rl_env_throughput_benchmark",
       "ok": true,
       "path": "artifacts\\rl\\rl_env_throughput_benchmark.json",
-      "sha256": "f9fbb38f3ba7a1b715c56dd5f34792e77ba38b367ccd73b55e9347657b769351",
+      "sha256": "bb8c9a0ea3a23c7bcb806a46ca917daf376e1ccb7cbc2b4195b5577663c1c5d5",
       "summary": {
-        "steps_per_second": 165597.18490353288
+        "steps_per_second": 106544.49564910894
       }
     },
     {

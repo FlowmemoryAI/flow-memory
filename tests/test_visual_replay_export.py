@@ -18,6 +18,9 @@ def test_export_visual_replay_from_network_report(tmp_path):
     assert replay["ok"] is True
     assert replay["metadata"]["agent_count"] == 4
     assert replay_path.exists()
+    economy_kinds = {edge["kind"] for edge in replay["state"]["economy"]}
+    assert "work_submission" in economy_kinds
+    assert {"bid", "escrow", "verification", "settlement", "dispute", "slashing"} <= economy_kinds
 
 
 def test_export_visual_replay_script(tmp_path):

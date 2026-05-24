@@ -6,6 +6,9 @@ const canvas = readFileSync(new URL("../src/components/mission-control/MissionCo
 const api = readFileSync(new URL("../src/lib/api.ts", import.meta.url), "utf8");
 const replay = JSON.parse(readFileSync(new URL("../src/mock-data/local-network-replay.json", import.meta.url), "utf8"));
 const config = readFileSync(new URL("../src/lib/mission-control-config.ts", import.meta.url), "utf8");
+const controls = readFileSync(new URL("../src/components/mission-control/ReplayControls.tsx", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../src/styles/mission-control.css", import.meta.url), "utf8");
+const eventStream = readFileSync(new URL("../src/lib/event-stream.ts", import.meta.url), "utf8");
 
 assert.match(page, /The Human Compute Network/);
 assert.match(canvas, /AgentNode3D/);
@@ -16,6 +19,14 @@ assert.match(api, /\/network\/run-scenario/);
 assert.match(config, /live local API/);
 assert.match(config, /visualFieldMappings/);
 assert.match(config, /network:run/);
+assert.match(page, /ReplayControls/);
+assert.match(eventStream, /Local API disconnected/);
+assert.match(controls, /Step forward/);
+assert.match(controls, /event filters/);
+assert.match(canvas, /PredictionArc/);
+assert.match(styles, /agent-node-requester/);
+assert.match(styles, /economy-slashing/);
+assert.match(styles, /100dvh/);
 assert.equal(replay.ok, true);
 assert.ok(replay.state.agents.length >= 4);
 assert.ok(replay.state.tasks.length >= 1);

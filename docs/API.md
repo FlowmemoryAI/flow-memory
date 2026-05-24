@@ -116,3 +116,7 @@ The local API exposes read-only release metadata for public-alpha tooling:
 - `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, and `public-alpha-launch`.
 
 When scope checks are enabled these endpoints require `release:read`.
+
+## Dashboard snapshot endpoint
+
+`GET /dashboard/snapshot` returns typed mock snapshot metadata for the public-alpha dashboard scaffold, including neural/GPU evidence status, RL benchmark summaries, agent launch paths, local network scenarios, and simulated payment flows. It is mock data only and requires `dashboard:read` when scope checks are enabled.

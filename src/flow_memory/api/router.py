@@ -26,6 +26,7 @@ from flow_memory.api.neural_endpoints import (
 )
 from flow_memory.api.rl_endpoints import rl_benchmarks, rl_envs, rl_evaluate, rl_train_smoke
 from flow_memory.api.release_endpoints import release_decision_status, release_evidence_status
+from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
 
@@ -356,6 +357,9 @@ class LocalApiRouter:
 
     def _release_decision(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return release_decision_status(params["target"])
+    def _dashboard_snapshot(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return dashboard_snapshot()
+
 
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
@@ -421,6 +425,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/network/run-scenario", router._network_run_scenario, "network_run_scenario")
     router.register("GET", "/release/evidence", router._release_evidence, "release_evidence")
     router.register("GET", "/release/decision/{target}", router._release_decision, "release_decision")
+    router.register("GET", "/dashboard/snapshot", router._dashboard_snapshot, "dashboard_snapshot")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

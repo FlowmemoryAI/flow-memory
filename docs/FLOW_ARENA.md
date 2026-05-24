@@ -11,3 +11,8 @@ Core APIs:
 - `RewardSpec` for safety, task success, reputation, dispute, slashing, memory, and delegation weights
 
 RL outputs are advisory suggestions. PolicyEngine, ApprovalGate, autonomy mode, and economic risk controls remain authoritative.
+
+
+## Structured observations
+
+Flow Arena observations now include nested `agent`, `economy`, `safety`, and `memory` features in addition to `step`, `score`, and `env_id`. These features track local prototype signals such as reputation, risk budget, disputes, slashing events, approval requests, delegation count, and memory relevance.

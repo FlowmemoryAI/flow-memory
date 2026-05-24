@@ -358,3 +358,8 @@ No public launch tag was created because the actual RunPod tarball is still miss
 ## Slice: neural agent launch quickstart
 
 Added `examples/launch_neural_agent_demo.py`, `docs/LAUNCH_NEURAL_AGENTS.md`, and `tests/test_launch_neural_agent_demo.py` so developer-alpha users can launch a local CPU agent, optional `tiny_torch` neural advisory mode, FlowLang agent, and local API server from one documented path.
+
+
+## Slice: structured Flow Arena observations
+
+Expanded `FlowEnv` observations from toy scalar fields to nested agent/economy/safety/memory features, added transition-driven feature updates, and covered the behavior in `tests/test_rl_structured_observations.py`.

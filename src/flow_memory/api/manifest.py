@@ -80,6 +80,12 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/visual/replay/{run_id}", "visual_replay", "Return a saved visual replay snapshot"),
     EndpointSpec("GET", "/network/state", "network_state", "Return current local network state with visual projection"),
     EndpointSpec("POST", "/visual/replay/start", "visual_replay_start", "Run a local visual replay scenario", request_fields=("scenario", "run_id")),
+    EndpointSpec("GET", "/squire/status", "squire_status", "Return Squire ecosystem control-plane status"),
+    EndpointSpec("POST", "/squire/plan", "squire_plan", "Build a Squire goal plan", request_fields=("goal",)),
+    EndpointSpec("POST", "/squire/routes", "squire_routes", "Select a budget-aware Squire route", request_fields=("marketplace_only", "quality_sensitive", "max_input_price_per_million", "max_output_price_per_million")),
+    EndpointSpec("GET", "/squire/memory-schema", "squire_memory_schema", "Return Squire economic memory fields"),
+    EndpointSpec("GET", "/squire/docs-sources", "squire_docs_sources", "Return machine-readable Squire docs sync sources"),
+    EndpointSpec("GET", "/squire/skill", "squire_skill", "Return Squire goal skill metadata"),
 )
 
 

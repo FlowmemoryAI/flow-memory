@@ -39,6 +39,29 @@ def test_local_network_dispute_slashing():
     assert report.scenarios[0].data["status"] == "slashed"
 
 
+def test_local_network_memory_learning():
+    report = LocalNetworkOrchestrator().run("memory-learning")
+    assert report.ok is True
+    assert report.scenarios[0].data["memory_writes"]
+
+
+def test_local_network_safety_approval():
+    report = LocalNetworkOrchestrator().run("safety-approval")
+    assert report.ok is True
+    decision = report.scenarios[0].data["policy_decision"]
+    assert decision["requires_human"] is True
+
+
+def test_local_network_visual_events_from_all_scenarios():
+    report = LocalNetworkOrchestrator().run("all", emit_visual_events=True)
+    record = report.as_record()
+    assert report.ok is True
+    assert record["visual_events"]
+    assert record["visual_state"]["runtime"]["agents"] == 4
+    scenario_names = {scenario.scenario for scenario in report.scenarios}
+    assert {"memory-learning", "safety-approval"} <= scenario_names
+
+
 def test_run_local_network_script_writes_json_report(tmp_path):
     out = tmp_path / "local_network_report.json"
     completed = subprocess.run(

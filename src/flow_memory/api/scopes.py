@@ -22,6 +22,7 @@ RL_EVALUATE_SCOPE = "rl:evaluate"
 RL_TRAIN_SCOPE = "rl:train"
 AGENT_LAUNCH_SCOPE = "agents:launch"
 NETWORK_RUN_SCOPE = "network:run"
+RELEASE_READ_SCOPE = "release:read"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -36,6 +37,7 @@ KNOWN_SCOPES = frozenset({
     RL_TRAIN_SCOPE,
     AGENT_LAUNCH_SCOPE,
     NETWORK_RUN_SCOPE,
+    RELEASE_READ_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -132,6 +134,8 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (RL_TRAIN_SCOPE,)
     if path_key.startswith("/rl/"):
         return (RL_READ_SCOPE,)
+    if path_key.startswith("/release/"):
+        return (RELEASE_READ_SCOPE,)
     if normalized_method in READ_METHODS:
         return (READ_SCOPE,)
     return (WRITE_SCOPE,)

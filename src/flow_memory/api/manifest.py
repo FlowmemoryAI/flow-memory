@@ -71,6 +71,8 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/rl/evaluate", "rl_evaluate", "Evaluate a local RL policy", request_fields=("env_id", "policy", "episodes")),
     EndpointSpec("POST", "/rl/train-smoke", "rl_train_smoke", "Run local tabular Q smoke training", request_fields=("env_id", "episodes")),
     EndpointSpec("POST", "/network/run-scenario", "network_run_scenario", "Run a local network scenario", request_fields=("scenario",)),
+    EndpointSpec("GET", "/release/evidence", "release_evidence", "Return local release evidence bundle metadata"),
+    EndpointSpec("GET", "/release/decision/{target}", "release_decision", "Return local release readiness decision for a target"),
 )
 
 

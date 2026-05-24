@@ -2,12 +2,12 @@
   "name": "@flow-memory/dashboard",
   "version": "0.0.0",
   "private": true,
-  "description": "Public-alpha operator console scaffold for Flow Memory mock/API integration.",
+  "description": "Public-alpha Mission Control operator console scaffold for Flow Memory mock/replay/live API integration.",
   "type": "module",
   "scripts": {
     "validate:mock-data": "node -e \"const fs=require('node:fs'); for (const f of fs.readdirSync('src/mock-data').filter(f=>f.endsWith('.json'))) JSON.parse(fs.readFileSync('src/mock-data/'+f, 'utf8'))\"",
-    "test": "node tests/mock-api.test.mjs",
-    "build": "node tests/mock-api.test.mjs"
+    "test": "node tests/mock-api.test.mjs && node tests/mission-control.test.mjs",
+    "build": "node tests/mock-api.test.mjs && node tests/mission-control.test.mjs"
   },
   "dependencies": {},
   "devDependencies": {}

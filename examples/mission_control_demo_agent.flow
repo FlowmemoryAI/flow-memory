@@ -1,0 +1,38 @@
+# Live Agent Launchpad example: Mission Control visual replay demo.
+# Emits replay-ready neural, policy, memory, and local action telemetry.
+agent MissionControlDemoAgent {
+  identity: "did:flow:example:mission-control-demo"
+  goal: "emit a rich local Mission Control replay for a neural live agent"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "local_reasoning"
+  capability: "mission_control"
+  capability: "neural_advisory"
+
+  memory {
+    episodic: true
+    semantic: true
+    procedural: true
+    working_capacity: 12
+  }
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 9001
+    model_profile: "local-mission-control-demo"
+    perception_streams: ["text", "events", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

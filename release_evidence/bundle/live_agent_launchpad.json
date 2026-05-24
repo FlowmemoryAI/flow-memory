@@ -1,0 +1,75 @@
+{
+  "docs_safety_scan": {
+    "hits": [],
+    "ok": true,
+    "scanned": [
+      "LAUNCH_NEURAL_AGENTS.md",
+      "LIVE_AGENT_LAUNCHPAD.md",
+      "MISSION_CONTROL_QUICKSTART.md",
+      "NEURAL_LIVE_AGENTS.md"
+    ]
+  },
+  "flowlang_launch_examples_available": {
+    "examples/live_research_agent.flow": true,
+    "examples/market_observer_agent.flow": true,
+    "examples/memory_scout_agent.flow": true,
+    "examples/mission_control_demo_agent.flow": true
+  },
+  "launch_gpu_status_honest": true,
+  "launch_memory_records_validated": true,
+  "launch_no_external_calls_invariant": true,
+  "launch_no_funds_moved_invariant": true,
+  "launch_no_live_provider_calls_invariant": true,
+  "launch_no_private_keys_invariant": true,
+  "launch_policy_gate_validated": true,
+  "launch_public_alpha_docs_updated": {
+    "docs/LAUNCH_NEURAL_AGENTS.md": true,
+    "docs/LIVE_AGENT_LAUNCHPAD.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
+    "docs/NEURAL_LIVE_AGENTS.md": true
+  },
+  "launch_templates_available": [
+    "live-research",
+    "market-observer",
+    "memory-scout",
+    "mission-control-demo"
+  ],
+  "launch_visual_replay_validated": true,
+  "launchpad_api_available": true,
+  "launchpad_cli_available": true,
+  "live_agent_launch_tiny_torch_validated": true,
+  "missing_endpoints": [],
+  "ok": true,
+  "sample_summary": {
+    "actions_allowed": 2,
+    "actions_denied": 0,
+    "agent_id": "agent_d4a6f9aaf8a45b86",
+    "backend": "tiny_torch",
+    "checkpoint_metadata_path": "",
+    "gpu_evidence_status": "blocked_missing_artifact",
+    "learning_steps": 2,
+    "loop_ticks_completed": 2,
+    "memory_records_written": 6,
+    "no_external_calls": true,
+    "no_funds_moved": true,
+    "no_live_provider_calls": true,
+    "no_private_keys": true,
+    "ok": true,
+    "perceptions_encoded": 2,
+    "plans_scored": 2,
+    "policy_mode": "supervised",
+    "predictions_generated": 2,
+    "raw_model_weights_written": false,
+    "release_gate_status": {
+      "gpu_gated": "blocked_missing_artifact",
+      "local_public_alpha": "not_evaluated"
+    },
+    "replay_artifact_path": "artifacts\\launch\\live_agent_95595210d3771e19.json",
+    "risks_scored": 2,
+    "run_id": "live_agent_95595210d3771e19",
+    "safety_authority": "policy_engine_and_approval_gate",
+    "session_id": "neural_session_d4a6f9aaf8a45b86",
+    "template": "live-research",
+    "visual_events_emitted": 17
+  }
+}

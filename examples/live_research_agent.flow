@@ -1,0 +1,30 @@
+# Live Agent Launchpad example: local neural research agent.
+# Runs only local deterministic neural-live metadata; no external model calls.
+agent LiveResearchAgent {
+  identity: "did:flow:example:live-research"
+  goal: "inspect local repo status and summarize project state"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "local_reasoning"
+  capability: "neural_advisory"
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 1337
+    model_profile: "local-small"
+    perception_streams: ["text", "events", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

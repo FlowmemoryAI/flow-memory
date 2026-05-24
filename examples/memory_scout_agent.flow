@@ -1,0 +1,37 @@
+# Live Agent Launchpad example: local neural memory scout.
+# Neural memory candidates are advisory and policy-gated.
+agent MemoryScoutAgent {
+  identity: "did:flow:example:memory-scout"
+  goal: "retrieve and summarize relevant memory records"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "memory"
+  capability: "neural_memory_retrieval"
+
+  memory {
+    episodic: true
+    semantic: true
+    procedural: true
+    working_capacity: 9
+  }
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 2026
+    model_profile: "local-memory-scout"
+    perception_streams: ["text", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

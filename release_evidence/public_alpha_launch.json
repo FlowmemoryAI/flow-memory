@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "470f0c23c3ddde272f78687cec2ab45055453645",
-  "hash": "0187293aecc060ab1dbadc5f091f7853dceccfab60c5f9f2d5d1066b157309ff",
+  "git_commit": "3b3122ee8483964ef0c0b0ba8ef1ce910e694022",
+  "hash": "63940103fe9d7ee25767adcc3241aad61c06cb36919af3bf36ae884cb5611137",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -52,14 +52,26 @@
     "neural/RL layers are advisory prototypes",
     "GPU evidence requires real RunPod tarball"
   ],
+  "live_agent_launchpad": {
+    "api": true,
+    "cli": true,
+    "gpu_status_honest": true,
+    "ok": true,
+    "templates": [
+      "live-research",
+      "market-observer",
+      "memory-scout",
+      "mission-control-demo"
+    ]
+  },
   "local_network": {
-    "hash": "9f1da802a0713725d727f060ec4b2626bd60f7e84f4a7cbcc93386c35bf05942",
+    "hash": "8ba750f079bd34b6d24a772d28924cd3aa73a242f6b92fe23d9aeb729e1b46d6",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },
   "neural_evidence_status": "blocked_without_real_gpu_artifact",
   "public_alpha_launch_test": {
-    "hash": "008c4c4ba5742734a777fba242634b975caf36e28cfd8f851d7a5988af57bd7e",
+    "hash": "05a205e334da4e3e57a7779803bf9486fe0313d23a8f783b78fb14f5abfa5d29",
     "ok": true,
     "path": "artifacts\\public_alpha_launch\\launch_report.json"
   },

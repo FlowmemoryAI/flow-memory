@@ -74,6 +74,8 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
     dashboard = dict(evidence.get("dashboard_mock_snapshot", {}))
     if dashboard.get("mock_data_only") is not True or dashboard.get("ok") is not True:
         blockers.append("dashboard_mock_snapshot_missing")
+    if dict(evidence.get("live_agent_launchpad", {})).get("ok") is not True:
+        blockers.append("live_agent_launchpad_missing_or_failed")
     return LaunchEvidenceDecision(not blockers, tuple(blockers), evidence)
 
 
@@ -93,6 +95,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
         "api_server_status": _api_server_help_status(root, launch_report),
         "neural_evidence_status": "blocked_without_real_gpu_artifact" if _gpu_blocked(root) else "verified_or_not_required",
         "rl_benchmark_summary": _read_json(root / "release_evidence" / "bundle" / "rl_benchmarks.json"),
+        "live_agent_launchpad": _live_agent_launchpad_status(root),
         "docs": {relative: (root / relative).exists() for relative in REQUIRED_DOCS},
         "dashboard_mock_snapshot": _dashboard_mock_snapshot(root),
         "known_limitations": (
@@ -141,6 +144,21 @@ def _api_server_help_status(root: Path, launch_report: Mapping[str, Any]) -> Map
         "ok": bool(api_help.get("ok")) if checks else script_present,
         "script_present": script_present,
         "source": "public_alpha_launch_test" if checks else "script_presence",
+    }
+
+def _live_agent_launchpad_status(root: Path) -> Mapping[str, Any]:
+    try:
+        from flow_memory.release.launchpad_evidence import live_agent_launchpad_evidence
+
+        evidence = live_agent_launchpad_evidence(root)
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
+    return {
+        "ok": bool(evidence.get("ok")),
+        "cli": bool(evidence.get("launchpad_cli_available")),
+        "api": bool(evidence.get("launchpad_api_available")),
+        "templates": tuple(evidence.get("launch_templates_available", ())),
+        "gpu_status_honest": bool(evidence.get("launch_gpu_status_honest")),
     }
 
 

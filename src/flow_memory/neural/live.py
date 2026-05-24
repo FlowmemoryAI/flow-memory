@@ -115,6 +115,9 @@ class NeuralRuntimeManager:
         self._sessions: dict[str, NeuralRuntimeSession] = {}
 
     def create_session(self, agent_id: str, config: Mapping[str, Any] | NeuralLiveConfig | None = None) -> NeuralRuntimeSession:
+        requested_session_id = ""
+        if isinstance(config, Mapping):
+            requested_session_id = str(config.get("session_id", "")).strip()
         live_config = neural_live_config_from_mapping(config)
         errors = live_config.validate()
         if errors:
@@ -123,7 +126,7 @@ class NeuralRuntimeManager:
         else:
             status, backend_available = _backend_status(live_config)
         session = NeuralRuntimeSession(
-            session_id=new_id("neural_session"),
+            session_id=requested_session_id or new_id("neural_session"),
             agent_id=agent_id,
             config=live_config,
             status=status,

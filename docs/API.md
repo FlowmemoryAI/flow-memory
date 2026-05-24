@@ -45,6 +45,8 @@ router.dispatch("GET", "/health")
 - `/agents/launch`
 - `/agents/launch-flowlang`
 - `/agents/launch-neural`
+- `/launch/agent`
+- `/launch/agent/from-flow`
 - `/network/run-scenario`
 
 ## OpenAPI

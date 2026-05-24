@@ -58,7 +58,14 @@ class AgentNeuralBinding:
             record["reason"] = f"{config.backend} requires local dependencies and checkpoint_path"
         if live_config.enabled and live_config.live_mode:
             agent_id = str(getattr(profile, "agent_id", "agent"))
-            session = self.live_runtime.create_session(agent_id, live_config)
+            requested_session_id = str(dict(getattr(profile, "neural_config", {})).get("session_id", "") or "")
+            if requested_session_id:
+                try:
+                    session = self.live_runtime.attach_agent(requested_session_id, agent_id)
+                except KeyError:
+                    session = self.live_runtime.create_session(agent_id, {**dict(getattr(profile, "neural_config", {})), "session_id": requested_session_id})
+            else:
+                session = self.live_runtime.create_session(agent_id, live_config)
             plan_id = str(getattr(plan, "plan_id", "plan"))
             step = self.live_runtime.run_step(
                 session.session_id,

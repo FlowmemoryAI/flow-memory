@@ -21,6 +21,14 @@ python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-r
 
 Replay JSON includes explicit `provenance = replay`. V2 reducer behavior keeps task lifecycle state deterministic: late duplicate or lower-priority events cannot regress a task from `settled` or `slashed` to an earlier state.
 
+## 2b. Generate a live neural agent launch replay
+
+```bash
+python -m flow_memory launch agent --template mission-control-demo --neural tiny_torch --ticks 5 --emit-visual --out dashboard/src/mock-data/live-neural-agent-launch.json --json
+```
+
+This replay focuses on a single live local neural agent and includes neural session creation, perception, prediction, plan/risk scoring, policy gate application, learning ticks, memory writes, metadata-only checkpointing, and session completion.
+
 ## 3. Run the local API server for live polling mode
 
 ```bash

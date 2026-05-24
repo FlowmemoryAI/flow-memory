@@ -16,6 +16,7 @@ from flow_memory.agents.profile import AgentProfile
 from flow_memory.compute_market.planner import compute_marketplace_plan
 from flow_memory.compute_market.registry import default_policies, default_providers, default_routes
 from flow_memory.neural.live import GLOBAL_NEURAL_RUNTIME
+from flow_memory.launchpad import launch_template_names, run_live_agent_launch
 
 
 def _json_default(value: Any) -> str:
@@ -71,6 +72,46 @@ def _manifest(argv: list[str]) -> int:
         permissions=tuple(args.permission),
     )
     print(json.dumps(asdict(manifest), indent=2, default=_json_default))
+    return 0
+
+
+def _launch(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory launch", description="Run polished local launch workflows")
+    sub = parser.add_subparsers(dest="resource", required=True)
+    agent = sub.add_parser("agent", description="Launch a local live neural agent")
+    agent.add_argument("--template", default="live-research", choices=launch_template_names())
+    agent.add_argument("--flow", default="", help="Optional FlowLang agent file")
+    agent.add_argument("--goal", default="", help="Override the template or FlowLang goal")
+    agent.add_argument("--neural", default="tiny_torch", choices=["none", "tiny_torch", "vjepa2", "videomae"], help="Neural backend to select locally")
+    agent.add_argument("--ticks", type=int, default=5, help="Number of deterministic local loop ticks")
+    agent.add_argument("--emit-visual", action="store_true", help="Emit Mission Control replay events")
+    agent.add_argument("--json", action="store_true", help="Print full launch artifact JSON")
+    agent.add_argument("--out", default="", help="Optional replay artifact path")
+    args = parser.parse_args(argv)
+
+    if args.resource != "agent":
+        raise ValueError(f"unknown launch resource: {args.resource}")
+    payload = run_live_agent_launch(
+        template=args.template,
+        flow_path=args.flow or None,
+        goal=args.goal,
+        backend=args.neural,
+        ticks=args.ticks,
+        emit_visual=args.emit_visual,
+        artifact_path=args.out or None,
+    )
+    if args.json:
+        print(json.dumps(payload, indent=2, default=_json_default, sort_keys=True))
+    else:
+        summary = dict(payload.get("summary", {}))
+        print(
+            "launched {agent_id} session={session_id} ticks={ticks} replay={replay}".format(
+                agent_id=summary.get("agent_id", ""),
+                session_id=summary.get("session_id", ""),
+                ticks=summary.get("loop_ticks_completed", 0),
+                replay=summary.get("replay_artifact_path", ""),
+            )
+        )
     return 0
 
 def _compute(argv: list[str]) -> int:
@@ -209,6 +250,8 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "manifest":
         return _manifest(argv[1:])
+    if argv and argv[0] == "launch":
+        return _launch(argv[1:])
     if argv and argv[0] == "compute":
         return _compute(argv[1:])
     if argv and argv[0] == "neural":

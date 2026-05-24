@@ -21,6 +21,7 @@ python scripts/release_decision.py --target public-alpha-local-launch
 | Local agent launch | Implemented. |
 | FlowLang launch | Implemented. |
 | Neural advisory/live launch | Functional local prototype; Torch optional; neural-live runtime sessions and telemetry are local/advisory. |
+| Live Agent Launchpad | Implemented for local neural-live demos; writes replay/evidence metadata and remains GPU-honest. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |

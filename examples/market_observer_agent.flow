@@ -1,0 +1,42 @@
+# Live Agent Launchpad example: dry-run Compute Market observer.
+# This simulates route choice only; no live provider calls, reservations, or funds.
+agent MarketObserverAgent {
+  identity: "did:flow:example:market-observer"
+  goal: "simulate compute market routing and explain the selected local route"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "compute_market"
+  capability: "neural_advisory"
+
+  compute {
+    enabled: true
+    model: "small-general"
+    expected_input_tokens: 1000
+    expected_output_tokens: 400
+    max_total_cost: 0.01
+    max_quote: 0.01
+    strategy: "cheapest_eligible"
+    dry_run_required: true
+    payment_rail: "local_credits"
+  }
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 4242
+    model_profile: "local-market-observer"
+    perception_streams: ["text", "events", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

@@ -35,6 +35,13 @@ python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and r
 python scripts/launch_local_agent_network.py
 ```
 
+Live neural agent Launchpad:
+
+```bash
+python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json
+python -m flow_memory launch agent --flow examples/live_research_agent.flow --ticks 5 --emit-visual --json
+```
+
 ## Local network + Mission Control replay
 
 ```bash

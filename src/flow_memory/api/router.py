@@ -14,6 +14,7 @@ from flow_memory.swarm.delegation import DelegationContract
 from flow_memory.flowlang import EXAMPLE_FLOWLANG, compile_flowlang, run_flowlang_agent, validate_flowlang
 from flow_memory.agents.profile import AgentProfile
 from flow_memory.agents.runner import AgentRunner
+from flow_memory.launchpad import run_live_agent_launch
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -183,6 +184,32 @@ class LocalApiRouter:
         )
         result = AgentRunner(profile).run_cycle(goal)
         return {"agent": profile.as_record(), "result": result.as_record(), "neural": result.output.get("neural", {}), "safety_authority": "policy_engine_and_approval_gate"}
+
+    def _launch_agent(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        neural = dict(payload.get("neural", {})) if isinstance(payload.get("neural", {}), Mapping) else {}
+        backend = str(neural.get("backend", payload.get("backend", "tiny_torch")))
+        return run_live_agent_launch(
+            template=str(payload.get("template", "live-research")),
+            goal=str(payload.get("goal", "")),
+            backend=backend,
+            ticks=int(payload.get("ticks", 5) or 5),
+            emit_visual=bool(payload.get("emit_visual", True)),
+        )
+
+    def _launch_agent_from_flow(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        source = str(payload.get("source", ""))
+        if not source:
+            raise ValueError("source is required")
+        neural = dict(payload.get("neural", {})) if isinstance(payload.get("neural", {}), Mapping) else {}
+        backend = str(neural.get("backend", payload.get("backend", "tiny_torch")))
+        return run_live_agent_launch(
+            template=str(payload.get("template", "live-research")),
+            flow_source=source,
+            goal=str(payload.get("goal", "")),
+            backend=backend,
+            ticks=int(payload.get("ticks", 5) or 5),
+            emit_visual=bool(payload.get("emit_visual", True)),
+        )
 
     def _marketplace_task_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         title = str(payload.get("title", "")).strip()
@@ -513,6 +540,8 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/agents/launch", router._agents_launch, "agents_launch")
     router.register("POST", "/agents/launch-flowlang", router._agents_launch_flowlang, "agents_launch_flowlang")
     router.register("POST", "/agents/launch-neural", router._agents_launch_neural, "agents_launch_neural")
+    router.register("POST", "/launch/agent", router._launch_agent, "launch_agent")
+    router.register("POST", "/launch/agent/from-flow", router._launch_agent_from_flow, "launch_agent_from_flow")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

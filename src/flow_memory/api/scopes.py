@@ -142,7 +142,7 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (NEURAL_VALIDATE_SCOPE,)
     if path_key.startswith("/neural/"):
         return (NEURAL_READ_SCOPE,)
-    if path_key in {"/agents/launch", "/agents/launch-flowlang", "/agents/launch-neural"}:
+    if path_key in {"/agents/launch", "/agents/launch-flowlang", "/agents/launch-neural", "/launch/agent", "/launch/agent/from-flow"}:
         return (AGENT_LAUNCH_SCOPE,)
     if path_key == "/network/run-scenario":
         return (NETWORK_RUN_SCOPE,)

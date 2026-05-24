@@ -39,6 +39,15 @@ Neural-live mode creates a local runtime session, emits Mission Control telemetr
 
 See `docs/NEURAL_LIVE_AGENTS.md` for FlowLang and API examples.
 
+## Live Agent Launchpad
+
+```bash
+python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json
+python -m flow_memory launch agent --flow examples/live_research_agent.flow --ticks 5 --emit-visual --json
+```
+
+The Launchpad starts a local neural runtime session, runs several policy-gated loop ticks, writes local memory/evidence metadata, and emits a Mission Control replay artifact. See `docs/LIVE_AGENT_LAUNCHPAD.md`.
+
 Persist launch output for release evidence or debugging with `--json-out`, for example:
 
 ```bash

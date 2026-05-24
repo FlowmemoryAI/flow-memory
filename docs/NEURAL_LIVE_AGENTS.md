@@ -50,6 +50,14 @@ python -m flow_memory --neural tiny_torch --neural-live --json "Explore and repo
 
 If PyTorch is absent, the live runtime reports the backend as unavailable and either fails closed or uses deterministic non-neural fallback only when `policy_fallback=allow_non_neural` is set.
 
+
+## Launchpad workflow
+
+```bash
+python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json
+```
+
+This high-level workflow creates a local agent, starts or attaches a neural-live session, runs deterministic local loop ticks, writes memory and checkpoint metadata, and exports replay-ready Mission Control telemetry. It is the recommended public-alpha demo path for neural-live agents.
 ## API examples
 
 Create a live session:

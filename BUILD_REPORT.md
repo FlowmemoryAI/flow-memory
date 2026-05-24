@@ -770,3 +770,16 @@ Focused validation observed for this slice:
 | `cargo test` | Pass |
 | `git diff --check` | Pass: whitespace warnings only |
 | secret scan | Pass: no obvious secret patterns found |
+
+## Live Agent Launchpad update
+
+Implemented the Live Agent Launchpad slice:
+
+- Added `flow_memory.launchpad` with deterministic templates for `live-research`, `memory-scout`, `market-observer`, and `mission-control-demo`.
+- Added high-level CLI workflow: `python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json`.
+- Added high-level local API endpoints: `POST /launch/agent` and `POST /launch/agent/from-flow`.
+- Added FlowLang examples under `examples/live_research_agent.flow`, `examples/memory_scout_agent.flow`, `examples/market_observer_agent.flow`, and `examples/mission_control_demo_agent.flow`.
+- Added Mission Control replay fixture `dashboard/src/mock-data/live-neural-agent-launch.json`.
+- Added release evidence for launchpad availability, FlowLang examples, CLI/API support, policy gate behavior, memory writes, visual replay, no external calls, no funds moved, and honest GPU status.
+
+Safety posture remains unchanged: neural decisions are advisory, `PolicyEngine` and approval gates remain authoritative, Compute Market/payment activity is dry-run local simulation only, and GPU-gated release targets remain blocked without the real RunPod artifact.

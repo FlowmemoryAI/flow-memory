@@ -20,6 +20,7 @@ from flow_memory.release.rl_evidence import rl_benchmark_evidence
 from flow_memory.release.visual_evidence import visual_system_evidence
 from flow_memory.release.compute_evidence import compute_market_evidence
 from flow_memory.release.neural_live_evidence import neural_live_evidence
+from flow_memory.release.launchpad_evidence import live_agent_launchpad_evidence
 
 BUNDLE_FORMAT = "flow-memory-release-evidence-v1"
 
@@ -51,6 +52,7 @@ def build_evidence_documents(root: str | Path = ".") -> Mapping[str, Mapping[str
     documents["visual_system.json"] = visual_system_evidence(root_path)
     documents["compute_market.json"] = compute_market_evidence(root_path)
     documents["neural_live_agents.json"] = neural_live_evidence(root_path)
+    documents["live_agent_launchpad.json"] = live_agent_launchpad_evidence(root_path)
     clean_clone = root_path / "release_evidence" / "clean_clone_validation.json"
     documents["clean_clone_validation.json"] = _json_file_or_missing(clean_clone)
     return documents

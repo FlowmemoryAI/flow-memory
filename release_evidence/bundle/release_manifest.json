@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 73,
-    "manifest_hash": "2e13f4e5784344600a8d1cae6c643fa7c9368ceeffcfa709a4b0f99ecbba8bdc",
-    "openapi_hash": "6814e1180e09272378af80dc13657663b18941ef5dd4f88bbf189514ddca175d",
+    "endpoint_count": 75,
+    "manifest_hash": "2abb59fee2bbc645a6720a9b99a86217c83c939e44ca63fd5c2a1ddf3c5e0105",
+    "openapi_hash": "b6ecde95787ea7116ac5987d2c20935d246798d5179974f8006b93dc389ea2af",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -55,6 +55,8 @@
       "POST /flowlang/compile",
       "POST /flowlang/run",
       "POST /flowlang/validate",
+      "POST /launch/agent",
+      "POST /launch/agent/from-flow",
       "POST /marketplace/assign",
       "POST /marketplace/bids",
       "POST /marketplace/dispute",
@@ -78,7 +80,7 @@
       "POST /verification/{contract_id}",
       "POST /visual/replay/start"
     ],
-    "path_count": 71,
+    "path_count": 73,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -108,6 +110,8 @@
       "/flowlang/run",
       "/flowlang/validate",
       "/health",
+      "/launch/agent",
+      "/launch/agent/from-flow",
       "/manifest",
       "/marketplace/assign",
       "/marketplace/bids",
@@ -342,8 +346,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "470f0c2",
-  "manifest_hash": "77bfe9b4c17d48317a2b71725729feb7fb1a26b64eb3ed58ac850857567baea6",
+  "git_commit": "3b3122e",
+  "manifest_hash": "7c427a3a38e4f6003d95c12fa2a866273acd0f80c58ec87624d5c811f6ec6f5f",
   "release_gates": {
     "ok": true,
     "results": [

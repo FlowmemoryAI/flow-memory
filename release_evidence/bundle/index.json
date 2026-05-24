@@ -1,19 +1,20 @@
 {
-  "bundle_hash": "33d34d13b8e55ebb9a9403ce22dbcb2e2ce96e03da2468ab493fa651fd32c3b5",
+  "bundle_hash": "b76f49362b9f1de81044a3362404c982a97a6465f4af9abe12adb93862de18ce",
   "file_hashes": {
-    "api_snapshot.json": "b4fecbc51627e1d292810d5509f7a8dbfea54b5ca0064fb5500eaec18fc0acb1",
+    "api_snapshot.json": "04ef0371d736f130abc2cb8275b1e048c2b1a1d22bc37a48e7bd039c6c3594d1",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
     "compute_market.json": "799bb0d700a871a91cdde619dc0d57d90c1d93e745d3e1b1d6c4ab6e1cf149fc",
     "dependency_inventory.json": "9819542e274c038b6ad5c1c07bfaff0806e2803f26c9a329f0d59d61360ffe83",
     "gpu_evidence.json": "55fb6c05277946061d0c912e89c602c05d0744a2dc4aa32953f8c15bafb26a71",
-    "neural_live_agents.json": "42ff674f3b935a1de2e1ae028053e52f2707cc1c44297c90e6dd5f4728f26e99",
+    "live_agent_launchpad.json": "33817c73e9df6641f112106c278d9283e49c354d13f5cf82b3bb1a912dd9e8c9",
+    "neural_live_agents.json": "a23d24c10f2c995044463c276e06959a92b4f3f1a1ad9b79fcfc8d4e2c75b759",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "e36f0b764ce270e0d2f1e4e2f793e3e19386f79865e87ad746250decd93bbcd9",
+    "release_manifest.json": "4b164fc5289b57d75995ad11123a0e8ef09afd2d1cfe93717f24dfcccee1b3f0",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "caa19f9f80725b36c66078c08c2421aa9fb36d88e792b1c0b54667ea9de39257"
+    "visual_system.json": "6289a6d2d574b23647eea34247a0baf4c05e78e2e36de968fcb4748e49341e64"
   },
   "files": [
     "api_snapshot.json",
@@ -23,6 +24,7 @@
     "compute_market.json",
     "dependency_inventory.json",
     "gpu_evidence.json",
+    "live_agent_launchpad.json",
     "neural_live_agents.json",
     "release_gates.json",
     "release_manifest.json",

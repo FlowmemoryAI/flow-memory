@@ -37,6 +37,8 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/agents/launch", "agents_launch", "Launch a local agent through the API", request_fields=("goal", "name", "identity", "autonomy_mode")),
     EndpointSpec("POST", "/agents/launch-flowlang", "agents_launch_flowlang", "Launch a FlowLang-declared agent through the API", request_fields=("source", "goal")),
     EndpointSpec("POST", "/agents/launch-neural", "agents_launch_neural", "Launch a neural-advisory agent through the API", request_fields=("goal", "backend")),
+    EndpointSpec("POST", "/launch/agent", "launch_agent", "Run the Live Agent Launchpad workflow", request_fields=("template", "ticks", "neural", "emit_visual"), response_fields=("summary", "events", "state")),
+    EndpointSpec("POST", "/launch/agent/from-flow", "launch_agent_from_flow", "Run the Live Agent Launchpad workflow from FlowLang source", request_fields=("source", "ticks", "neural", "emit_visual"), response_fields=("summary", "events", "state")),
     EndpointSpec("POST", "/marketplace/tasks", "marketplace_task_create", "Create a local marketplace task", request_fields=("title", "reward", "requester", "metadata")),
     EndpointSpec("POST", "/marketplace/bids", "marketplace_bid_create", "Create a local marketplace bid", request_fields=("task_id", "agent_did", "price")),
     EndpointSpec("POST", "/marketplace/settle", "marketplace_settle", "Settle a local marketplace task"),

@@ -214,6 +214,19 @@ Flow Memory now exposes its own Compute Market surfaces instead of public Squire
 
 Live neural agents are local, advisory, deterministic, and policy-gated. They do not make external provider calls, do not write model weights, and do not imply V-JEPA 2/VideoMAE or GPU validation.
 
+## Live Agent Launchpad status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Launchpad core | implemented local prototype | `flow_memory.launchpad` provides deterministic templates, profile creation, neural session attachment, loop ticks, memory writes, visual events, replay artifact output, and metadata-only checkpointing. |
+| Launchpad CLI | implemented | `python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json` runs the local workflow. |
+| Launchpad API | implemented local seam | `POST /launch/agent` and `POST /launch/agent/from-flow` run the same local workflow behind `agents:launch` scopes when enabled. |
+| Launchpad FlowLang examples | implemented | `examples/live_research_agent.flow`, `examples/memory_scout_agent.flow`, `examples/market_observer_agent.flow`, and `examples/mission_control_demo_agent.flow` are public-alpha examples. |
+| Launchpad Mission Control replay | implemented | `dashboard/src/mock-data/live-neural-agent-launch.json` is a replay fixture generated from a real local launchpad run. |
+| Launchpad evidence | implemented | Release evidence includes launchpad availability, no-external-calls/no-funds invariants, policy gate validation, visual replay validation, and GPU-honesty checks. |
+
+The Launchpad is local public-alpha UX for neural-live agents. It does not perform live settlement, external provider calls, raw checkpoint writes, or GPU-backed claims.
+
 ## Mission Control V2 recovery/polish branch status
 
 Branch `work/mission-control-visual-v2` resumes Mission Control polish in an isolated worktree. Current V2 additions:

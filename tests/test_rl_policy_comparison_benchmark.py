@@ -11,8 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_compare_policies_includes_random_heuristic_and_tabular_q():
     result = compare_policies("safety_gate", episodes=6)
     assert result["ok"] is True
-    assert set(("random", "heuristic", "tabular_q")).issubset(result)
+    assert set(("random", "heuristic", "tabular_q", "torch_actor_critic")).issubset(result)
     assert result["tabular_q_improved"] is True
+    assert result["torch_actor_critic"]["backend"] == "torch_actor_critic"
 
 
 def test_policy_comparison_benchmark_script_writes_artifact():

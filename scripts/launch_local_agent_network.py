@@ -19,11 +19,19 @@ def launch_local_agent_network(scenario: str = "all") -> dict[str, object]:
     return {"ok": bool(report.get("ok")), "launch_mode": "local_agent_network", "report": report}
 
 
+def write_payload(payload: dict[str, object], path: Path | None) -> None:
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Launch a local Flow Memory multi-agent network")
     parser.add_argument("--scenario", default="all", choices=("basic-economy", "neural-agent", "rl-training", "dispute-slashing", "all"))
+    parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args()
     payload = launch_local_agent_network(args.scenario)
+    write_payload(payload, args.json_out)
     print(json.dumps(payload, indent=2, sort_keys=True, default=str))
     return 0 if payload["ok"] else 1
 

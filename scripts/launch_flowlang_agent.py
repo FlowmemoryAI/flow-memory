@@ -26,13 +26,22 @@ def launch_flowlang_agent(path: Path, goal: str, neural_backend: str | None = No
     }
 
 
+def write_payload(payload: dict[str, object], path: Path | None) -> None:
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Launch a FlowLang agent")
     parser.add_argument("flow_file", type=Path)
     parser.add_argument("--goal", default="Run the declared agent")
     parser.add_argument("--neural", default=None, help="Optional neural backend override")
+    parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args()
-    print(json.dumps(launch_flowlang_agent(args.flow_file, args.goal, args.neural), indent=2, sort_keys=True, default=str))
+    payload = launch_flowlang_agent(args.flow_file, args.goal, args.neural)
+    write_payload(payload, args.json_out)
+    print(json.dumps(payload, indent=2, sort_keys=True, default=str))
     return 0
 
 

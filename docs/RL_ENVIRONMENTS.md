@@ -12,6 +12,9 @@ Implemented local Flow Arena environments:
 | SafetyGateEnv | execute/approval/deny/defer/safer-plan choices |
 | SelfRepairEnv | retry, switch skill, ask human, write repair plan, disable failing skill |
 | GridWorld | tiny sanity environment |
+| ReputationGamingEnv | detects wash-trading, fake reviews, and reputation farming incentives |
+| SybilRiskEnv | attestation, threshold, and quarantine choices for duplicate-agent risk |
+| ColludingVerifierEnv | multi-verifier/evidence/slashing choices under verifier collusion risk |
 
 All are deterministic with seeds and can be vectorized in process.
 

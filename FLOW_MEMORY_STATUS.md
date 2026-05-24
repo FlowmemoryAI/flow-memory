@@ -145,3 +145,16 @@ The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` releas
 | GPU evidence | blocked until real artifact import | `gpu_evidence_verified_run_missing` remains the expected blocker without `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`. |
 
 Public alpha launch status is local-demo ready once full-system quick validation passes, but the stronger launch release targets remain blocked until real RunPod GPU evidence is imported and verified.
+
+## Overnight queue update
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| GPU artifact recovery helper | implemented | `scripts/recover_gpu_artifact_instructions.py` explains the exact artifact path and keeps `gpu_evidence_verified_run_missing` honest when the RunPod tarball is absent. |
+| Agent launch API endpoints | implemented | `/agents/launch`, `/agents/launch-flowlang`, `/agents/launch-neural`, and `/network/run-scenario` are in the local router with scope coverage. |
+| Public alpha launch evidence bundle | implemented | Export/verify scripts create hashed launch evidence from full-system quick, local network, docs, API, neural evidence, and RL benchmark summaries. |
+| Adversarial Flow Arena envs | functional prototype | Reputation gaming, sybil-risk, and colluding-verifier environments are registered and tested. |
+| Torch RL trainer | adapter seam / smoke prototype | Optional actor-critic smoke trainer runs only when torch is installed; CUDA requests skip clearly when unavailable. |
+| Dashboard mock data | scaffold | Mock fixtures now cover neural/GPU evidence, RL benchmarks, agent launch, local network scenarios, and payment flows. |
+
+The stronger public alpha release targets remain blocked until real GPU evidence is imported; no fake GPU proof has been added.

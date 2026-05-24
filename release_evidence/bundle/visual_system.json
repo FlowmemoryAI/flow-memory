@@ -1,0 +1,83 @@
+{
+  "blockers": [],
+  "endpoints": {
+    "missing": [],
+    "ok": true,
+    "present": [
+      "/visual/state",
+      "/visual/events",
+      "/visual/schema",
+      "/visual/replay/{run_id}",
+      "/network/state",
+      "/network/run-scenario"
+    ]
+  },
+  "files": [
+    {
+      "bytes": 1942,
+      "exists": true,
+      "path": "src/flow_memory/visualization/events.py",
+      "sha256": "82eaab96743d35c80a12e9525ad3d75b0287b1fe5783f2926399bd25fe8b6f25"
+    },
+    {
+      "bytes": 6844,
+      "exists": true,
+      "path": "src/flow_memory/visualization/reducer.py",
+      "sha256": "22e37e8b2dbf04a794b6af12a212833648dfe0b99c282c0982fd25f572f47075"
+    },
+    {
+      "bytes": 2389,
+      "exists": true,
+      "path": "src/flow_memory/visualization/layout.py",
+      "sha256": "1d8b7764115bc9dabd283dae07f7d23de55ca01b00c7cfd306e3fae1b62ffa3a"
+    },
+    {
+      "bytes": 3058,
+      "exists": true,
+      "path": "src/flow_memory/api/visual_endpoints.py",
+      "sha256": "5b1a171759df81d7cbe0322f626f415d10b54a522a9bcc4635cf2df4b399f283"
+    },
+    {
+      "bytes": 3719,
+      "exists": true,
+      "path": "scripts/export_visual_replay.py",
+      "sha256": "ea14b8c9b8f82ed13df6bb868c3a34ebab0f7b8063f475ea17a85db0c5a0d685"
+    },
+    {
+      "bytes": 1633,
+      "exists": true,
+      "path": "dashboard/src/app/mission-control/page.tsx",
+      "sha256": "7509443ab37b398909cf0c648ed4d3fe44cc003a6b2317d3bdfef5126d9287c8"
+    },
+    {
+      "bytes": 24732,
+      "exists": true,
+      "path": "dashboard/src/mock-data/local-network-replay.json",
+      "sha256": "c00e2ab8a93b27a0bd97ea9d293c7506adc2237d8b003ca1876320049171e149"
+    },
+    {
+      "bytes": 2528,
+      "exists": true,
+      "path": "docs/MISSION_CONTROL_QUICKSTART.md",
+      "sha256": "074aba00472d755d4a2373394022d10fe3c1dc7ed8e79602bc1d8809d23664f5"
+    },
+    {
+      "bytes": 1185,
+      "exists": true,
+      "path": "docs/VISUAL_TELEMETRY_SCHEMA.md",
+      "sha256": "5d24f9340846b686d17658917f73b0b08631a508428e05224fde888ac6c92500"
+    }
+  ],
+  "ok": true,
+  "replay": {
+    "agent_count": 4,
+    "blocker": "",
+    "bytes": 24732,
+    "event_count": 22,
+    "ok": true,
+    "path": "dashboard\\src\\mock-data\\local-network-replay.json",
+    "sha256": "c00e2ab8a93b27a0bd97ea9d293c7506adc2237d8b003ca1876320049171e149",
+    "task_count": 2
+  },
+  "schema_version": "visual.telemetry.v1"
+}

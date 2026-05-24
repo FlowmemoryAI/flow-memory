@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 48,
-    "manifest_hash": "97b19f6a59b8254512c3a742a51194da0d1ca5339cfb18082587580726cadee8",
-    "openapi_hash": "04d8f8b7b4f1b8b9daab3ee1c47f52e2bbe388ca96b88712824ff17a55a1ab08",
+    "endpoint_count": 54,
+    "manifest_hash": "e66ed83aacd137284de9416a0d1ea01a792b283245f5fa8b099522fa7056cb06",
+    "openapi_hash": "b0542fa0066e3f414f7a77b4015fe9fb83574b3228ff7e4b200ebe758809cfe7",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -13,6 +13,7 @@
       "GET /flowlang/examples",
       "GET /health",
       "GET /manifest",
+      "GET /network/state",
       "GET /neural/backends",
       "GET /neural/benchmarks",
       "GET /neural/checkpoints",
@@ -28,6 +29,10 @@
       "GET /swarm/agents",
       "GET /verification/result",
       "GET /verification/{contract_id}",
+      "GET /visual/events",
+      "GET /visual/replay/{run_id}",
+      "GET /visual/schema",
+      "GET /visual/state",
       "POST /agents/launch",
       "POST /agents/launch-flowlang",
       "POST /agents/launch-neural",
@@ -51,9 +56,10 @@
       "POST /runtime/tick",
       "POST /swarm/delegate",
       "POST /verification/submit",
-      "POST /verification/{contract_id}"
+      "POST /verification/{contract_id}",
+      "POST /visual/replay/start"
     ],
-    "path_count": 47,
+    "path_count": 53,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -80,6 +86,7 @@
       "/marketplace/tasks",
       "/marketplace/verify",
       "/network/run-scenario",
+      "/network/state",
       "/neural/backends",
       "/neural/benchmarks",
       "/neural/checkpoints",
@@ -101,7 +108,12 @@
       "/swarm/delegate",
       "/verification/result",
       "/verification/submit",
-      "/verification/{contract_id}"
+      "/verification/{contract_id}",
+      "/visual/events",
+      "/visual/replay/start",
+      "/visual/replay/{run_id}",
+      "/visual/schema",
+      "/visual/state"
     ],
     "version": "api-snapshot-v1"
   },
@@ -293,8 +305,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "48621a8",
-  "manifest_hash": "b1375743247c8aae6ddc4978af86396224e4f24be33671e70f1f76f116f53824",
+  "git_commit": "49a7e5c",
+  "manifest_hash": "58d747535ee56b8f736a475b36725ae52696f332232a2bedf275096bc4f8087a",
   "release_gates": {
     "ok": true,
     "results": [

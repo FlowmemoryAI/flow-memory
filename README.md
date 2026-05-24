@@ -25,6 +25,7 @@ python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
 python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
+python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json
 ```
 
 Neural and RL models advise. Policy and approval gates remain authoritative.

@@ -170,3 +170,14 @@ The stronger public alpha release targets remain blocked until real GPU evidence
 | Public alpha evidence | strengthened | Launch evidence now includes dashboard mock snapshot hashes. |
 
 Current launch posture remains local public alpha only until the real RunPod tarball is imported and the stronger GPU-backed release gates pass.
+## Mission Control local-public-alpha update
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Visual telemetry backend | implemented local prototype | `flow_memory.visualization` converts local network agent, economy, neural, RL, safety, and audit events into schema-versioned Mission Control state. |
+| Visual API endpoints | implemented local seam | `/visual/state`, `/visual/events`, `/visual/schema`, `/visual/replay/{run_id}`, `/network/state`, and `/network/run-scenario` are available through the dependency-free router with visual/network scopes. |
+| Visual replay path | implemented | Local network runs can emit visual events; `scripts/export_visual_replay.py` writes dashboard replay JSON and `scripts/validate_visual_replay.py` validates it. |
+| Mission Control dashboard | public-alpha scaffold connected to local data | The dashboard has mock/replay/live modes, mission-control components, typed visual mappings, and a local API client. It is not a hosted production console. |
+| Local public alpha release target | implemented | `local-public-alpha` can pass without GPU evidence; GPU-backed release targets still require the real RunPod tarball and remain blocked when it is missing. |
+
+Mission Control is connected to real local network/replay/API data for public-alpha demos. Mock mode remains explicitly labeled, and no frontend build is required for the Python test suite.

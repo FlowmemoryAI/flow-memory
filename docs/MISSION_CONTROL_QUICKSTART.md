@@ -25,6 +25,7 @@ The report includes:
 
 ```bash
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
+python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json
 ```
 
 The replay file is frontend-friendly JSON with explicit `provenance = replay`.

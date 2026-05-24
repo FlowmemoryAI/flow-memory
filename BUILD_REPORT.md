@@ -560,3 +560,28 @@ The follow-on autonomous queue completed additional public-alpha hardening slice
 - Dashboard mock snapshot hashes are now included in public-alpha launch evidence.
 
 These additions keep public-alpha claims local and evidence-based. Real GPU evidence still requires the external RunPod artifact tarball; no fake GPU proof, real funds, production auth claim, mainnet deployment, audited-contract claim, or hardened-sandbox claim was added.
+## Mission Control public-alpha launch update — 2026-05-24
+
+This implementation pass added the local Mission Control path for public-alpha launch readiness:
+
+- Visual telemetry dataclasses/reducer/adapters for agent, memory, economy, neural, RL, safety, and audit state.
+- Local network visual event emission for `basic-economy`, `neural-agent`, `rl-training`, `dispute-slashing`, `memory-learning`, and `safety-approval`.
+- Dependency-free visual API endpoints for visual state/events/schema/replay and local network scenario execution.
+- Dashboard Mission Control mock/replay/live mode structure with typed visual mappings and local API client.
+- Visual replay export and validation scripts.
+- Release evidence document `visual_system.json`.
+- `local-public-alpha` release decision target, which can pass without GPU evidence while GPU-gated targets remain blocked without the real RunPod tarball.
+
+Focused validation observed during this pass:
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q tests/test_visual_schemas.py tests/test_visual_event_reducer.py tests/test_visual_state_snapshots.py tests/test_visual_adapters.py` | Pass |
+| `python -m pytest -q tests/test_local_network_visual_events.py tests/test_local_network_scenarios.py` | Pass |
+| `python -m pytest -q tests/test_api_visual_endpoints.py tests/test_check_visual_api.py` | Pass |
+| `python -m pytest -q tests/test_visual_replay_export.py tests/test_visual_layout.py tests/test_mission_control_demo_data.py` | Pass |
+| `python -m pytest -q tests/test_release_evidence_visual_system.py tests/test_release_evidence.py` | Pass |
+| `python -m pytest -q tests/test_validate_visual_replay.py` | Pass |
+| `npm test && npm run build` in `dashboard/` | Pass |
+
+The system remains public-alpha/local/testnet-dry-run only: not production-certified, not mainnet-ready, not audited, and not hardened sandboxing. Missing RunPod artifact `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` continues to block GPU-backed release targets by design.

@@ -181,3 +181,15 @@ Current launch posture remains local public alpha only until the real RunPod tar
 | Local public alpha release target | implemented | `local-public-alpha` can pass without GPU evidence; GPU-backed release targets still require the real RunPod tarball and remain blocked when it is missing. |
 
 Mission Control is connected to real local network/replay/API data for public-alpha demos. Mock mode remains explicitly labeled, and no frontend build is required for the Python test suite.
+
+## Squire Goal control-plane status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| `/goal squire` skill | implemented local workflow | `skills/squire-goal/SKILL.md` packages the SQUIRE/Level5/UsePod/Solana/402/MPP/provider marketplace orchestration rules. |
+| Squire core package | implemented local seam | `flow_memory.squire` models treasury, routing policy, route telemetry, paid-tool plans, provider setup plans, docs sync, and economic memory records. |
+| Squire API endpoints | implemented local seam | `/squire/status`, `/squire/plan`, `/squire/routes`, `/squire/memory-schema`, `/squire/docs-sources`, and `/squire/skill` are local API endpoints with `squire:*` scopes. |
+| Squire economics | planning only | No SQUIRE token redemption, live UsePod/Level5 billing, wallet action, or provider bond posting happens by default. |
+| Roadmap distinction | enforced in records/docs | TEE attestation, on-chain slashing, compute futures, reserved throughput, native SQUIRE redemption, and native Dolphin inventory are labeled roadmap/adjacent unless separately verified. |
+
+Flow Memory now has a live-first Squire control-plane planning layer for agentic compute routing and cost telemetry. It is intentionally an adapter seam, not a token custody or real-funds implementation.

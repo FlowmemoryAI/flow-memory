@@ -585,3 +585,32 @@ Focused validation observed during this pass:
 | `npm test && npm run build` in `dashboard/` | Pass |
 
 The system remains public-alpha/local/testnet-dry-run only: not production-certified, not mainnet-ready, not audited, and not hardened sandboxing. Missing RunPod artifact `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` continues to block GPU-backed release targets by design.
+
+## Squire Goal control-plane build — 2026-05-24
+
+This implementation adds a live-first Squire ecosystem planning layer for Flow Memory. It treats Squire as an agentic compute treasury/routing substrate rather than a token-first workflow.
+
+Added:
+
+- `src/flow_memory/squire/` with typed treasury, routing, economic memory, tool-commerce, provider setup, docs-sync, and `/goal squire` orchestration records.
+- `skills/squire-goal/SKILL.md` as a progressive-disclosure skill bundle.
+- `scripts/squire_goal.py` and `examples/squire_goal_demo.py`.
+- Local API endpoints under `/squire/*` with `squire:read` and `squire:plan` scopes.
+- `docs/SQUIRE_GOAL.md`.
+
+Safety posture:
+
+- No real funds.
+- No private keys.
+- No live Level5/UsePod/agent-wallet calls in tests.
+- No SQUIRE token redemption assumptions.
+- UsePod coordinator internals are treated as private.
+- TEE attestation, on-chain slashing, compute futures, native SQUIRE redemption, and native Dolphin inventory are labeled roadmap/adjacent unless explicitly verified.
+
+Focused validation for this slice:
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q tests/test_squire_core.py tests/test_api_squire_endpoints.py tests/test_squire_skill_file.py` | Pass: `14 passed` |
+| `python scripts/squire_goal.py --goal "UsePod routing with budget controls"` | Pass |
+| `python examples/squire_goal_demo.py` | Pass |

@@ -26,6 +26,7 @@ python scripts/test_full_system.py --quick --json-out artifacts/full_system/quic
 python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json
+python scripts/squire_goal.py --goal "UsePod routing with budget controls and no surprise fallback"
 ```
 
 Neural and RL models advise. Policy and approval gates remain authoritative.
@@ -58,6 +59,7 @@ The project now combines:
 - sandbox hardening interfaces
 - MCP/A2A/libp2p protocol seams
 - dashboard scaffold and CI workflows
+- Squire/UsePod/Level5 control-plane seams for agentic compute routing
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
@@ -158,6 +160,7 @@ Observed during the public-alpha RC1 preflight build:
 - `docs/SANDBOX_HARDENING.md`
 - `docs/PROTOCOL_GATEWAYS.md`
 - `docs/THREAT_MODEL.md`
+- `docs/SQUIRE_GOAL.md`
 - `docs/PRODUCTION_READINESS.md`
 - `BUILD_REPORT.md`
 - `FLOW_MEMORY_STATUS.md`
@@ -172,6 +175,7 @@ Observed during the public-alpha RC1 preflight build:
 - Sandbox hardening includes profiles, receipts, policy checks, and an optional Docker backend seam; default local sandboxing is not hardened isolation.
 - Protocol gateways are local/offline-safe seams, not production transports.
 - Dashboard is a typed mock API scaffold, not a live operator console.
+- Squire integration is a local planning/routing seam; it does not redeem SQUIRE tokens, move funds, or call live billing APIs by default.
 
 
 ## Neural Agent Layer v1

@@ -1263,6 +1263,179 @@
         ]
       }
     },
+    "/squire/docs-sources": {
+      "get": {
+        "operationId": "squire_docs_sources",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return machine-readable Squire docs sync sources",
+        "tags": [
+          "squire"
+        ]
+      }
+    },
+    "/squire/memory-schema": {
+      "get": {
+        "operationId": "squire_memory_schema",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Squire economic memory fields",
+        "tags": [
+          "squire"
+        ]
+      }
+    },
+    "/squire/plan": {
+      "post": {
+        "operationId": "squire_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "goal": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a Squire goal plan",
+        "tags": [
+          "squire"
+        ]
+      }
+    },
+    "/squire/routes": {
+      "post": {
+        "operationId": "squire_routes",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "marketplace_only": {
+                    "type": "string"
+                  },
+                  "max_input_price_per_million": {
+                    "type": "string"
+                  },
+                  "max_output_price_per_million": {
+                    "type": "string"
+                  },
+                  "quality_sensitive": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Select a budget-aware Squire route",
+        "tags": [
+          "squire"
+        ]
+      }
+    },
+    "/squire/skill": {
+      "get": {
+        "operationId": "squire_skill",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Squire goal skill metadata",
+        "tags": [
+          "squire"
+        ]
+      }
+    },
+    "/squire/status": {
+      "get": {
+        "operationId": "squire_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Squire ecosystem control-plane status",
+        "tags": [
+          "squire"
+        ]
+      }
+    },
     "/swarm/agents": {
       "get": {
         "operationId": "swarm_agents",

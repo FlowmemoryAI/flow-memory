@@ -28,6 +28,14 @@ from flow_memory.api.rl_endpoints import rl_benchmarks, rl_envs, rl_evaluate, rl
 from flow_memory.api.release_endpoints import release_decision_status, release_evidence_status
 from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
+from flow_memory.api.squire_endpoints import (
+    squire_docs_sources,
+    squire_memory_schema,
+    squire_plan,
+    squire_routes,
+    squire_skill_manifest,
+    squire_status,
+)
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
 
@@ -381,6 +389,25 @@ class LocalApiRouter:
     def _dashboard_snapshot(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return dashboard_snapshot()
 
+    def _squire_status(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return squire_status()
+
+    def _squire_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "squire_plan_requested"})
+        return squire_plan(payload)
+
+    def _squire_routes(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return squire_routes(payload)
+
+    def _squire_memory_schema(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return squire_memory_schema()
+
+    def _squire_docs_sources(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return squire_docs_sources()
+
+    def _squire_skill(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return squire_skill_manifest()
+
 
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
@@ -453,6 +480,12 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/release/evidence", router._release_evidence, "release_evidence")
     router.register("GET", "/release/decision/{target}", router._release_decision, "release_decision")
     router.register("GET", "/dashboard/snapshot", router._dashboard_snapshot, "dashboard_snapshot")
+    router.register("GET", "/squire/status", router._squire_status, "squire_status")
+    router.register("POST", "/squire/plan", router._squire_plan, "squire_plan")
+    router.register("POST", "/squire/routes", router._squire_routes, "squire_routes")
+    router.register("GET", "/squire/memory-schema", router._squire_memory_schema, "squire_memory_schema")
+    router.register("GET", "/squire/docs-sources", router._squire_docs_sources, "squire_docs_sources")
+    router.register("GET", "/squire/skill", router._squire_skill, "squire_skill")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

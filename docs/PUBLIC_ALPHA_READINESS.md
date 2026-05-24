@@ -1,6 +1,6 @@
 # Public Alpha Readiness
 
-Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory launch, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
+Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory/live launch, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
 
 Run:
 
@@ -20,7 +20,7 @@ python scripts/release_decision.py --target public-alpha-local-launch
 | Local public alpha | Ready if `public-alpha-local-launch` passes. |
 | Local agent launch | Implemented. |
 | FlowLang launch | Implemented. |
-| Neural advisory launch | Functional prototype; Torch optional. |
+| Neural advisory/live launch | Functional local prototype; Torch optional; neural-live runtime sessions and telemetry are local/advisory. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |

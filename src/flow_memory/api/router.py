@@ -21,6 +21,13 @@ from flow_memory.api.neural_endpoints import (
     neural_gpu_run,
     neural_gpu_runs,
     neural_status,
+    neural_live_checkpoint,
+    neural_live_create,
+    neural_live_learn,
+    neural_live_session,
+    neural_live_sessions,
+    neural_live_step,
+    neural_live_stop,
     neural_train_smoke,
     neural_validate_smoke,
 )
@@ -139,6 +146,7 @@ class LocalApiRouter:
             allowed_tools=("observe_environment", "respond"),
             allowed_skills=("research_brief",),
             autonomy_mode=str(payload.get("autonomy_mode", "autonomous_local")),
+            neural_config=dict(payload.get("neural", {})) if isinstance(payload.get("neural", {}), Mapping) else {},
             metadata={"launch_path": "api"},
         )
         result = AgentRunner(profile).run_cycle(goal)
@@ -153,6 +161,15 @@ class LocalApiRouter:
     def _agents_launch_neural(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         goal = str(payload.get("goal", "Explore and report"))
         backend = str(payload.get("backend", "tiny_torch"))
+        neural_config = {
+            "backend": backend,
+            "perception": "dual_stream",
+            "enabled": True,
+            "live_mode": bool(payload.get("live_mode", payload.get("neural_live", False))),
+            "learning_enabled": bool(payload.get("learning_enabled", False)),
+            "policy_fallback": str(payload.get("policy_fallback", "allow_non_neural")),
+            "telemetry_enabled": True,
+        }
         profile = AgentProfile(
             name=str(payload.get("name", "API Neural Launch Agent")),
             identity=str(payload.get("identity", "did:flow:api-neural-agent")),
@@ -160,7 +177,7 @@ class LocalApiRouter:
             capabilities=("local_reasoning", "neural_advisory"),
             allowed_tools=("observe_environment", "respond"),
             allowed_skills=("research_brief",),
-            neural_config={"backend": backend, "perception": "dual_stream"},
+            neural_config=neural_config,
             autonomy_mode="supervised",
             metadata={"launch_path": "api_neural"},
         )
@@ -348,6 +365,33 @@ class LocalApiRouter:
         self.audit_events.append({"event": "neural_train_smoke_requested", "local_only": True})
         return neural_train_smoke(str(payload.get("out", "artifacts/neural/api_smoke")))
 
+    def _neural_live_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_live_session_create_requested", "local_only": True})
+        return neural_live_create(payload)
+
+    def _neural_live_sessions(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_live_sessions()
+
+    def _neural_live_session(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_live_session(params["session_id"])
+
+    def _neural_live_step(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_live_step_requested", "session_id": params["session_id"], "local_only": True})
+        return neural_live_step(params["session_id"], payload)
+
+    def _neural_live_learn(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_live_learn_requested", "session_id": params["session_id"], "local_only": True})
+        return neural_live_learn(params["session_id"], payload)
+
+    def _neural_live_checkpoint(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_live_checkpoint_requested", "session_id": params["session_id"], "metadata_only": True})
+        return neural_live_checkpoint(params["session_id"], payload)
+
+    def _neural_live_stop(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_live_stop_requested", "session_id": params["session_id"], "local_only": True})
+        return neural_live_stop(params["session_id"])
+
+
     def _rl_envs(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return rl_envs()
 
@@ -393,6 +437,7 @@ class LocalApiRouter:
 
     def _release_decision(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return release_decision_status(params["target"])
+
     def _dashboard_snapshot(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return dashboard_snapshot()
 
@@ -496,6 +541,13 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/neural/checkpoints", router._neural_checkpoints, "neural_checkpoints")
     router.register("POST", "/neural/validate-smoke", router._neural_validate_smoke, "neural_validate_smoke")
     router.register("POST", "/neural/train-smoke", router._neural_train_smoke, "neural_train_smoke")
+    router.register("POST", "/neural/live/sessions", router._neural_live_create, "neural_live_create")
+    router.register("GET", "/neural/live/sessions", router._neural_live_sessions, "neural_live_sessions")
+    router.register("GET", "/neural/live/sessions/{session_id}", router._neural_live_session, "neural_live_session")
+    router.register("POST", "/neural/live/sessions/{session_id}/step", router._neural_live_step, "neural_live_step")
+    router.register("POST", "/neural/live/sessions/{session_id}/learn", router._neural_live_learn, "neural_live_learn")
+    router.register("POST", "/neural/live/sessions/{session_id}/checkpoint", router._neural_live_checkpoint, "neural_live_checkpoint")
+    router.register("POST", "/neural/live/sessions/{session_id}/stop", router._neural_live_stop, "neural_live_stop")
     router.register("GET", "/rl/envs", router._rl_envs, "rl_envs")
     router.register("GET", "/rl/benchmarks", router._rl_benchmarks, "rl_benchmarks")
     router.register("POST", "/rl/evaluate", router._rl_evaluate, "rl_evaluate")

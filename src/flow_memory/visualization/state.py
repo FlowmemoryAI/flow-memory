@@ -80,6 +80,14 @@ class VisualNeuralSignal:
     plan_score: float = 0.0
     risk_score: float = 0.0
     surprise_score: float = 0.0
+    session_id: str = ""
+    phase: str = ""
+    prediction_confidence: float = 0.0
+    uncertainty: float = 0.0
+    learning_tick_count: int = 0
+    memory_activation_count: int = 0
+    action_state: str = ""
+    policy_gate_state: str = ""
     provenance: str = "live"
     source_event_id: str = ""
 

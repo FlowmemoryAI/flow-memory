@@ -12,5 +12,6 @@ def visual_schema() -> Mapping[str, Any]:
         "provenance_values": ("live", "replay", "mock", "synthetic"),
         "event_types": ("agent", "task", "memory", "economy", "compute", "neural", "rl", "safety", "audit"),
         "state_collections": ("agents", "tasks", "memory", "economy", "compute", "neural", "rl", "safety", "audit"),
+        "neural_live_fields": ("session_id", "phase", "prediction_confidence", "uncertainty", "learning_tick_count", "memory_activation_count", "action_state", "policy_gate_state"),
         "required_reference": "source_event_id when available",
     }

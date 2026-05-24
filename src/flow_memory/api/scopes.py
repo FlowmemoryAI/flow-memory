@@ -134,6 +134,12 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (NEURAL_VALIDATE_SCOPE,)
     if path_key == "/neural/train-smoke":
         return (NEURAL_TRAIN_SCOPE,)
+    if path_key.startswith("/neural/live/"):
+        if normalized_method in READ_METHODS:
+            return (NEURAL_READ_SCOPE,)
+        if path_key.endswith("/learn"):
+            return (NEURAL_TRAIN_SCOPE,)
+        return (NEURAL_VALIDATE_SCOPE,)
     if path_key.startswith("/neural/"):
         return (NEURAL_READ_SCOPE,)
     if path_key in {"/agents/launch", "/agents/launch-flowlang", "/agents/launch-neural"}:

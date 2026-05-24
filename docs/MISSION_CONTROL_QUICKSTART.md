@@ -10,7 +10,7 @@ Maturity: public-alpha scaffold connected to local state, replay files, and loca
 python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
 ```
 
-The report includes requester, worker, verifier, and auditor agents; economy settlement; dispute/slashing; memory events; RL Arena training metadata; safety approval events; and neural advisory metadata when available.
+The report includes requester, worker, verifier, and auditor agents; economy settlement; dispute/slashing; memory events; RL Arena training metadata; safety approval events; Compute Market dry-run telemetry; and neural-live advisory/session metadata when available.
 
 ## 2. Export replay data for the dashboard
 
@@ -35,6 +35,8 @@ Useful endpoints:
 - `GET /network/state`
 - `POST /network/run-scenario`
 - `POST /visual/replay/start`
+- `POST /neural/live/sessions`
+- `POST /neural/live/sessions/{session_id}/step`
 
 With local auth/scopes:
 

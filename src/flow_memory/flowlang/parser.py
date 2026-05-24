@@ -58,6 +58,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     current_kind = ""
     current_name = ""
     current_data: dict[str, Any] = {}
+    inside_agent_block = False
 
     def flush_current() -> None:
         nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data, compute_data
@@ -90,13 +91,45 @@ def parse_flowlang(source: str) -> AgentSpec:
         if not stripped:
             continue
         is_indented = raw_line[:1].isspace()
-        if is_indented:
-            if not current_kind:
-                raise FlowLangParseError(f"line {line_number}: indented field without a block")
+        if stripped == "}":
+            if current_kind:
+                flush_current()
+            else:
+                inside_agent_block = False
+            continue
+        if is_indented and current_kind:
             key, value = _split_field(stripped, line_number)
             current_data[key] = _parse_value(value)
             continue
-
+        if is_indented and not inside_agent_block:
+            raise FlowLangParseError(f"line {line_number}: indented field without a block")
+        if stripped.endswith("{"):
+            flush_current()
+            header = stripped[:-1].strip()
+            parts = header.split(maxsplit=1)
+            kind = parts[0]
+            if kind == "agent" and len(parts) == 2:
+                agent_name = str(_parse_value(parts[1].strip()))
+                inside_agent_block = True
+                continue
+            if kind in {"memory", "economy", "neural", "rl", "compute"} and len(parts) == 1:
+                current_kind = kind
+                current_name = kind
+                current_data = {}
+                continue
+            if kind == "policy" and len(parts) == 1:
+                current_kind = kind
+                current_name = "policy"
+                current_data = {}
+                continue
+            if kind in {"policy", "skill", "plan"} and len(parts) == 2:
+                current_kind = kind
+                current_name = parts[1].strip()
+                if not current_name:
+                    raise FlowLangParseError(f"line {line_number}: {kind} name is required")
+                current_data = {}
+                continue
+            raise FlowLangParseError(f"line {line_number}: unknown block header {header!r}")
         flush_current()
         if stripped.endswith(":"):
             header = stripped[:-1].strip()
@@ -155,7 +188,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             "allowed_tools": tuple(allowed_tools),
             "autonomy_mode": autonomy_mode,
             "risk_budget": risk_budget,
-            "neural": dict(neural_data),
+            "neural": _neural_config_from_data(neural_data),
             "rl": dict(rl_data),
             "compute_market": _compute_config_from_data(compute_data),
         },
@@ -248,6 +281,39 @@ def _economy_from_data(data: dict[str, Any]) -> EconomicSpec:
         allow_slashing=_as_bool(data.get("allow_slashing", False)),
         metadata=_metadata(data, {"settlement", "budget", "currency", "marketplace", "allow_slashing"}),
     )
+
+def _neural_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
+    if not data:
+        return {}
+    known = {
+        "enabled",
+        "backend",
+        "device",
+        "perception",
+        "world_model",
+        "plan_scorer",
+        "checkpoint_path",
+        "checkpoint_ref",
+        "allow_remote",
+        "live_mode",
+        "learning_enabled",
+        "learning_rate",
+        "seed",
+        "model_profile",
+        "perception_streams",
+        "plan_scoring_enabled",
+        "risk_scoring_enabled",
+        "memory_retrieval_enabled",
+        "policy_fallback",
+        "max_step_ms",
+        "telemetry_enabled",
+        "inference_mode",
+    }
+    record = {key: data[key] for key in data if key in known}
+    extras = _metadata(data, known)
+    if extras:
+        record["options"] = extras
+    return record
 
 def _compute_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
     if not data:

@@ -715,3 +715,58 @@ Focused validation observed for this slice:
 | `cargo test` | Pass |
 | `git diff --check` | Pass: whitespace warnings only |
 | secret scan | Pass: no obvious secret patterns found |
+
+## Live neural agents integration — 2026-05-24
+
+This slice makes neural-capable agents first-class local runtime participants. Agents can now create deterministic local neural runtime sessions, attach session metadata to agent cycles, emit Mission Control neural-live telemetry, and write neural step records to memory without external model calls or GPU claims.
+
+Added/hardened:
+
+- `src/flow_memory/neural/live.py` with local neural runtime/session lifecycle, deterministic step scoring, metadata-only checkpoints, learning-step metadata, fail-closed backend handling, and explicit local-only/GPU-not-claimed fields.
+- `AgentProfile.neural_config` validation for live policy fallback and learning-rate safety.
+- `AgentNeuralBinding` and `AgentRunner` live session integration, advisory plan/risk/memory scoring, memory records for `neural_live_step`, and fail-closed blocking when policy requires it.
+- FlowLang brace-block and legacy neural config parsing for live neural agents.
+- `/neural/live/sessions` API lifecycle endpoints with local API scope mapping.
+- `python -m flow_memory neural live ...` CLI commands and `--neural-live` agent run path.
+- Mission Control visual neural signal fields for session id, loop phase, confidence/risk, learning tick count, memory activations, action state, and policy gate state.
+- Release evidence field `neural_live_agents.json` and local-public-alpha requirement.
+- Docs for local live neural agents, neural API endpoints, Mission Control neural-live replay, and public-alpha readiness language.
+
+Safety posture:
+
+- Neural output remains advisory only.
+- PolicyEngine and ApprovalGate remain authoritative.
+- No external model/provider calls are made by the live runtime.
+- No V-JEPA 2 or VideoMAE implementation claim; those remain adapter seams.
+- No GPU validation claim is made unless the RunPod artifact is imported and verified.
+- Metadata-only checkpoints do not write model weights.
+- If a required neural backend is unavailable and fallback is not explicitly allowed, the runtime fails closed.
+
+Focused validation observed for this slice:
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q tests/test_neural_live_runtime.py tests/test_agent_neural_live_integration.py tests/test_flowlang_neural_live_config.py tests/test_api_neural_live_sessions.py tests/test_cli_neural_live.py tests/test_visual_neural_live.py tests/test_neural_live_release_evidence.py` | Pass: `15 passed` |
+| `python -m pytest -q tests -k "neural_live or neural or agent or flowlang or visual or api or release_evidence"` | Pass: `237 passed, 3 skipped, 344 deselected` |
+| `python -m pytest -q` | Pass: `567 passed, 17 skipped` |
+| `bash scripts/verify.sh` | Pass |
+| `python -m flow_memory --json "Explore and report"` | Pass |
+| `python -m flow_memory --neural tiny_torch --neural-live --json "Explore and report"` | Pass; torch absent locally so neural-live used explicit non-neural fallback |
+| `python -m flow_memory neural live step --backend tiny_torch --goal "Explore and report"` | Pass; local deterministic session created and stepped |
+| `python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json` | Pass |
+| `python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json` | Pass |
+| `python examples/mission_control_visual_event_demo.py` | Pass |
+| `python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_neural_live_report.json` | Pass |
+| `python scripts/export_release_evidence.py` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --target local-public-alpha` | Pass |
+| `python scripts/release_decision.py --target public-alpha-local-launch` | Pass |
+| `python scripts/release_decision.py --target neural-gpu-smoke` | Blocked as designed: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-neural` | Blocked as designed: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-launch` | Blocked as designed: `gpu_evidence_verified_run_missing` |
+| `cd dashboard && npm test && npm run build` | Pass |
+| `docker compose config` | Pass |
+| `forge build && forge test` | Pass: `16 tests passed` |
+| `cargo test` | Pass |
+| `git diff --check` | Pass: whitespace warnings only |
+| secret scan | Pass: no obvious secret patterns found |

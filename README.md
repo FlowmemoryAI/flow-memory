@@ -33,6 +33,8 @@ python scripts/launch_local_agent.py --goal "Explore and report"
 python scripts/launch_flowlang_agent.py examples/flowlang_agent.flow --goal "Run the declared agent"
 pip install -e ".[dev,ml]"
 python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and report"
+python -m flow_memory --neural tiny_torch --neural-live --json "Explore and report"
+python -m flow_memory neural live step --backend tiny_torch --goal "Explore and report"
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -42,7 +44,7 @@ python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-r
 python -m flow_memory compute plan --goal "Use budgeted local compute routing with dry-run settlement"
 ```
 
-Neural and RL models advise. Policy and approval gates remain authoritative.
+Neural, neural-live, RL, and compute-market signals advise. Policy and approval gates remain authoritative.
 
 Mission Control visual path:
 
@@ -193,7 +195,7 @@ Observed during the public-alpha RC1 preflight build:
 
 ## Neural Agent Layer v1
 
-Flow Memory now includes an optional Neural Agent Layer v1. The base install still has no PyTorch requirement. Install `flow-memory[ml]` to run tiny CPU-safe PyTorch prototypes for dual-stream perception, appearance-suppressed dorsal motion, tiny JEPA-style world modeling, advisory plan scoring, skill routing, risk scoring, and neural memory retrieval. V-JEPA 2 and VideoMAE are adapter seams that require explicit local checkpoints; Flow Memory never downloads checkpoints automatically. Neural scores never override policy or approval gates.
+Flow Memory now includes an optional Neural Agent Layer v1 and a local neural-live runtime for public-alpha agents. The base install still has no PyTorch requirement. Install `flow-memory[ml]` to run tiny CPU-safe PyTorch prototypes for dual-stream perception, appearance-suppressed dorsal motion, tiny JEPA-style world modeling, advisory plan scoring, skill routing, risk scoring, and neural memory retrieval. Neural-live mode adds local runtime sessions, deterministic perception/prediction/plan/risk/learning telemetry, metadata-only checkpoints, and Mission Control replay signals. V-JEPA 2 and VideoMAE are adapter seams that require explicit local checkpoints; Flow Memory never downloads checkpoints automatically. Neural scores never override policy or approval gates.
 
 
 ## Local HTTP API server

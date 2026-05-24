@@ -70,6 +70,19 @@ class AgentRunner:
         neural_metadata = self.neural.annotate_plan(self.profile, goal, plan, tuple(context))
         rl_metadata = self.rl.suggest(self.profile, goal)
         compute_metadata = self.compute.plan(self.profile, goal, plan)
+        if neural_metadata.get("status") == "fail_closed":
+            reason = str(neural_metadata.get("reason", "neural live runtime failed closed"))
+            self.state.add_event({"event": "neural_fail_closed", "reason": reason, "session_id": neural_metadata.get("session_id", "")})
+            output = {"success": False, "blocked": True, "reason": reason}
+            evaluation = self.evaluator.evaluate(output)
+            reflection = self.reflector.reflect(evaluation)
+            self.state.last_evaluation = evaluation.as_record()
+            self.memory.write("neural_fail_closed", {"goal": goal, "reason": reason, "neural": neural_metadata})
+            audit_events = [
+                {"event": "agent_cycle_started", "agent_id": self.profile.agent_id, "goal": goal},
+                {"event": "neural_fail_closed", "reason": reason, "safety_authority": "policy_engine_and_approval_gate"},
+            ]
+            return AgentRunResult(False, True, {"evaluation": evaluation.as_record(), "reflection": reflection.as_record(), "neural": neural_metadata, "rl": rl_metadata, "compute": compute_metadata, **output}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
         decision = self.policy.check_plan(self.profile, plan)
         audit_events: list[Mapping[str, Any]] = [
             {"event": "agent_cycle_started", "agent_id": self.profile.agent_id, "goal": goal},
@@ -106,6 +119,8 @@ class AgentRunner:
         settlement = self.economy.maybe_settle(self.profile.identity or self.profile.agent_id, self.profile.identity or self.profile.agent_id, goal, plan.economic_value) if plan.economic_intent else None
         if compute_metadata.get("status") == "planned" and compute_metadata.get("economic_memory"):
             self.memory.write("compute_economic_memory", dict(compute_metadata.get("economic_memory", {})))
+        if neural_metadata.get("live_step"):
+            self.memory.write("neural_live_step", dict(neural_metadata.get("live_step", {})))
         evaluation = self.evaluator.evaluate(execution, expected=plan.success_criteria)
         reflection = self.reflector.reflect(evaluation)
         memory_record = self.memory.write("agent_run", {"goal": goal, "plan": plan.as_record(), "execution": execution, "settlement": settlement, "neural": neural_metadata, "rl": rl_metadata, "compute": compute_metadata})

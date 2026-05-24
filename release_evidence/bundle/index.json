@@ -1,18 +1,19 @@
 {
-  "bundle_hash": "84057498525f4132ca88ed2bd26a4fbb41452af4371bd76e3b8102682318372a",
+  "bundle_hash": "a50c83d93d477982c9e45b2f60701808abc51c7690b725ec220952764bfed0be",
   "file_hashes": {
-    "api_snapshot.json": "dbdc442364394485c6f9a2e8c5d8660cbc27ea4334fafc75b9e15bad7b81525f",
+    "api_snapshot.json": "b4fecbc51627e1d292810d5509f7a8dbfea54b5ca0064fb5500eaec18fc0acb1",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
     "compute_market.json": "799bb0d700a871a91cdde619dc0d57d90c1d93e745d3e1b1d6c4ab6e1cf149fc",
     "dependency_inventory.json": "9819542e274c038b6ad5c1c07bfaff0806e2803f26c9a329f0d59d61360ffe83",
     "gpu_evidence.json": "55fb6c05277946061d0c912e89c602c05d0744a2dc4aa32953f8c15bafb26a71",
+    "neural_live_agents.json": "ae8d87f6df3222d45d0c41dda6eeb282e4d37856f37261702e2d7fc8eda53989",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "a151514954694bd1d3a3829abef550c4c62f60cda4de460d10642477dd7d2c90",
+    "release_manifest.json": "9a2c314b40ef710bfb073f72941169a5756565bd1e62818b61817df201b76167",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "c914d73973f541b2ab524dcdf8b7cccc3dd4549af53568e355260b049bca9106"
+    "visual_system.json": "e68ee3e91397c91ee4a20f75286d600c5761737fac081ceab5cab30cf6586cd5"
   },
   "files": [
     "api_snapshot.json",
@@ -22,6 +23,7 @@
     "compute_market.json",
     "dependency_inventory.json",
     "gpu_evidence.json",
+    "neural_live_agents.json",
     "release_gates.json",
     "release_manifest.json",
     "rl_benchmarks.json",

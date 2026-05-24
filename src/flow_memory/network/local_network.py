@@ -43,7 +43,7 @@ class LocalFlowMemoryNetwork:
                 **worker.profile.as_record(),
                 "created_at": worker.profile.created_at,
                 "risk_budget": worker.profile.risk_budget,
-                "neural_config": {"backend": "tiny_torch", "perception": "dual_stream"},
+                "neural_config": {"backend": "tiny_torch", "perception": "dual_stream", "enabled": True, "live_mode": True, "learning_enabled": True, "policy_fallback": "allow_non_neural", "telemetry_enabled": True, "seed": 1337},
                 "compute_config": {
                     "enabled": True,
                     "task_profile": {"model": "small-general", "expected_input_tokens": 800, "expected_output_tokens": 240},

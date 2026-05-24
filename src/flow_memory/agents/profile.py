@@ -59,6 +59,15 @@ class AgentProfile:
         backend = str(self.neural_config.get("backend", "none"))
         if backend not in {"none", "tiny_torch", "vjepa2", "videomae"}:
             errors.append(f"unknown neural backend: {backend}")
+        if self.neural_config:
+            options = self.neural_config.get("options", {})
+            option_fallback = options.get("policy_fallback", "fail_closed") if isinstance(options, Mapping) else "fail_closed"
+            fallback = str(self.neural_config.get("policy_fallback", option_fallback))
+            if fallback not in {"fail_closed", "allow_non_neural"}:
+                errors.append(f"unknown neural policy_fallback: {fallback}")
+            learning_rate = float(self.neural_config.get("learning_rate", 0.01) or 0.0)
+            if learning_rate < 0:
+                errors.append("neural learning_rate must be non-negative")
         rl_backend = str(self.rl_config.get("backend", "local_tabular"))
         if rl_backend not in {"local_tabular", "tabular_q", "heuristic", "pufferlib"}:
             errors.append(f"unknown RL backend: {rl_backend}")

@@ -17,6 +17,7 @@ from flow_memory.neural.features import (
     WorldModelPrediction,
 )
 from flow_memory.neural.registry import NeuralBackendRegistry
+from flow_memory.neural.live import GLOBAL_NEURAL_RUNTIME, NeuralLiveConfig, NeuralRuntimeManager, NeuralRuntimeSession, neural_live_config_from_mapping
 from flow_memory.neural.torch_optional import OptionalDependencyError, is_numpy_available, is_torch_available
 from flow_memory.neural.traces import AgentTrace, EconomyTrace, PlanTrace, SkillTrace
 
@@ -30,7 +31,11 @@ __all__ = [
     "NeuralBackendConfig",
     "NeuralBackendRegistry",
     "NeuralEvaluationResult",
+    "GLOBAL_NEURAL_RUNTIME",
     "NeuralFeature",
+    "NeuralLiveConfig",
+    "NeuralRuntimeManager",
+    "NeuralRuntimeSession",
     "OptionalDependencyError",
     "PlanTrace",
     "SkillTrace",
@@ -41,4 +46,5 @@ __all__ = [
     "is_numpy_available",
     "is_torch_available",
     "neural_config_from_mapping",
+    "neural_live_config_from_mapping",
 ]

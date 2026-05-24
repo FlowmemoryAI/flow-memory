@@ -16,6 +16,7 @@ from flow_memory.neural.agent.skill_router import TinySkillRouter
 from flow_memory.neural.config import neural_config_from_mapping
 from flow_memory.neural.memory.retriever import NeuralMemoryRetriever
 from flow_memory.neural.torch_optional import OptionalDependencyError, is_torch_available
+from flow_memory.neural.live import GLOBAL_NEURAL_RUNTIME, neural_live_config_from_mapping
 
 
 class AgentNeuralBinding:
@@ -25,9 +26,11 @@ class AgentNeuralBinding:
         self.risk_model = TinyRiskModel()
         self.evaluator = TinyNeuralEvaluator()
         self.retriever = NeuralMemoryRetriever()
+        self.live_runtime = GLOBAL_NEURAL_RUNTIME
 
     def annotate_plan(self, profile: Any, goal: str, plan: Any, context: tuple[Any, ...] = ()) -> Mapping[str, Any]:
         config = neural_config_from_mapping(getattr(profile, "neural_config", {}))
+        live_config = neural_live_config_from_mapping(getattr(profile, "neural_config", {}))
         records = tuple(context)
         for record in records:
             self.retriever.add(record)
@@ -53,6 +56,30 @@ class AgentNeuralBinding:
         elif config.backend in {"vjepa2", "videomae"}:
             record["status"] = "adapter_seam"
             record["reason"] = f"{config.backend} requires local dependencies and checkpoint_path"
+        if live_config.enabled and live_config.live_mode:
+            agent_id = str(getattr(profile, "agent_id", "agent"))
+            session = self.live_runtime.create_session(agent_id, live_config)
+            plan_id = str(getattr(plan, "plan_id", "plan"))
+            step = self.live_runtime.run_step(
+                session.session_id,
+                {
+                    "goal": goal,
+                    "plan_id": plan_id,
+                    "risk_level": str(getattr(plan, "risk_level", "low")),
+                    "context_count": len(records),
+                },
+            )
+            session = self.live_runtime.get_session(session.session_id)
+            record["session_id"] = session.session_id
+            record["live_session"] = session.as_record()
+            record["live_step"] = dict(step)
+            record["telemetry_enabled"] = live_config.telemetry_enabled
+            if step.get("status") == "fail_closed":
+                record["status"] = "fail_closed"
+                record["reason"] = step.get("reason", "neural live runtime failed closed")
+            elif step.get("status") == "fallback_non_neural":
+                record["status"] = "fallback_non_neural"
+                record["reason"] = "neural backend unavailable; policy allowed non-neural fallback"
         return record
 
     def attach_perception_metadata(self, profile: Any, video: Any | None = None) -> Mapping[str, Any]:

@@ -28,6 +28,17 @@ python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and r
 
 If Torch is missing, the command still returns a structured result and marks the neural backend as skipped.
 
+## Launch with local neural-live runtime
+
+```bash
+python -m flow_memory --neural tiny_torch --neural-live --json "Explore and report"
+python -m flow_memory neural live step --backend tiny_torch --goal "Explore and report"
+```
+
+Neural-live mode creates a local runtime session, emits Mission Control telemetry, can run deterministic local learning metadata, and still treats neural output as advisory. If PyTorch is absent, fallback occurs only when policy allows it; otherwise the session fails closed.
+
+See `docs/NEURAL_LIVE_AGENTS.md` for FlowLang and API examples.
+
 Persist launch output for release evidence or debugging with `--json-out`, for example:
 
 ```bash

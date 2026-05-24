@@ -1,10 +1,10 @@
 # Flow Memory Status
 
-Date: 2026-05-23
+Date: 2026-05-24
 
 ## Current status
 
-Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
+Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
 
 It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, API auth remains a seam, and FlowLang remains v0/prototype.
 
@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `552 passed, 17 skipped` |
+| `python -m pytest -q` | Pass: `567 passed, 17 skipped` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -24,6 +24,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Local public alpha release decision | Pass |
 | Compute Market targeted validation | Pass: `21 passed`; broader compute/agent/FlowLang/API/visual/release targeted set `208 passed, 2 skipped` |
 | Forge tests | Pass: `16 passed` |
+| Live neural agents targeted validation | Pass: `15 passed`; broader neural/agent/FlowLang/API/visual/release targeted set `237 passed, 3 skipped` |
 
 ## Maturity table
 
@@ -51,6 +52,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | API scopes/errors/rate limits/audit middleware | Functional local prototype; not production auth |
 | Dependency-free local HTTP API server | Implemented local/public-alpha server with API-key, scopes, rate limits, error contracts, and audit events; not production internet auth |
 | Flow Memory Compute Market | Implemented local dry-run subsystem; quotes/routes/payment intents/settlement simulations only |
+| Live neural agent runtime | Implemented local deterministic prototype; optional PyTorch backend, fail-closed policy fallback, metadata-only checkpoints |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |
@@ -81,8 +83,8 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 6. FlowLang schema is not stable.
 7. SQLite is local persistence only.
 8. Protocol gateways are not live network transports.
-9. Trained ML/world-model integration remains future work.
-10. Dashboard is scaffold/mock data only.
+9. Production-scale trained ML/world-model integration remains future work; local live neural runtime is deterministic/advisory.
+10. Dashboard is a local/public-alpha Mission Control scaffold, not a hosted production console.
 
 ## Next milestones
 
@@ -197,6 +199,20 @@ Mission Control is connected to real local network/replay/API data for public-al
 | Dry-run invariant | enforced | No private keys, no live provider calls, no funds moved, no transaction broadcast, and no live settlement are performed by default. |
 
 Flow Memory now exposes its own Compute Market surfaces instead of public Squire-branded API/CLI/skill surfaces. The older Squire/UsePod/Level5 research remains migration context only; launch surfaces are Flow Memory-native and dry-run local.
+
+## Live neural agents status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Neural runtime sessions | implemented local prototype | `flow_memory.neural.live` creates local sessions, attaches agents, runs deterministic steps, learns local metadata, writes metadata-only checkpoints, and stops sessions. |
+| Agent integration | implemented advisory binding | Agent runner records neural-live step metadata in memory and blocks fail-closed when required by policy fallback. |
+| FlowLang neural live config | implemented | Brace-block and legacy neural config paths map into `AgentProfile.neural_config`. |
+| Neural live API | implemented local seam | `/neural/live/sessions` lifecycle endpoints expose metadata-only session, step, learn, checkpoint, and stop paths with neural scopes. |
+| Neural live CLI | implemented local seam | `python -m flow_memory neural live ...` and `--neural-live` run local deterministic neural sessions. |
+| Mission Control neural live telemetry | implemented replay signal | Visual state includes session id, loop phase, confidence/risk, learning ticks, memory activations, action state, and policy gate state. |
+| GPU-backed neural launch | blocked until artifact import | `neural-gpu-smoke` and GPU-backed public-alpha gates still require the real RunPod tarball. |
+
+Live neural agents are local, advisory, deterministic, and policy-gated. They do not make external provider calls, do not write model weights, and do not imply V-JEPA 2/VideoMAE or GPU validation.
 
 ## Mission Control V2 recovery/polish branch status
 

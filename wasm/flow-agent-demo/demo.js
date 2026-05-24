@@ -1,0 +1,1 @@
+const out=document.getElementById('state');function render(){out.textContent=JSON.stringify(window.flowEnv.state,null,2);}document.getElementById('step').onclick=()=>{const action=window.flowPolicy.select(window.flowEnv.state);window.flowEnv.step(action);render();};render();

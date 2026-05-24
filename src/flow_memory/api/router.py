@@ -12,6 +12,16 @@ from flow_memory.economy.reputation import NonTransferableReputation
 from flow_memory.swarm.agent_card import AgentCard
 from flow_memory.swarm.delegation import DelegationContract
 from flow_memory.flowlang import EXAMPLE_FLOWLANG, compile_flowlang, run_flowlang_agent, validate_flowlang
+from flow_memory.api.neural_endpoints import (
+    neural_backends,
+    neural_benchmarks,
+    neural_checkpoints,
+    neural_gpu_run,
+    neural_gpu_runs,
+    neural_status,
+    neural_train_smoke,
+    neural_validate_smoke,
+)
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
 
@@ -253,6 +263,32 @@ class LocalApiRouter:
     def _flowlang_examples(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return {"examples": {"default": EXAMPLE_FLOWLANG}}
 
+    def _neural_status(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_status()
+
+    def _neural_backends(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_backends()
+
+    def _neural_gpu_runs(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_gpu_runs()
+
+    def _neural_gpu_run(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_gpu_run(params["run_id"])
+
+    def _neural_benchmarks(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_benchmarks()
+
+    def _neural_checkpoints(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_checkpoints()
+
+    def _neural_validate_smoke(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_validate_smoke_requested"})
+        return neural_validate_smoke()
+
+    def _neural_train_smoke(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "neural_train_smoke_requested", "local_only": True})
+        return neural_train_smoke(str(payload.get("out", "artifacts/neural/api_smoke")))
+
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -299,6 +335,14 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/flowlang/validate", router._flowlang_validate, "flowlang_validate")
     router.register("POST", "/flowlang/run", router._flowlang_run, "flowlang_run")
     router.register("GET", "/flowlang/examples", router._flowlang_examples, "flowlang_examples")
+    router.register("GET", "/neural/status", router._neural_status, "neural_status")
+    router.register("GET", "/neural/backends", router._neural_backends, "neural_backends")
+    router.register("GET", "/neural/gpu-runs", router._neural_gpu_runs, "neural_gpu_runs")
+    router.register("GET", "/neural/gpu-runs/{run_id}", router._neural_gpu_run, "neural_gpu_run")
+    router.register("GET", "/neural/benchmarks", router._neural_benchmarks, "neural_benchmarks")
+    router.register("GET", "/neural/checkpoints", router._neural_checkpoints, "neural_checkpoints")
+    router.register("POST", "/neural/validate-smoke", router._neural_validate_smoke, "neural_validate_smoke")
+    router.register("POST", "/neural/train-smoke", router._neural_train_smoke, "neural_train_smoke")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

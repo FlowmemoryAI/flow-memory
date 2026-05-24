@@ -40,6 +40,7 @@ class AgentProfile:
     memory_config: Mapping[str, Any] = field(default_factory=dict)
     economy_config: Mapping[str, Any] = field(default_factory=dict)
     neural_config: Mapping[str, Any] = field(default_factory=dict)
+    rl_config: Mapping[str, Any] = field(default_factory=dict)
     autonomy_mode: str = "supervised"
     risk_budget: RiskBudget = field(default_factory=RiskBudget)
     reputation: float = 0.0
@@ -57,6 +58,9 @@ class AgentProfile:
         backend = str(self.neural_config.get("backend", "none"))
         if backend not in {"none", "tiny_torch", "vjepa2", "videomae"}:
             errors.append(f"unknown neural backend: {backend}")
+        rl_backend = str(self.rl_config.get("backend", "local_tabular"))
+        if rl_backend not in {"local_tabular", "tabular_q", "heuristic", "pufferlib"}:
+            errors.append(f"unknown RL backend: {rl_backend}")
         return tuple(errors)
 
     def as_record(self) -> Mapping[str, Any]:
@@ -74,6 +78,7 @@ class AgentProfile:
             "memory_config": dict(self.memory_config),
             "economy_config": dict(self.economy_config),
             "neural_config": dict(self.neural_config),
+            "rl_config": dict(self.rl_config),
             "autonomy_mode": self.autonomy_mode,
             "risk_budget": self.risk_budget.as_record(),
             "reputation": self.reputation,

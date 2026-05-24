@@ -106,3 +106,8 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Neural plan/risk/skill/evaluation scoring | functional prototype | Advisory only; cannot authorize execution. |
 | Neural memory retrieval | functional prototype | Local deterministic embeddings/cosine search. |
 | V-JEPA 2 / VideoMAE | adapter seam | Explicit local checkpoints required; no downloads. |
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

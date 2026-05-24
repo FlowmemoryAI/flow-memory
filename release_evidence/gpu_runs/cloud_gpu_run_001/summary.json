@@ -1,0 +1,17 @@
+{
+  "benchmarks": {},
+  "cli_neural_backend": "",
+  "cli_neural_status": "",
+  "cuda_available": false,
+  "cuda_version": "",
+  "git_commit": "",
+  "gpu_name": "",
+  "ok": true,
+  "pytest_summary": "",
+  "python_version": "",
+  "reason": "artifact not present: artifacts\\incoming\\flow-memory-cloud-gpu-run-001.tar.gz",
+  "run_id": "cloud_gpu_run_001",
+  "skipped": true,
+  "source_artifact_sha256": "",
+  "torch_version": ""
+}

@@ -55,6 +55,14 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/marketplace/submit", "marketplace_submit", "Submit marketplace work"),
     EndpointSpec("POST", "/marketplace/verify", "marketplace_verify", "Verify marketplace work"),
     EndpointSpec("POST", "/marketplace/dispute", "marketplace_dispute", "Open marketplace dispute"),
+    EndpointSpec("GET", "/neural/status", "neural_status", "Return neural subsystem status"),
+    EndpointSpec("GET", "/neural/backends", "neural_backends", "List neural backend metadata"),
+    EndpointSpec("GET", "/neural/gpu-runs", "neural_gpu_runs", "List imported GPU validation runs"),
+    EndpointSpec("GET", "/neural/gpu-runs/{run_id}", "neural_gpu_run", "Get imported GPU validation run summary"),
+    EndpointSpec("GET", "/neural/benchmarks", "neural_benchmarks", "List neural benchmark metadata"),
+    EndpointSpec("GET", "/neural/checkpoints", "neural_checkpoints", "List checkpoint metadata without raw weights"),
+    EndpointSpec("POST", "/neural/validate-smoke", "neural_validate_smoke", "Return neural validation smoke command/status"),
+    EndpointSpec("POST", "/neural/train-smoke", "neural_train_smoke", "Run tiny local neural smoke trainers", request_fields=("out",)),
 )
 
 

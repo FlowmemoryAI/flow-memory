@@ -1,0 +1,36 @@
+:root {
+  color-scheme: dark;
+  --memory: #4dd8ff;
+  --neural: #9b7cff;
+  --economy: #f4c86a;
+  --safety: #ff8a4c;
+  --verified: #72f0a6;
+  --surface: #081016;
+}
+
+.mission-control-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 0%, rgba(77, 216, 255, 0.12), transparent 32%), var(--surface);
+  color: #eef7ff;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  padding: 32px;
+}
+
+.mission-control-canvas {
+  border: 1px solid rgba(238, 247, 255, 0.12);
+  border-radius: 28px;
+  min-height: 520px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-node { border-radius: 999px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.06); color: white; }
+.agent-node-worker { box-shadow: 0 0 32px rgba(77, 216, 255, 0.28); }
+.agent-node-verifier { box-shadow: 0 0 32px rgba(114, 240, 166, 0.28); }
+.agent-node-requester { box-shadow: 0 0 32px rgba(244, 200, 106, 0.28); }
+.memory-flow { color: var(--memory); }
+.neural-halo { color: var(--neural); }
+.economy-edge { color: var(--economy); }
+.safety-gate { color: var(--safety); }
+.panel { border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 16px; }

@@ -1,5 +1,5 @@
 {
-  "bundle_hash": "ea8c379002e92a4c48f2a5fa719958a6a915a9ea80533df0b3ba0a0fb9dae0d7",
+  "bundle_hash": "308bd3824534d9c087e2fa428afe383c70939adf60ed3df3559f65611eecc10c",
   "file_hashes": {
     "api_snapshot.json": "45e2c313458aa2bced951b2ea79ccec51bca7b559e10cf7833a1adfce35e5f38",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
@@ -8,7 +8,7 @@
     "dependency_inventory.json": "9819542e274c038b6ad5c1c07bfaff0806e2803f26c9a329f0d59d61360ffe83",
     "gpu_evidence.json": "55fb6c05277946061d0c912e89c602c05d0744a2dc4aa32953f8c15bafb26a71",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "91368a182b644c21f82129df86deb63837b5304ec9b8a4e271f1b8e964bd2ddd",
+    "release_manifest.json": "0b8d133fb0a0d994bd51ca0edb60d468fabf620e7ea25177e0d63552e906b38a",
     "rl_benchmarks.json": "0a4b15bbe5ea2bc0295c979f854d635c657af6e56515300863ccd6b8869ddba1",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7"
   },

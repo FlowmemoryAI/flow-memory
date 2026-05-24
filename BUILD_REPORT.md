@@ -491,3 +491,32 @@ Focused validation: learning-loop tests passed with `8 passed`.
 ## Full system and release target implementation
 
 Added `scripts/test_full_system.py` with quick/full modes, JSON and Markdown report output, and clear known-blocker reporting. Added `public-alpha-launch` as an explicit release decision target. The target requires full-system quick evidence, launch/payment/learning docs, RL evidence, and non-skipped GPU evidence. It remains blocked until the real RunPod artifact is imported and verified.
+
+## Final validation for full-system launch readiness
+
+Final validation after all code/doc changes:
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q` | Pass: `431 passed, 17 skipped` |
+| `bash scripts/verify.sh` | Pass |
+| launch scripts and examples | Pass |
+| `python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json` | Pass |
+| learning loop scripts/examples | Pass |
+| `python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json` | Pass |
+| `python scripts/test_full_system.py --full --json-out artifacts/full_system/full_report.json` | Pass; optional release targets recorded GPU evidence blocker |
+| RL examples and benchmarks | Pass |
+| neural benchmarks | Pass where dependency-free; Torch-only paths skipped locally because Torch is not installed |
+| `python scripts/export_release_evidence.py` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --target local` | Pass |
+| `python scripts/release_decision.py --target neural-gpu-smoke` | Expected block: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-neural` | Expected block: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-launch` | Expected block: `gpu_evidence_verified_run_missing` |
+| `docker compose config` | Pass |
+| `forge build && forge test` | Pass: `16 tests passed` |
+| `cargo test` in `rust/flow-memory-core` | Pass: `2 passed` |
+| `git diff --check` | Pass |
+| secret scan | Pass: no obvious secret patterns found |
+
+The repo is ready for local public-alpha demos. Stronger neural GPU/public-alpha launch evidence gates remain not ready until the real RunPod GPU artifact is placed at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` and imported.

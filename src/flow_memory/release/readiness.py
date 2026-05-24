@@ -122,10 +122,22 @@ def _neural_gpu_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     blockers = list(_public_alpha_blockers(root, gate_ok))
     evidence = root / "release_evidence" / "gpu_runs"
     if not evidence.exists():
+        blockers.append("gpu_evidence_missing")
         return tuple(blockers)
     report = _gpu_report(evidence)
-    if report.get("runs") and not report.get("ok"):
+    runs = tuple(report.get("runs", ()))
+    if not runs:
+        blockers.append("gpu_evidence_missing")
+        return tuple(blockers)
+    if not report.get("ok"):
         blockers.append("gpu_evidence_invalid")
+    verified = any(
+        bool(record.get("ok"))
+        and not bool(dict(record.get("summary", {})).get("skipped", False))
+        for record in runs
+    )
+    if not verified:
+        blockers.append("gpu_evidence_verified_run_missing")
     return tuple(blockers)
 
 

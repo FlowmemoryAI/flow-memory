@@ -11,7 +11,12 @@ def main(argv=None)->int:
     p=argparse.ArgumentParser(description="Verify imported GPU run evidence")
     p.add_argument("path", type=Path, default=ROOT/"release_evidence"/"gpu_runs", nargs="?")
     args=p.parse_args(argv)
-    result=verify_gpu_run(args.path)
+    path = args.path
+    if not path.exists() and not path.is_absolute():
+        candidate = ROOT / "release_evidence" / "gpu_runs" / path
+        if candidate.exists():
+            path = candidate
+    result=verify_gpu_run(path)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result.get("ok") else 1
 if __name__=="__main__": raise SystemExit(main())

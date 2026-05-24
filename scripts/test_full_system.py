@@ -68,6 +68,7 @@ def quick_checks() -> tuple[SystemCheck, ...]:
         SystemCheck("api_help", (py, "scripts/run_local_api_server.py", "--help")),
         SystemCheck("release_api", (py, "scripts/check_release_api.py", "--require-scopes")),
         SystemCheck("visual_replay_export", (py, "scripts/export_visual_replay.py", "artifacts/network/local_network_report.json", "--out", "dashboard/src/mock-data/local-network-replay.json")),
+        SystemCheck("visual_api", (py, "scripts/check_visual_api.py", "--require-scopes")),
         SystemCheck("release_local", (py, "scripts/release_decision.py", "--target", "local")),
     )
 

@@ -16,3 +16,5 @@ RL outputs are advisory suggestions. PolicyEngine, ApprovalGate, autonomy mode, 
 ## Structured observations
 
 Flow Arena observations now include nested `agent`, `economy`, `safety`, and `memory` features in addition to `step`, `score`, and `env_id`. These features track local prototype signals such as reputation, risk budget, disputes, slashing events, approval requests, delegation count, and memory relevance.
+
+The adversarial environment set now includes reputation gaming, sybil-risk, and colluding-verifier simulations. They are local deterministic fixtures for training and testing advisory policies against abuse patterns; they are not proof of production Sybil resistance or fraud prevention.

@@ -520,3 +520,28 @@ Final validation after all code/doc changes:
 | secret scan | Pass: no obvious secret patterns found |
 
 The repo is ready for local public-alpha demos. Stronger neural GPU/public-alpha launch evidence gates remain not ready until the real RunPod GPU artifact is placed at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` and imported.
+
+## Overnight autonomous build queue update
+
+Additional implementation slices completed after the full-system launch readiness milestone:
+
+- GPU artifact recovery helper: `scripts/recover_gpu_artifact_instructions.py`, `docs/GPU_ARTIFACT_RECOVERY.md`, and focused tests. The helper preserves the `gpu_evidence_verified_run_missing` blocker instead of manufacturing evidence.
+- Local API launch endpoints: `/agents/launch`, `/agents/launch-flowlang`, `/agents/launch-neural`, and `/network/run-scenario` plus OpenAPI/API snapshot updates and scope tests.
+- Public alpha launch evidence bundle: export/verify scripts and release evidence helpers for full-system quick, local network, API, docs, neural evidence, and RL benchmark summaries.
+- Adversarial Flow Arena environments: reputation-gaming, sybil-risk, and colluding-verifier envs with registry/vectorization tests.
+- Optional torch actor-critic smoke trainer: `src/flow_memory/rl/torch_trainer.py` and `scripts/train_rl_torch_smoke.py --device ...`; the path skips clearly without torch/CUDA and remains advisory.
+- Dashboard public-alpha mock fixtures for neural/GPU evidence, RL benchmark metrics, launch paths, local network scenarios, and local simulated payment flows.
+
+Focused validation run for these slices:
+
+| Check | Result |
+| --- | --- |
+| GPU recovery helper tests | Pass: `2 passed` |
+| API launch endpoint/snapshot tests | Pass: `5 passed` |
+| Public alpha launch evidence tests | Pass: `2 passed` |
+| Adversarial RL environment tests | Pass: `7 passed` |
+| Torch RL trainer/script tests | Pass: `6 passed` |
+| Dashboard mock-data Python test | Pass: `2 passed` |
+| Dashboard `npm test` | Pass |
+
+The RunPod artifact tarball is still required at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` before `neural-gpu-smoke`, `public-alpha-neural`, or `public-alpha-launch` can pass.

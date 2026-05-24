@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from flow_memory.release.readiness import decide_release_readiness
+
 
 ROOT = Path(__file__).resolve().parents[3]
 ALLOWED_TARGETS = {"local", "neural-gpu-smoke", "public-alpha-neural", "public-alpha-launch"}
@@ -31,6 +31,7 @@ def release_evidence_status(root: str | Path = ROOT) -> Mapping[str, Any]:
 
 
 def release_decision_status(target: str, root: str | Path = ROOT) -> Mapping[str, Any]:
+    from flow_memory.release.readiness import decide_release_readiness
     normalized = target.strip()
     if normalized not in ALLOWED_TARGETS:
         raise ValueError(f"unsupported release decision target: {target}")

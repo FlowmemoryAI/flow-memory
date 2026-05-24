@@ -34,6 +34,9 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/agents/{did}/memory", "agent_memory", "Get local memory records for an agent"),
     EndpointSpec("GET", "/agents/{did}/skills", "agent_skills", "Get skills associated with an agent"),
     EndpointSpec("POST", "/agents/{did}/run", "agent_run", "Run a local agent cycle placeholder"),
+    EndpointSpec("POST", "/agents/launch", "agents_launch", "Launch a local agent through the API", request_fields=("goal", "name", "identity", "autonomy_mode")),
+    EndpointSpec("POST", "/agents/launch-flowlang", "agents_launch_flowlang", "Launch a FlowLang-declared agent through the API", request_fields=("source", "goal")),
+    EndpointSpec("POST", "/agents/launch-neural", "agents_launch_neural", "Launch a neural-advisory agent through the API", request_fields=("goal", "backend")),
     EndpointSpec("POST", "/marketplace/tasks", "marketplace_task_create", "Create a local marketplace task", request_fields=("title", "reward", "requester", "metadata")),
     EndpointSpec("POST", "/marketplace/bids", "marketplace_bid_create", "Create a local marketplace bid", request_fields=("task_id", "agent_did", "price")),
     EndpointSpec("POST", "/marketplace/settle", "marketplace_settle", "Settle a local marketplace task"),
@@ -67,6 +70,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/rl/benchmarks", "rl_benchmarks", "List local RL benchmark metadata"),
     EndpointSpec("POST", "/rl/evaluate", "rl_evaluate", "Evaluate a local RL policy", request_fields=("env_id", "policy", "episodes")),
     EndpointSpec("POST", "/rl/train-smoke", "rl_train_smoke", "Run local tabular Q smoke training", request_fields=("env_id", "episodes")),
+    EndpointSpec("POST", "/network/run-scenario", "network_run_scenario", "Run a local network scenario", request_fields=("scenario",)),
 )
 
 

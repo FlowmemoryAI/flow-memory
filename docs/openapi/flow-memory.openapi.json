@@ -27,6 +27,135 @@
         ]
       }
     },
+    "/agents/launch": {
+      "post": {
+        "operationId": "agents_launch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "autonomy_mode": {
+                    "type": "string"
+                  },
+                  "goal": {
+                    "type": "string"
+                  },
+                  "identity": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Launch a local agent through the API",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/launch-flowlang": {
+      "post": {
+        "operationId": "agents_launch_flowlang",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "goal": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Launch a FlowLang-declared agent through the API",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/launch-neural": {
+      "post": {
+        "operationId": "agents_launch_neural",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "backend": {
+                    "type": "string"
+                  },
+                  "goal": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Launch a neural-advisory agent through the API",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/agents/{did}": {
       "get": {
         "operationId": "agents_get",
@@ -588,6 +717,44 @@
         "summary": "Verify marketplace work",
         "tags": [
           "marketplace"
+        ]
+      }
+    },
+    "/network/run-scenario": {
+      "post": {
+        "operationId": "network_run_scenario",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "scenario": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run a local network scenario",
+        "tags": [
+          "network"
         ]
       }
     },

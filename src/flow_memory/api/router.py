@@ -12,6 +12,8 @@ from flow_memory.economy.reputation import NonTransferableReputation
 from flow_memory.swarm.agent_card import AgentCard
 from flow_memory.swarm.delegation import DelegationContract
 from flow_memory.flowlang import EXAMPLE_FLOWLANG, compile_flowlang, run_flowlang_agent, validate_flowlang
+from flow_memory.agents.profile import AgentProfile
+from flow_memory.agents.runner import AgentRunner
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -108,6 +110,44 @@ class LocalApiRouter:
         card = self._agent(params["did"])
         goal = str(payload.get("goal", "Explore and report"))
         return {"agent_id": card.did, "goal": goal, "status": "accepted_local_run"}
+
+    def _agents_launch(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        goal = str(payload.get("goal", "Explore and report"))
+        profile = AgentProfile(
+            name=str(payload.get("name", "API Launch Agent")),
+            identity=str(payload.get("identity", "did:flow:api-launch-agent")),
+            goals=(goal,),
+            capabilities=("local_reasoning", "safe_tool_use"),
+            allowed_tools=("observe_environment", "respond"),
+            allowed_skills=("research_brief",),
+            autonomy_mode=str(payload.get("autonomy_mode", "autonomous_local")),
+            metadata={"launch_path": "api"},
+        )
+        result = AgentRunner(profile).run_cycle(goal)
+        return {"agent": profile.as_record(), "result": result.as_record(), "safety_authority": "policy_engine_and_approval_gate"}
+
+    def _agents_launch_flowlang(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        source = str(payload.get("source", EXAMPLE_FLOWLANG))
+        prompt = str(payload.get("goal", payload.get("prompt", "Run the declared agent")))
+        flow_result = self._flowlang_run({}, {"source": source, "prompt": prompt})
+        return {"launch_mode": "flowlang", "result": flow_result, "safety_authority": "policy_engine_and_approval_gate"}
+
+    def _agents_launch_neural(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        goal = str(payload.get("goal", "Explore and report"))
+        backend = str(payload.get("backend", "tiny_torch"))
+        profile = AgentProfile(
+            name=str(payload.get("name", "API Neural Launch Agent")),
+            identity=str(payload.get("identity", "did:flow:api-neural-agent")),
+            goals=(goal,),
+            capabilities=("local_reasoning", "neural_advisory"),
+            allowed_tools=("observe_environment", "respond"),
+            allowed_skills=("research_brief",),
+            neural_config={"backend": backend, "perception": "dual_stream"},
+            autonomy_mode="supervised",
+            metadata={"launch_path": "api_neural"},
+        )
+        result = AgentRunner(profile).run_cycle(goal)
+        return {"agent": profile.as_record(), "result": result.as_record(), "neural": result.output.get("neural", {}), "safety_authority": "policy_engine_and_approval_gate"}
 
     def _marketplace_task_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         title = str(payload.get("title", "")).strip()
@@ -304,6 +344,12 @@ class LocalApiRouter:
         self.audit_events.append({"event": "rl_train_smoke_requested", "local_only": True})
         return rl_train_smoke(payload)
 
+    def _network_run_scenario(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        from flow_memory.network import LocalNetworkOrchestrator
+
+        scenario = str(payload.get("scenario", "all"))
+        return LocalNetworkOrchestrator().run(scenario).as_record()
+
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -330,6 +376,9 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/agents/{did}/memory", router._agent_memory, "agent_memory")
     router.register("GET", "/agents/{did}/skills", router._agent_skills, "agent_skills")
     router.register("POST", "/agents/{did}/run", router._agent_run, "agent_run")
+    router.register("POST", "/agents/launch", router._agents_launch, "agents_launch")
+    router.register("POST", "/agents/launch-flowlang", router._agents_launch_flowlang, "agents_launch_flowlang")
+    router.register("POST", "/agents/launch-neural", router._agents_launch_neural, "agents_launch_neural")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")
@@ -362,6 +411,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/rl/benchmarks", router._rl_benchmarks, "rl_benchmarks")
     router.register("POST", "/rl/evaluate", router._rl_evaluate, "rl_evaluate")
     router.register("POST", "/rl/train-smoke", router._rl_train_smoke, "rl_train_smoke")
+    router.register("POST", "/network/run-scenario", router._network_run_scenario, "network_run_scenario")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

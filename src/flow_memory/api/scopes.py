@@ -20,6 +20,8 @@ NEURAL_EVIDENCE_SCOPE = "neural:evidence"
 RL_READ_SCOPE = "rl:read"
 RL_EVALUATE_SCOPE = "rl:evaluate"
 RL_TRAIN_SCOPE = "rl:train"
+AGENT_LAUNCH_SCOPE = "agents:launch"
+NETWORK_RUN_SCOPE = "network:run"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -32,6 +34,8 @@ KNOWN_SCOPES = frozenset({
     RL_READ_SCOPE,
     RL_EVALUATE_SCOPE,
     RL_TRAIN_SCOPE,
+    AGENT_LAUNCH_SCOPE,
+    NETWORK_RUN_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -118,6 +122,10 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (NEURAL_TRAIN_SCOPE,)
     if path_key.startswith("/neural/"):
         return (NEURAL_READ_SCOPE,)
+    if path_key in {"/agents/launch", "/agents/launch-flowlang", "/agents/launch-neural"}:
+        return (AGENT_LAUNCH_SCOPE,)
+    if path_key == "/network/run-scenario":
+        return (NETWORK_RUN_SCOPE,)
     if path_key == "/rl/evaluate":
         return (RL_EVALUATE_SCOPE,)
     if path_key == "/rl/train-smoke":

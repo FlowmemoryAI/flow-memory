@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping
 
-from flow_memory.neural.torch_optional import OptionalDependencyError, is_torch_available, require_torch
+from flow_memory.neural.torch_optional import is_torch_available, require_torch
 from flow_memory.rl.env import FlowEnv
 
 
@@ -60,25 +60,6 @@ def torch_policy_status() -> Mapping[str, Any]:
 
 
 def train_torch_policy_smoke(env_id: str = "safety_gate", *, steps: int = 5, seed: int = 0) -> Mapping[str, Any]:
-    try:
-        torch = require_torch()
-    except OptionalDependencyError as exc:
-        return {"ok": True, "skipped": True, "reason": str(exc), "backend": "torch"}
-    from flow_memory.rl.registry import make_env
+    from flow_memory.rl.torch_trainer import TorchRLTrainerConfig, train_torch_actor_critic_smoke
 
-    env = make_env(env_id, seed=seed)
-    policy = TorchPolicy(env, TorchPolicyConfig(seed=seed))
-    optimizer = torch.optim.SGD(policy.model.parameters(), lr=0.01)
-    losses: list[float] = []
-    for step_index in range(max(1, steps)):
-        obs = env.reset(seed + step_index)
-        logits = policy.model(policy.encode_observation(obs))
-        # Supervise toward the known safe heuristic action for a tiny smoke path.
-        target_label = "choose_safer_plan" if "choose_safer_plan" in env.action_labels else env.action_labels[0]
-        target = torch.tensor([env.action_labels.index(target_label)], dtype=torch.long)
-        loss = torch.nn.functional.cross_entropy(logits.unsqueeze(0), target)
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        losses.append(float(loss.detach().item()))
-    return {"ok": True, "skipped": False, "backend": "torch", "env_id": env_id, "steps": steps, "losses": losses, "policy": policy.as_record()}
+    return train_torch_actor_critic_smoke(TorchRLTrainerConfig(env_id=env_id, steps=steps, seed=seed))

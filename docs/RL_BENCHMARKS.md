@@ -15,3 +15,5 @@ Metrics include throughput, mean reward, success rate, safety violation rate, di
 `benchmarks/rl_policy_comparison_benchmark.py` compares random, heuristic, and tabular Q policies on a deterministic Flow Arena environment and writes `artifacts/rl/rl_policy_comparison_benchmark.json`.
 
 `src/flow_memory/rl/torch_trainer.py` adds an optional torch actor-critic smoke trainer behind the `ml` extra. If torch or CUDA is missing, the trainer reports a structured skip; it does not affect the base test suite and it is not a production PPO/A2C implementation.
+
+`benchmarks/rl_adversarial_env_benchmark.py` compares random and heuristic policies on reputation-gaming, sybil-risk, and colluding-verifier fixtures. It reports prototype abuse-pattern metrics only; it is not production fraud/Sybil resistance evidence.

@@ -453,6 +453,34 @@
   padding: 6px 10px;
   color: var(--subtle);
 }
+.current-event-readout {
+  display: grid;
+  grid-template-columns: 120px 1fr minmax(180px, 0.8fr);
+  gap: 10px;
+  align-items: baseline;
+  border-top: 1px solid rgba(238,246,251,0.12);
+  border-bottom: 1px solid rgba(238,246,251,0.08);
+  padding: 10px 0;
+  margin-top: 12px;
+}
+
+.current-event-readout span,
+.current-event-readout small {
+  color: var(--subtle);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.current-event-readout strong {
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.event-timeline li[data-event-type="economy"] b { color: var(--economy); }
+.event-timeline li[data-event-type="memory"] b { color: var(--memory); }
+.event-timeline li[data-event-type="neural"] b { color: var(--neural); }
+.event-timeline li[data-event-type="safety"] b { color: var(--safety); }
+.event-timeline li[data-event-type="rl"] b { color: var(--verified); }
 
 .event-timeline {
   display: grid;

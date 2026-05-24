@@ -28,6 +28,8 @@ def economy_records_to_visual_events(records: Iterable[Mapping[str, Any]], *, pr
                 "amount": record.get("amount", record.get("worker_net_amount", 0.0)),
                 "currency": record.get("currency", "LOCAL_CREDITS"),
                 "status": record.get("status", "observed"),
+                "task_id": record.get("task_id", ""),
+                "reputation_delta": record.get("reputation_delta", 0.0),
             }, provenance=provenance))
     return tuple(events)
 
@@ -59,32 +61,32 @@ def economy_receipts_to_visual_events(receipts: Iterable[Mapping[str, Any]], *, 
                 "reward": payload.get("reward", 0.0),
             }, provenance=provenance))
         elif receipt_type == "bid_submitted":
-            events.append(_edge(receipt_id, actor, task_id, "bid", payload.get("price", 0.0), "submitted", provenance))
+            events.append(_edge(receipt_id, actor, task_id, "bid", payload.get("price", 0.0), "submitted", provenance, task_id=task_id))
         elif receipt_type == "task_assigned":
             worker = str(payload.get("agent") or "")
             assignment_by_task[task_id] = worker
-            events.append(_edge(receipt_id, actor, worker, "task_assignment", 0.0, "assigned", provenance))
+            events.append(_edge(receipt_id, actor, worker, "task_assignment", 0.0, "assigned", provenance, task_id=task_id))
         elif receipt_type == "escrow_created":
             amount = float(payload.get("amount", 0.0) or 0.0)
             escrow_amount_by_task[task_id] = amount
-            events.append(_edge(receipt_id, actor, assignment_by_task.get(task_id, task_id), "escrow", amount, "locked", provenance))
+            events.append(_edge(receipt_id, actor, assignment_by_task.get(task_id, task_id), "escrow", amount, "locked", provenance, task_id=task_id))
         elif receipt_type == "work_submitted":
-            events.append(_edge(receipt_id, actor, task_id, "work_submission", 0.0, "submitted", provenance))
+            events.append(_edge(receipt_id, actor, task_id, "work_submission", 0.0, "submitted", provenance, task_id=task_id))
         elif receipt_type == "verification":
             status = str(payload.get("status", "verified"))
-            events.append(_edge(receipt_id, actor, assignment_by_task.get(task_id, task_id), "verification", 0.0, status, provenance))
+            events.append(_edge(receipt_id, actor, assignment_by_task.get(task_id, task_id), "verification", 0.0, status, provenance, task_id=task_id))
         elif receipt_type == "settlement":
-            events.append(_edge(receipt_id, actor, payload.get("worker", assignment_by_task.get(task_id, task_id)), "settlement", escrow_amount_by_task.get(task_id, 0.0), "settled", provenance))
+            events.append(_edge(receipt_id, actor, payload.get("worker", assignment_by_task.get(task_id, task_id)), "settlement", escrow_amount_by_task.get(task_id, 0.0), "settled", provenance, task_id=task_id))
         elif receipt_type == "dispute":
-            events.append(_edge(receipt_id, actor, assignment_by_task.get(task_id, task_id), "dispute", 0.0, str(payload.get("status", "open")), provenance))
+            events.append(_edge(receipt_id, actor, assignment_by_task.get(task_id, task_id), "dispute", 0.0, str(payload.get("status", "open")), provenance, task_id=task_id))
         elif receipt_type == "slashing":
-            events.append(_edge(receipt_id, actor, task_id, "slashing", abs(float(payload.get("delta", 0.0) or 0.0)), "slashed", provenance))
+            events.append(_edge(receipt_id, actor, task_id, "slashing", abs(float(payload.get("delta", 0.0) or 0.0)), "slashed", provenance, task_id=task_id, reputation_delta=float(payload.get("delta", 0.0) or 0.0)))
         elif receipt_type == "reputation_update":
-            events.append(_edge(receipt_id, task_id, actor, "reputation", float(payload.get("delta", 0.0) or 0.0), "updated", provenance))
+            events.append(_edge(receipt_id, task_id, actor, "reputation", float(payload.get("delta", 0.0) or 0.0), "updated", provenance, task_id=task_id, reputation_delta=float(payload.get("delta", 0.0) or 0.0)))
     return tuple(events)
 
 
-def _edge(edge_id: str, from_id: str, to_id: Any, kind: str, amount: Any, status: str, provenance: str) -> VisualEvent:
+def _edge(edge_id: str, from_id: str, to_id: Any, kind: str, amount: Any, status: str, provenance: str, *, task_id: str = "", reputation_delta: float = 0.0) -> VisualEvent:
     return visual_event("economy", edge_id, {
         "edge_id": edge_id,
         "from_id": from_id,
@@ -93,4 +95,6 @@ def _edge(edge_id: str, from_id: str, to_id: Any, kind: str, amount: Any, status
         "amount": amount,
         "currency": "LOCAL_CREDITS",
         "status": status,
-    }, provenance=provenance)
+        "task_id": task_id,
+        "reputation_delta": reputation_delta,
+    }, provenance=provenance, source_event_id=edge_id)

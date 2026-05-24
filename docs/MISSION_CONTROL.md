@@ -11,6 +11,18 @@ It is connected to local Flow Memory state through:
 5. dependency-free local API endpoints,
 6. dashboard TypeScript components.
 
+## V2 polish status
+
+Mission Control V2 adds demo-safe UX around the existing telemetry backend:
+
+- reducer lifecycle precedence for task/economy status so replay duplicates cannot regress a settled task;
+- replay controls with play/pause/reset, step forward/backward, speed control, timeline, and event-type filters;
+- runtime, agent, economy, neural, RL, and audit panels backed by `VisualNetworkState` fields;
+- explicit mock / replay / live local API mode copy and offline API state;
+- regenerated deterministic replay data from the real local network `all` scenario.
+
+The current replay includes four agents, settled economy work, dispute/slashing, neural advisory metadata, RL Arena metadata, memory events, safety gates, and audit records.
+
 ## What is real today
 
 - Local agents are real `AgentProfile` / `AgentRunner` objects.

@@ -18,7 +18,7 @@ from flow_memory.release import decide_release_readiness
 def main() -> int:
     parser = argparse.ArgumentParser(description="Evaluate Flow Memory release readiness")
     parser.add_argument("--root", type=Path, default=Path.cwd(), help="Repository root")
-    parser.add_argument("--target", choices=("local", "public-alpha", "testnet", "testnet-dry-run", "neural-gpu-smoke", "public-alpha-neural", "public-alpha-launch", "production"), default="local")
+    parser.add_argument("--target", choices=("local", "local-public-alpha", "public-alpha", "testnet", "testnet-dry-run", "neural-gpu-smoke", "public-alpha-neural", "public-alpha-launch", "production"), default="local")
     args = parser.parse_args()
 
     decision = decide_release_readiness(args.root, target=args.target)

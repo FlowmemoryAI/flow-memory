@@ -378,3 +378,8 @@ Expanded `VerifierEnv` with bad/good/unknown work quality and collusion-risk beh
 ## Slice: RL policy comparison benchmark
 
 Added `benchmarks/rl_policy_comparison_benchmark.py` and `tests/test_rl_policy_comparison_benchmark.py` to compare random, heuristic, and tabular Q policies, including a Q-learning improvement assertion.
+
+
+## Slice: optional torch RL policy skeleton
+
+Added `src/flow_memory/rl/torch_policy.py`, `scripts/train_rl_torch_smoke.py`, and tests for optional torch import behavior and tiny training smoke output. The base install still works without Torch.

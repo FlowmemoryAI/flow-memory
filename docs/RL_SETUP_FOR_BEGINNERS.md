@@ -12,3 +12,15 @@ python benchmarks/rl_training_smoke_benchmark.py
 ```
 
 Generated RL artifacts are written under `artifacts/rl/` and are ignored by git.
+
+
+## Optional torch RL smoke
+
+Torch RL is optional and behind the `ml` extra. Run:
+
+```bash
+pip install -e ".[dev,ml]"
+python scripts/train_rl_torch_smoke.py --steps 5 --out artifacts/rl/torch_smoke.json
+```
+
+Without Torch installed, the script writes a structured skipped result instead of failing the base suite.

@@ -29,6 +29,7 @@ PUBLIC_ALPHA_EVIDENCE = (
     "openapi_snapshot",
 )
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
+PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _neural_gpu_blockers(root_path, gates.ok)
         classification = "neural_gpu_smoke_candidate" if not blockers else "neural_gpu_smoke_local_skip"
         evidence = NEURAL_GPU_EVIDENCE
+    elif target == "public-alpha-neural":
+        blockers = _public_alpha_neural_blockers(root_path, gates.ok)
+        classification = "public_alpha_neural_candidate" if not blockers else "blocked_public_alpha_neural"
+        evidence = PUBLIC_ALPHA_NEURAL_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -138,6 +143,18 @@ def _neural_gpu_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     )
     if not verified:
         blockers.append("gpu_evidence_verified_run_missing")
+    return tuple(blockers)
+
+def _public_alpha_neural_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_neural_gpu_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.rl_evidence import rl_benchmark_evidence, verify_rl_benchmark_evidence
+
+        report = verify_rl_benchmark_evidence(rl_benchmark_evidence(root))
+    except Exception:
+        report = {"ok": False, "benchmark_count": 0}
+    if not report.get("ok"):
+        blockers.append("rl_benchmark_evidence_missing")
     return tuple(blockers)
 
 

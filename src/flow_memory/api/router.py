@@ -27,6 +27,7 @@ from flow_memory.api.neural_endpoints import (
 from flow_memory.api.rl_endpoints import rl_benchmarks, rl_envs, rl_evaluate, rl_train_smoke
 from flow_memory.api.release_endpoints import release_decision_status, release_evidence_status
 from flow_memory.api.dashboard_endpoints import dashboard_snapshot
+from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
 
@@ -350,7 +351,27 @@ class LocalApiRouter:
         from flow_memory.network import LocalNetworkOrchestrator
 
         scenario = str(payload.get("scenario", "all"))
-        return LocalNetworkOrchestrator().run(scenario).as_record()
+        emit_visual = bool(payload.get("emit_visual_events", payload.get("visual", False)))
+        return LocalNetworkOrchestrator().run(scenario, emit_visual_events=emit_visual).as_record()
+
+    def _network_state(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return network_state()
+
+    def _visual_state(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return current_visual_state()
+
+    def _visual_events(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return current_visual_events()
+
+    def _visual_schema(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return visual_schema_endpoint()
+
+    def _visual_replay(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return visual_replay(params["run_id"])
+
+    def _visual_replay_start(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "visual_replay_start_requested", "scenario": str(payload.get("scenario", "all"))})
+        return start_visual_replay(payload)
 
     def _release_evidence(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return release_evidence_status()
@@ -423,6 +444,12 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/rl/evaluate", router._rl_evaluate, "rl_evaluate")
     router.register("POST", "/rl/train-smoke", router._rl_train_smoke, "rl_train_smoke")
     router.register("POST", "/network/run-scenario", router._network_run_scenario, "network_run_scenario")
+    router.register("GET", "/network/state", router._network_state, "network_state")
+    router.register("GET", "/visual/state", router._visual_state, "visual_state")
+    router.register("GET", "/visual/events", router._visual_events, "visual_events")
+    router.register("GET", "/visual/schema", router._visual_schema, "visual_schema")
+    router.register("GET", "/visual/replay/{run_id}", router._visual_replay, "visual_replay")
+    router.register("POST", "/visual/replay/start", router._visual_replay_start, "visual_replay_start")
     router.register("GET", "/release/evidence", router._release_evidence, "release_evidence")
     router.register("GET", "/release/decision/{target}", router._release_decision, "release_decision")
     router.register("GET", "/dashboard/snapshot", router._dashboard_snapshot, "dashboard_snapshot")

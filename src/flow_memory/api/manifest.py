@@ -74,6 +74,12 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/release/evidence", "release_evidence", "Return local release evidence bundle metadata"),
     EndpointSpec("GET", "/release/decision/{target}", "release_decision", "Return local release readiness decision for a target"),
     EndpointSpec("GET", "/dashboard/snapshot", "dashboard_snapshot", "Return local dashboard mock snapshot metadata"),
+    EndpointSpec("GET", "/visual/state", "visual_state", "Return current Mission Control visual state"),
+    EndpointSpec("GET", "/visual/events", "visual_events", "Return recent Mission Control visual events"),
+    EndpointSpec("GET", "/visual/schema", "visual_schema", "Return Mission Control visual telemetry schema"),
+    EndpointSpec("GET", "/visual/replay/{run_id}", "visual_replay", "Return a saved visual replay snapshot"),
+    EndpointSpec("GET", "/network/state", "network_state", "Return current local network state with visual projection"),
+    EndpointSpec("POST", "/visual/replay/start", "visual_replay_start", "Run a local visual replay scenario", request_fields=("scenario", "run_id")),
 )
 
 

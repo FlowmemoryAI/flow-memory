@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from flow_memory.agents.runner import AgentRunner
-from flow_memory.api.router import create_default_router
+
 from flow_memory.economy.economy_v3 import EconomyV3
 from flow_memory.network.receipts import NetworkReceipt
 from flow_memory.network.reports import LocalNetworkReport, ScenarioReport
@@ -90,6 +90,7 @@ class LocalFlowMemoryNetwork:
         return ScenarioReport("safety-approval", True, "risky/economic action was routed to approval instead of executing", data)
 
     def register_router_agents(self) -> Mapping[str, Any]:
+        from flow_memory.api.router import create_default_router
         router = create_default_router()
         for item in self.topology.participants:
             router.register_agent(item.card)

@@ -24,6 +24,8 @@ AGENT_LAUNCH_SCOPE = "agents:launch"
 NETWORK_RUN_SCOPE = "network:run"
 RELEASE_READ_SCOPE = "release:read"
 DASHBOARD_READ_SCOPE = "dashboard:read"
+VISUAL_READ_SCOPE = "visual:read"
+VISUAL_STREAM_SCOPE = "visual:stream"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -40,6 +42,8 @@ KNOWN_SCOPES = frozenset({
     NETWORK_RUN_SCOPE,
     RELEASE_READ_SCOPE,
     DASHBOARD_READ_SCOPE,
+    VISUAL_READ_SCOPE,
+    VISUAL_STREAM_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -140,6 +144,10 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (RELEASE_READ_SCOPE,)
     if path_key.startswith("/dashboard/"):
         return (DASHBOARD_READ_SCOPE,)
+    if path_key.startswith("/visual/") or path_key == "/network/state":
+        return (VISUAL_READ_SCOPE,)
+    if path_key == "/events/stream":
+        return (VISUAL_STREAM_SCOPE,)
     if normalized_method in READ_METHODS:
         return (READ_SCOPE,)
     return (WRITE_SCOPE,)

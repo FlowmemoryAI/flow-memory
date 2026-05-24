@@ -1,118 +1,1609 @@
 {
-  "endpoint_count": 54,
-  "manifest_hash": "e66ed83aacd137284de9416a0d1ea01a792b283245f5fa8b099522fa7056cb06",
-  "openapi_hash": "b0542fa0066e3f414f7a77b4015fe9fb83574b3228ff7e4b200ebe758809cfe7",
-  "operations": [
-    "GET /agents",
-    "GET /agents/{did}",
-    "GET /agents/{did}/memory",
-    "GET /agents/{did}/skills",
-    "GET /audit",
-    "GET /dashboard/snapshot",
-    "GET /flowlang/examples",
-    "GET /health",
-    "GET /manifest",
-    "GET /network/state",
-    "GET /neural/backends",
-    "GET /neural/benchmarks",
-    "GET /neural/checkpoints",
-    "GET /neural/gpu-runs",
-    "GET /neural/gpu-runs/{run_id}",
-    "GET /neural/status",
-    "GET /release/decision/{target}",
-    "GET /release/evidence",
-    "GET /reputation/{did}",
-    "GET /rl/benchmarks",
-    "GET /rl/envs",
-    "GET /runtime/status",
-    "GET /swarm/agents",
-    "GET /verification/result",
-    "GET /verification/{contract_id}",
-    "GET /visual/events",
-    "GET /visual/replay/{run_id}",
-    "GET /visual/schema",
-    "GET /visual/state",
-    "POST /agents/launch",
-    "POST /agents/launch-flowlang",
-    "POST /agents/launch-neural",
-    "POST /agents/{did}/run",
-    "POST /attestations",
-    "POST /flowlang/compile",
-    "POST /flowlang/run",
-    "POST /flowlang/validate",
-    "POST /marketplace/assign",
-    "POST /marketplace/bids",
-    "POST /marketplace/dispute",
-    "POST /marketplace/settle",
-    "POST /marketplace/submit",
-    "POST /marketplace/tasks",
-    "POST /marketplace/verify",
-    "POST /network/run-scenario",
-    "POST /neural/train-smoke",
-    "POST /neural/validate-smoke",
-    "POST /rl/evaluate",
-    "POST /rl/train-smoke",
-    "POST /runtime/tick",
-    "POST /swarm/delegate",
-    "POST /verification/submit",
-    "POST /verification/{contract_id}",
-    "POST /visual/replay/start"
-  ],
-  "path_count": 53,
-  "paths": [
-    "/agents",
-    "/agents/launch",
-    "/agents/launch-flowlang",
-    "/agents/launch-neural",
-    "/agents/{did}",
-    "/agents/{did}/memory",
-    "/agents/{did}/run",
-    "/agents/{did}/skills",
-    "/attestations",
-    "/audit",
-    "/dashboard/snapshot",
-    "/flowlang/compile",
-    "/flowlang/examples",
-    "/flowlang/run",
-    "/flowlang/validate",
-    "/health",
-    "/manifest",
-    "/marketplace/assign",
-    "/marketplace/bids",
-    "/marketplace/dispute",
-    "/marketplace/settle",
-    "/marketplace/submit",
-    "/marketplace/tasks",
-    "/marketplace/verify",
-    "/network/run-scenario",
-    "/network/state",
-    "/neural/backends",
-    "/neural/benchmarks",
-    "/neural/checkpoints",
-    "/neural/gpu-runs",
-    "/neural/gpu-runs/{run_id}",
-    "/neural/status",
-    "/neural/train-smoke",
-    "/neural/validate-smoke",
-    "/release/decision/{target}",
-    "/release/evidence",
-    "/reputation/{did}",
-    "/rl/benchmarks",
-    "/rl/envs",
-    "/rl/evaluate",
-    "/rl/train-smoke",
-    "/runtime/status",
-    "/runtime/tick",
-    "/swarm/agents",
-    "/swarm/delegate",
-    "/verification/result",
-    "/verification/submit",
-    "/verification/{contract_id}",
-    "/visual/events",
-    "/visual/replay/start",
-    "/visual/replay/{run_id}",
-    "/visual/schema",
-    "/visual/state"
-  ],
-  "version": "api-snapshot-v1"
+  "info": {
+    "title": "Flow Memory Local API",
+    "version": "0.3.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/agents": {
+      "get": {
+        "operationId": "agents_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List registered agent cards",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/launch": {
+      "post": {
+        "operationId": "agents_launch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "autonomy_mode": {
+                    "type": "string"
+                  },
+                  "goal": {
+                    "type": "string"
+                  },
+                  "identity": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Launch a local agent through the API",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/launch-flowlang": {
+      "post": {
+        "operationId": "agents_launch_flowlang",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "goal": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Launch a FlowLang-declared agent through the API",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/launch-neural": {
+      "post": {
+        "operationId": "agents_launch_neural",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "backend": {
+                    "type": "string"
+                  },
+                  "goal": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Launch a neural-advisory agent through the API",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/{did}": {
+      "get": {
+        "operationId": "agents_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get a registered agent card",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/{did}/memory": {
+      "get": {
+        "operationId": "agent_memory",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get local memory records for an agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/{did}/run": {
+      "post": {
+        "operationId": "agent_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run a local agent cycle placeholder",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/{did}/skills": {
+      "get": {
+        "operationId": "agent_skills",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get skills associated with an agent",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/attestations": {
+      "post": {
+        "operationId": "attestation_create",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Record a local attestation",
+        "tags": [
+          "attestations"
+        ]
+      }
+    },
+    "/audit": {
+      "get": {
+        "operationId": "audit_log",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Read local API audit events",
+        "tags": [
+          "audit"
+        ]
+      }
+    },
+    "/dashboard/snapshot": {
+      "get": {
+        "operationId": "dashboard_snapshot",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return local dashboard mock snapshot metadata",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/flowlang/compile": {
+      "post": {
+        "operationId": "flowlang_compile",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Compile FlowLang source to FlowIR manifest",
+        "tags": [
+          "flowlang"
+        ]
+      }
+    },
+    "/flowlang/examples": {
+      "get": {
+        "operationId": "flowlang_examples",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return bundled FlowLang examples",
+        "tags": [
+          "flowlang"
+        ]
+      }
+    },
+    "/flowlang/run": {
+      "post": {
+        "operationId": "flowlang_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "prompt": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run a FlowLang-declared agent",
+        "tags": [
+          "flowlang"
+        ]
+      }
+    },
+    "/flowlang/validate": {
+      "post": {
+        "operationId": "flowlang_validate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "source": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Validate FlowLang source",
+        "tags": [
+          "flowlang"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "service": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Router health check",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/manifest": {
+      "get": {
+        "operationId": "manifest",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List router endpoints",
+        "tags": [
+          "manifest"
+        ]
+      }
+    },
+    "/marketplace/assign": {
+      "post": {
+        "operationId": "marketplace_assign",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Assign a marketplace task",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/marketplace/bids": {
+      "post": {
+        "operationId": "marketplace_bid_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_did": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  },
+                  "task_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a local marketplace bid",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/marketplace/dispute": {
+      "post": {
+        "operationId": "marketplace_dispute",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Open marketplace dispute",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/marketplace/settle": {
+      "post": {
+        "operationId": "marketplace_settle",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Settle a local marketplace task",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/marketplace/submit": {
+      "post": {
+        "operationId": "marketplace_submit",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Submit marketplace work",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/marketplace/tasks": {
+      "post": {
+        "operationId": "marketplace_task_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "metadata": {
+                    "type": "string"
+                  },
+                  "requester": {
+                    "type": "string"
+                  },
+                  "reward": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a local marketplace task",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/marketplace/verify": {
+      "post": {
+        "operationId": "marketplace_verify",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Verify marketplace work",
+        "tags": [
+          "marketplace"
+        ]
+      }
+    },
+    "/network/run-scenario": {
+      "post": {
+        "operationId": "network_run_scenario",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "scenario": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run a local network scenario",
+        "tags": [
+          "network"
+        ]
+      }
+    },
+    "/network/state": {
+      "get": {
+        "operationId": "network_state",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return current local network state with visual projection",
+        "tags": [
+          "network"
+        ]
+      }
+    },
+    "/neural/backends": {
+      "get": {
+        "operationId": "neural_backends",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List neural backend metadata",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/benchmarks": {
+      "get": {
+        "operationId": "neural_benchmarks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List neural benchmark metadata",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/checkpoints": {
+      "get": {
+        "operationId": "neural_checkpoints",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List checkpoint metadata without raw weights",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/gpu-runs": {
+      "get": {
+        "operationId": "neural_gpu_runs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List imported GPU validation runs",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/gpu-runs/{run_id}": {
+      "get": {
+        "operationId": "neural_gpu_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get imported GPU validation run summary",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/status": {
+      "get": {
+        "operationId": "neural_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return neural subsystem status",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/train-smoke": {
+      "post": {
+        "operationId": "neural_train_smoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "out": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run tiny local neural smoke trainers",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/validate-smoke": {
+      "post": {
+        "operationId": "neural_validate_smoke",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return neural validation smoke command/status",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/release/decision/{target}": {
+      "get": {
+        "operationId": "release_decision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return local release readiness decision for a target",
+        "tags": [
+          "release"
+        ]
+      }
+    },
+    "/release/evidence": {
+      "get": {
+        "operationId": "release_evidence",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return local release evidence bundle metadata",
+        "tags": [
+          "release"
+        ]
+      }
+    },
+    "/reputation/{did}": {
+      "get": {
+        "operationId": "reputation_lookup",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "did",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Look up DID-bound reputation",
+        "tags": [
+          "reputation"
+        ]
+      }
+    },
+    "/rl/benchmarks": {
+      "get": {
+        "operationId": "rl_benchmarks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local RL benchmark metadata",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/rl/envs": {
+      "get": {
+        "operationId": "rl_envs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local Flow Arena environments",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/rl/evaluate": {
+      "post": {
+        "operationId": "rl_evaluate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "env_id": {
+                    "type": "string"
+                  },
+                  "episodes": {
+                    "type": "string"
+                  },
+                  "policy": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Evaluate a local RL policy",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/rl/train-smoke": {
+      "post": {
+        "operationId": "rl_train_smoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "env_id": {
+                    "type": "string"
+                  },
+                  "episodes": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run local tabular Q smoke training",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/runtime/status": {
+      "get": {
+        "operationId": "runtime_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Local runtime status",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/runtime/tick": {
+      "post": {
+        "operationId": "runtime_tick",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Advance local runtime tick",
+        "tags": [
+          "runtime"
+        ]
+      }
+    },
+    "/swarm/agents": {
+      "get": {
+        "operationId": "swarm_agents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local swarm agents",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/swarm/delegate": {
+      "post": {
+        "operationId": "swarm_delegate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "budget": {
+                    "type": "string"
+                  },
+                  "capability": {
+                    "type": "string"
+                  },
+                  "constraints": {
+                    "type": "string"
+                  },
+                  "delegate_did": {
+                    "type": "string"
+                  },
+                  "delegator_did": {
+                    "type": "string"
+                  },
+                  "objective": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create and assign a local delegation contract",
+        "tags": [
+          "swarm"
+        ]
+      }
+    },
+    "/verification/result": {
+      "get": {
+        "operationId": "verification_result_alias",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get the latest verification result",
+        "tags": [
+          "verification"
+        ]
+      }
+    },
+    "/verification/submit": {
+      "post": {
+        "operationId": "verification_submit_alias",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Submit a verification result",
+        "tags": [
+          "verification"
+        ]
+      }
+    },
+    "/verification/{contract_id}": {
+      "get": {
+        "operationId": "verification_result",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get delegation verification status",
+        "tags": [
+          "verification"
+        ]
+      },
+      "post": {
+        "operationId": "verification_submit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "accepted": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string"
+                  },
+                  "result": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Submit completion and optional verification for a delegation",
+        "tags": [
+          "verification"
+        ]
+      }
+    },
+    "/visual/events": {
+      "get": {
+        "operationId": "visual_events",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return recent Mission Control visual events",
+        "tags": [
+          "visual"
+        ]
+      }
+    },
+    "/visual/replay/start": {
+      "post": {
+        "operationId": "visual_replay_start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "run_id": {
+                    "type": "string"
+                  },
+                  "scenario": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run a local visual replay scenario",
+        "tags": [
+          "visual"
+        ]
+      }
+    },
+    "/visual/replay/{run_id}": {
+      "get": {
+        "operationId": "visual_replay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return a saved visual replay snapshot",
+        "tags": [
+          "visual"
+        ]
+      }
+    },
+    "/visual/schema": {
+      "get": {
+        "operationId": "visual_schema",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Mission Control visual telemetry schema",
+        "tags": [
+          "visual"
+        ]
+      }
+    },
+    "/visual/state": {
+      "get": {
+        "operationId": "visual_state",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return current Mission Control visual state",
+        "tags": [
+          "visual"
+        ]
+      }
+    }
+  }
 }

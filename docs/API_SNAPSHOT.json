@@ -1,13 +1,14 @@
 {
-  "endpoint_count": 47,
-  "manifest_hash": "fd13e6d9f35d49a03d57762388b1720d46331f94fadae095653420118dd6db91",
-  "openapi_hash": "eb928d392ac04ca653e693267ee3672597a4a97ed9c2ef14fff322fefa650f27",
+  "endpoint_count": 48,
+  "manifest_hash": "97b19f6a59b8254512c3a742a51194da0d1ca5339cfb18082587580726cadee8",
+  "openapi_hash": "04d8f8b7b4f1b8b9daab3ee1c47f52e2bbe388ca96b88712824ff17a55a1ab08",
   "operations": [
     "GET /agents",
     "GET /agents/{did}",
     "GET /agents/{did}/memory",
     "GET /agents/{did}/skills",
     "GET /audit",
+    "GET /dashboard/snapshot",
     "GET /flowlang/examples",
     "GET /health",
     "GET /manifest",
@@ -51,7 +52,7 @@
     "POST /verification/submit",
     "POST /verification/{contract_id}"
   ],
-  "path_count": 46,
+  "path_count": 47,
   "paths": [
     "/agents",
     "/agents/launch",
@@ -63,6 +64,7 @@
     "/agents/{did}/skills",
     "/attestations",
     "/audit",
+    "/dashboard/snapshot",
     "/flowlang/compile",
     "/flowlang/examples",
     "/flowlang/run",

@@ -73,6 +73,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/network/run-scenario", "network_run_scenario", "Run a local network scenario", request_fields=("scenario",)),
     EndpointSpec("GET", "/release/evidence", "release_evidence", "Return local release evidence bundle metadata"),
     EndpointSpec("GET", "/release/decision/{target}", "release_decision", "Return local release readiness decision for a target"),
+    EndpointSpec("GET", "/dashboard/snapshot", "dashboard_snapshot", "Return local dashboard mock snapshot metadata"),
 )
 
 

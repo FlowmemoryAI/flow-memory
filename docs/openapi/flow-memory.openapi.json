@@ -328,6 +328,28 @@
         ]
       }
     },
+    "/dashboard/snapshot": {
+      "get": {
+        "operationId": "dashboard_snapshot",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return local dashboard mock snapshot metadata",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
     "/flowlang/compile": {
       "post": {
         "operationId": "flowlang_compile",

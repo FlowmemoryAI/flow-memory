@@ -1,8 +1,21 @@
 # Start Here: Flow Memory Public Alpha
 
-Flow Memory is a public-alpha autonomous AI agent OS for local/testnet dry-run development. It is not production-certified, not audited, not mainnet-ready, and does not move real funds by default.
+Flow Memory is a local/testnet public alpha for launching memory-bearing AI agents with FlowLang, local economy flows, neural advisory metadata, RL Arena training, and Mission Control replay/live-state visualization.
 
-## 5-minute local launch
+Maturity: public alpha only. Flow Memory is not production-certified, not audited, not mainnet-ready, and does not move real funds by default.
+
+## Fastest path on Windows PowerShell
+
+```powershell
+git clone https://github.com/FlowmemoryAI/flow-memory.git
+cd flow-memory
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"
+python -m flow_memory --json "Explore and report"
+```
+
+## Fastest path on Linux or macOS
 
 ```bash
 git clone https://github.com/FlowmemoryAI/flow-memory.git
@@ -13,31 +26,55 @@ pip install -e ".[dev]"
 python -m flow_memory --json "Explore and report"
 ```
 
-## Launch paths
+## Developer launch paths
 
 ```bash
 python scripts/launch_local_agent.py --goal "Explore and report"
 python scripts/launch_flowlang_agent.py examples/flowlang_agent.flow --goal "Run the declared agent"
 python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and report"
 python scripts/launch_local_agent_network.py
-python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
-python scripts/run_agent_learning_loop.py
-python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
-python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
-python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 ```
 
-Neural launch uses optional advisory metadata. If Torch is not installed, the command still reports a clear local skip. PolicyEngine and ApprovalGate remain authoritative.
-
-## Mission Control visual replay
+## Local network + Mission Control replay
 
 ```bash
 python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
-python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
-cd dashboard
-npm run build
-npm test
+python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json
 ```
 
-Mission Control supports mock, replay, and local live API modes. It is a public-alpha local dashboard scaffold, not hosted production infrastructure.
+## Dashboard scaffold
+
+```bash
+cd dashboard
+npm install
+npm test
+npm run build
+```
+
+For an interactive Mission Control dev shell, run the dashboard in the frontend environment you choose and point live mode at:
+
+```bash
+python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
+```
+
+## Neural launch
+
+```bash
+pip install -e ".[dev,ml]"
+python -m flow_memory --neural tiny_torch --json "Explore and report"
+```
+
+Torch/CUDA are optional. Neural models advise only; PolicyEngine and ApprovalGate remain authoritative.
+
+## Local alpha evidence
+
+```bash
+python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
+python scripts/test_public_alpha_launch.py
+python scripts/export_public_alpha_launch_evidence.py
+python scripts/verify_public_alpha_launch_evidence.py
+python scripts/release_decision.py --target public-alpha-local-launch
+```
+
+GPU-gated targets remain blocked until the real RunPod artifact is imported.

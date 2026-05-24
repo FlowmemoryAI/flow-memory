@@ -647,3 +647,18 @@ Focused validation observed during this pass:
 | `cd dashboard && npm run build` | Pass |
 
 Baseline `bash scripts/verify.sh` initially failed in the fresh worktree because Git Bash selected `/usr/bin/python3` without `pytest`. This branch hardens Python selection for Windows Git Bash validation.
+
+## Mission Control V2 integration and local public-alpha launch package — 2026-05-24
+
+Merged `work/mission-control-visual-v2` into `main` by fast-forward and preserved Squire/API/release evidence work already on main.
+
+Added/updated local launch readiness package:
+
+- `scripts/test_public_alpha_launch.py`
+- `scripts/export_public_alpha_launch_evidence.py`
+- `scripts/verify_public_alpha_launch_evidence.py`
+- `scripts/release_decision.py --target public-alpha-local-launch`
+- launch docs for Start Here, neural agents, local network, Mission Control, agent economy, RL Arena, payments/economy, public-alpha readiness, and FAQ
+- dashboard dependency-free `npm run dev` scaffold for Mission Control local replay viewing
+
+Local public-alpha release target intentionally does not require the missing RunPod artifact. GPU-gated targets remain blocked unless a verified GPU run artifact is imported.

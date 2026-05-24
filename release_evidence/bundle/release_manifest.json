@@ -317,8 +317,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "2705db6",
-  "manifest_hash": "61eb2bdda21a3a1b67ba76bb6418dd64dbe2932b0e4e11225df5efc9dd837b94",
+  "git_commit": "9572ea0",
+  "manifest_hash": "ba3f086d718aa7cf180d0a0f83fa4bc0d09704458787ac315aaca1aff1243593",
   "release_gates": {
     "ok": true,
     "results": [

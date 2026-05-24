@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,9 +12,13 @@ from typing import Any, Mapping
 REQUIRED_DOCS = (
     "docs/START_HERE.md",
     "docs/LAUNCH_NEURAL_AGENTS.md",
+    "docs/LOCAL_NETWORK_QUICKSTART.md",
+    "docs/MISSION_CONTROL_QUICKSTART.md",
+    "docs/AGENT_ECONOMY_QUICKSTART.md",
+    "docs/RL_ARENA_QUICKSTART.md",
     "docs/PAYMENTS_AND_AGENT_ECONOMY.md",
-    "docs/NEURAL_LEARNING_LOOP.md",
-    "docs/API_AGENT_LAUNCH.md",
+    "docs/PUBLIC_ALPHA_READINESS.md",
+    "docs/FAQ.md",
 )
 
 
@@ -49,6 +54,13 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
         blockers.append("git_commit_missing")
     if not dict(evidence.get("full_system_quick", {})).get("ok"):
         blockers.append("full_system_quick_missing_or_failed")
+    if not dict(evidence.get("public_alpha_launch_test", {})).get("ok"):
+        blockers.append("public_alpha_launch_test_missing_or_failed")
+    if not dict(evidence.get("local_network", {})).get("ok"):
+        blockers.append("local_network_missing_or_failed")
+    api_status = dict(evidence.get("api_server_status", {}))
+    if api_status.get("ok") is not True:
+        blockers.append("api_server_help_missing_or_failed")
     docs = dict(evidence.get("docs", {}))
     missing_docs = tuple(path for path, present in docs.items() if not present)
     if missing_docs:
@@ -68,14 +80,17 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
 def _collect(root: Path) -> Mapping[str, Any]:
     quick_path = root / "artifacts" / "full_system" / "quick_report.json"
     network_path = root / "artifacts" / "network" / "local_network_report.json"
+    launch_report_path = root / "artifacts" / "public_alpha_launch" / "launch_report.json"
     quick = _read_json(quick_path)
     network = _read_json(network_path)
+    launch_report = _read_json(launch_report_path)
     evidence: dict[str, Any] = {
         "git_commit": _git(root, "rev-parse", "HEAD"),
         "branch": _git(root, "branch", "--show-current"),
         "full_system_quick": {"path": str(quick_path.relative_to(root)), "ok": bool(quick.get("ok")), "hash": _file_hash(quick_path)},
         "local_network": {"path": str(network_path.relative_to(root)), "ok": bool(network.get("ok")), "hash": _file_hash(network_path)},
-        "api_server_status": "dependency-free local server seam",
+        "public_alpha_launch_test": {"path": str(launch_report_path.relative_to(root)), "ok": bool(launch_report.get("ok")), "hash": _file_hash(launch_report_path)},
+        "api_server_status": _api_server_help_status(root, launch_report),
         "neural_evidence_status": "blocked_without_real_gpu_artifact" if _gpu_blocked(root) else "verified_or_not_required",
         "rl_benchmark_summary": _read_json(root / "release_evidence" / "bundle" / "rl_benchmarks.json"),
         "docs": {relative: (root / relative).exists() for relative in REQUIRED_DOCS},
@@ -88,7 +103,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
             "GPU evidence requires real RunPod tarball",
         ),
         "real_funds_used": False,
-        "secret_scan": "no obvious secret patterns found",
+        "secret_scan": _secret_scan_status(root),
     }
     evidence["hash"] = _evidence_hash(evidence)
     return evidence
@@ -117,6 +132,36 @@ def _evidence_hash(evidence: Mapping[str, Any]) -> str:
 def _git(root: Path, *args: str) -> str:
     completed = subprocess.run(("git", *args), cwd=root, capture_output=True, text=True)
     return completed.stdout.strip() if completed.returncode == 0 else ""
+
+def _api_server_help_status(root: Path, launch_report: Mapping[str, Any]) -> Mapping[str, Any]:
+    checks = dict(launch_report.get("checks", {}))
+    api_help = dict(checks.get("api_help", {}))
+    script_present = (root / "scripts" / "run_local_api_server.py").exists()
+    return {
+        "ok": bool(api_help.get("ok")) if checks else script_present,
+        "script_present": script_present,
+        "source": "public_alpha_launch_test" if checks else "script_presence",
+    }
+
+
+def _secret_scan_status(root: Path) -> str:
+    patterns = (
+        re.compile(r"-----BEGIN (?:RSA|DSA|EC|OPENSSH|PRIVATE) KEY-----"),
+        re.compile(r"AKIA[0-9A-Z]{16}"),
+        re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}"),
+        re.compile(r"sk-[A-Za-z0-9]{20,}"),
+        re.compile(r"(?i)(seed phrase|mnemonic)\s*[:=]\s*[a-z]+(?:\s+[a-z]+){11,23}"),
+    )
+    completed = subprocess.run(("git", "ls-files"), cwd=root, capture_output=True, text=True)
+    paths = completed.stdout.splitlines() if completed.returncode == 0 else []
+    for relative in paths:
+        path = root / relative
+        if not path.is_file() or path.stat().st_size > 1_000_000:
+            continue
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if any(pattern.search(text) for pattern in patterns):
+            return "possible secret patterns found"
+    return "no obvious secret patterns found"
 
 
 def _gpu_blocked(root: Path) -> bool:

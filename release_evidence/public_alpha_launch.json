@@ -1,5 +1,9 @@
 {
-  "api_server_status": "dependency-free local server seam",
+  "api_server_status": {
+    "ok": true,
+    "script_present": true,
+    "source": "public_alpha_launch_test"
+  },
   "branch": "main",
   "dashboard_mock_snapshot": {
     "bundle_hash": "dfdfaf21bbd99912df78272fb7ac79b3a00a1bcc39a80c7c8d8104d407f947f8",
@@ -24,19 +28,23 @@
     "ok": true
   },
   "docs": {
-    "docs/API_AGENT_LAUNCH.md": true,
+    "docs/AGENT_ECONOMY_QUICKSTART.md": true,
+    "docs/FAQ.md": true,
     "docs/LAUNCH_NEURAL_AGENTS.md": true,
-    "docs/NEURAL_LEARNING_LOOP.md": true,
+    "docs/LOCAL_NETWORK_QUICKSTART.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
     "docs/PAYMENTS_AND_AGENT_ECONOMY.md": true,
+    "docs/PUBLIC_ALPHA_READINESS.md": true,
+    "docs/RL_ARENA_QUICKSTART.md": true,
     "docs/START_HERE.md": true
   },
   "full_system_quick": {
-    "hash": "510c72d2c2293920e539532963d0e8484a89deca35ed389007aa8dc1f70a14de",
+    "hash": "48e25a2557fd15a381e340517549615e3069b52dd38636168ae4ceca95ab816f",
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "48621a807ea4f21c2c4625e9c48ff8477c8fa36f",
-  "hash": "ecde807c1f95fef375e02675c518240a1bd7deda2f35dac59a28bcd6b5077c3f",
+  "git_commit": "9572ea063a39164655f54776205df743f52553d5",
+  "hash": "2b1debd764cb52ddaa1ab45ee527b97885c5878c6335e11e40ec6a22b88594c2",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -45,11 +53,16 @@
     "GPU evidence requires real RunPod tarball"
   ],
   "local_network": {
-    "hash": "8b141c8964bf423e5048e0405f09f6458a81a0a03d3501e6bf1d9fd31a618d5a",
+    "hash": "c81872d0fc171f7f2a0930843a5e0d1711c89b2d4f4af92a30667841c0803bcd",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },
   "neural_evidence_status": "blocked_without_real_gpu_artifact",
+  "public_alpha_launch_test": {
+    "hash": "008c4c4ba5742734a777fba242634b975caf36e28cfd8f851d7a5988af57bd7e",
+    "ok": true,
+    "path": "artifacts\\public_alpha_launch\\launch_report.json"
+  },
   "real_funds_used": false,
   "rl_benchmark_summary": {
     "benchmark_count": 6,

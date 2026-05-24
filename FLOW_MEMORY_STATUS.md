@@ -208,3 +208,18 @@ Branch `work/mission-control-visual-v2` resumes Mission Control polish in an iso
 | Replay data | regenerated | `dashboard/src/mock-data/local-network-replay.json` is exported from a real local network `all` scenario and includes four agents, economy lifecycle, dispute/slashing, memory, neural, RL, safety, and audit signals. |
 
 This remains a local/public-alpha Mission Control scaffold. It is not a hosted production dashboard, not mainnet payment infrastructure, and not a production ML console.
+
+## Mission Control V2 + local launch readiness update — 2026-05-24
+
+Mission Control V2 replay controls, dashboard panel wiring, mock/replay/live mode helpers, deterministic visual reducer precedence, and local visual replay data are integrated on `main`.
+
+Local public-alpha launch readiness now has a GPU-independent target:
+
+```bash
+python scripts/test_public_alpha_launch.py
+python scripts/export_public_alpha_launch_evidence.py
+python scripts/verify_public_alpha_launch_evidence.py
+python scripts/release_decision.py --target public-alpha-local-launch
+```
+
+This target is for local developer alpha only. It does not imply mainnet readiness, audited contracts, hardened sandboxing, production ML, or live funds. GPU-gated release targets remain blocked until a real RunPod validation artifact is imported and verified.

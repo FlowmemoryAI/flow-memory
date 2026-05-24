@@ -1,27 +1,46 @@
 # Public Alpha Readiness
 
-Flow Memory is ready for local public-alpha developer demos when local launch, FlowLang launch, neural advisory launch, local network scenarios, RL Arena examples, API help, release evidence, and docs checks pass.
+Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory launch, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
 
 Run:
 
 ```bash
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
-python scripts/release_decision.py --target local
-python scripts/release_decision.py --target public-alpha-launch
+python scripts/test_public_alpha_launch.py
+python scripts/export_public_alpha_launch_evidence.py
+python scripts/verify_public_alpha_launch_evidence.py
+python scripts/release_decision.py --target local-public-alpha
+python scripts/release_decision.py --target public-alpha-local-launch
 ```
 
-Current maturity:
+## Current maturity
 
 | Area | Status |
 | --- | --- |
-| Local agent launch | Implemented |
-| FlowLang launch | Implemented |
-| Neural advisory launch | Functional prototype; Torch optional |
-| Agent economy | Local simulated accounting and lifecycle prototype |
-| RL Arena | Local prototype environments and tabular training |
-| Base Sepolia | Dry-run adapter seam |
-| Contracts | Unaudited smoke/security tests |
-| Sandbox | Local/profile/container seams, not hardened isolation |
-| GPU evidence | Requires real RunPod artifact import |
+| Local public alpha | Ready if `public-alpha-local-launch` passes. |
+| Local agent launch | Implemented. |
+| FlowLang launch | Implemented. |
+| Neural advisory launch | Functional prototype; Torch optional. |
+| Mission Control | Local replay/live API scaffold connected to real local state. |
+| Agent economy | Local simulated accounting and lifecycle prototype. |
+| RL Arena | Local prototype environments and tabular training. |
+| Neural GPU public alpha | Blocked until real RunPod artifact is imported and verified. |
+| Base/Web3 | Dry-run only. |
+| Mainnet | Not ready. |
+| Contracts | Unaudited. |
+| Sandbox | Not hardened. |
+| Neural/RL | Prototype/advisory. |
 
-Do not claim production certification, audited contracts, mainnet readiness, hardened sandboxing, or production ML performance.
+## GPU-gated release status
+
+The following targets must remain blocked when `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` has not been imported:
+
+```bash
+python scripts/release_decision.py --target neural-gpu-smoke
+python scripts/release_decision.py --target public-alpha-neural
+python scripts/release_decision.py --target public-alpha-launch
+```
+
+Do not fake GPU evidence. Import the real artifact with `scripts/import_gpu_run_artifact.py` before claiming the GPU-gated launch state.
+
+Do not claim production certification, audited contracts, mainnet readiness, hardened sandboxing, real-funds custody, or production ML performance.

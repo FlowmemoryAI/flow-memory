@@ -31,6 +31,13 @@ PUBLIC_ALPHA_EVIDENCE = (
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
 LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs")
+PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE = LOCAL_PUBLIC_ALPHA_EVIDENCE + (
+    "public_alpha_launch_test",
+    "public_alpha_launch_evidence",
+    "api_server_help",
+    "payment_docs",
+    "no_secret_scan_hits",
+)
 
 
 @dataclass(frozen=True)
@@ -88,6 +95,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _local_public_alpha_blockers(root_path, gates.ok)
         classification = "local_public_alpha_candidate" if not blockers else "blocked_local_public_alpha"
         evidence = LOCAL_PUBLIC_ALPHA_EVIDENCE
+    elif target == "public-alpha-local-launch":
+        blockers = _public_alpha_local_launch_blockers(root_path, gates.ok)
+        classification = "public_alpha_local_launch_candidate" if not blockers else "blocked_public_alpha_local_launch"
+        evidence = PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -246,6 +257,45 @@ def _local_public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
         blockers.append("readme_audit_warning_missing")
     if "not mainnet" not in readme_text and "mainnet-ready" not in readme_text:
         blockers.append("readme_mainnet_warning_missing")
+    return tuple(dict.fromkeys(blockers))
+
+def _public_alpha_local_launch_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_local_public_alpha_blockers(root, gate_ok))
+    launch_report = root / "artifacts" / "public_alpha_launch" / "launch_report.json"
+    if not launch_report.exists():
+        blockers.append("public_alpha_launch_test_missing")
+    else:
+        try:
+            report = json.loads(launch_report.read_text(encoding="utf-8"))
+            if report.get("ok") is not True:
+                blockers.append("public_alpha_launch_test_failed")
+            checks = dict(report.get("checks", {}))
+            required_checks = (
+                "cli",
+                "flowlang",
+                "neural",
+                "local_network",
+                "visual_replay",
+                "api_help",
+                "release_local_public_alpha",
+            )
+            for check_name in required_checks:
+                if not dict(checks.get(check_name, {})).get("ok"):
+                    blockers.append(f"public_alpha_launch_check_failed_{check_name}")
+        except json.JSONDecodeError:
+            blockers.append("public_alpha_launch_test_invalid")
+    evidence_path = root / "release_evidence" / "public_alpha_launch.json"
+    if not evidence_path.exists():
+        blockers.append("public_alpha_launch_evidence_missing")
+    else:
+        try:
+            from flow_memory.release.launch_evidence import verify_launch_evidence
+
+            decision = verify_launch_evidence(evidence_path)
+            if not decision.ok:
+                blockers.extend(f"public_alpha_launch_evidence_{blocker}" for blocker in decision.blockers)
+        except Exception:
+            blockers.append("public_alpha_launch_evidence_invalid")
     return tuple(dict.fromkeys(blockers))
 
 

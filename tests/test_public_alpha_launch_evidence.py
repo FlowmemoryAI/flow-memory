@@ -11,6 +11,9 @@ def test_public_alpha_launch_evidence_export_and_verify(tmp_path):
     network = ROOT / "artifacts" / "network" / "local_network_report.json"
     if not quick.exists() or not network.exists() or json.loads(quick.read_text(encoding="utf-8")).get("ok") is not True:
         subprocess.run([sys.executable, "scripts/test_full_system.py", "--quick", "--json-out", str(quick)], cwd=ROOT, check=True, capture_output=True, text=True)
+    launch_report = ROOT / "artifacts" / "public_alpha_launch" / "launch_report.json"
+    if not launch_report.exists() or json.loads(launch_report.read_text(encoding="utf-8")).get("ok") is not True:
+        subprocess.run([sys.executable, "scripts/test_public_alpha_launch.py"], cwd=ROOT, check=True, capture_output=True, text=True)
     out = tmp_path / "public_alpha_launch.json"
     exported = subprocess.run([sys.executable, "scripts/export_public_alpha_launch_evidence.py", "--out", str(out)], cwd=ROOT, check=True, capture_output=True, text=True)
     export_payload = json.loads(exported.stdout)

@@ -7,7 +7,8 @@
   "scripts": {
     "validate:mock-data": "node -e \"const fs=require('node:fs'); for (const f of fs.readdirSync('src/mock-data').filter(f=>f.endsWith('.json'))) JSON.parse(fs.readFileSync('src/mock-data/'+f, 'utf8'))\"",
     "test": "node tests/mock-api.test.mjs && node tests/mission-control.test.mjs && node tests/replay-controller.test.mjs",
-    "build": "node tests/mock-api.test.mjs && node tests/mission-control.test.mjs && node tests/replay-controller.test.mjs"
+    "build": "node tests/mock-api.test.mjs && node tests/mission-control.test.mjs && node tests/replay-controller.test.mjs",
+    "dev": "node scripts/dev-server.mjs"
   },
   "dependencies": {},
   "devDependencies": {}

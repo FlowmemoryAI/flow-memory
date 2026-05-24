@@ -4,6 +4,19 @@ Flow Memory is an open-source autonomous AI agent operating system and local/tes
 
 ## Public alpha quickstart
 
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/FlowmemoryAI/flow-memory.git
+cd flow-memory
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"
+python -m flow_memory --json "Explore and report"
+```
+
+Linux/macOS:
+
 ```bash
 git clone https://github.com/FlowmemoryAI/flow-memory.git
 cd flow-memory

@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_public_alpha_launch_evidence_export_and_verify(tmp_path):
     quick = ROOT / "artifacts" / "full_system" / "quick_report.json"
     network = ROOT / "artifacts" / "network" / "local_network_report.json"
-    if not quick.exists() or not network.exists():
+    if not quick.exists() or not network.exists() or json.loads(quick.read_text(encoding="utf-8")).get("ok") is not True:
         subprocess.run([sys.executable, "scripts/test_full_system.py", "--quick", "--json-out", str(quick)], cwd=ROOT, check=True, capture_output=True, text=True)
     out = tmp_path / "public_alpha_launch.json"
     exported = subprocess.run([sys.executable, "scripts/export_public_alpha_launch_evidence.py", "--out", str(out)], cwd=ROOT, check=True, capture_output=True, text=True)
@@ -19,6 +19,8 @@ def test_public_alpha_launch_evidence_export_and_verify(tmp_path):
     verify_payload = json.loads(verified.stdout)
     assert verify_payload["ok"] is True
     assert verify_payload["evidence"]["real_funds_used"] is False
+    assert verify_payload["evidence"]["dashboard_mock_snapshot"]["ok"] is True
+    assert verify_payload["evidence"]["dashboard_mock_snapshot"]["mock_data_only"] is True
 
 
 def test_public_alpha_launch_evidence_tamper_detection(tmp_path):

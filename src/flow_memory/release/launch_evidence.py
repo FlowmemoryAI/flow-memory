@@ -59,6 +59,9 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
         blockers.append("real_funds_flag_not_false")
     if evidence.get("hash") != _evidence_hash({key: value for key, value in evidence.items() if key != "hash"}):
         blockers.append("launch_evidence_hash_mismatch")
+    dashboard = dict(evidence.get("dashboard_mock_snapshot", {}))
+    if dashboard.get("mock_data_only") is not True or dashboard.get("ok") is not True:
+        blockers.append("dashboard_mock_snapshot_missing")
     return LaunchEvidenceDecision(not blockers, tuple(blockers), evidence)
 
 
@@ -76,6 +79,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
         "neural_evidence_status": "blocked_without_real_gpu_artifact" if _gpu_blocked(root) else "verified_or_not_required",
         "rl_benchmark_summary": _read_json(root / "release_evidence" / "bundle" / "rl_benchmarks.json"),
         "docs": {relative: (root / relative).exists() for relative in REQUIRED_DOCS},
+        "dashboard_mock_snapshot": _dashboard_mock_snapshot(root),
         "known_limitations": (
             "contracts unaudited",
             "sandbox not hardened isolation",
@@ -121,3 +125,29 @@ def _gpu_blocked(root: Path) -> bool:
         return True
     text = "\n".join(path.read_text(encoding="utf-8", errors="ignore") for path in gpu_dir.glob("*/summary.json"))
     return "skipped" in text.lower() or "not present" in text.lower()
+
+
+def _dashboard_mock_snapshot(root: Path) -> Mapping[str, Any]:
+    mock_dir = root / "dashboard" / "src" / "mock-data"
+    expected = (
+        "runtime.json",
+        "neural-status.json",
+        "rl-benchmarks.json",
+        "agent-launch.json",
+        "local-network.json",
+        "payments.json",
+    )
+    missing = tuple(name for name in expected if not (mock_dir / name).exists())
+    file_hashes = {
+        name: _file_hash(mock_dir / name)
+        for name in expected
+        if (mock_dir / name).exists()
+    }
+    return {
+        "ok": not missing,
+        "mock_data_only": True,
+        "missing": missing,
+        "files": tuple(file_hashes),
+        "file_hashes": file_hashes,
+        "bundle_hash": hashlib.sha256(json.dumps(file_hashes, sort_keys=True).encode("utf-8")).hexdigest() if file_hashes else "",
+    }

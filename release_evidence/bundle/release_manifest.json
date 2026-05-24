@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 54,
-    "manifest_hash": "e66ed83aacd137284de9416a0d1ea01a792b283245f5fa8b099522fa7056cb06",
-    "openapi_hash": "b0542fa0066e3f414f7a77b4015fe9fb83574b3228ff7e4b200ebe758809cfe7",
+    "endpoint_count": 60,
+    "manifest_hash": "46efaf24282739bc157568ace68a398c8a11ae1f43873cd3f405855caa4856d9",
+    "openapi_hash": "43051868a5cd6ce652d49729c3c4029dc1d9a5a3df08f5847e7490be0b8065ec",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -26,6 +26,10 @@
       "GET /rl/benchmarks",
       "GET /rl/envs",
       "GET /runtime/status",
+      "GET /squire/docs-sources",
+      "GET /squire/memory-schema",
+      "GET /squire/skill",
+      "GET /squire/status",
       "GET /swarm/agents",
       "GET /verification/result",
       "GET /verification/{contract_id}",
@@ -54,12 +58,14 @@
       "POST /rl/evaluate",
       "POST /rl/train-smoke",
       "POST /runtime/tick",
+      "POST /squire/plan",
+      "POST /squire/routes",
       "POST /swarm/delegate",
       "POST /verification/submit",
       "POST /verification/{contract_id}",
       "POST /visual/replay/start"
     ],
-    "path_count": 53,
+    "path_count": 59,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -104,6 +110,12 @@
       "/rl/train-smoke",
       "/runtime/status",
       "/runtime/tick",
+      "/squire/docs-sources",
+      "/squire/memory-schema",
+      "/squire/plan",
+      "/squire/routes",
+      "/squire/skill",
+      "/squire/status",
       "/swarm/agents",
       "/swarm/delegate",
       "/verification/result",
@@ -305,8 +317,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "2abae11",
-  "manifest_hash": "02f689381b300c9c466f28b9510bfb025ddfe277d2874fda7971c032f4aa6c04",
+  "git_commit": "2705db6",
+  "manifest_hash": "61eb2bdda21a3a1b67ba76bb6418dd64dbe2932b0e4e11225df5efc9dd837b94",
   "release_gates": {
     "ok": true,
     "results": [

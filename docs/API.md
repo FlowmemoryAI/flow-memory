@@ -42,6 +42,10 @@ router.dispatch("GET", "/health")
 - `/swarm/delegate`
 - `/verification/submit`
 - `/verification/result`
+- `/agents/launch`
+- `/agents/launch-flowlang`
+- `/agents/launch-neural`
+- `/network/run-scenario`
 
 ## OpenAPI
 
@@ -99,3 +103,7 @@ This repo now includes Flow Arena, a dependency-free local RL environment layer 
 ## RL Arena endpoints
 
 See `docs/API_RL.md` for `/rl/envs`, `/rl/benchmarks`, `/rl/evaluate`, and `/rl/train-smoke`. These endpoints are local/public-alpha seams and require `rl:*` scopes when scope enforcement is enabled.
+
+## Agent launch endpoints
+
+See `docs/API_AGENT_LAUNCH.md` for the local public-alpha launch endpoints. These endpoints require `agents:launch` or `network:run` when scope enforcement is enabled.

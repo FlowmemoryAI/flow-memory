@@ -13,7 +13,7 @@ from flow_memory.network.topology import LocalNetworkTopology, default_topology
 from flow_memory.rl.envs.safety_gate_env import SafetyGateEnv
 from flow_memory.rl.trainer import SimpleQLearningTrainer
 from flow_memory.visualization import VisualEvent, reduce_visual_events, visual_event
-from flow_memory.visualization.adapters import agent_participants_to_visual_events, economy_records_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
+from flow_memory.visualization.adapters import agent_participants_to_visual_events, economy_receipts_to_visual_events, economy_records_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
 
 
 @dataclass
@@ -23,6 +23,7 @@ class LocalFlowMemoryNetwork:
     receipts: list[NetworkReceipt] = field(default_factory=list)
     audit_events: list[Mapping[str, Any]] = field(default_factory=list)
     visual_events: list[Mapping[str, Any]] = field(default_factory=list)
+    visualized_receipt_ids: set[str] = field(default_factory=set)
     emit_visual: bool = False
 
     def run_basic_economy(self) -> ScenarioReport:
@@ -30,8 +31,7 @@ class LocalFlowMemoryNetwork:
         worker = self.topology.by_role("worker")
         verifier = self.topology.by_role("verifier")
         result = self.economy.run_success_lifecycle(requester.profile.identity, worker.profile.identity, "Public-alpha launch readiness task", 3.0)
-        task_event = {"task_id": result["task_id"], "status": result["status"], "requester_id": requester.profile.identity, "worker_id": worker.profile.identity, "verifier_id": verifier.profile.identity, "amount": 3.0, "reward": 3.0}
-        self._extend_visual(economy_records_to_visual_events((task_event,), provenance="live"))
+        self._extend_visual(economy_receipts_to_visual_events(self._new_visual_receipts(tuple(result.get("receipts", ())), provenance="live")))
         self._extend_visual(safety_record_to_visual_events({"decision_id": f"policy-{result['task_id']}", "approved": True, "risk_level": "low", "reasons": ()}, agent_id=requester.profile.identity))
         self._receipt("basic_economy_completed", requester.profile.identity, {"task_id": result["task_id"], "worker": worker.profile.identity, "verifier": verifier.profile.identity})
         return ScenarioReport("basic-economy", result["status"] == "settled", "requester posted a task, worker completed it, verifier path settled locally", result)
@@ -62,7 +62,7 @@ class LocalFlowMemoryNetwork:
         worker = self.topology.by_role("worker")
         result = self.economy.run_failure_lifecycle(requester.profile.identity, worker.profile.identity, "Bad work dispute task", 2.0)
         ok = result["status"] == "slashed"
-        self._extend_visual(economy_records_to_visual_events(({"task_id": result["task_id"], "status": "slashed", "requester_id": requester.profile.identity, "worker_id": worker.profile.identity, "amount": 2.0, "kind": "slashing"},), provenance="live"))
+        self._extend_visual(economy_receipts_to_visual_events(self._new_visual_receipts(tuple(result.get("receipts", ())), provenance="live")))
         self._extend_visual(safety_record_to_visual_events({"decision_id": f"slash-{result['task_id']}", "approved": False, "requires_human": True, "risk_level": "high", "reason": "bad work dispute resolved with slashing"}, agent_id=worker.profile.identity))
         self._receipt("dispute_slashing_completed", requester.profile.identity, {"task_id": result["task_id"], "worker": worker.profile.identity})
         return ScenarioReport("dispute-slashing", ok, "bad work produced a dispute and local reputation penalty", result)
@@ -151,3 +151,16 @@ class LocalFlowMemoryNetwork:
         if not self.emit_visual:
             return
         self.visual_events.extend(event.as_record() for event in events)
+
+    def _new_visual_receipts(self, receipts: tuple[Mapping[str, Any], ...], *, provenance: str = "live") -> tuple[Mapping[str, Any], ...]:
+        if provenance != "live":
+            return receipts
+        fresh: list[Mapping[str, Any]] = []
+        for receipt in receipts:
+            receipt_id = str(receipt.get("receipt_id", ""))
+            if receipt_id and receipt_id in self.visualized_receipt_ids:
+                continue
+            if receipt_id:
+                self.visualized_receipt_ids.add(receipt_id)
+            fresh.append(receipt)
+        return tuple(fresh)

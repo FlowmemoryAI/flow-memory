@@ -15,6 +15,8 @@ def test_network_report_contains_reduced_visual_state_when_enabled():
     assert record["visual_state"]["agents"]
     assert record["visual_state"]["tasks"]
     assert record["visual_state"]["safety"]
+    economy_kinds = {edge["kind"] for edge in record["visual_state"]["economy"]}
+    assert {"bid", "escrow", "verification", "settlement", "dispute", "slashing"} <= economy_kinds
 
 
 def test_run_local_network_visual_script_writes_events(tmp_path):

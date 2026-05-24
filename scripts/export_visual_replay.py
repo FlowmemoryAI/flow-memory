@@ -17,7 +17,7 @@ from flow_memory.visualization import reduce_visual_events
 from flow_memory.visualization.layout import apply_layout_to_state
 from flow_memory.visualization.events import VISUAL_SCHEMA_VERSION
 
-_DYNAMIC_ID = re.compile(r"(visual_event|taskv3|bidv3|work|receipt|network_receipt|agent)_[A-Za-z0-9]+")
+_DYNAMIC_ID = re.compile(r"(visual_event|taskv3|bidv3|work|receipt|network_receipt|agent)_[0-9A-Fa-f]{8,}")
 
 
 def export_visual_replay(input_path: str | Path, output_path: str | Path) -> Mapping[str, Any]:

@@ -86,13 +86,11 @@
       "event_id": "visual_event_0005",
       "event_type": "task",
       "payload": {
-        "label": "taskv3_0001",
+        "label": "Public-alpha launch readiness task",
         "requester_id": "did:flow:requester",
         "reward": 3.0,
-        "status": "settled",
-        "task_id": "taskv3_0001",
-        "verifier_id": "did:flow:verifier",
-        "worker_id": "did:flow:worker"
+        "status": "created",
+        "task_id": "taskv3_0001"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
@@ -106,20 +104,128 @@
       "payload": {
         "amount": 3.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_0001",
-        "from_id": "did:flow:requester",
-        "kind": "payment",
-        "status": "settled",
-        "to_id": "did:flow:worker"
+        "edge_id": "receipt_0001",
+        "from_id": "did:flow:worker",
+        "kind": "bid",
+        "status": "submitted",
+        "to_id": "taskv3_0001"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "taskv3_0001",
+      "source": "receipt_0001",
       "source_event_id": ""
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
       "event_id": "visual_event_0007",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0002",
+        "from_id": "did:flow:requester",
+        "kind": "task_assignment",
+        "status": "assigned",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0002",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0008",
+      "event_type": "economy",
+      "payload": {
+        "amount": 3.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0003",
+        "from_id": "did:flow:requester",
+        "kind": "escrow",
+        "status": "locked",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0003",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0009",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0004",
+        "from_id": "did:flow:worker",
+        "kind": "work_submission",
+        "status": "submitted",
+        "to_id": "taskv3_0001"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0004",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0010",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0005",
+        "from_id": "did:flow:requester",
+        "kind": "verification",
+        "status": "verified",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0005",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0011",
+      "event_type": "economy",
+      "payload": {
+        "amount": 5.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0006",
+        "from_id": "taskv3_0001",
+        "kind": "reputation",
+        "status": "updated",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0006",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0012",
+      "event_type": "economy",
+      "payload": {
+        "amount": 3.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0007",
+        "from_id": "did:flow:requester",
+        "kind": "settlement",
+        "status": "settled",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0007",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0013",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:requester",
@@ -136,7 +242,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0008",
+      "event_id": "visual_event_0014",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:requester",
@@ -152,7 +258,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0009",
+      "event_id": "visual_event_0015",
       "event_type": "neural",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -169,7 +275,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0010",
+      "event_id": "visual_event_0016",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -186,14 +292,14 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0011",
+      "event_id": "visual_event_0017",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:worker",
         "audit_id": "network_receipt_0002",
-        "event_type": "neural_agent_0002",
+        "event_type": "neural_agent_cycle",
         "ok": true,
-        "summary": "neural_agent_0002"
+        "summary": "neural_agent_cycle"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
@@ -202,7 +308,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0012",
+      "event_id": "visual_event_0018",
       "event_type": "rl",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -220,7 +326,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0013",
+      "event_id": "visual_event_0019",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:worker",
@@ -236,16 +342,14 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0014",
+      "event_id": "visual_event_0020",
       "event_type": "task",
       "payload": {
-        "label": "taskv3_0002",
+        "label": "Bad work dispute task",
         "requester_id": "did:flow:requester",
         "reward": 2.0,
-        "status": "slashed",
-        "task_id": "taskv3_0002",
-        "verifier_id": "",
-        "worker_id": "did:flow:worker"
+        "status": "created",
+        "task_id": "taskv3_0002"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
@@ -254,25 +358,133 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0015",
+      "event_id": "visual_event_0021",
       "event_type": "economy",
       "payload": {
         "amount": 2.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_0002",
-        "from_id": "did:flow:requester",
-        "kind": "slashing",
-        "status": "slashed",
-        "to_id": "did:flow:worker"
+        "edge_id": "receipt_0008",
+        "from_id": "did:flow:worker",
+        "kind": "bid",
+        "status": "submitted",
+        "to_id": "taskv3_0002"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "taskv3_0002",
+      "source": "receipt_0008",
       "source_event_id": ""
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0016",
+      "event_id": "visual_event_0022",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0009",
+        "from_id": "did:flow:requester",
+        "kind": "task_assignment",
+        "status": "assigned",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0009",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0023",
+      "event_type": "economy",
+      "payload": {
+        "amount": 2.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0010",
+        "from_id": "did:flow:requester",
+        "kind": "escrow",
+        "status": "locked",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0010",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0024",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0011",
+        "from_id": "did:flow:worker",
+        "kind": "work_submission",
+        "status": "submitted",
+        "to_id": "taskv3_0002"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0011",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0025",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0012",
+        "from_id": "did:flow:requester",
+        "kind": "verification",
+        "status": "rejected",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0012",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0026",
+      "event_type": "economy",
+      "payload": {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0013",
+        "from_id": "did:flow:requester",
+        "kind": "dispute",
+        "status": "open",
+        "to_id": "did:flow:worker"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0013",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0027",
+      "event_type": "economy",
+      "payload": {
+        "amount": 10.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0014",
+        "from_id": "did:flow:worker",
+        "kind": "slashing",
+        "status": "slashed",
+        "to_id": "taskv3_0002"
+      },
+      "provenance": "live",
+      "schema_version": "visual.telemetry.v1",
+      "source": "receipt_0014",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_0028",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -289,7 +501,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0017",
+      "event_id": "visual_event_0029",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:requester",
@@ -305,7 +517,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0018",
+      "event_id": "visual_event_0030",
       "event_type": "memory",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -321,7 +533,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0019",
+      "event_id": "visual_event_0031",
       "event_type": "memory",
       "payload": {
         "agent_id": "did:flow:worker",
@@ -337,7 +549,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0020",
+      "event_id": "visual_event_0032",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:worker",
@@ -353,7 +565,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0021",
+      "event_id": "visual_event_0033",
       "event_type": "safety",
       "payload": {
         "agent_id": "did:flow:requester",
@@ -370,7 +582,7 @@
     },
     {
       "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_0022",
+      "event_id": "visual_event_0034",
       "event_type": "audit",
       "payload": {
         "actor_id": "did:flow:requester",
@@ -388,7 +600,7 @@
   "generated_at": "1970-01-01T00:00:00+00:00",
   "metadata": {
     "agent_count": 4,
-    "event_count": 22,
+    "event_count": 34,
     "scenario_count": 6,
     "task_count": 2
   },
@@ -519,7 +731,7 @@
         "summary": "task observed"
       },
       {
-        "actor_id": "taskv3_0001",
+        "actor_id": "receipt_0001",
         "audit_id": "visual_event_0006",
         "event_type": "economy",
         "ok": true,
@@ -528,88 +740,88 @@
         "summary": "economy observed"
       },
       {
-        "actor_id": "policy-taskv3_0001",
+        "actor_id": "receipt_0002",
         "audit_id": "visual_event_0007",
-        "event_type": "safety",
+        "event_type": "economy",
         "ok": true,
         "provenance": "live",
         "source_event_id": "visual_event_0007",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0003",
+        "audit_id": "visual_event_0008",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0008",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0004",
+        "audit_id": "visual_event_0009",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0009",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0005",
+        "audit_id": "visual_event_0010",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0010",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0006",
+        "audit_id": "visual_event_0011",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0011",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0007",
+        "audit_id": "visual_event_0012",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0012",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "policy-taskv3_0001",
+        "audit_id": "visual_event_0013",
+        "event_type": "safety",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0013",
         "summary": "safety observed"
       },
       {
         "actor_id": "did:flow:requester",
-        "audit_id": "visual_event_0008",
+        "audit_id": "visual_event_0014",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_0008",
+        "source_event_id": "visual_event_0014",
         "summary": "audit observed"
       },
       {
         "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_0009",
+        "audit_id": "visual_event_0015",
         "event_type": "neural",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_0009",
+        "source_event_id": "visual_event_0015",
         "summary": "neural observed"
       },
       {
         "actor_id": "neural-policy-agent_0001",
-        "audit_id": "visual_event_0010",
-        "event_type": "safety",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0010",
-        "summary": "safety observed"
-      },
-      {
-        "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_0011",
-        "event_type": "audit",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0011",
-        "summary": "audit observed"
-      },
-      {
-        "actor_id": "rl-safety-gate",
-        "audit_id": "visual_event_0012",
-        "event_type": "rl",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0012",
-        "summary": "rl observed"
-      },
-      {
-        "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_0013",
-        "event_type": "audit",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0013",
-        "summary": "audit observed"
-      },
-      {
-        "actor_id": "taskv3_0002",
-        "audit_id": "visual_event_0014",
-        "event_type": "task",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0014",
-        "summary": "task observed"
-      },
-      {
-        "actor_id": "taskv3_0002",
-        "audit_id": "visual_event_0015",
-        "event_type": "economy",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0015",
-        "summary": "economy observed"
-      },
-      {
-        "actor_id": "slash-taskv3_0002",
         "audit_id": "visual_event_0016",
         "event_type": "safety",
         "ok": true,
@@ -618,7 +830,7 @@
         "summary": "safety observed"
       },
       {
-        "actor_id": "did:flow:requester",
+        "actor_id": "did:flow:worker",
         "audit_id": "visual_event_0017",
         "event_type": "audit",
         "ok": true,
@@ -627,48 +839,156 @@
         "summary": "audit observed"
       },
       {
-        "actor_id": "did:flow:worker",
+        "actor_id": "rl-safety-gate",
         "audit_id": "visual_event_0018",
-        "event_type": "memory",
+        "event_type": "rl",
         "ok": true,
         "provenance": "live",
         "source_event_id": "visual_event_0018",
-        "summary": "memory observed"
+        "summary": "rl observed"
       },
       {
         "actor_id": "did:flow:worker",
         "audit_id": "visual_event_0019",
-        "event_type": "memory",
-        "ok": true,
-        "provenance": "live",
-        "source_event_id": "visual_event_0019",
-        "summary": "memory observed"
-      },
-      {
-        "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_0020",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_0020",
+        "source_event_id": "visual_event_0019",
         "summary": "audit observed"
       },
       {
-        "actor_id": "safety-approval-demo",
+        "actor_id": "taskv3_0002",
+        "audit_id": "visual_event_0020",
+        "event_type": "task",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0020",
+        "summary": "task observed"
+      },
+      {
+        "actor_id": "receipt_0008",
         "audit_id": "visual_event_0021",
-        "event_type": "safety",
+        "event_type": "economy",
         "ok": true,
         "provenance": "live",
         "source_event_id": "visual_event_0021",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0009",
+        "audit_id": "visual_event_0022",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0022",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0010",
+        "audit_id": "visual_event_0023",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0023",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0011",
+        "audit_id": "visual_event_0024",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0024",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0012",
+        "audit_id": "visual_event_0025",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0025",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0013",
+        "audit_id": "visual_event_0026",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0026",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "receipt_0014",
+        "audit_id": "visual_event_0027",
+        "event_type": "economy",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0027",
+        "summary": "economy observed"
+      },
+      {
+        "actor_id": "slash-taskv3_0002",
+        "audit_id": "visual_event_0028",
+        "event_type": "safety",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0028",
         "summary": "safety observed"
       },
       {
         "actor_id": "did:flow:requester",
-        "audit_id": "visual_event_0022",
+        "audit_id": "visual_event_0029",
         "event_type": "audit",
         "ok": true,
         "provenance": "live",
-        "source_event_id": "visual_event_0022",
+        "source_event_id": "visual_event_0029",
+        "summary": "audit observed"
+      },
+      {
+        "actor_id": "did:flow:worker",
+        "audit_id": "visual_event_0030",
+        "event_type": "memory",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0030",
+        "summary": "memory observed"
+      },
+      {
+        "actor_id": "did:flow:worker",
+        "audit_id": "visual_event_0031",
+        "event_type": "memory",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0031",
+        "summary": "memory observed"
+      },
+      {
+        "actor_id": "did:flow:worker",
+        "audit_id": "visual_event_0032",
+        "event_type": "audit",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0032",
+        "summary": "audit observed"
+      },
+      {
+        "actor_id": "safety-approval-demo",
+        "audit_id": "visual_event_0033",
+        "event_type": "safety",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0033",
+        "summary": "safety observed"
+      },
+      {
+        "actor_id": "did:flow:requester",
+        "audit_id": "visual_event_0034",
+        "event_type": "audit",
+        "ok": true,
+        "provenance": "live",
+        "source_event_id": "visual_event_0034",
         "summary": "audit observed"
       }
     ],
@@ -676,24 +996,156 @@
       {
         "amount": 3.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_0001",
-        "from_id": "did:flow:requester",
-        "kind": "payment",
+        "edge_id": "receipt_0001",
+        "from_id": "did:flow:worker",
+        "kind": "bid",
         "provenance": "live",
         "source_event_id": "visual_event_0006",
+        "status": "submitted",
+        "to_id": "taskv3_0001"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0002",
+        "from_id": "did:flow:requester",
+        "kind": "task_assignment",
+        "provenance": "live",
+        "source_event_id": "visual_event_0007",
+        "status": "assigned",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 3.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0003",
+        "from_id": "did:flow:requester",
+        "kind": "escrow",
+        "provenance": "live",
+        "source_event_id": "visual_event_0008",
+        "status": "locked",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0004",
+        "from_id": "did:flow:worker",
+        "kind": "work_submission",
+        "provenance": "live",
+        "source_event_id": "visual_event_0009",
+        "status": "submitted",
+        "to_id": "taskv3_0001"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0005",
+        "from_id": "did:flow:requester",
+        "kind": "verification",
+        "provenance": "live",
+        "source_event_id": "visual_event_0010",
+        "status": "verified",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 5.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0006",
+        "from_id": "taskv3_0001",
+        "kind": "reputation",
+        "provenance": "live",
+        "source_event_id": "visual_event_0011",
+        "status": "updated",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 3.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0007",
+        "from_id": "did:flow:requester",
+        "kind": "settlement",
+        "provenance": "live",
+        "source_event_id": "visual_event_0012",
         "status": "settled",
         "to_id": "did:flow:worker"
       },
       {
         "amount": 2.0,
         "currency": "LOCAL_CREDITS",
-        "edge_id": "taskv3_0002",
+        "edge_id": "receipt_0008",
+        "from_id": "did:flow:worker",
+        "kind": "bid",
+        "provenance": "live",
+        "source_event_id": "visual_event_0021",
+        "status": "submitted",
+        "to_id": "taskv3_0002"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0009",
         "from_id": "did:flow:requester",
+        "kind": "task_assignment",
+        "provenance": "live",
+        "source_event_id": "visual_event_0022",
+        "status": "assigned",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 2.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0010",
+        "from_id": "did:flow:requester",
+        "kind": "escrow",
+        "provenance": "live",
+        "source_event_id": "visual_event_0023",
+        "status": "locked",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0011",
+        "from_id": "did:flow:worker",
+        "kind": "work_submission",
+        "provenance": "live",
+        "source_event_id": "visual_event_0024",
+        "status": "submitted",
+        "to_id": "taskv3_0002"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0012",
+        "from_id": "did:flow:requester",
+        "kind": "verification",
+        "provenance": "live",
+        "source_event_id": "visual_event_0025",
+        "status": "rejected",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 0.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0013",
+        "from_id": "did:flow:requester",
+        "kind": "dispute",
+        "provenance": "live",
+        "source_event_id": "visual_event_0026",
+        "status": "open",
+        "to_id": "did:flow:worker"
+      },
+      {
+        "amount": 10.0,
+        "currency": "LOCAL_CREDITS",
+        "edge_id": "receipt_0014",
+        "from_id": "did:flow:worker",
         "kind": "slashing",
         "provenance": "live",
-        "source_event_id": "visual_event_0015",
+        "source_event_id": "visual_event_0027",
         "status": "slashed",
-        "to_id": "did:flow:worker"
+        "to_id": "taskv3_0002"
       }
     ],
     "layout": {
@@ -729,7 +1181,7 @@
         "kind": "episodic",
         "memory_id": "memory-agent_0001-1",
         "provenance": "live",
-        "source_event_id": "visual_event_0018",
+        "source_event_id": "visual_event_0030",
         "summary": "verified local work should cite evidence"
       },
       {
@@ -738,7 +1190,7 @@
         "kind": "procedural",
         "memory_id": "memory-agent_0001-2",
         "provenance": "live",
-        "source_event_id": "visual_event_0019",
+        "source_event_id": "visual_event_0031",
         "summary": "use prior evidence when reporting work"
       }
     ],
@@ -749,8 +1201,8 @@
         "plan_score": 0.8799999999999999,
         "provenance": "live",
         "risk_score": 0.1,
-        "signal_id": "visual_event_0009",
-        "source_event_id": "visual_event_0009",
+        "signal_id": "visual_event_0015",
+        "source_event_id": "visual_event_0015",
         "status": "skipped",
         "surprise_score": 0.0
       }
@@ -765,13 +1217,13 @@
         "policy": "local_tabular",
         "provenance": "live",
         "safety_violation_rate": 0.0,
-        "source_event_id": "visual_event_0012",
+        "source_event_id": "visual_event_0018",
         "success_rate": 0.0
       }
     ],
     "runtime": {
       "agents": 4,
-      "events": 22,
+      "events": 34,
       "status": "ok",
       "tasks": 2,
       "warnings": []
@@ -785,7 +1237,7 @@
         "reason": "",
         "requires_approval": false,
         "risk_level": "low",
-        "source_event_id": "visual_event_0007"
+        "source_event_id": "visual_event_0013"
       },
       {
         "agent_id": "did:flow:worker",
@@ -795,7 +1247,7 @@
         "reason": "",
         "requires_approval": false,
         "risk_level": "low",
-        "source_event_id": "visual_event_0010"
+        "source_event_id": "visual_event_0016"
       },
       {
         "agent_id": "did:flow:worker",
@@ -805,7 +1257,7 @@
         "reason": "",
         "requires_approval": true,
         "risk_level": "high",
-        "source_event_id": "visual_event_0016"
+        "source_event_id": "visual_event_0028"
       },
       {
         "agent_id": "did:flow:requester",
@@ -815,32 +1267,32 @@
         "reason": "external/economic action requires approval",
         "requires_approval": true,
         "risk_level": "high",
-        "source_event_id": "visual_event_0021"
+        "source_event_id": "visual_event_0033"
       }
     ],
     "schema_version": "visual.telemetry.v1",
     "tasks": [
       {
-        "label": "taskv3_0001",
+        "label": "Public-alpha launch readiness task",
         "provenance": "live",
         "requester_id": "did:flow:requester",
         "reward": 3.0,
         "source_event_id": "visual_event_0005",
-        "status": "settled",
+        "status": "created",
         "task_id": "taskv3_0001",
-        "verifier_id": "did:flow:verifier",
-        "worker_id": "did:flow:worker"
+        "verifier_id": "",
+        "worker_id": ""
       },
       {
-        "label": "taskv3_0002",
+        "label": "Bad work dispute task",
         "provenance": "live",
         "requester_id": "did:flow:requester",
         "reward": 2.0,
-        "source_event_id": "visual_event_0014",
-        "status": "slashed",
+        "source_event_id": "visual_event_0020",
+        "status": "created",
         "task_id": "taskv3_0002",
         "verifier_id": "",
-        "worker_id": "did:flow:worker"
+        "worker_id": ""
       }
     ]
   }

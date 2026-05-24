@@ -420,3 +420,29 @@ Final validation after implementation slices:
 | Secret scan | No real secret/key material found; matches were documentation/API auth seam terms and no-key dry-run text |
 
 The only remaining launch blocker is the missing real RunPod tarball at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`. The gates correctly refuse to treat skipped GPU evidence as launch proof.
+
+## Baseline for full system launch readiness queue
+
+Baseline was taken on `main` at `c2dc21fb8ab82ef9c2ea33ce841979371ca4df97` before the full-system launch readiness implementation work.
+
+| Check | Result |
+| --- | --- |
+| `git status --short` | Clean |
+| `git pull --ff-only` | Already up to date |
+| `python -m pytest -q` | Pass: `396 passed, 17 skipped` |
+| `bash scripts/verify.sh` | Pass |
+| `python -m flow_memory --json "Explore and report"` | Pass |
+| `python -m flow_memory --neural tiny_torch --json "Explore and report"` | Pass; local Torch absent so neural metadata reports `skipped` for `tiny_torch` |
+| `python scripts/run_local_api_server.py --help` | Pass |
+| `python scripts/gpu_env_check.py --json` | Pass; Torch/CUDA absent locally |
+| `python scripts/export_release_evidence.py` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --target local` | Pass |
+| `python scripts/release_decision.py --target neural-gpu-smoke` | Expected block: `gpu_evidence_verified_run_missing` |
+| `docker compose config` | Pass |
+| `forge build && forge test` | Pass: `16 tests passed` |
+| `cargo test` in `rust/flow-memory-core` | Pass: `2 passed` |
+| `git diff --check` | Pass |
+| secret scan | Pass: no obvious secret patterns found |
+
+The real RunPod artifact tarball remains absent at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`, so GPU evidence gates must remain blocked until that artifact is supplied and verified.

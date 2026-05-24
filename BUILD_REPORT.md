@@ -383,3 +383,8 @@ Added `benchmarks/rl_policy_comparison_benchmark.py` and `tests/test_rl_policy_c
 ## Slice: optional torch RL policy skeleton
 
 Added `src/flow_memory/rl/torch_policy.py`, `scripts/train_rl_torch_smoke.py`, and tests for optional torch import behavior and tiny training smoke output. The base install still works without Torch.
+
+
+## Slice: RL Arena API endpoints
+
+Added `src/flow_memory/api/rl_endpoints.py`, router/manifest/scope wiring for `/rl/envs`, `/rl/benchmarks`, `/rl/evaluate`, and `/rl/train-smoke`, plus HTTP scope tests and `docs/API_RL.md`.

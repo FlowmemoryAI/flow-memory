@@ -17,6 +17,9 @@ NEURAL_READ_SCOPE = "neural:read"
 NEURAL_VALIDATE_SCOPE = "neural:validate"
 NEURAL_TRAIN_SCOPE = "neural:train"
 NEURAL_EVIDENCE_SCOPE = "neural:evidence"
+RL_READ_SCOPE = "rl:read"
+RL_EVALUATE_SCOPE = "rl:evaluate"
+RL_TRAIN_SCOPE = "rl:train"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -26,6 +29,9 @@ KNOWN_SCOPES = frozenset({
     NEURAL_VALIDATE_SCOPE,
     NEURAL_TRAIN_SCOPE,
     NEURAL_EVIDENCE_SCOPE,
+    RL_READ_SCOPE,
+    RL_EVALUATE_SCOPE,
+    RL_TRAIN_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -112,6 +118,12 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (NEURAL_TRAIN_SCOPE,)
     if path_key.startswith("/neural/"):
         return (NEURAL_READ_SCOPE,)
+    if path_key == "/rl/evaluate":
+        return (RL_EVALUATE_SCOPE,)
+    if path_key == "/rl/train-smoke":
+        return (RL_TRAIN_SCOPE,)
+    if path_key.startswith("/rl/"):
+        return (RL_READ_SCOPE,)
     if normalized_method in READ_METHODS:
         return (READ_SCOPE,)
     return (WRITE_SCOPE,)

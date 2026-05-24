@@ -368,3 +368,8 @@ Expanded `FlowEnv` observations from toy scalar fields to nested agent/economy/s
 ## Slice: long EconomyMarketEnv episodes
 
 Added `episode_mode="long"` to `EconomyMarketEnv` with bid, verifier, settlement, dispute, and slashing-aware phases. Covered success, dispute, and vectorized long episodes in `tests/test_economy_market_long_episode.py`.
+
+
+## Slice: adversarial verifier scenario
+
+Expanded `VerifierEnv` with bad/good/unknown work quality and collusion-risk behavior, including false approval, false rejection, dispute, and slashing signals. Added `tests/test_verifier_adversarial_env.py`.

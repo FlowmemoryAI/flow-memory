@@ -19,3 +19,8 @@ All are deterministic with seeds and can be vectorized in process.
 ## EconomyMarketEnv long episode mode
 
 `EconomyMarketEnv(episode_mode="long")` now models a multi-step local lifecycle: open task -> bid submitted -> verifier selected -> settled or disputed. The default `single_step` mode remains for fast smoke tests and benchmarks.
+
+
+## Adversarial verifier scenario
+
+`VerifierEnv` now supports `work_quality` and `collusion` parameters. Bad work plus collusive approval produces dispute/slashing signals, while evidence requests remain the safe default for unknown work quality.

@@ -79,6 +79,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_neural_blockers(root_path, gates.ok)
         classification = "public_alpha_neural_candidate" if not blockers else "blocked_public_alpha_neural"
         evidence = PUBLIC_ALPHA_NEURAL_EVIDENCE
+    elif target == "public-alpha-launch":
+        blockers = _public_alpha_launch_blockers(root_path, gates.ok)
+        classification = "public_alpha_launch_candidate" if not blockers else "blocked_public_alpha_launch"
+        evidence = PUBLIC_ALPHA_NEURAL_EVIDENCE + ("full_system_quick", "launch_docs", "payment_docs", "learning_docs")
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -156,6 +160,36 @@ def _public_alpha_neural_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     if not report.get("ok"):
         blockers.append("rl_benchmark_evidence_missing")
     return tuple(blockers)
+
+def _public_alpha_launch_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_public_alpha_neural_blockers(root, gate_ok))
+    full_system = root / "artifacts" / "full_system" / "quick_report.json"
+    if not full_system.exists():
+        blockers.append("full_system_quick_missing")
+    else:
+        try:
+            if json.loads(full_system.read_text(encoding="utf-8")).get("ok") is not True:
+                blockers.append("full_system_quick_failed")
+        except json.JSONDecodeError:
+            blockers.append("full_system_quick_invalid")
+    required_docs = (
+        "docs/START_HERE.md",
+        "docs/LAUNCH_NEURAL_AGENTS.md",
+        "docs/PAYMENTS_AND_AGENT_ECONOMY.md",
+        "docs/NEURAL_LEARNING_LOOP.md",
+    )
+    for relative in required_docs:
+        if not (root / relative).exists():
+            blockers.append(f"missing_{relative.replace('/', '_')}")
+    readme = root / "README.md"
+    readme_text = readme.read_text(encoding="utf-8").lower() if readme.exists() else ""
+    if "public alpha" not in readme_text and "public-alpha" not in readme_text:
+        blockers.append("readme_public_alpha_warning_missing")
+    if "not audited" not in readme_text and "audited contracts" not in readme_text:
+        blockers.append("readme_audit_warning_missing")
+    if "mainnet" not in readme_text:
+        blockers.append("readme_mainnet_warning_missing")
+    return tuple(dict.fromkeys(blockers))
 
 
 def _gpu_report(path: Path) -> Mapping[str, Any]:

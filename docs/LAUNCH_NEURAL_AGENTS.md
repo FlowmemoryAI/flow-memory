@@ -20,6 +20,12 @@ pip install -e ".[dev,ml]"
 python -m flow_memory --neural tiny_torch --json "Explore and report"
 ```
 
+Script equivalent:
+
+```bash
+python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and report"
+```
+
 If Torch is missing, the command still returns a structured result and marks the neural backend as skipped.
 
 ## Run a FlowLang-declared agent
@@ -34,6 +40,14 @@ python -m flow_memory --flow examples/flowlang_agent.flow --json "Run the declar
 python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
 python scripts/run_local_api_server.py --api-key dev-local-only --require-scopes
 ```
+
+## Full local network launch
+
+```bash
+python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
+```
+
+This runs requester, worker, verifier, and auditor agents through economy, neural, RL, and dispute/slashing scenarios.
 
 ## Demo script
 

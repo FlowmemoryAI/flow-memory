@@ -130,3 +130,18 @@ The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` releas
 | PufferLib backend | adapter seam | optional/lazy; no vendored Puffer code |
 | Neural GPU evidence | blocked until artifact import | real tarball required for `neural-gpu-smoke` |
 | public-alpha-neural release gate | implemented, currently blocked by GPU artifact | also requires RL benchmark evidence |
+
+## Full system launch-readiness additions
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Agent launch scripts | implemented | CLI, FlowLang, neural, and local network launch scripts exist under `scripts/`. |
+| Launch examples | implemented | Examples cover CLI, FlowLang, neural, API, multi-agent network, economy task, and RL-trained advisory launch. |
+| Local network orchestration | functional prototype | In-process requester/worker/verifier/auditor scenarios cover economy, neural metadata, RL training, and dispute/slashing. |
+| Payment/accounting model | implemented local simulator | `LocalAccountingLedger` models credits, escrow locks, settlement, refunds, verifier/treasury fees, and slashing; no real funds. |
+| Learning loop | functional prototype | Agent traces, memory-learning, RL Arena learning, neural-training status, and before/after reports are implemented locally. |
+| Full system quick script | implemented | `scripts/test_full_system.py --quick` checks launch paths, local network, learning loop, RL, API help, and local release decision. |
+| Public alpha launch release target | implemented, currently blocked | `public-alpha-launch` requires full-system evidence, launch docs, payment/learning docs, RL evidence, and non-skipped GPU evidence. |
+| GPU evidence | blocked until real artifact import | `gpu_evidence_verified_run_missing` remains the expected blocker without `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`. |
+
+Public alpha launch status is local-demo ready once full-system quick validation passes, but the stronger launch release targets remain blocked until real RunPod GPU evidence is imported and verified.

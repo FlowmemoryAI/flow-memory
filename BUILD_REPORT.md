@@ -353,3 +353,8 @@ Validation outcome:
 - `python scripts/release_decision.py --target neural-gpu-smoke`: blocked with `gpu_evidence_verified_run_missing`.
 
 No public launch tag was created because the actual RunPod tarball is still missing locally. Copy the artifact into `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` and rerun the same commands before tagging `v0.3.0-alpha`.
+
+
+## Slice: neural agent launch quickstart
+
+Added `examples/launch_neural_agent_demo.py`, `docs/LAUNCH_NEURAL_AGENTS.md`, and `tests/test_launch_neural_agent_demo.py` so developer-alpha users can launch a local CPU agent, optional `tiny_torch` neural advisory mode, FlowLang agent, and local API server from one documented path.

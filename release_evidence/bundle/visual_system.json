@@ -44,10 +44,10 @@
       "sha256": "ea14b8c9b8f82ed13df6bb868c3a34ebab0f7b8063f475ea17a85db0c5a0d685"
     },
     {
-      "bytes": 1633,
+      "bytes": 2062,
       "exists": true,
       "path": "dashboard/src/app/mission-control/page.tsx",
-      "sha256": "7509443ab37b398909cf0c648ed4d3fe44cc003a6b2317d3bdfef5126d9287c8"
+      "sha256": "9b4636f895d8fa1e3d04473a5ee6060436e3f03e89e0c04830e9f5c3a1c15d0d"
     },
     {
       "bytes": 24732,
@@ -56,10 +56,10 @@
       "sha256": "c00e2ab8a93b27a0bd97ea9d293c7506adc2237d8b003ca1876320049171e149"
     },
     {
-      "bytes": 2528,
+      "bytes": 2619,
       "exists": true,
       "path": "docs/MISSION_CONTROL_QUICKSTART.md",
-      "sha256": "074aba00472d755d4a2373394022d10fe3c1dc7ed8e79602bc1d8809d23664f5"
+      "sha256": "ff5c772f24adb18a55a18578d3c4ca8f55ad101bca26497f02367ddebe8c4fe9"
     },
     {
       "bytes": 1185,

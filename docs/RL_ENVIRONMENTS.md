@@ -1,0 +1,16 @@
+# RL Environments
+
+Implemented local Flow Arena environments:
+
+| Environment | Training focus |
+| --- | --- |
+| ToolUseEnv | safe tool use versus risky/approval choices |
+| MemoryRetrievalEnv | relevant retrieval and consolidation choices |
+| EconomyMarketEnv | bid/decline/verifier behavior under dispute/slashing risk |
+| VerifierEnv | approve/reject/evidence/escalation choices |
+| SwarmDelegationEnv | delegation, coalition, and verification choices |
+| SafetyGateEnv | execute/approval/deny/defer/safer-plan choices |
+| SelfRepairEnv | retry, switch skill, ask human, write repair plan, disable failing skill |
+| GridWorld | tiny sanity environment |
+
+All are deterministic with seeds and can be vectorized in process.

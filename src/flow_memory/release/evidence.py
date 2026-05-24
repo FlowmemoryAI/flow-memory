@@ -15,6 +15,7 @@ from flow_memory.release.dependencies import build_dependency_inventory
 from flow_memory.storage.migrations import migration_plan
 from flow_memory.web3.deployment_plan import generate_deployment_plan
 from flow_memory.web3.verification import validate_base_sepolia_artifacts
+from flow_memory.neural.gpu_evidence import gpu_evidence_index
 
 BUNDLE_FORMAT = "flow-memory-release-evidence-v1"
 
@@ -41,6 +42,7 @@ def build_evidence_documents(root: str | Path = ".") -> Mapping[str, Mapping[str
         "dependency_inventory.json": build_dependency_inventory(root_path).as_record(),
         "base_artifacts.json": validate_base_sepolia_artifacts(root_path / "deployments" / "base-sepolia").as_record(),
     }
+    documents["gpu_evidence.json"] = gpu_evidence_index(root_path)
     clean_clone = root_path / "release_evidence" / "clean_clone_validation.json"
     documents["clean_clone_validation.json"] = _json_file_or_missing(clean_clone)
     return documents
@@ -64,6 +66,9 @@ def export_release_evidence(root: str | Path, output_dir: str | Path) -> Release
 
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
+    for existing in output.iterdir():
+        if existing.is_file():
+            existing.unlink()
     documents = build_evidence_documents(root)
     file_hashes: dict[str, str] = {}
     for name, payload in documents.items():

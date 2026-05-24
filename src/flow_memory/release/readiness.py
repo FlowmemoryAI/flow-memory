@@ -28,6 +28,7 @@ PUBLIC_ALPHA_EVIDENCE = (
     "base_sepolia_artifacts",
     "openapi_snapshot",
 )
+NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 
 
 @dataclass(frozen=True)
@@ -69,6 +70,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
             blockers = ("testnet_manual_review_required",)
         classification = "testnet_dry_run_review_candidate" if gates.ok else "blocked_testnet_dry_run"
         evidence = PUBLIC_ALPHA_EVIDENCE + ("contract_registry", "dry_run_deployment_plan")
+    elif target == "neural-gpu-smoke":
+        blockers = _neural_gpu_blockers(root_path, gates.ok)
+        classification = "neural_gpu_smoke_candidate" if not blockers else "neural_gpu_smoke_local_skip"
+        evidence = NEURAL_GPU_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -111,3 +116,23 @@ def _public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     if not (root / "docs" / "openapi" / "flow-memory.openapi.json").exists():
         blockers.append("openapi_snapshot_missing")
     return tuple(blockers)
+
+
+def _neural_gpu_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_public_alpha_blockers(root, gate_ok))
+    evidence = root / "release_evidence" / "gpu_runs"
+    if not evidence.exists():
+        return tuple(blockers)
+    report = _gpu_report(evidence)
+    if report.get("runs") and not report.get("ok"):
+        blockers.append("gpu_evidence_invalid")
+    return tuple(blockers)
+
+
+def _gpu_report(path: Path) -> Mapping[str, Any]:
+    try:
+        from flow_memory.neural.gpu_evidence import verify_gpu_run
+
+        return dict(verify_gpu_run(path))
+    except Exception:
+        return {"ok": False, "runs": ()}

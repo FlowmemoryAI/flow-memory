@@ -1,5 +1,3 @@
-# PufferLib notes
+# PufferLib Notes
 
-PufferLib can be useful for high-throughput RL environments, but it typically expects CUDA or a Docker path for serious throughput. Flow Memory should not depend on it until the project has stable environment APIs.
-
-Do not add PufferLib to base dependencies. Do not vendor PufferLib code. Keep the first integration optional and isolated.
+Future path: stabilize FlowEnv semantics, map EconomyMarketEnv/SafetyGateEnv/SwarmDelegationEnv to Puffer/Ocean-style environments, then evaluate native/CUDA backends. No performance claims are made yet.

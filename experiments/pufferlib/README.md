@@ -1,12 +1,3 @@
-# PufferLib experiment lane
+# PufferLib Experiment Seam
 
-This directory is a future integration plan only. PufferLib is not installed, vendored, or required by Flow Memory Neural Agent Layer v1.
-
-Use this lane after Flow Memory has native RL environments that are worth accelerating.
-
-Planned order:
-1. Flow Memory RL envs.
-2. Puffer adapter.
-3. Native C envs for hot loops.
-4. CUDA backend.
-5. Browser demo.
+PufferLib is optional future work. Flow Memory RL Arena currently provides local Python environments and a lazy adapter seam; no Puffer code is vendored and the base test suite does not require CUDA.

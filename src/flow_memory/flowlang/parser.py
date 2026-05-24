@@ -49,6 +49,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     memory_data: dict[str, Any] = {}
     economy_data: dict[str, Any] = {}
     neural_data: dict[str, Any] = {}
+    rl_data: dict[str, Any] = {}
     policies: list[PolicySpec] = []
     skills: list[SkillSpec] = []
     plans: list[PlanSpec] = []
@@ -58,7 +59,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     current_data: dict[str, Any] = {}
 
     def flush_current() -> None:
-        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data
+        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data
         if not current_kind:
             return
         if current_kind == "memory":
@@ -67,6 +68,8 @@ def parse_flowlang(source: str) -> AgentSpec:
             economy_data.update(current_data)
         elif current_kind == "neural":
             neural_data.update(current_data)
+        elif current_kind == "rl":
+            rl_data.update(current_data)
         elif current_kind == "policy":
             policies.append(_policy_from_data(current_name, current_data))
         elif current_kind == "skill":
@@ -96,7 +99,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             header = stripped[:-1].strip()
             parts = header.split(maxsplit=1)
             kind = parts[0]
-            if kind in {"memory", "economy", "neural"} and len(parts) == 1:
+            if kind in {"memory", "economy", "neural", "rl"} and len(parts) == 1:
                 current_kind = kind
                 current_name = kind
                 current_data = {}
@@ -150,6 +153,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             "autonomy_mode": autonomy_mode,
             "risk_budget": risk_budget,
             "neural": dict(neural_data),
+            "rl": dict(rl_data),
         },
     )
 

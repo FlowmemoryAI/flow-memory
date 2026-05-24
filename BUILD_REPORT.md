@@ -283,3 +283,57 @@ Added optional neural subsystem, synthetic datasets, tiny dual-stream perception
 ## Dependency-free local HTTP API server update — 2026-05-23
 
 Added `src/flow_memory/api/http_server.py` and `scripts/run_local_api_server.py` to expose the internal API router through a standard-library local HTTP server. The gateway covers JSON parsing, API-key checks, optional scope enforcement, local fixed-window rate limiting, request audit events, and structured API errors. Added `tests/test_api_http_server.py` for direct gateway behavior plus an ephemeral localhost request. This remains a local/public-alpha server boundary, not production internet auth or deployment infrastructure.
+
+
+## RL Arena + Neural GPU Evidence Integration
+
+Baseline commit before this build: `34c67f1`.
+
+### Implementation summary
+
+- Added importable cloud GPU evidence records under `src/flow_memory/neural/gpu_evidence.py`, `run_records.py`, `artifacts.py`, and `model_cards.py`.
+- Added scripts for GPU artifact import, summary, verification, and comparison: `scripts/import_gpu_run_artifact.py`, `scripts/summarize_gpu_run.py`, `scripts/verify_gpu_run_artifact.py`, and `scripts/compare_gpu_runs.py`.
+- Added `neural-gpu-smoke` release decision target and included GPU evidence metadata in release evidence bundles.
+- Added dependency-free neural API endpoints for status, backend metadata, GPU run evidence, benchmark metadata, checkpoint metadata, smoke validation, and local-only tiny training.
+- Added Flow Arena RL core under `src/flow_memory/rl/`: spaces, env interface, vector env, rewards, rollout buffer, registry, metrics, baseline policies, Q-learning trainer, evaluator, checkpoint store, local backend, PufferLib adapter seam, and browser policy export.
+- Added Flow Memory RL environments: ToolUseEnv, MemoryRetrievalEnv, EconomyMarketEnv, VerifierEnv, SwarmDelegationEnv, SafetyGateEnv, SelfRepairEnv, and GridWorld.
+- Added advisory RL binding to `AgentProfile`, `AgentRunner`, FlowLang parsing, and FlowIR-to-AgentProfile mapping. RL suggestions cannot bypass PolicyEngine, ApprovalGate, autonomy mode, or economy policy.
+- Added RL examples, RL benchmarks, static browser demo path, PufferLib experiment notes, and RL/neural evidence docs.
+- Hardened several scripts to import local `src/` code instead of stale installed packages, and made release evidence export clean stale bundle files before writing a new bundle.
+
+### Validation results for this build
+
+| Command | Result |
+| --- | --- |
+| `python -m pytest -q` | Pass: `373 passed, 17 skipped` |
+| `bash scripts/verify.sh` | Pass: includes pytest, CLI smoke, perception benchmark, and release gate |
+| `python -m flow_memory --json "Explore and report"` | Pass |
+| `python scripts/gpu_env_check.py --json` | Pass; local machine has no torch/CUDA, reports next command clearly |
+| `python scripts/cloud_gpu_validate.py --smoke --json-out artifacts/cloud_gpu/local_smoke/validation.json` | Pass |
+| `python scripts/train_neural_smoke.py --out artifacts/neural/smoke` | Pass; skipped torch work locally because torch is absent |
+| `python scripts/package_gpu_artifacts.py --input artifacts/cloud_gpu/local_smoke --out artifacts/cloud_gpu/local_smoke.tar.gz` | Pass |
+| `python scripts/summarize_gpu_artifacts.py artifacts/cloud_gpu/local_smoke` | Pass |
+| `python scripts/import_gpu_run_artifact.py artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` | Pass; imported explicit skipped record because the RunPod artifact was not present locally |
+| `python scripts/summarize_gpu_run.py release_evidence/gpu_runs` | Pass |
+| `python scripts/verify_gpu_run_artifact.py release_evidence/gpu_runs` | Pass |
+| RL examples (`examples/rl_*_demo.py`) | Pass |
+| RL benchmarks (`benchmarks/rl_*_benchmark.py`) | Pass; safety training improves reward, economy benchmark reports prototype metric limitation |
+| `python scripts/export_dependency_inventory.py` | Pass |
+| `python scripts/export_dependency_inventory.py --policy` | Pass |
+| `python scripts/export_release_evidence.py` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --target local` | Pass: `local_release_candidate` |
+| `python scripts/release_decision.py --target neural-gpu-smoke` | Pass: `neural_gpu_smoke_candidate`; actual RunPod tarball ingestion skipped locally because artifact was absent |
+| `docker compose config` | Pass |
+| `forge build` | Pass |
+| `forge test` | Pass: `16 tests passed` |
+| `cargo test` in `rust/flow-memory-core` | Pass: `2 passed` |
+| `git diff --check` | Pass |
+| Secret scan | Pass via release gate: no obvious real secret patterns found |
+
+### Honest limitations
+
+- The RunPod RTX 4090 artifact tarball was not present at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`, so this build records a skipped GPU evidence entry locally rather than verified imported RunPod metadata.
+- Flow Arena is a local deterministic RL prototype, not a PufferLib/CUDA high-throughput backend.
+- RL policies are advisory only and intentionally cannot execute actions or bypass safety/economy policy.
+- V-JEPA 2, VideoMAE, production neural training scale, browser/WASM neural inference, and PufferLib native backend remain adapter seams/future work.

@@ -591,6 +591,208 @@
         ]
       }
     },
+    "/neural/backends": {
+      "get": {
+        "operationId": "neural_backends",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List neural backend metadata",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/benchmarks": {
+      "get": {
+        "operationId": "neural_benchmarks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List neural benchmark metadata",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/checkpoints": {
+      "get": {
+        "operationId": "neural_checkpoints",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List checkpoint metadata without raw weights",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/gpu-runs": {
+      "get": {
+        "operationId": "neural_gpu_runs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List imported GPU validation runs",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/gpu-runs/{run_id}": {
+      "get": {
+        "operationId": "neural_gpu_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get imported GPU validation run summary",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/status": {
+      "get": {
+        "operationId": "neural_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return neural subsystem status",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/train-smoke": {
+      "post": {
+        "operationId": "neural_train_smoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "out": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run tiny local neural smoke trainers",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
+    "/neural/validate-smoke": {
+      "post": {
+        "operationId": "neural_validate_smoke",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return neural validation smoke command/status",
+        "tags": [
+          "neural"
+        ]
+      }
+    },
     "/reputation/{did}": {
       "get": {
         "operationId": "reputation_lookup",

@@ -89,3 +89,8 @@ python scripts/run_local_api_server.py --api-key dev-local-only --require-scopes
 ## Status
 
 The internal router, dependency-free HTTP server boundary, OpenAPI generation, signed request seam, API auth/scope/rate-limit checks, and API snapshot validation are tested. Production server deployment, replay protection, TLS termination, tenant isolation, and public networking remain future work.
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

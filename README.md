@@ -141,3 +141,8 @@ Flow Memory now includes an optional Neural Agent Layer v1. The base install sti
 ## Local HTTP API server
 
 Flow Memory now includes a dependency-free local HTTP API server for public-alpha operator testing. Run it with `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`. Add `--api-key dev-local-only --require-scopes` to exercise local API-key and scope gates. This is not production internet authentication; it is a local server boundary for smoke tests, demos, and preflight tools.
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

@@ -1,0 +1,1 @@
+window.flowEnv = { state: { step: 0, reward: 0, reputation: 0, safetyViolations: 0 }, step(action) { this.state.step += 1; if (action === 2) { this.state.reward += 1; this.state.reputation += 0.1; } else if (action === 0) { this.state.safetyViolations += 1; this.state.reward -= 2; } return this.state; } };

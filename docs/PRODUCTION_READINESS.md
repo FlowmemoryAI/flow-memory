@@ -117,3 +117,8 @@ Each release candidate should attach or link:
 ## Neural production-readiness note
 
 Neural Agent Layer v1 is not production ML. It is a functional prototype plus adapter seams. Tiny models are CPU-safe and deterministic; V-JEPA 2 and VideoMAE require explicitly configured local checkpoints and remain unvalidated in this repo. Neural output is advisory only and cannot bypass policy, approval, sandbox, or economy gates.
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

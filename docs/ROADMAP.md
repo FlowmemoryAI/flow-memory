@@ -47,3 +47,8 @@ Implemented local/testnet-preflight prototype:
 3. Wire local VideoMAE checkpoint evaluation without downloads.
 4. Add neural scores to release evidence as prototype metrics.
 5. Expand benchmarks to real local video fixtures once licensing is clear.
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

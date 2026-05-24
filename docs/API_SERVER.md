@@ -63,3 +63,8 @@ PY
 3. Add TLS/reverse-proxy deployment profiles.
 4. Add production observability hooks and structured access logs.
 5. Document deployment profiles separately for local development, private lab use, and audited production use.
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

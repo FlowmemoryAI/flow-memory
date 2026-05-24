@@ -1,10 +1,6 @@
-# Flow arena mapping for future PufferLib work
+# Flow Arena to Puffer Mapping
 
-| Flow Memory environment | Puffer/Ocean mapping | Native C candidate | Notes |
-| --- | --- | --- | --- |
-| FlowEnv | Single-agent environment | Later | General cognitive-loop RL harness. |
-| EconomyMarketEnv | Multi-agent marketplace env | Yes | Stress bidding, settlement, disputes, slashing. |
-| SafetyGateEnv | Policy gate env | Yes | Learn safe routing while policy remains authoritative. |
-| SwarmDelegationEnv | Multi-agent env | Yes | Delegation, verifier selection, coalition formation. |
-
-No Puffer code is vendored here.
+- FlowEnv -> Puffer/Ocean environment interface candidate
+- EconomyMarketEnv -> C env candidate after reward and state schema freeze
+- SafetyGateEnv -> C env candidate for policy-compliance training
+- SwarmDelegationEnv -> multi-agent env candidate

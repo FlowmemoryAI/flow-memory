@@ -91,3 +91,8 @@ RC1 adds clean-clone validation, public-alpha smoke checks, deterministic releas
 ## Neural Agent Layer v1
 
 The architecture now includes an optional neural advisory layer: FlowLang neural config maps into `AgentProfile.neural_config`; `AgentRunner` calls `AgentNeuralBinding`; the binding attaches plan scores, skill route scores, risk scores, memory retrieval scores, and evaluation metadata. Optional `tiny_torch` modules provide dual-stream perception and tiny world-model prototypes when PyTorch is installed. Policy and approval remain authoritative.
+
+
+## Flow Arena RL + Neural Evidence RC update
+
+This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.

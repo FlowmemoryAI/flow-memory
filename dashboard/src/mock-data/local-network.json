@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "source": "mock-data-only",
+  "scenarios": [
+    {"name": "basic-economy", "status": "passes-locally", "agents": ["requester", "worker", "verifier"]},
+    {"name": "neural-agent", "status": "passes-with-advisory-metadata", "agents": ["neural-worker"]},
+    {"name": "rl-training", "status": "passes-locally", "agents": ["rl-operator"]},
+    {"name": "dispute-slashing", "status": "passes-locally", "agents": ["requester", "bad-worker", "verifier"]}
+  ],
+  "reportPath": "artifacts/network/local_network_report.json",
+  "realNetworkRequired": false,
+  "realFundsUsed": false
+}

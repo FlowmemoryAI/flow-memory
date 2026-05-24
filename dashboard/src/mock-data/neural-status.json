@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "source": "mock-data-only",
+  "backend": "tiny_torch",
+  "status": "available-when-ml-extra-installed",
+  "safetyAuthority": "policy-and-approval-gates",
+  "gpuEvidence": {
+    "runId": "flow-memory-cloud-gpu-run-001",
+    "status": "blocked-until-artifact-imported",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "cudaAvailable": true,
+    "artifactPath": "artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz"
+  },
+  "advisorySignals": [
+    "plan_scores",
+    "risk_scores",
+    "memory_retrieval_scores",
+    "evaluation_score"
+  ],
+  "notes": [
+    "Neural models advise only.",
+    "PolicyEngine and ApprovalGate remain authoritative."
+  ]
+}

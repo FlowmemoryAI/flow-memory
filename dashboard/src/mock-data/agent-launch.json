@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "source": "mock-data-only",
+  "launchPaths": [
+    {
+      "name": "CLI",
+      "command": "python scripts/launch_local_agent.py --goal \"Explore and report\"",
+      "status": "local-public-alpha"
+    },
+    {
+      "name": "FlowLang",
+      "command": "python scripts/launch_flowlang_agent.py examples/flowlang_agent.flow --goal \"Run the declared agent\"",
+      "status": "local-public-alpha"
+    },
+    {
+      "name": "Neural",
+      "command": "python scripts/launch_neural_agent.py --backend tiny_torch --goal \"Explore and report\"",
+      "status": "requires-ml-extra-for-torch"
+    },
+    {
+      "name": "API",
+      "command": "python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765",
+      "status": "local-only"
+    }
+  ]
+}

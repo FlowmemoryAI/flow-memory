@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 45,
-  "manifest_hash": "ab8d6598d66ea0f242688108daf4d092a62f365b382a510379d198b8e0d3ad3a",
-  "openapi_hash": "470ce184314645ed7e2f8bd798155c6cc76ec3466f0901c8cafcddd3e207b395",
+  "endpoint_count": 47,
+  "manifest_hash": "fd13e6d9f35d49a03d57762388b1720d46331f94fadae095653420118dd6db91",
+  "openapi_hash": "eb928d392ac04ca653e693267ee3672597a4a97ed9c2ef14fff322fefa650f27",
   "operations": [
     "GET /agents",
     "GET /agents/{did}",
@@ -17,6 +17,8 @@
     "GET /neural/gpu-runs",
     "GET /neural/gpu-runs/{run_id}",
     "GET /neural/status",
+    "GET /release/decision/{target}",
+    "GET /release/evidence",
     "GET /reputation/{did}",
     "GET /rl/benchmarks",
     "GET /rl/envs",
@@ -49,7 +51,7 @@
     "POST /verification/submit",
     "POST /verification/{contract_id}"
   ],
-  "path_count": 44,
+  "path_count": 46,
   "paths": [
     "/agents",
     "/agents/launch",
@@ -83,6 +85,8 @@
     "/neural/status",
     "/neural/train-smoke",
     "/neural/validate-smoke",
+    "/release/decision/{target}",
+    "/release/evidence",
     "/reputation/{did}",
     "/rl/benchmarks",
     "/rl/envs",

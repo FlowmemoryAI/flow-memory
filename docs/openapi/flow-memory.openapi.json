@@ -960,6 +960,60 @@
         ]
       }
     },
+    "/release/decision/{target}": {
+      "get": {
+        "operationId": "release_decision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "target",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return local release readiness decision for a target",
+        "tags": [
+          "release"
+        ]
+      }
+    },
+    "/release/evidence": {
+      "get": {
+        "operationId": "release_evidence",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return local release evidence bundle metadata",
+        "tags": [
+          "release"
+        ]
+      }
+    },
     "/reputation/{did}": {
       "get": {
         "operationId": "reputation_lookup",

@@ -107,3 +107,12 @@ See `docs/API_RL.md` for `/rl/envs`, `/rl/benchmarks`, `/rl/evaluate`, and `/rl/
 ## Agent launch endpoints
 
 See `docs/API_AGENT_LAUNCH.md` for the local public-alpha launch endpoints. These endpoints require `agents:launch` or `network:run` when scope enforcement is enabled.
+
+## Release evidence endpoints
+
+The local API exposes read-only release metadata for public-alpha tooling:
+
+- `GET /release/evidence` returns the committed release evidence bundle index metadata and never exposes raw artifacts.
+- `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, and `public-alpha-launch`.
+
+When scope checks are enabled these endpoints require `release:read`.

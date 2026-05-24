@@ -662,3 +662,56 @@ Added/updated local launch readiness package:
 - dashboard dependency-free `npm run dev` scaffold for Mission Control local replay viewing
 
 Local public-alpha release target intentionally does not require the missing RunPod artifact. GPU-gated targets remain blocked unless a verified GPU run artifact is imported.
+
+## Flow Memory Compute Market integration — 2026-05-24
+
+This slice promotes Flow Memory Compute Market from an isolated dry-run model into a first-class local subsystem spanning agents, FlowLang, API, CLI, Mission Control telemetry, and release evidence.
+
+Added/hardened:
+
+- `src/flow_memory/compute_market/` domain records for providers, routes, quotes, capacity windows, dry-run reservations, payment intents, settlement simulations, route decisions, budget policy, task economic profiles, and economic memory records.
+- Deterministic Compute Market planner/registry helpers with fail-closed budget/policy behavior.
+- `/compute/*` API endpoints with `compute:read` and `compute:plan` scopes.
+- `python -m flow_memory compute ...` CLI commands for local planning and market inspection.
+- `AgentProfile.compute_config`, agent compute binding, and runner memory/audit recording for dry-run route decisions.
+- FlowLang `compute:` block parsing and FlowIR-to-AgentProfile conversion for budget, route, and dry-run requirements.
+- Mission Control visual compute signals and reducer support for plan, quote, route, reservation, payment-plan, settlement-simulation, fail-closed, and economic-memory events.
+- Release evidence field `compute_market.json` and `local-public-alpha` evidence requirement.
+- Public naming cleanup from prior Squire-branded launch surfaces to Flow Memory-native Compute Market surfaces.
+
+Safety posture:
+
+- No live provider calls.
+- No private keys.
+- No funds moved.
+- No transaction broadcast.
+- No live settlement or provider reservation.
+- PolicyEngine and ApprovalGate remain authoritative.
+- GPU-gated release targets remain blocked unless the real RunPod artifact is imported and verified.
+
+Focused validation observed for this slice:
+
+| Check | Result |
+| --- | --- |
+| `python -m pytest -q tests/test_compute_market_core.py tests/test_compute_market_api_cli.py tests/test_compute_market_agent_integration.py tests/test_compute_market_flowlang.py tests/test_compute_market_visual.py tests/test_compute_market_release_evidence.py tests/test_compute_market_naming_cleanup.py` | Pass: `21 passed` |
+| `python -m pytest -q tests -k "compute_market or agent or flowlang or visual or release_evidence or api"` | Pass: `208 passed, 2 skipped, 359 deselected` |
+| `python scripts/export_release_evidence.py` | Pass |
+| `python scripts/verify_release_evidence.py` | Pass |
+| `python scripts/release_decision.py --target local-public-alpha` | Pass |
+| `python -m pytest -q` | Pass: `552 passed, 17 skipped` |
+| `bash scripts/verify.sh` | Pass |
+| `python -m flow_memory --json "Explore and report"` | Pass |
+| `python -m flow_memory compute plan --goal "Route a local analysis task" --budget 0.01 --max-quote 0.01 --strategy cheapest_eligible` | Pass |
+| `python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json` | Pass |
+| `python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json` | Pass |
+| `python scripts/release_decision.py --target local` | Pass |
+| `python scripts/release_decision.py --target public-alpha-local-launch` | Pass |
+| `python scripts/release_decision.py --target neural-gpu-smoke` | Blocked as designed: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-neural` | Blocked as designed: `gpu_evidence_verified_run_missing` |
+| `python scripts/release_decision.py --target public-alpha-launch` | Blocked as designed: `gpu_evidence_verified_run_missing` |
+| `cd dashboard && npm test && npm run build` | Pass |
+| `docker compose config` | Pass |
+| `forge build && forge test` | Pass: `16 tests passed` |
+| `cargo test` | Pass |
+| `git diff --check` | Pass: whitespace warnings only |
+| secret scan | Pass: no obvious secret patterns found |

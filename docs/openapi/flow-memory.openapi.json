@@ -328,6 +328,409 @@
         ]
       }
     },
+    "/compute/capacity": {
+      "get": {
+        "operationId": "compute_capacity",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local dry-run capacity windows",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory": {
+      "get": {
+        "operationId": "compute_economic_memory",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return dry-run compute economic memory records",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/query": {
+      "post": {
+        "operationId": "compute_economic_memory_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "goal_id": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Query dry-run compute economic memory records",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/marketplace-plan": {
+      "post": {
+        "operationId": "compute_marketplace_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "policy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a full dry-run Compute Market plan and record economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/payment-plan": {
+      "post": {
+        "operationId": "compute_payment_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "policy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Generate dry-run payment intent metadata",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/plan": {
+      "post": {
+        "operationId": "compute_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "goal": {
+                    "type": "string"
+                  },
+                  "policy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a dry-run Compute Market plan",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/policies": {
+      "get": {
+        "operationId": "compute_policies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local dry-run compute policies",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/providers": {
+      "get": {
+        "operationId": "compute_providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local dry-run compute providers",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/quote": {
+      "post": {
+        "operationId": "compute_quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Generate a deterministic dry-run compute quote",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/route": {
+      "post": {
+        "operationId": "compute_route",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "policy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Select a policy-bounded dry-run compute route",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/routes": {
+      "get": {
+        "operationId": "compute_routes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local dry-run compute routes",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/simulate-settlement": {
+      "post": {
+        "operationId": "compute_simulate_settlement",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "policy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate local settlement without moving funds",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/dashboard/snapshot": {
       "get": {
         "operationId": "dashboard_snapshot",
@@ -1260,179 +1663,6 @@
         "summary": "Advance local runtime tick",
         "tags": [
           "runtime"
-        ]
-      }
-    },
-    "/squire/docs-sources": {
-      "get": {
-        "operationId": "squire_docs_sources",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return machine-readable Squire docs sync sources",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/memory-schema": {
-      "get": {
-        "operationId": "squire_memory_schema",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Squire economic memory fields",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/plan": {
-      "post": {
-        "operationId": "squire_plan",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "goal": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Build a Squire goal plan",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/routes": {
-      "post": {
-        "operationId": "squire_routes",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "marketplace_only": {
-                    "type": "string"
-                  },
-                  "max_input_price_per_million": {
-                    "type": "string"
-                  },
-                  "max_output_price_per_million": {
-                    "type": "string"
-                  },
-                  "quality_sensitive": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Select a budget-aware Squire route",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/skill": {
-      "get": {
-        "operationId": "squire_skill",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Squire goal skill metadata",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/status": {
-      "get": {
-        "operationId": "squire_status",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Squire ecosystem control-plane status",
-        "tags": [
-          "squire"
         ]
       }
     },

@@ -18,6 +18,7 @@ from flow_memory.web3.verification import validate_base_sepolia_artifacts
 from flow_memory.neural.gpu_evidence import gpu_evidence_index
 from flow_memory.release.rl_evidence import rl_benchmark_evidence
 from flow_memory.release.visual_evidence import visual_system_evidence
+from flow_memory.release.compute_evidence import compute_market_evidence
 
 BUNDLE_FORMAT = "flow-memory-release-evidence-v1"
 
@@ -47,6 +48,7 @@ def build_evidence_documents(root: str | Path = ".") -> Mapping[str, Mapping[str
     documents["gpu_evidence.json"] = gpu_evidence_index(root_path)
     documents["rl_benchmarks.json"] = rl_benchmark_evidence(root_path)
     documents["visual_system.json"] = visual_system_evidence(root_path)
+    documents["compute_market.json"] = compute_market_evidence(root_path)
     clean_clone = root_path / "release_evidence" / "clean_clone_validation.json"
     documents["clean_clone_validation.json"] = _json_file_or_missing(clean_clone)
     return documents

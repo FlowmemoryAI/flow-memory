@@ -13,7 +13,7 @@ from flow_memory.network.topology import LocalNetworkTopology, default_topology
 from flow_memory.rl.envs.safety_gate_env import SafetyGateEnv
 from flow_memory.rl.trainer import SimpleQLearningTrainer
 from flow_memory.visualization import VisualEvent, reduce_visual_events, visual_event
-from flow_memory.visualization.adapters import agent_participants_to_visual_events, economy_receipts_to_visual_events, economy_records_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
+from flow_memory.visualization.adapters import agent_participants_to_visual_events, compute_record_to_visual_events, economy_receipts_to_visual_events, economy_records_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
 
 
 @dataclass
@@ -38,12 +38,27 @@ class LocalFlowMemoryNetwork:
 
     def run_neural_agent(self) -> ScenarioReport:
         worker = self.topology.by_role("worker")
-        profile = worker.profile.__class__(**{**worker.profile.as_record(), "created_at": worker.profile.created_at, "risk_budget": worker.profile.risk_budget, "neural_config": {"backend": "tiny_torch", "perception": "dual_stream"}})
+        profile = worker.profile.__class__(
+            **{
+                **worker.profile.as_record(),
+                "created_at": worker.profile.created_at,
+                "risk_budget": worker.profile.risk_budget,
+                "neural_config": {"backend": "tiny_torch", "perception": "dual_stream"},
+                "compute_config": {
+                    "enabled": True,
+                    "task_profile": {"model": "small-general", "expected_input_tokens": 800, "expected_output_tokens": 240},
+                    "budget_policy": {"max_total_cost": 0.01, "max_quote": 0.01, "strategy": "cheapest_eligible", "dry_run_required": True, "payment_rail": "local_credits"},
+                },
+            }
+        )
         result = AgentRunner(profile).run_cycle("Explore and report")
         neural = dict(result.output.get("neural", {}))
         ok = bool(result.accepted or result.requires_approval) and neural.get("backend") == "tiny_torch"
-        data = {"accepted": result.accepted, "requires_approval": result.requires_approval, "neural": neural, "audit_events": tuple(result.audit_events)}
+        compute = dict(result.output.get("compute", {}))
+        data = {"accepted": result.accepted, "requires_approval": result.requires_approval, "neural": neural, "compute": compute, "audit_events": tuple(result.audit_events)}
         self._extend_visual(neural_record_to_visual_events(neural, agent_id=profile.identity))
+        if compute:
+            self._extend_visual(compute_record_to_visual_events(dict(compute.get("record", compute)), agent_id=profile.identity))
         self._extend_visual(safety_record_to_visual_events({"decision_id": f"neural-policy-{profile.agent_id}", "approved": result.accepted, "requires_human": result.requires_approval, "risk_level": "low"}, agent_id=profile.identity))
         self._receipt("neural_agent_cycle", profile.identity, data)
         return ScenarioReport("neural-agent", ok, "agent ran with neural advisory metadata; safety remains authoritative", data)

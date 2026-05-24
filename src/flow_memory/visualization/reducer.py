@@ -12,6 +12,7 @@ from flow_memory.visualization.state import (
     VisualMemoryNode,
     VisualNetworkState,
     VisualNeuralSignal,
+    VisualComputeMarketSignal,
     VisualRLEpisode,
     VisualRuntimeHealth,
     VisualSafetyGate,
@@ -75,6 +76,7 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
     memory: dict[str, VisualMemoryNode] = {}
     economy: dict[str, VisualEconomyEdge] = {}
     neural: dict[str, VisualNeuralSignal] = {}
+    compute: dict[str, VisualComputeMarketSignal] = {}
     rl: dict[str, VisualRLEpisode] = {}
     safety: dict[str, VisualSafetyGate] = {}
     audit: list[VisualAuditTrailItem] = []
@@ -146,6 +148,23 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
                 provenance=event_provenance,
                 source_event_id=event_id,
             )
+        elif event_type == "compute":
+            signal_id = str(payload.get("signal_id") or event_id)
+            compute[signal_id] = VisualComputeMarketSignal(
+                signal_id=signal_id,
+                agent_id=str(payload.get("agent_id", "")),
+                task_id=str(payload.get("task_id", "")),
+                event=str(payload.get("event", "observed")),
+                status=str(payload.get("status", "observed")),
+                provider_id=str(payload.get("provider_id", "")),
+                route_id=str(payload.get("route_id", "")),
+                quote_total=float(payload.get("quote_total", payload.get("total_cost", 0.0)) or 0.0),
+                payment_rail=str(payload.get("payment_rail", "local_credits")),
+                dry_run_only=bool(payload.get("dry_run_only", True)),
+                no_funds_moved=bool(payload.get("no_funds_moved", True)),
+                provenance=event_provenance,
+                source_event_id=event_id,
+            )
         elif event_type == "rl":
             episode_id = str(payload.get("episode_id") or event_id)
             rl[episode_id] = VisualRLEpisode(
@@ -181,6 +200,7 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
         memory=tuple(memory.values()),
         economy=tuple(economy.values()),
         neural=tuple(neural.values()),
+        compute=tuple(compute.values()),
         rl=tuple(rl.values()),
         safety=tuple(safety.values()),
         audit=tuple(audit),

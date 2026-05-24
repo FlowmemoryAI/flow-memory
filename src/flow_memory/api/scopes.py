@@ -26,8 +26,9 @@ RELEASE_READ_SCOPE = "release:read"
 DASHBOARD_READ_SCOPE = "dashboard:read"
 VISUAL_READ_SCOPE = "visual:read"
 VISUAL_STREAM_SCOPE = "visual:stream"
-SQUIRE_READ_SCOPE = "squire:read"
-SQUIRE_PLAN_SCOPE = "squire:plan"
+COMPUTE_READ_SCOPE = "compute:read"
+COMPUTE_PLAN_SCOPE = "compute:plan"
+
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -46,8 +47,9 @@ KNOWN_SCOPES = frozenset({
     DASHBOARD_READ_SCOPE,
     VISUAL_READ_SCOPE,
     VISUAL_STREAM_SCOPE,
-    SQUIRE_READ_SCOPE,
-    SQUIRE_PLAN_SCOPE,
+    COMPUTE_READ_SCOPE,
+    COMPUTE_PLAN_SCOPE,
+
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -148,14 +150,14 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (RELEASE_READ_SCOPE,)
     if path_key.startswith("/dashboard/"):
         return (DASHBOARD_READ_SCOPE,)
+    if path_key.startswith("/compute/"):
+        if normalized_method in READ_METHODS:
+            return (COMPUTE_READ_SCOPE,)
+        return (COMPUTE_PLAN_SCOPE,)
     if path_key.startswith("/visual/") or path_key == "/network/state":
         return (VISUAL_READ_SCOPE,)
     if path_key == "/events/stream":
         return (VISUAL_STREAM_SCOPE,)
-    if path_key == "/squire/plan" or path_key == "/squire/routes":
-        return (SQUIRE_PLAN_SCOPE,)
-    if path_key.startswith("/squire/"):
-        return (SQUIRE_READ_SCOPE,)
     if normalized_method in READ_METHODS:
         return (READ_SCOPE,)
     return (WRITE_SCOPE,)

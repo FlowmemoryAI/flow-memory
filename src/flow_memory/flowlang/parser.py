@@ -50,6 +50,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     economy_data: dict[str, Any] = {}
     neural_data: dict[str, Any] = {}
     rl_data: dict[str, Any] = {}
+    compute_data: dict[str, Any] = {}
     policies: list[PolicySpec] = []
     skills: list[SkillSpec] = []
     plans: list[PlanSpec] = []
@@ -59,7 +60,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     current_data: dict[str, Any] = {}
 
     def flush_current() -> None:
-        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data
+        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data, compute_data
         if not current_kind:
             return
         if current_kind == "memory":
@@ -70,6 +71,8 @@ def parse_flowlang(source: str) -> AgentSpec:
             neural_data.update(current_data)
         elif current_kind == "rl":
             rl_data.update(current_data)
+        elif current_kind == "compute":
+            compute_data.update(current_data)
         elif current_kind == "policy":
             policies.append(_policy_from_data(current_name, current_data))
         elif current_kind == "skill":
@@ -99,7 +102,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             header = stripped[:-1].strip()
             parts = header.split(maxsplit=1)
             kind = parts[0]
-            if kind in {"memory", "economy", "neural", "rl"} and len(parts) == 1:
+            if kind in {"memory", "economy", "neural", "rl", "compute"} and len(parts) == 1:
                 current_kind = kind
                 current_name = kind
                 current_data = {}
@@ -154,6 +157,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             "risk_budget": risk_budget,
             "neural": dict(neural_data),
             "rl": dict(rl_data),
+            "compute_market": _compute_config_from_data(compute_data),
         },
     )
 
@@ -244,6 +248,46 @@ def _economy_from_data(data: dict[str, Any]) -> EconomicSpec:
         allow_slashing=_as_bool(data.get("allow_slashing", False)),
         metadata=_metadata(data, {"settlement", "budget", "currency", "marketplace", "allow_slashing"}),
     )
+
+def _compute_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
+    if not data:
+        return {}
+    known_policy = {
+        "budget_limit",
+        "budget",
+        "max_total_cost",
+        "max_quote",
+        "max_input_price_per_million",
+        "max_output_price_per_million",
+        "preferred_strategy",
+        "strategy",
+        "allowed_providers",
+        "allowed_routes",
+        "marketplace_only",
+        "allow_fallback",
+        "dry_run_required",
+        "payment_rail",
+        "payment_rail_preference",
+    }
+    known_task = {
+        "task_id",
+        "model",
+        "model_requested",
+        "expected_input_tokens",
+        "expected_output_tokens",
+        "tokens_in",
+        "tokens_out",
+        "quality_sensitive",
+        "latency_sensitive",
+        "requires_marketplace",
+        "max_budget",
+    }
+    return {
+        "enabled": _as_bool(data.get("enabled", True)),
+        "budget_policy": {key: data[key] for key in data if key in known_policy},
+        "task_profile": {key: data[key] for key in data if key in known_task},
+        "metadata": _metadata(data, known_policy | known_task | {"enabled"}),
+    }
 
 
 def _policy_from_data(name: str, data: dict[str, Any]) -> PolicySpec:

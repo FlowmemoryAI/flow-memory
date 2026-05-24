@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "9572ea063a39164655f54776205df743f52553d5",
-  "hash": "2b1debd764cb52ddaa1ab45ee527b97885c5878c6335e11e40ec6a22b88594c2",
+  "git_commit": "3634805b72add2ad93acd178737d201d98f0da41",
+  "hash": "fe2e3cfe8822a7d25d09c91a1dc6132013f3a50d8506f2bb4c7b5ce94e8b37ef",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -53,7 +53,7 @@
     "GPU evidence requires real RunPod tarball"
   ],
   "local_network": {
-    "hash": "c81872d0fc171f7f2a0930843a5e0d1711c89b2d4f4af92a30667841c0803bcd",
+    "hash": "6b3d8b3cf80b6da069b598978a08580a515d4685341c3680f783b57e61712c17",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },

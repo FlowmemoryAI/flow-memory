@@ -20,10 +20,10 @@
       "sha256": "82eaab96743d35c80a12e9525ad3d75b0287b1fe5783f2926399bd25fe8b6f25"
     },
     {
-      "bytes": 13734,
+      "bytes": 14853,
       "exists": true,
       "path": "src/flow_memory/visualization/reducer.py",
-      "sha256": "d76a444febe917ff77cde048c1bd6617d37a5d26d736d09276631eba5d37b2b8"
+      "sha256": "ec75d30e19e0c6324b55a802a45ed84c4224b784e027c2235c93ec19e588421e"
     },
     {
       "bytes": 2389,
@@ -50,10 +50,10 @@
       "sha256": "7226aa3d9b7b010cba4f0627378b3cf47fd6324047fc333cfebbcd63890db78b"
     },
     {
-      "bytes": 40594,
+      "bytes": 51693,
       "exists": true,
       "path": "dashboard/src/mock-data/local-network-replay.json",
-      "sha256": "762b578cef044aa4c6d84d85b5270aac617fa60bbf839171e423276ff4350ea0"
+      "sha256": "ffb66328577c670199f3aa08aa8a1118203fb06b1f0c15a0ceacc7a1e56cd9d6"
     },
     {
       "bytes": 2640,
@@ -72,11 +72,11 @@
   "replay": {
     "agent_count": 4,
     "blocker": "",
-    "bytes": 40594,
-    "event_count": 34,
+    "bytes": 51693,
+    "event_count": 41,
     "ok": true,
     "path": "dashboard\\src\\mock-data\\local-network-replay.json",
-    "sha256": "762b578cef044aa4c6d84d85b5270aac617fa60bbf839171e423276ff4350ea0",
+    "sha256": "ffb66328577c670199f3aa08aa8a1118203fb06b1f0c15a0ceacc7a1e56cd9d6",
     "task_count": 2
   },
   "schema_version": "visual.telemetry.v1"

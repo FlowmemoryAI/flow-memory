@@ -41,6 +41,7 @@ class AgentProfile:
     economy_config: Mapping[str, Any] = field(default_factory=dict)
     neural_config: Mapping[str, Any] = field(default_factory=dict)
     rl_config: Mapping[str, Any] = field(default_factory=dict)
+    compute_config: Mapping[str, Any] = field(default_factory=dict)
     autonomy_mode: str = "supervised"
     risk_budget: RiskBudget = field(default_factory=RiskBudget)
     reputation: float = 0.0
@@ -61,6 +62,12 @@ class AgentProfile:
         rl_backend = str(self.rl_config.get("backend", "local_tabular"))
         if rl_backend not in {"local_tabular", "tabular_q", "heuristic", "pufferlib"}:
             errors.append(f"unknown RL backend: {rl_backend}")
+        if self.compute_config:
+            if self.compute_config.get("enabled", True) and "budget_policy" not in self.compute_config:
+                errors.append("compute_config requires budget_policy when enabled")
+            budget_policy = self.compute_config.get("budget_policy", {})
+            if isinstance(budget_policy, Mapping) and not bool(budget_policy.get("dry_run_required", True)):
+                errors.append("compute_config must require dry_run_required=true")
         return tuple(errors)
 
     def as_record(self) -> Mapping[str, Any]:
@@ -79,6 +86,7 @@ class AgentProfile:
             "economy_config": dict(self.economy_config),
             "neural_config": dict(self.neural_config),
             "rl_config": dict(self.rl_config),
+            "compute_config": dict(self.compute_config),
             "autonomy_mode": self.autonomy_mode,
             "risk_budget": self.risk_budget.as_record(),
             "reputation": self.reputation,

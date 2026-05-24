@@ -10,7 +10,7 @@ def visual_schema() -> Mapping[str, Any]:
     return {
         "schema_version": VISUAL_SCHEMA_VERSION,
         "provenance_values": ("live", "replay", "mock", "synthetic"),
-        "event_types": ("agent", "task", "memory", "economy", "neural", "rl", "safety", "audit"),
-        "state_collections": ("agents", "tasks", "memory", "economy", "neural", "rl", "safety", "audit"),
+        "event_types": ("agent", "task", "memory", "economy", "compute", "neural", "rl", "safety", "audit"),
+        "state_collections": ("agents", "tasks", "memory", "economy", "compute", "neural", "rl", "safety", "audit"),
         "required_reference": "source_event_id when available",
     }

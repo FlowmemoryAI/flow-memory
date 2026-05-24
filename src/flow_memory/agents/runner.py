@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from flow_memory.agents.cognition import AgentCognition
+from flow_memory.agents.compute_binding import AgentComputeBinding
 from flow_memory.agents.economy_binding import AgentEconomyBinding
 from flow_memory.agents.evaluator import AgentEvaluator
 from flow_memory.agents.executor import AgentExecutor
@@ -54,6 +55,7 @@ class AgentRunner:
     swarm: AgentSwarmBinding = field(default_factory=AgentSwarmBinding)
     neural: AgentNeuralBinding = field(default_factory=AgentNeuralBinding)
     rl: AgentRlBinding = field(default_factory=AgentRlBinding)
+    compute: AgentComputeBinding = field(default_factory=AgentComputeBinding)
 
     def run_cycle(self, user_input: str) -> AgentRunResult:
         self.state.lifecycle_status = "running"
@@ -67,14 +69,26 @@ class AgentRunner:
         self.state.current_task_graph = graph.as_record()
         neural_metadata = self.neural.annotate_plan(self.profile, goal, plan, tuple(context))
         rl_metadata = self.rl.suggest(self.profile, goal)
+        compute_metadata = self.compute.plan(self.profile, goal, plan)
         decision = self.policy.check_plan(self.profile, plan)
         audit_events: list[Mapping[str, Any]] = [
             {"event": "agent_cycle_started", "agent_id": self.profile.agent_id, "goal": goal},
             {"event": "plan_created", "plan_id": plan.plan_id, "risk_level": plan.risk_level},
             {"event": "neural_plan_annotated", "backend": neural_metadata.get("backend"), "status": neural_metadata.get("status", "available")},
             {"event": "rl_policy_suggested", "enabled": rl_metadata.get("enabled", False), "safety_authority": rl_metadata.get("safety_authority", "")},
+            {"event": "compute_market_planned", "status": compute_metadata.get("status", "disabled"), "dry_run_only": compute_metadata.get("dry_run_only", True)},
             {"event": "policy_decision", **decision.as_record()},
         ]
+        if compute_metadata.get("status") == "fail_closed":
+            reason = str(compute_metadata.get("reason", "compute market policy failed closed"))
+            self.state.add_event({"event": "compute_market_denied", "reason": reason})
+            output = {"success": False, "blocked": True, "reason": reason}
+            evaluation = self.evaluator.evaluate(output)
+            reflection = self.reflector.reflect(evaluation)
+            self.state.last_evaluation = evaluation.as_record()
+            self.memory.write("compute_market_denied", {"goal": goal, "reason": reason, "compute": compute_metadata})
+            audit_events.append({"event": "agent_cycle_blocked", "reason": reason, "blocked_by": "compute_market"})
+            return AgentRunResult(False, True, {"evaluation": evaluation.as_record(), "reflection": reflection.as_record(), "neural": neural_metadata, "rl": rl_metadata, "compute": compute_metadata, **output}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
         if decision.requires_approval and not decision.allowed:
             approval = {"plan_id": plan.plan_id, "reason": decision.reason, "permissions": plan.required_permissions}
             self.state.outstanding_approvals.append(approval)
@@ -85,20 +99,22 @@ class AgentRunner:
             self.state.last_evaluation = evaluation.as_record()
             self.memory.write("blocked_plan", {"goal": goal, "reason": decision.reason})
             audit_events.append({"event": "agent_cycle_blocked", "reason": decision.reason})
-            return AgentRunResult(False, True, {"evaluation": evaluation.as_record(), "reflection": reflection.as_record(), "neural": neural_metadata, "rl": rl_metadata, **output}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
+            return AgentRunResult(False, True, {"evaluation": evaluation.as_record(), "reflection": reflection.as_record(), "neural": neural_metadata, "rl": rl_metadata, "compute": compute_metadata, **output}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
 
         payload = {"goal": goal, "context": tuple(context), "agent_id": self.profile.agent_id, "discovered_agents": discovered_agents}
         execution = self.executor.execute(plan, payload)
         settlement = self.economy.maybe_settle(self.profile.identity or self.profile.agent_id, self.profile.identity or self.profile.agent_id, goal, plan.economic_value) if plan.economic_intent else None
+        if compute_metadata.get("status") == "planned" and compute_metadata.get("economic_memory"):
+            self.memory.write("compute_economic_memory", dict(compute_metadata.get("economic_memory", {})))
         evaluation = self.evaluator.evaluate(execution, expected=plan.success_criteria)
         reflection = self.reflector.reflect(evaluation)
-        memory_record = self.memory.write("agent_run", {"goal": goal, "plan": plan.as_record(), "execution": execution, "settlement": settlement, "neural": neural_metadata, "rl": rl_metadata})
+        memory_record = self.memory.write("agent_run", {"goal": goal, "plan": plan.as_record(), "execution": execution, "settlement": settlement, "neural": neural_metadata, "rl": rl_metadata, "compute": compute_metadata})
         self.state.working_memory_snapshot = (memory_record,)
         self.state.last_evaluation = evaluation.as_record()
         self.state.lifecycle_status = "idle"
         self.state.add_event({"event": "agent_cycle_completed", "success": evaluation.success})
         audit_events.append({"event": "agent_cycle_completed", "success": evaluation.success})
-        return AgentRunResult(True, False, {"execution": execution, "settlement": settlement, "evaluation": evaluation.as_record(), "reflection": reflection.as_record(), "neural": neural_metadata, "rl": rl_metadata}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
+        return AgentRunResult(True, False, {"execution": execution, "settlement": settlement, "evaluation": evaluation.as_record(), "reflection": reflection.as_record(), "neural": neural_metadata, "rl": rl_metadata, "compute": compute_metadata}, self.state.as_record(), tuple(audit_events), tuple(self.memory.records))
 
 
 def run_agent_cycle(agent: AgentProfile, user_input: str) -> AgentRunResult:

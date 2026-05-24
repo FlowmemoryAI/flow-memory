@@ -4,7 +4,7 @@ Date: 2026-05-23
 
 ## Current status
 
-Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, typed dashboard mock API scaffold, release evidence, and production-readiness docs.
+Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
 
 It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, API auth remains a seam, and FlowLang remains v0/prototype.
 
@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `287 passed, 1 skipped` |
+| `python -m pytest -q` | Pass: `552 passed, 17 skipped` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -21,6 +21,8 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Base Sepolia dry-run script | Pass |
 | Clean clone validation | Pass |
 | Public-alpha release decision | Pass |
+| Local public alpha release decision | Pass |
+| Compute Market targeted validation | Pass: `21 passed`; broader compute/agent/FlowLang/API/visual/release targeted set `208 passed, 2 skipped` |
 | Forge tests | Pass: `16 passed` |
 
 ## Maturity table
@@ -48,6 +50,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | API auth/signed requests | Local API-key and HMAC signed-request seam tested; not production auth |
 | API scopes/errors/rate limits/audit middleware | Functional local prototype; not production auth |
 | Dependency-free local HTTP API server | Implemented local/public-alpha server with API-key, scopes, rate limits, error contracts, and audit events; not production internet auth |
+| Flow Memory Compute Market | Implemented local dry-run subsystem; quotes/routes/payment intents/settlement simulations only |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |
@@ -182,17 +185,18 @@ Current launch posture remains local public alpha only until the real RunPod tar
 
 Mission Control is connected to real local network/replay/API data for public-alpha demos. Mock mode remains explicitly labeled, and no frontend build is required for the Python test suite.
 
-## Squire Goal control-plane status
+## Flow Memory Compute Market status
 
 | Subsystem | Status | Notes |
 | --- | --- | --- |
-| `/goal squire` skill | implemented local workflow | `skills/squire-goal/SKILL.md` packages the SQUIRE/Level5/UsePod/Solana/402/MPP/provider marketplace orchestration rules. |
-| Squire core package | implemented local seam | `flow_memory.squire` models treasury, routing policy, route telemetry, paid-tool plans, provider setup plans, docs sync, and economic memory records. |
-| Squire API endpoints | implemented local seam | `/squire/status`, `/squire/plan`, `/squire/routes`, `/squire/memory-schema`, `/squire/docs-sources`, and `/squire/skill` are local API endpoints with `squire:*` scopes. |
-| Squire economics | planning only | No SQUIRE token redemption, live UsePod/Level5 billing, wallet action, or provider bond posting happens by default. |
-| Roadmap distinction | enforced in records/docs | TEE attestation, on-chain slashing, compute futures, reserved throughput, native SQUIRE redemption, and native Dolphin inventory are labeled roadmap/adjacent unless separately verified. |
+| Compute Market domain | implemented local simulation | `flow_memory.compute_market` models providers, routes, quotes, capacity windows, payment intents, settlement simulations, route decisions, and economic memory records. |
+| Compute API endpoints | implemented local seam | `/compute/*` endpoints expose metadata, quote, route, payment-plan, settlement-simulation, providers, routes, policies, and economic-memory query paths with `compute:*` scopes. |
+| Compute CLI | implemented local seam | `python -m flow_memory compute ...` supports provider/route/policy inspection and deterministic planning. |
+| Agent/FlowLang integration | implemented advisory binding | Agent profiles and FlowLang specs can declare compute requirements and budget policies; runner records deterministic compute route/economic memory metadata. |
+| Mission Control telemetry | implemented local/replay signal | Compute plan, quote, route, reservation, payment plan, settlement simulation, fail-closed, and economic-memory events reduce into visual state. |
+| Dry-run invariant | enforced | No private keys, no live provider calls, no funds moved, no transaction broadcast, and no live settlement are performed by default. |
 
-Flow Memory now has a live-first Squire control-plane planning layer for agentic compute routing and cost telemetry. It is intentionally an adapter seam, not a token custody or real-funds implementation.
+Flow Memory now exposes its own Compute Market surfaces instead of public Squire-branded API/CLI/skill surfaces. The older Squire/UsePod/Level5 research remains migration context only; launch surfaces are Flow Memory-native and dry-run local.
 
 ## Mission Control V2 recovery/polish branch status
 

@@ -24,6 +24,7 @@ python scripts/release_decision.py --target public-alpha-local-launch
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
+| Compute Market | Local dry-run provider/route/quote/payment-intent/settlement simulation; no live settlement. |
 | Neural GPU public alpha | Blocked until real RunPod artifact is imported and verified. |
 | Base/Web3 | Dry-run only. |
 | Mainnet | Not ready. |

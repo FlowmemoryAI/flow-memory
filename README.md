@@ -60,7 +60,7 @@ The project now combines:
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
-Flow Memory is production-shaped, not production-certified. It does not claim audited contracts, hardened sandboxing, production API authentication, mainnet readiness, safe real-funds custody, or trained ML model performance.
+Flow Memory is production-shaped, not production-certified, not audited, and not mainnet-ready. It does not claim audited contracts, hardened sandboxing, production API authentication, safe real-funds custody, or trained ML model performance.
 
 ## Install
 

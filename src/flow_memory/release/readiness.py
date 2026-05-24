@@ -30,6 +30,7 @@ PUBLIC_ALPHA_EVIDENCE = (
 )
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
+LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs")
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_launch_blockers(root_path, gates.ok)
         classification = "public_alpha_launch_candidate" if not blockers else "blocked_public_alpha_launch"
         evidence = PUBLIC_ALPHA_NEURAL_EVIDENCE + ("full_system_quick", "launch_docs", "payment_docs", "learning_docs")
+    elif target == "local-public-alpha":
+        blockers = _local_public_alpha_blockers(root_path, gates.ok)
+        classification = "local_public_alpha_candidate" if not blockers else "blocked_local_public_alpha"
+        evidence = LOCAL_PUBLIC_ALPHA_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -188,6 +193,58 @@ def _public_alpha_launch_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     if "not audited" not in readme_text and "audited contracts" not in readme_text:
         blockers.append("readme_audit_warning_missing")
     if "mainnet" not in readme_text:
+        blockers.append("readme_mainnet_warning_missing")
+    return tuple(dict.fromkeys(blockers))
+
+
+def _local_public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_public_alpha_blockers(root, gate_ok))
+    quick = root / "artifacts" / "full_system" / "quick_report.json"
+    if not quick.exists():
+        blockers.append("full_system_quick_missing")
+    else:
+        try:
+            if json.loads(quick.read_text(encoding="utf-8")).get("ok") is not True:
+                blockers.append("full_system_quick_failed")
+        except json.JSONDecodeError:
+            blockers.append("full_system_quick_invalid")
+    for relative in (
+        "scripts/launch_local_agent.py",
+        "scripts/launch_flowlang_agent.py",
+        "scripts/launch_neural_agent.py",
+        "scripts/launch_local_agent_network.py",
+        "scripts/run_local_network.py",
+        "scripts/export_visual_replay.py",
+    ):
+        if not (root / relative).exists():
+            blockers.append(f"missing_{relative.replace('/', '_')}")
+    replay = root / "dashboard" / "src" / "mock-data" / "local-network-replay.json"
+    if not replay.exists():
+        blockers.append("visual_replay_missing")
+    else:
+        try:
+            payload = json.loads(replay.read_text(encoding="utf-8"))
+            state = dict(payload.get("state", {}))
+            if payload.get("ok") is not True or not state.get("agents") or not state.get("tasks"):
+                blockers.append("visual_replay_invalid")
+        except json.JSONDecodeError:
+            blockers.append("visual_replay_invalid")
+    required_docs = (
+        "docs/START_HERE.md",
+        "docs/LAUNCH_NEURAL_AGENTS.md",
+        "docs/PAYMENTS_AND_AGENT_ECONOMY.md",
+        "docs/MISSION_CONTROL_QUICKSTART.md",
+    )
+    for relative in required_docs:
+        if not (root / relative).exists():
+            blockers.append(f"missing_{relative.replace('/', '_')}")
+    readme = root / "README.md"
+    readme_text = readme.read_text(encoding="utf-8").lower() if readme.exists() else ""
+    if "public alpha" not in readme_text and "public-alpha" not in readme_text:
+        blockers.append("readme_public_alpha_warning_missing")
+    if "not audited" not in readme_text:
+        blockers.append("readme_audit_warning_missing")
+    if "not mainnet" not in readme_text and "mainnet-ready" not in readme_text:
         blockers.append("readme_mainnet_warning_missing")
     return tuple(dict.fromkeys(blockers))
 

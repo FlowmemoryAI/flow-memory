@@ -405,6 +405,11 @@
           "fund_escrow"
         ],
         "label": "Requester Agent",
+        "position": [
+          -4.0,
+          0.0,
+          0.0
+        ],
         "provenance": "live",
         "reputation": 5.0,
         "role": "requester",
@@ -419,6 +424,11 @@
           "submit_work"
         ],
         "label": "Worker Agent",
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
         "provenance": "live",
         "reputation": 7.0,
         "role": "worker",
@@ -432,6 +442,11 @@
           "resolve_dispute"
         ],
         "label": "Verifier Agent",
+        "position": [
+          4.0,
+          0.0,
+          0.0
+        ],
         "provenance": "live",
         "reputation": 8.0,
         "role": "verifier",
@@ -445,6 +460,11 @@
           "observe"
         ],
         "label": "Observer Auditor",
+        "position": [
+          0.0,
+          0.0,
+          -3.0
+        ],
         "provenance": "live",
         "reputation": 6.0,
         "role": "auditor",
@@ -676,6 +696,32 @@
         "to_id": "did:flow:worker"
       }
     ],
+    "layout": {
+      "layout_version": "mission-control-layout-v1",
+      "positions": {
+        "did:flow:auditor": [
+          0.0,
+          0.0,
+          -3.0
+        ],
+        "did:flow:requester": [
+          -4.0,
+          0.0,
+          0.0
+        ],
+        "did:flow:verifier": [
+          4.0,
+          0.0,
+          0.0
+        ],
+        "did:flow:worker": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "seed": 0
+    },
     "memory": [
       {
         "agent_id": "did:flow:worker",

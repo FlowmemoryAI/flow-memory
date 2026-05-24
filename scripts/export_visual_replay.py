@@ -14,6 +14,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from flow_memory.visualization import reduce_visual_events
+from flow_memory.visualization.layout import apply_layout_to_state
 from flow_memory.visualization.events import VISUAL_SCHEMA_VERSION
 
 _DYNAMIC_ID = re.compile(r"(visual_event|taskv3|bidv3|work|receipt|network_receipt|agent)_[A-Za-z0-9]+")
@@ -29,7 +30,7 @@ def export_visual_replay(input_path: str | Path, output_path: str | Path) -> Map
         raise ValueError("network report does not contain visual_events; rerun with --emit-visual-events")
     replacements: dict[str, str] = {}
     events = tuple(_stable_value(event, replacements) for event in raw_events)
-    state = reduce_visual_events(events, provenance="replay").as_record()
+    state = apply_layout_to_state(reduce_visual_events(events, provenance="replay").as_record())
     replay = {
         "ok": True,
         "schema_version": VISUAL_SCHEMA_VERSION,

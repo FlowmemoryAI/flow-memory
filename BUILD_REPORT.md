@@ -363,3 +363,8 @@ Added `examples/launch_neural_agent_demo.py`, `docs/LAUNCH_NEURAL_AGENTS.md`, an
 ## Slice: structured Flow Arena observations
 
 Expanded `FlowEnv` observations from toy scalar fields to nested agent/economy/safety/memory features, added transition-driven feature updates, and covered the behavior in `tests/test_rl_structured_observations.py`.
+
+
+## Slice: long EconomyMarketEnv episodes
+
+Added `episode_mode="long"` to `EconomyMarketEnv` with bid, verifier, settlement, dispute, and slashing-aware phases. Covered success, dispute, and vectorized long episodes in `tests/test_economy_market_long_episode.py`.

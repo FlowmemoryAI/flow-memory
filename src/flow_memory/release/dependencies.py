@@ -44,11 +44,11 @@ def build_dependency_inventory(root: str | Path = ".") -> DependencyInventory:
     cargo_toml = root_path / "rust" / "flow-memory-core" / "Cargo.toml"
 
     if pyproject.exists():
-        manifests["python"] = _parse_pyproject(pyproject)
+        manifests["python"] = _parse_pyproject(pyproject, root_path)
     if package_json.exists():
-        manifests["dashboard"] = _parse_package_json(package_json)
+        manifests["dashboard"] = _parse_package_json(package_json, root_path)
     if cargo_toml.exists():
-        manifests["rust"] = _parse_cargo(cargo_toml)
+        manifests["rust"] = _parse_cargo(cargo_toml, root_path)
 
     return DependencyInventory(root=str(root_path), manifests=manifests, inventory_hash=content_hash(manifests))
 
@@ -125,10 +125,10 @@ def _validate_dashboard_spec(name: str, version: str, errors: list[str]) -> None
         errors.append(f"dashboard dependency {name} must not use non-registry source {version!r}")
 
 
-def _parse_pyproject(path: Path) -> Mapping[str, Any]:
+def _parse_pyproject(path: Path, root: Path) -> Mapping[str, Any]:
     lines = path.read_text(encoding="utf-8").splitlines()
     return {
-        "path": _relative_name(path),
+        "path": _relative_name(path, root),
         "name": _scalar(lines, "name"),
         "version": _scalar(lines, "version"),
         "requires_python": _scalar(lines, "requires-python"),
@@ -137,10 +137,10 @@ def _parse_pyproject(path: Path) -> Mapping[str, Any]:
     }
 
 
-def _parse_package_json(path: Path) -> Mapping[str, Any]:
+def _parse_package_json(path: Path, root: Path) -> Mapping[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     return {
-        "path": _relative_name(path),
+        "path": _relative_name(path, root),
         "name": data.get("name", ""),
         "version": data.get("version", ""),
         "private": bool(data.get("private", False)),
@@ -149,10 +149,10 @@ def _parse_package_json(path: Path) -> Mapping[str, Any]:
     }
 
 
-def _parse_cargo(path: Path) -> Mapping[str, Any]:
+def _parse_cargo(path: Path, root: Path) -> Mapping[str, Any]:
     lines = path.read_text(encoding="utf-8").splitlines()
     return {
-        "path": _relative_name(path),
+        "path": _relative_name(path, root),
         "name": _scalar(lines, "name"),
         "version": _scalar(lines, "version"),
         "edition": _scalar(lines, "edition"),
@@ -229,8 +229,8 @@ def _section_keys(lines: list[str], section: str) -> tuple[str, ...]:
     return tuple(keys)
 
 
-def _relative_name(path: Path) -> str:
-    parts = path.parts
-    if "flow-memory" in parts:
-        return "/".join(parts[parts.index("flow-memory") + 1 :])
-    return path.name
+def _relative_name(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.name

@@ -9,6 +9,7 @@ from typing import Any, Mapping
 
 from flow_memory.release.gates import run_release_gates
 from flow_memory.web3.verification import validate_base_sepolia_artifacts
+from flow_memory.neural.run_records import evaluate_neural_gpu_smoke
 
 PRODUCTION_BLOCKERS = (
     "contracts_unaudited",
@@ -27,6 +28,14 @@ PUBLIC_ALPHA_EVIDENCE = (
     "clean_clone_validation",
     "base_sepolia_artifacts",
     "openapi_snapshot",
+)
+
+NEURAL_GPU_SMOKE_EVIDENCE = (
+    "neural_gpu_runs",
+    "gpu_artifact_hashes",
+    "gpu_validation_summary",
+    "neural_cli_status",
+    "neural_benchmark_status",
 )
 
 
@@ -69,6 +78,11 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
             blockers = ("testnet_manual_review_required",)
         classification = "testnet_dry_run_review_candidate" if gates.ok else "blocked_testnet_dry_run"
         evidence = PUBLIC_ALPHA_EVIDENCE + ("contract_registry", "dry_run_deployment_plan")
+    elif target == "neural-gpu-smoke":
+        neural = evaluate_neural_gpu_smoke(root_path)
+        blockers = (("release_gates_failed",) if not gates.ok else ()) + neural.blockers
+        classification = "neural_gpu_smoke_candidate" if not blockers else "blocked_neural_gpu_smoke"
+        evidence = NEURAL_GPU_SMOKE_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"

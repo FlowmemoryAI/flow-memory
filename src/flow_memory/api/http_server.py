@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 from flow_memory.api.auth import ApiAuthConfig, authorize_request
 from flow_memory.api.audit_middleware import LocalAuditSink
-from flow_memory.api.errors import ApiError, auth_error, error_response, validation_error
+from flow_memory.api.errors import ApiError, auth_error, error_response, forbidden_error, validation_error
 from flow_memory.api.rate_limits import LocalRateLimiter, RateLimitRule
 from flow_memory.api.router import LocalApiRouter, create_default_router
 from flow_memory.api.scopes import context_from_headers, require_scopes
@@ -101,6 +101,11 @@ class HttpApiGateway:
                 scope_decision = require_scopes(context)
                 if not scope_decision.ok and scope_decision.error is not None:
                     raise scope_decision.error
+            if context.method == "POST" and context.path == "/neural/train-smoke" and not _is_loopback_host(self.config.host):
+                raise forbidden_error(
+                    "Neural train-smoke is local-only",
+                    details={"host": self.config.host},
+                )
             if self.config.enable_rate_limit and self.limiter is not None:
                 rate_decision = self.limiter.check(context, now=int(time.time()))
                 if not rate_decision.ok and rate_decision.error is not None:
@@ -180,6 +185,10 @@ def serve_local_api(config: HttpApiConfig | None = None) -> None:
     server = create_http_server(HttpApiGateway(config=config), host=config.host, port=config.port)
     server.serve_forever()
 
+
+def _is_loopback_host(host: str) -> bool:
+    normalized = host.strip().lower().strip("[]")
+    return normalized in {"127.0.0.1", "localhost", "::1"}
 
 def _headers(request_id: str) -> dict[str, str]:
     return {"content-type": "application/json; charset=utf-8", "x-request-id": request_id}

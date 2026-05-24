@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 29,
-    "manifest_hash": "d4ab494099bd1c3b31141bfb87d44747ed8b11848540afc937c856559595df75",
-    "openapi_hash": "83b4d343c184038c7ff5a4a37b2d79d2d7fbc90cf7e7b34a3cf54e796fe9659c",
+    "endpoint_count": 37,
+    "manifest_hash": "158eeeec1b4ca60dd578b7f7cf6a4e27efa5f34eaa9194e9d0d88ddaaadfc47d",
+    "openapi_hash": "705cd6be9c97f73689290db924e39b22dbb5af1f63f3e88e93575896885cc6d9",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -12,6 +12,12 @@
       "GET /flowlang/examples",
       "GET /health",
       "GET /manifest",
+      "GET /neural/backends",
+      "GET /neural/benchmarks",
+      "GET /neural/checkpoints",
+      "GET /neural/gpu-runs",
+      "GET /neural/gpu-runs/{run_id}",
+      "GET /neural/status",
       "GET /reputation/{did}",
       "GET /runtime/status",
       "GET /swarm/agents",
@@ -29,12 +35,14 @@
       "POST /marketplace/submit",
       "POST /marketplace/tasks",
       "POST /marketplace/verify",
+      "POST /neural/train-smoke",
+      "POST /neural/validate-smoke",
       "POST /runtime/tick",
       "POST /swarm/delegate",
       "POST /verification/submit",
       "POST /verification/{contract_id}"
     ],
-    "path_count": 28,
+    "path_count": 36,
     "paths": [
       "/agents",
       "/agents/{did}",
@@ -56,6 +64,14 @@
       "/marketplace/submit",
       "/marketplace/tasks",
       "/marketplace/verify",
+      "/neural/backends",
+      "/neural/benchmarks",
+      "/neural/checkpoints",
+      "/neural/gpu-runs",
+      "/neural/gpu-runs/{run_id}",
+      "/neural/status",
+      "/neural/train-smoke",
+      "/neural/validate-smoke",
       "/reputation/{did}",
       "/runtime/status",
       "/runtime/tick",
@@ -254,9 +270,9 @@
     }
   },
   "format": "flow-memory-release-manifest-v1",
-  "git_branch": "main",
-  "git_commit": "e035a6b",
-  "manifest_hash": "0ec13810bf050587e94ea2e0f4a2421e85aaa844c760c55060e1b0c3ad89222f",
+  "git_branch": "work/neural-gpu-evidence",
+  "git_commit": "34c67f1",
+  "manifest_hash": "e3b285e33750676ff1b20578c894dc1972983fb2650069878e9a6aca43bea997",
   "release_gates": {
     "ok": true,
     "results": [

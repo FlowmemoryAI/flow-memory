@@ -12,7 +12,7 @@ select_python() {
   local candidate
   local -a command
 
-  for candidate in python python3 "py -3"; do
+  for candidate in python python.exe "py -3" python3; do
     if [[ "$candidate" == "py -3" ]]; then
       command=(py -3)
     else
@@ -25,7 +25,7 @@ select_python() {
     fi
   done
 
-  printf 'Flow Memory verification requires Python 3.10+ (tried: python, python3, py -3).\n' >&2
+  printf 'Flow Memory verification requires Python 3.10+ (tried: python, python.exe, py -3, python3).\n' >&2
   return 1
 }
 

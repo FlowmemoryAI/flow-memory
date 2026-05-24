@@ -271,6 +271,7 @@ class LocalApiRouter:
 
 def create_default_router() -> LocalApiRouter:
     router = LocalApiRouter()
+    from flow_memory.api.neural_endpoints import register_neural_routes
     router.register("GET", "/health", router._health, "health")
     router.register("GET", "/runtime/status", router._runtime_status, "runtime_status")
     router.register("POST", "/runtime/tick", router._runtime_tick, "runtime_tick")
@@ -299,6 +300,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/flowlang/validate", router._flowlang_validate, "flowlang_validate")
     router.register("POST", "/flowlang/run", router._flowlang_run, "flowlang_run")
     router.register("GET", "/flowlang/examples", router._flowlang_examples, "flowlang_examples")
+    register_neural_routes(router)
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

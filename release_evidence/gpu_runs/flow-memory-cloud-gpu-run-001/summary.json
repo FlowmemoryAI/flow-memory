@@ -1,0 +1,60 @@
+{
+  "artifact": {
+    "path": "artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz",
+    "sha256": "",
+    "size_bytes": 0
+  },
+  "counts": {
+    "archive_files": 0,
+    "checkpoints": 0,
+    "metadata_files": 0,
+    "skipped_files": 0
+  },
+  "environment": {
+    "cuda_available": null,
+    "cuda_version": "",
+    "git_commit": "",
+    "gpu_name": "",
+    "torch_version": ""
+  },
+  "evidence": {
+    "metadata_files": [],
+    "model_cards": [],
+    "skipped_files": []
+  },
+  "format": "flow-memory-neural-gpu-run-summary-v1",
+  "hashes_path": "hashes.json",
+  "imported": false,
+  "imported_at": "2026-05-24T00:33:38.928618+00:00",
+  "reason": "artifact not found; ingestion skipped without failing base tests",
+  "run_id": "flow-memory-cloud-gpu-run-001",
+  "skipped": true,
+  "source_artifact": "artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz",
+  "statuses": {
+    "benchmarks": {
+      "count": 0,
+      "ok": null,
+      "status": "unknown"
+    },
+    "cli_neural": {
+      "detail": "CLI neural status not found",
+      "ok": null,
+      "status": "unknown"
+    },
+    "pytest": {
+      "detail": "status not found",
+      "ok": null,
+      "status": "unknown"
+    },
+    "training": {
+      "ok": null,
+      "status": "unknown"
+    },
+    "validation": {
+      "mode": "",
+      "ok": null,
+      "result_count": 0
+    }
+  },
+  "summary_md_path": "summary.md"
+}

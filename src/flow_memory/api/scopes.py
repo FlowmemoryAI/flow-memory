@@ -13,7 +13,20 @@ READ_SCOPE = "api:read"
 WRITE_SCOPE = "api:write"
 ADMIN_SCOPE = "api:admin"
 AUDIT_SCOPE = "api:audit"
-KNOWN_SCOPES = frozenset({READ_SCOPE, WRITE_SCOPE, ADMIN_SCOPE, AUDIT_SCOPE})
+NEURAL_READ_SCOPE = "neural:read"
+NEURAL_VALIDATE_SCOPE = "neural:validate"
+NEURAL_TRAIN_SCOPE = "neural:train"
+NEURAL_EVIDENCE_SCOPE = "neural:evidence"
+KNOWN_SCOPES = frozenset({
+    READ_SCOPE,
+    WRITE_SCOPE,
+    ADMIN_SCOPE,
+    AUDIT_SCOPE,
+    NEURAL_READ_SCOPE,
+    NEURAL_VALIDATE_SCOPE,
+    NEURAL_TRAIN_SCOPE,
+    NEURAL_EVIDENCE_SCOPE,
+})
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
@@ -88,8 +101,17 @@ def require_scopes(
 def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
     normalized_method = method.upper()
     normalized_path = path if path.startswith("/") else f"/{path}"
-    if normalized_path.rstrip("/") == "/audit":
+    normalized_path = normalized_path.rstrip("/") or "/"
+    if normalized_path == "/audit":
         return (AUDIT_SCOPE,)
+    if normalized_path.startswith("/neural/gpu-runs") or normalized_path == "/neural/benchmarks":
+        return (NEURAL_EVIDENCE_SCOPE,)
+    if normalized_path == "/neural/validate-smoke":
+        return (NEURAL_VALIDATE_SCOPE,)
+    if normalized_path == "/neural/train-smoke":
+        return (NEURAL_TRAIN_SCOPE,)
+    if normalized_path.startswith("/neural/"):
+        return (NEURAL_READ_SCOPE,)
     if normalized_method in READ_METHODS:
         return (READ_SCOPE,)
     return (WRITE_SCOPE,)

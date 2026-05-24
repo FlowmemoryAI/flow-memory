@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Mapping
 
 from flow_memory.agents.profile import AgentProfile
@@ -38,6 +39,17 @@ def neural_live_evidence(root: str | Path = ".") -> Mapping[str, Any]:
     step = manager.run_step(session.session_id, {"goal": "release neural live smoke", "plan_id": "release-plan"})
     learning = manager.learn(session.session_id, {"goal": "release neural live smoke"})
     checkpoint = manager.checkpoint(session.session_id)
+    interface_checks = {
+        "perception": manager.encode_perception(session.session_id, {"goal": "release neural live smoke"}),
+        "prediction": manager.predict_next_state(session.session_id, {"goal": "release neural live smoke", "plan_id": "release-plan"}),
+        "plan_score": manager.score_plan(session.session_id, {"goal": "release neural live smoke", "plan_id": "release-plan"}),
+        "risk_score": manager.score_risk(session.session_id, {"goal": "release neural live smoke", "plan_id": "release-plan"}),
+        "memory": manager.retrieve_memory_candidates(session.session_id, {"goal": "release neural live smoke"}),
+    }
+    with TemporaryDirectory() as tmp_dir:
+        checkpoint_path = Path(tmp_dir) / "release-neural-live.metadata.json"
+        saved_checkpoint = manager.save_checkpoint_metadata(session.session_id, str(checkpoint_path))
+        loaded_checkpoint = manager.load_checkpoint_metadata(str(checkpoint_path))
     flow_profile = agent_profile_from_ir(parse_flowlang(_FLOWLANG_NEURAL_LIVE))
     runner_profile = AgentProfile(
         name="release-neural-runner",
@@ -62,6 +74,9 @@ def neural_live_evidence(root: str | Path = ".") -> Mapping[str, Any]:
         and bool(step.get("ok"))
         and learning.get("status") == "learned"
         and checkpoint.get("metadata_only") is True
+        and saved_checkpoint.get("checkpoint_written") is True
+        and loaded_checkpoint.get("ok") is True
+        and all(record.get("ok") for record in interface_checks.values())
         and flow_profile.neural_config.get("live_mode") is True
         and runner_result.output.get("neural", {}).get("live_step", {}).get("ok") is True
         and bool(visual_state.get("neural"))
@@ -75,6 +90,7 @@ def neural_live_evidence(root: str | Path = ".") -> Mapping[str, Any]:
         "agent_profile_creation_validated": not runner_profile.validate(),
         "flowlang_creation_validated": flow_profile.neural_config.get("live_mode") is True,
         "neural_step_loop_validated": bool(step.get("ok")),
+        "runtime_interface_validated": all(record.get("ok") for record in interface_checks.values()),
         "learning_loop_validated": learning.get("status") == "learned",
         "policy_fail_closed_validated": fail_closed,
         "visual_telemetry_validated": bool(visual_state.get("neural")),
@@ -90,6 +106,9 @@ def neural_live_evidence(root: str | Path = ".") -> Mapping[str, Any]:
         "sample_step": step,
         "sample_learning": learning,
         "sample_checkpoint": checkpoint,
+        "saved_checkpoint_metadata": saved_checkpoint,
+        "loaded_checkpoint_metadata": loaded_checkpoint,
+        "interface_checks": interface_checks,
     }
 
 

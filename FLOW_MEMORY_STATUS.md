@@ -12,7 +12,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q` | Pass: `567 passed, 17 skipped` |
+| `python -m pytest -q` | Pass: `568 passed, 17 skipped` |
 | `python examples/flowlang_compile_demo.py` | Pass |
 | `python examples/flowlang_runtime_demo.py` | Pass |
 | `python examples/flowlang_economy_demo.py` | Pass |
@@ -24,7 +24,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Local public alpha release decision | Pass |
 | Compute Market targeted validation | Pass: `21 passed`; broader compute/agent/FlowLang/API/visual/release targeted set `208 passed, 2 skipped` |
 | Forge tests | Pass: `16 passed` |
-| Live neural agents targeted validation | Pass: `15 passed`; broader neural/agent/FlowLang/API/visual/release targeted set `237 passed, 3 skipped` |
+| Live neural agents targeted validation | Pass: `16 passed`; broader neural/agent/FlowLang/visual/release targeted set `175 passed, 3 skipped` |
 
 ## Maturity table
 
@@ -204,7 +204,7 @@ Flow Memory now exposes its own Compute Market surfaces instead of public Squire
 
 | Subsystem | Status | Notes |
 | --- | --- | --- |
-| Neural runtime sessions | implemented local prototype | `flow_memory.neural.live` creates local sessions, attaches agents, runs deterministic steps, learns local metadata, writes metadata-only checkpoints, and stops sessions. |
+| Neural runtime sessions | implemented local prototype | `flow_memory.neural.live` creates local sessions, attaches agents, exposes deterministic perception/prediction/plan/risk/memory interfaces, learns local metadata, saves/loads metadata-only checkpoints, and stops sessions. |
 | Agent integration | implemented advisory binding | Agent runner records neural-live step metadata in memory and blocks fail-closed when required by policy fallback. |
 | FlowLang neural live config | implemented | Brace-block and legacy neural config paths map into `AgentProfile.neural_config`. |
 | Neural live API | implemented local seam | `/neural/live/sessions` lifecycle endpoints expose metadata-only session, step, learn, checkpoint, and stop paths with neural scopes. |

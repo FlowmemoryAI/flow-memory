@@ -7,6 +7,8 @@ model calls, downloading checkpoints, moving funds, or claiming GPU validation.
 from __future__ import annotations
 
 import hashlib
+import json
+from pathlib import Path
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any, Mapping
@@ -147,6 +149,84 @@ class NeuralRuntimeManager:
     def sessions(self) -> tuple[NeuralRuntimeSession, ...]:
         return tuple(self._sessions.values())
 
+    def encode_perception(self, session_id: str, context: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        """Encode local perception metadata for the current session without side effects."""
+        session = self.get_session(session_id)
+        context_record = dict(context or {})
+        return {
+            "ok": True,
+            "session_id": session.session_id,
+            "agent_id": session.agent_id,
+            "encoded": True,
+            "streams": session.config.perception_streams,
+            "embedding_id": _stable_id("neural_embedding", session.session_id, str(session.step_count), str(context_record.get("goal", ""))),
+            "local_only": True,
+            "external_model_calls": False,
+        }
+
+    def predict_next_state(self, session_id: str, context: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        """Predict the next local latent/world state using deterministic metadata."""
+        session = self.get_session(session_id)
+        signal = _deterministic_signal(session, dict(context or {}))
+        fallback_active = session.status in {"unavailable", "invalid_config", "adapter_seam", "disabled"}
+        return {
+            "ok": True,
+            "session_id": session.session_id,
+            "agent_id": session.agent_id,
+            "prediction_id": _stable_id("neural_prediction", session.session_id, str(signal["prediction_confidence"])),
+            "confidence": signal["prediction_confidence"],
+            "world_model": "tiny_jepa_local" if session.config.backend == "tiny_torch" and not fallback_active else "deterministic_metadata",
+            "surprise_score": signal["surprise_score"],
+            "local_only": True,
+            "external_model_calls": False,
+        }
+
+    def score_plan(self, session_id: str, context: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        """Score the current plan/action candidate as advisory metadata only."""
+        session = self.get_session(session_id)
+        signal = _deterministic_signal(session, dict(context or {}))
+        score = signal["plan_score"] if session.config.plan_scoring_enabled else 0.0
+        return {
+            "ok": True,
+            "session_id": session.session_id,
+            "agent_id": session.agent_id,
+            "plan_score": score,
+            "action_score": score,
+            "recommended_action": "respond" if signal["risk_score"] < 0.5 else "request_approval",
+            "advisory_only": True,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "local_only": True,
+        }
+
+    def score_risk(self, session_id: str, context: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        """Score risk as advisory metadata only."""
+        session = self.get_session(session_id)
+        signal = _deterministic_signal(session, dict(context or {}))
+        risk_score = signal["risk_score"] if session.config.risk_scoring_enabled else 0.0
+        return {
+            "ok": True,
+            "session_id": session.session_id,
+            "agent_id": session.agent_id,
+            "risk_score": risk_score,
+            "approval_recommended": risk_score >= 0.5,
+            "advisory_only": True,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "local_only": True,
+        }
+
+    def retrieve_memory_candidates(self, session_id: str, context: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        """Return deterministic local neural memory candidates."""
+        session = self.get_session(session_id)
+        candidates = _memory_candidates(session, dict(context or {})) if session.config.memory_retrieval_enabled else ()
+        return {
+            "ok": True,
+            "session_id": session.session_id,
+            "agent_id": session.agent_id,
+            "memory_candidates": candidates,
+            "memory_activation_count": len(candidates),
+            "local_only": True,
+        }
+
     def run_step(self, session_id: str, context: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         session = self.get_session(session_id)
         if session.stopped:
@@ -166,30 +246,34 @@ class NeuralRuntimeManager:
             self._update(session, record, increment_step=True)
             return record
 
-        signal = _deterministic_signal(session, context_record)
         fallback_active = unavailable
+        perception = self.encode_perception(session.session_id, context_record)
+        prediction = self.predict_next_state(session.session_id, context_record)
+        plan_score = self.score_plan(session.session_id, context_record)
+        risk_score = self.score_risk(session.session_id, context_record)
+        memory = self.retrieve_memory_candidates(session.session_id, context_record)
         record = _base_record(session, context_record, phase="learning" if session.config.learning_enabled else "evaluated", ok=True, status="fallback_non_neural" if fallback_active else "ok")
         record.update({
             "backend_available": session.backend_available,
             "fallback_active": fallback_active,
             "perception": {
-                "encoded": True,
-                "streams": session.config.perception_streams,
-                "embedding_id": _stable_id("neural_embedding", session.session_id, str(session.step_count), str(context_record.get("goal", ""))),
+                "encoded": perception["encoded"],
+                "streams": perception["streams"],
+                "embedding_id": perception["embedding_id"],
             },
             "prediction": {
-                "prediction_id": _stable_id("neural_prediction", session.session_id, str(signal["prediction_confidence"])),
-                "confidence": signal["prediction_confidence"],
-                "world_model": "tiny_jepa_local" if session.config.backend == "tiny_torch" and not fallback_active else "deterministic_metadata",
+                "prediction_id": prediction["prediction_id"],
+                "confidence": prediction["confidence"],
+                "world_model": prediction["world_model"],
             },
-            "plan_score": signal["plan_score"] if session.config.plan_scoring_enabled else 0.0,
-            "risk_score": signal["risk_score"] if session.config.risk_scoring_enabled else 0.0,
-            "memory_candidates": _memory_candidates(session, context_record) if session.config.memory_retrieval_enabled else (),
-            "memory_activation_count": 1 if session.config.memory_retrieval_enabled else 0,
-            "prediction_confidence": signal["prediction_confidence"],
-            "surprise_score": signal["surprise_score"],
-            "uncertainty": round(1.0 - signal["prediction_confidence"], 6),
-            "recommended_action": "respond" if signal["risk_score"] < 0.5 else "request_approval",
+            "plan_score": plan_score["plan_score"],
+            "risk_score": risk_score["risk_score"],
+            "memory_candidates": memory["memory_candidates"],
+            "memory_activation_count": memory["memory_activation_count"],
+            "prediction_confidence": prediction["confidence"],
+            "surprise_score": prediction["surprise_score"],
+            "uncertainty": round(1.0 - prediction["confidence"], 6),
+            "recommended_action": plan_score["recommended_action"],
             "action_state": "recommended",
             "policy_gate_state": "pending_policy_gate",
             "safety_authority": "policy_engine_and_approval_gate",
@@ -249,6 +333,31 @@ class NeuralRuntimeManager:
         updated = replace(session, checkpoint_metadata=metadata, last_record=metadata, updated_at=_now())
         self._sessions[session_id] = updated
         return metadata
+
+    def save_checkpoint_metadata(self, session_id: str, checkpoint_ref: str = "") -> Mapping[str, Any]:
+        """Write metadata-only checkpoint JSON; never writes model weights."""
+        metadata = dict(self.checkpoint(session_id, checkpoint_ref))
+        path = Path(str(metadata["checkpoint_ref"]))
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
+        saved = {**metadata, "checkpoint_written": True, "checkpoint_bytes": path.stat().st_size}
+        session = self.get_session(session_id)
+        self._sessions[session_id] = replace(session, checkpoint_metadata=saved, last_record=saved, updated_at=_now())
+        return saved
+
+    def load_checkpoint_metadata(self, checkpoint_ref: str) -> Mapping[str, Any]:
+        """Load metadata-only checkpoint JSON and reject anything shaped like weights."""
+        path = Path(checkpoint_ref)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        metadata_only = data.get("metadata_only") is True and data.get("raw_weights_written") is False
+        return {
+            "ok": metadata_only,
+            "checkpoint": data,
+            "checkpoint_ref": str(path),
+            "metadata_only": metadata_only,
+            "raw_weights_loaded": False,
+            "local_only": True,
+        }
 
     def stop(self, session_id: str) -> Mapping[str, Any]:
         session = self.get_session(session_id)

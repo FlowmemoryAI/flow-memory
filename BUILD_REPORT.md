@@ -722,7 +722,7 @@ This slice makes neural-capable agents first-class local runtime participants. A
 
 Added/hardened:
 
-- `src/flow_memory/neural/live.py` with local neural runtime/session lifecycle, deterministic step scoring, metadata-only checkpoints, learning-step metadata, fail-closed backend handling, and explicit local-only/GPU-not-claimed fields.
+- `src/flow_memory/neural/live.py` with local neural runtime/session lifecycle, deterministic perception/prediction/plan/risk/memory interfaces, deterministic step scoring, metadata-only checkpoint save/load, learning-step metadata, fail-closed backend handling, and explicit local-only/GPU-not-claimed fields.
 - `AgentProfile.neural_config` validation for live policy fallback and learning-rate safety.
 - `AgentNeuralBinding` and `AgentRunner` live session integration, advisory plan/risk/memory scoring, memory records for `neural_live_step`, and fail-closed blocking when policy requires it.
 - FlowLang brace-block and legacy neural config parsing for live neural agents.
@@ -746,9 +746,9 @@ Focused validation observed for this slice:
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q tests/test_neural_live_runtime.py tests/test_agent_neural_live_integration.py tests/test_flowlang_neural_live_config.py tests/test_api_neural_live_sessions.py tests/test_cli_neural_live.py tests/test_visual_neural_live.py tests/test_neural_live_release_evidence.py` | Pass: `15 passed` |
-| `python -m pytest -q tests -k "neural_live or neural or agent or flowlang or visual or api or release_evidence"` | Pass: `237 passed, 3 skipped, 344 deselected` |
-| `python -m pytest -q` | Pass: `567 passed, 17 skipped` |
+| `python -m pytest -q tests/test_neural_live_runtime.py tests/test_agent_neural_live_integration.py tests/test_flowlang_neural_live_config.py tests/test_api_neural_live_sessions.py tests/test_cli_neural_live.py tests/test_visual_neural_live.py tests/test_neural_live_release_evidence.py` | Pass: `16 passed` |
+| `python -m pytest -q tests -k "neural or agent or flowlang or visual or release_evidence"` | Pass: `175 passed, 3 skipped, 407 deselected` |
+| `python -m pytest -q` | Pass: `568 passed, 17 skipped` |
 | `bash scripts/verify.sh` | Pass |
 | `python -m flow_memory --json "Explore and report"` | Pass |
 | `python -m flow_memory --neural tiny_torch --neural-live --json "Explore and report"` | Pass; torch absent locally so neural-live used explicit non-neural fallback |

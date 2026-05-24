@@ -23,9 +23,24 @@ python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and r
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
+python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
+python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 ```
 
 Neural and RL models advise. Policy and approval gates remain authoritative.
+
+Mission Control visual path:
+
+```bash
+python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
+python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
+python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
+cd dashboard
+npm run build
+npm test
+```
+
+Mission Control is connected to local state/replay/API data, with mock fallback clearly labeled.
 
 The project now combines:
 

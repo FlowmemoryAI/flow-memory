@@ -23,6 +23,21 @@ python scripts/launch_local_agent_network.py
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
+python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
+python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 ```
 
 Neural launch uses optional advisory metadata. If Torch is not installed, the command still reports a clear local skip. PolicyEngine and ApprovalGate remain authoritative.
+
+## Mission Control visual replay
+
+```bash
+python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
+python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
+python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
+cd dashboard
+npm run build
+npm test
+```
+
+Mission Control supports mock, replay, and local live API modes. It is a public-alpha local dashboard scaffold, not hosted production infrastructure.

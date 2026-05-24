@@ -373,3 +373,8 @@ Added `episode_mode="long"` to `EconomyMarketEnv` with bid, verifier, settlement
 ## Slice: adversarial verifier scenario
 
 Expanded `VerifierEnv` with bad/good/unknown work quality and collusion-risk behavior, including false approval, false rejection, dispute, and slashing signals. Added `tests/test_verifier_adversarial_env.py`.
+
+
+## Slice: RL policy comparison benchmark
+
+Added `benchmarks/rl_policy_comparison_benchmark.py` and `tests/test_rl_policy_comparison_benchmark.py` to compare random, heuristic, and tabular Q policies, including a Q-learning improvement assertion.

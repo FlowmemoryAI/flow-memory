@@ -8,3 +8,8 @@ Local benchmarks export JSON under `artifacts/rl/`:
 - `benchmarks/rl_economy_market_benchmark.py`
 
 Metrics include throughput, mean reward, success rate, safety violation rate, dispute/slashing rate where applicable, and prototype reward improvement.
+
+
+## Policy comparison
+
+`benchmarks/rl_policy_comparison_benchmark.py` compares random, heuristic, and tabular Q policies on a deterministic Flow Arena environment and writes `artifacts/rl/rl_policy_comparison_benchmark.json`.

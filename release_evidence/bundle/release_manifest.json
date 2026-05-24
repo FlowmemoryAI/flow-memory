@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 41,
-    "manifest_hash": "8989d244d2b1130edf13f7e096fdd851f74e340b5e98950d772f015d7c9296f6",
-    "openapi_hash": "3eaf0a195dcd469f9e7210701ce7886ca09f5ef5a137c2b15ff10f51ed83d648",
+    "endpoint_count": 45,
+    "manifest_hash": "ab8d6598d66ea0f242688108daf4d092a62f365b382a510379d198b8e0d3ad3a",
+    "openapi_hash": "470ce184314645ed7e2f8bd798155c6cc76ec3466f0901c8cafcddd3e207b395",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -25,6 +25,9 @@
       "GET /swarm/agents",
       "GET /verification/result",
       "GET /verification/{contract_id}",
+      "POST /agents/launch",
+      "POST /agents/launch-flowlang",
+      "POST /agents/launch-neural",
       "POST /agents/{did}/run",
       "POST /attestations",
       "POST /flowlang/compile",
@@ -37,6 +40,7 @@
       "POST /marketplace/submit",
       "POST /marketplace/tasks",
       "POST /marketplace/verify",
+      "POST /network/run-scenario",
       "POST /neural/train-smoke",
       "POST /neural/validate-smoke",
       "POST /rl/evaluate",
@@ -46,9 +50,12 @@
       "POST /verification/submit",
       "POST /verification/{contract_id}"
     ],
-    "path_count": 40,
+    "path_count": 44,
     "paths": [
       "/agents",
+      "/agents/launch",
+      "/agents/launch-flowlang",
+      "/agents/launch-neural",
       "/agents/{did}",
       "/agents/{did}/memory",
       "/agents/{did}/run",
@@ -68,6 +75,7 @@
       "/marketplace/submit",
       "/marketplace/tasks",
       "/marketplace/verify",
+      "/network/run-scenario",
       "/neural/backends",
       "/neural/benchmarks",
       "/neural/checkpoints",
@@ -279,8 +287,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "82f4869",
-  "manifest_hash": "a0b083d2eae3505a863d76d72054efd5547171fb6eeac1ace1354fb699765f5c",
+  "git_commit": "a7dde03",
+  "manifest_hash": "209e49974b3e40e39de7bcc0abae9fd44427b9b2ccbe1cdc6c7c04b46eef7040",
   "release_gates": {
     "ok": true,
     "results": [

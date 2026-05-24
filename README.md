@@ -2,18 +2,30 @@
 
 Flow Memory is an open-source autonomous AI agent operating system and local/testnet public-alpha preflight prototype.
 
-## Developer alpha quickstart
+## Public alpha quickstart
 
 ```bash
 git clone https://github.com/FlowmemoryAI/flow-memory.git
 cd flow-memory
 python -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev,ml]"
-python -m flow_memory --neural tiny_torch --json "Explore and report"
+pip install -e ".[dev]"
+python -m flow_memory --json "Explore and report"
 ```
 
-Neural models advise. Policy and approval gates remain authoritative.
+Launch paths:
+
+```bash
+python scripts/launch_local_agent.py --goal "Explore and report"
+python scripts/launch_flowlang_agent.py examples/flowlang_agent.flow --goal "Run the declared agent"
+pip install -e ".[dev,ml]"
+python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and report"
+python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
+python scripts/run_agent_learning_loop.py
+python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
+```
+
+Neural and RL models advise. Policy and approval gates remain authoritative.
 
 The project now combines:
 

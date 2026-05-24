@@ -1,0 +1,24 @@
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_full_system_quick_report_passes(tmp_path):
+    out = tmp_path / "quick_report.json"
+    completed = subprocess.run(
+        [sys.executable, "scripts/test_full_system.py", "--quick", "--json-out", str(out)],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout)
+    assert payload["ok"] is True
+    assert payload["mode"] == "quick"
+    names = {item["name"] for item in payload["results"]}
+    assert {"cli_agent", "flowlang_agent", "neural_agent", "local_network", "learning_loop", "release_local"} <= names
+    assert out.exists()
+    assert out.with_suffix(".md").exists()

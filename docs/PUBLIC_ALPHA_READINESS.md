@@ -1,21 +1,27 @@
 # Public Alpha Readiness
 
-Status: public-alpha preflight candidate, not production-certified.
+Flow Memory is ready for local public-alpha developer demos when local launch, FlowLang launch, neural advisory launch, local network scenarios, RL Arena examples, API help, release evidence, and docs checks pass.
 
-Implemented for RC1:
+Run:
 
-| Area | Status | Evidence |
-| --- | --- | --- |
-| Clean clone validation | Implemented | `scripts/clean_clone_validation.py`, `release_evidence/clean_clone_validation.json` |
-| Public alpha smoke | Implemented | `scripts/public_alpha_smoke.py` |
-| Agent reliability gauntlet | Functional prototype | `src/flow_memory/agents/gauntlet.py`, 12 scenarios |
-| Asymmetric signing path | Functional prototype | local deterministic asymmetric seam, DID key mapping, signature policy |
-| API auth/scope/error seams | Functional prototype | `docs/API_AUTH.md`, `docs/API_ERROR_CONTRACT.md` |
-| Dashboard mock API client | Scaffold | `dashboard/src/lib/mock-api.ts` |
-| Base Sepolia artifacts | Dry-run implemented | `deployments/base-sepolia/*` |
-| Contract security tests | Expanded unaudited coverage | `test/AgentEconomySecurity.t.sol` |
-| Docker sandbox backend | Optional adapter seam | disabled by default, Docker required for real execution |
-| Storage replay | Implemented local prototype | `scripts/export_event_log.py`, `scripts/replay_event_log.py` |
-| Adversarial economy simulation | Functional prototype | `src/flow_memory/simulation/*` |
+```bash
+python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
+python scripts/release_decision.py --target local
+python scripts/release_decision.py --target public-alpha-launch
+```
 
-Public alpha means local/demo/testnet-preflight only. It does not mean mainnet readiness, audited contracts, hardened sandboxing, production auth, or safe handling of real funds.
+Current maturity:
+
+| Area | Status |
+| --- | --- |
+| Local agent launch | Implemented |
+| FlowLang launch | Implemented |
+| Neural advisory launch | Functional prototype; Torch optional |
+| Agent economy | Local simulated accounting and lifecycle prototype |
+| RL Arena | Local prototype environments and tabular training |
+| Base Sepolia | Dry-run adapter seam |
+| Contracts | Unaudited smoke/security tests |
+| Sandbox | Local/profile/container seams, not hardened isolation |
+| GPU evidence | Requires real RunPod artifact import |
+
+Do not claim production certification, audited contracts, mainnet readiness, hardened sandboxing, or production ML performance.

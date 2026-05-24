@@ -52,3 +52,21 @@ Implemented local/testnet-preflight prototype:
 ## Flow Arena RL + Neural Evidence RC update
 
 This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.
+
+## Launch-readiness roadmap update
+
+Completed in the full-system launch readiness lane:
+
+- public-alpha launch scripts for CLI, FlowLang, neural advisory, and local multi-agent network paths;
+- local network scenarios for economy, neural metadata, RL training, and dispute/slashing;
+- explicit payment/accounting model answering who pays whom;
+- learning loop for trace collection, memory learning, RL Arena learning, and neural training status;
+- full-system quick validation script and `public-alpha-launch` release decision target.
+
+Next highest-value work:
+
+1. Import and verify the real RunPod GPU artifact so `neural-gpu-smoke`, `public-alpha-neural`, and `public-alpha-launch` can pass.
+2. Add signed public-alpha launch evidence bundles.
+3. Add API launch endpoints for agents/network scenarios.
+4. Add dashboard panels for full-system and learning-loop reports.
+5. Replace prototype local accounting with audited testnet escrow rehearsals only after external review.

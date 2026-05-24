@@ -96,3 +96,24 @@ The architecture now includes an optional neural advisory layer: FlowLang neural
 ## Flow Arena RL + Neural Evidence RC update
 
 This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.
+
+## Local launch and learning orchestration
+
+The launch-readiness layer adds developer-facing orchestration around the core architecture:
+
+```text
+launch script / FlowLang / API -> AgentProfile -> AgentRunner -> local network -> economy/accounting -> learning report -> release evidence
+```
+
+New local-only paths:
+
+- `scripts/launch_local_agent.py`
+- `scripts/launch_flowlang_agent.py`
+- `scripts/launch_neural_agent.py`
+- `scripts/run_local_network.py`
+- `scripts/run_agent_learning_loop.py`
+- `scripts/test_full_system.py`
+
+`src/flow_memory/network/` coordinates requester, worker, verifier, and auditor participants in in-process scenarios. `src/flow_memory/economy/accounting.py` models simulated credits, escrow, settlement, refund, verifier fees, treasury fees, and slashing. `src/flow_memory/learning/` records traces and reports memory/RL/neural-training status.
+
+These paths are public-alpha local orchestration and evidence tooling, not production distributed infrastructure.

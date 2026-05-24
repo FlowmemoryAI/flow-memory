@@ -122,3 +122,16 @@ Neural Agent Layer v1 is not production ML. It is a functional prototype plus ad
 ## Flow Arena RL + Neural Evidence RC update
 
 This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.
+
+## Public-alpha launch readiness note
+
+The full-system launch readiness lane adds local launch scripts, local network orchestration, simulated payment accounting, a learning-loop report, and `scripts/test_full_system.py`. These make the project easier to validate as a developer public alpha.
+
+This still does **not** change the production boundary:
+
+- local accounting is simulated only;
+- neural and RL layers are advisory prototypes;
+- local network scenarios are in-process simulations;
+- GPU evidence gates require the real RunPod tarball before stronger neural launch claims;
+- contracts remain unaudited;
+- default workflows still must not use real funds or production keys.

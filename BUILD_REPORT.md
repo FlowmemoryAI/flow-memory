@@ -446,3 +446,48 @@ Baseline was taken on `main` at `c2dc21fb8ab82ef9c2ea33ce841979371ca4df97` befor
 | secret scan | Pass: no obvious secret patterns found |
 
 The real RunPod artifact tarball remains absent at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`, so GPU evidence gates must remain blocked until that artifact is supplied and verified.
+
+## Full system launch readiness implementation
+
+Added concrete public-alpha launch paths and local orchestration:
+
+- `scripts/launch_local_agent.py`
+- `scripts/launch_flowlang_agent.py`
+- `scripts/launch_neural_agent.py`
+- `scripts/launch_local_agent_network.py`
+- `scripts/run_local_network.py`
+- launch examples for CLI, FlowLang, neural advisory, API, local network, economy task, and RL-trained advisory agents
+- `src/flow_memory/network/` for in-process requester/worker/verifier/auditor scenarios
+
+Focused validation: launch/network tests passed with `16 passed`.
+
+## Payment/accounting implementation
+
+Added local simulated payment semantics:
+
+- `src/flow_memory/economy/payment_model.py`
+- `src/flow_memory/economy/accounting.py`
+- `src/flow_memory/economy/fees.py`
+- `src/flow_memory/economy/agent_ownership.py`
+
+The ledger supports credits, debits, escrow locks, settlement, refunds, slashing, verifier fees, and treasury fees. It is local simulated accounting only; no real funds are used.
+
+Focused validation: payment/accounting tests passed with `9 passed`.
+
+## Learning loop implementation
+
+Added local learning-loop primitives:
+
+- `src/flow_memory/learning/trace_collector.py`
+- `src/flow_memory/learning/memory_learning.py`
+- `src/flow_memory/learning/rl_learning.py`
+- `src/flow_memory/learning/neural_training.py`
+- `src/flow_memory/learning/loop.py`
+- `scripts/run_agent_learning_loop.py`
+- memory/RL/learning-loop examples
+
+Focused validation: learning-loop tests passed with `8 passed`.
+
+## Full system and release target implementation
+
+Added `scripts/test_full_system.py` with quick/full modes, JSON and Markdown report output, and clear known-blocker reporting. Added `public-alpha-launch` as an explicit release decision target. The target requires full-system quick evidence, launch/payment/learning docs, RL evidence, and non-skipped GPU evidence. It remains blocked until the real RunPod artifact is imported and verified.

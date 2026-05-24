@@ -1,6 +1,14 @@
 {
-  "benchmark_count": 5,
+  "benchmark_count": 6,
   "benchmarks": [
+    {
+      "bytes": 2386,
+      "name": "rl_adversarial_env_benchmark",
+      "ok": true,
+      "path": "artifacts\\rl\\rl_adversarial_env_benchmark.json",
+      "sha256": "49ebac48e4c2d4f92cb7b8642c962f83bf3a133fb8135ebf2fc05a82607a88d7",
+      "summary": {}
+    },
     {
       "bytes": 565,
       "name": "rl_economy_market_benchmark",
@@ -23,11 +31,11 @@
       }
     },
     {
-      "bytes": 989,
+      "bytes": 1246,
       "name": "rl_policy_comparison_benchmark",
       "ok": true,
       "path": "artifacts\\rl\\rl_policy_comparison_benchmark.json",
-      "sha256": "d7221ad2e203ac99ab968fcec867d98693eec8bcb2a6331e54d5e06d083e461f",
+      "sha256": "5af51c507c76c921f0d4f54c1bcc6a3a010ea4d6e53f97cdc7428e8b8cf39cce",
       "summary": {
         "best_policy": "heuristic",
         "env_id": "safety_gate",

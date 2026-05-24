@@ -1,14 +1,15 @@
 {
   "api": {
-    "endpoint_count": 45,
-    "manifest_hash": "ab8d6598d66ea0f242688108daf4d092a62f365b382a510379d198b8e0d3ad3a",
-    "openapi_hash": "470ce184314645ed7e2f8bd798155c6cc76ec3466f0901c8cafcddd3e207b395",
+    "endpoint_count": 48,
+    "manifest_hash": "97b19f6a59b8254512c3a742a51194da0d1ca5339cfb18082587580726cadee8",
+    "openapi_hash": "04d8f8b7b4f1b8b9daab3ee1c47f52e2bbe388ca96b88712824ff17a55a1ab08",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
       "GET /agents/{did}/memory",
       "GET /agents/{did}/skills",
       "GET /audit",
+      "GET /dashboard/snapshot",
       "GET /flowlang/examples",
       "GET /health",
       "GET /manifest",
@@ -18,6 +19,8 @@
       "GET /neural/gpu-runs",
       "GET /neural/gpu-runs/{run_id}",
       "GET /neural/status",
+      "GET /release/decision/{target}",
+      "GET /release/evidence",
       "GET /reputation/{did}",
       "GET /rl/benchmarks",
       "GET /rl/envs",
@@ -50,7 +53,7 @@
       "POST /verification/submit",
       "POST /verification/{contract_id}"
     ],
-    "path_count": 44,
+    "path_count": 47,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -62,6 +65,7 @@
       "/agents/{did}/skills",
       "/attestations",
       "/audit",
+      "/dashboard/snapshot",
       "/flowlang/compile",
       "/flowlang/examples",
       "/flowlang/run",
@@ -84,6 +88,8 @@
       "/neural/status",
       "/neural/train-smoke",
       "/neural/validate-smoke",
+      "/release/decision/{target}",
+      "/release/evidence",
       "/reputation/{did}",
       "/rl/benchmarks",
       "/rl/envs",
@@ -287,8 +293,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "a7dde03",
-  "manifest_hash": "209e49974b3e40e39de7bcc0abae9fd44427b9b2ccbe1cdc6c7c04b46eef7040",
+  "git_commit": "48621a8",
+  "manifest_hash": "b1375743247c8aae6ddc4978af86396224e4f24be33671e70f1f76f116f53824",
   "release_gates": {
     "ok": true,
     "results": [

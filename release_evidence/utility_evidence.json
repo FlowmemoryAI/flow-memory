@@ -1,0 +1,580 @@
+{
+  "dashboard_api": {
+    "mock_data_only": true,
+    "ok": true,
+    "raw_artifacts_exposed": false,
+    "record_count": 6,
+    "records": [
+      "agent_launch",
+      "local_network",
+      "neural_status",
+      "payments",
+      "rl_benchmarks",
+      "runtime"
+    ],
+    "requires_network_server": false,
+    "status": 200
+  },
+  "hash": "1c79ebb2cecb5cd8a446c22d6adf4864b8ad1f8f19e84d139e2dac7682fb024f",
+  "local_network_report": {
+    "blockers": [],
+    "failed_scenarios": [],
+    "ok": true,
+    "participant_count": 4,
+    "path": "E:\\FlowMemory\\flow-memory\\artifacts\\network\\local_network_report.json",
+    "scenario_count": 4,
+    "scenarios": [
+      "basic-economy",
+      "neural-agent",
+      "rl-training",
+      "dispute-slashing"
+    ]
+  },
+  "ok": true,
+  "payment_ledger_demo": {
+    "escrow_id": "escrow-payment-demo",
+    "ledger": {
+      "balances": {
+        "requester": 4.0,
+        "treasury": 0.5,
+        "verifier-agent": 1.0,
+        "worker-agent": 4.5
+      },
+      "entries": [
+        {
+          "account_id": "requester",
+          "amount": 10.0,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_c18a06f1601443948092b17c951de1b1",
+          "entry_type": "credit",
+          "metadata": {
+            "kind": "initial_local_balance"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "requester",
+          "amount": -6.0,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_f4e2546a0e44479897e2347c1ad1e20b",
+          "entry_type": "debit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "escrow-payment-demo",
+          "amount": 6.0,
+          "counterparty_id": "requester",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_2f75d77800724b0ea04cbfce68ea7050",
+          "entry_type": "escrow_lock",
+          "metadata": {},
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "worker-agent",
+          "amount": 4.5,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_e0c47cd4a1364320baffecaadcf79bac",
+          "entry_type": "credit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo",
+            "kind": "worker_payment"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "verifier-agent",
+          "amount": 1.0,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_52c50824ed574bafb58f2870878d99d2",
+          "entry_type": "credit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo",
+            "kind": "verifier_fee"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "treasury",
+          "amount": 0.5,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_e1a50884859c4dbe8bebca15e4e3d943",
+          "entry_type": "credit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo",
+            "kind": "treasury_fee"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "escrow-payment-demo",
+          "amount": -6.0,
+          "counterparty_id": "worker-agent",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_3eb01a83d5e947e69beb655a88a206f1",
+          "entry_type": "escrow_settle",
+          "metadata": {
+            "amount": 6.0,
+            "currency": "LOCAL_CREDITS",
+            "requester_id": "requester",
+            "simulated": true,
+            "treasury_fee": 0.5,
+            "verifier_fee": 1.0,
+            "verifier_id": "verifier-agent",
+            "worker_id": "worker-agent",
+            "worker_net_amount": 4.5
+          },
+          "task_id": "task-payment-demo"
+        }
+      ],
+      "escrow_balances": {
+        "escrow-payment-demo": 0.0
+      },
+      "real_funds_used": false,
+      "simulated_today": true
+    },
+    "mode": "local_simulated_accounting",
+    "ok": true,
+    "real_funds_used": false,
+    "settlement": {
+      "balances": {
+        "requester": 4.0,
+        "treasury": 0.5,
+        "verifier-agent": 1.0,
+        "worker-agent": 4.5
+      },
+      "escrow_id": "escrow-payment-demo",
+      "ledger_entries": [
+        {
+          "account_id": "requester",
+          "amount": 10.0,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_c18a06f1601443948092b17c951de1b1",
+          "entry_type": "credit",
+          "metadata": {
+            "kind": "initial_local_balance"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "requester",
+          "amount": -6.0,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_f4e2546a0e44479897e2347c1ad1e20b",
+          "entry_type": "debit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "escrow-payment-demo",
+          "amount": 6.0,
+          "counterparty_id": "requester",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_2f75d77800724b0ea04cbfce68ea7050",
+          "entry_type": "escrow_lock",
+          "metadata": {},
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "worker-agent",
+          "amount": 4.5,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_e0c47cd4a1364320baffecaadcf79bac",
+          "entry_type": "credit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo",
+            "kind": "worker_payment"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "verifier-agent",
+          "amount": 1.0,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_52c50824ed574bafb58f2870878d99d2",
+          "entry_type": "credit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo",
+            "kind": "verifier_fee"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "treasury",
+          "amount": 0.5,
+          "counterparty_id": "",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_e1a50884859c4dbe8bebca15e4e3d943",
+          "entry_type": "credit",
+          "metadata": {
+            "escrow_id": "escrow-payment-demo",
+            "kind": "treasury_fee"
+          },
+          "task_id": "task-payment-demo"
+        },
+        {
+          "account_id": "escrow-payment-demo",
+          "amount": -6.0,
+          "counterparty_id": "worker-agent",
+          "created_at": "2026-05-24T06:43:49.189825+00:00",
+          "entry_id": "ledger_3eb01a83d5e947e69beb655a88a206f1",
+          "entry_type": "escrow_settle",
+          "metadata": {
+            "amount": 6.0,
+            "currency": "LOCAL_CREDITS",
+            "requester_id": "requester",
+            "simulated": true,
+            "treasury_fee": 0.5,
+            "verifier_fee": 1.0,
+            "verifier_id": "verifier-agent",
+            "worker_id": "worker-agent",
+            "worker_net_amount": 4.5
+          },
+          "task_id": "task-payment-demo"
+        }
+      ],
+      "ok": true,
+      "real_funds_used": false,
+      "reason": "",
+      "simulated_today": true,
+      "status": "settled"
+    },
+    "task_id": "task-payment-demo",
+    "who_earns": "WorkerAgent earns after verification; VerifierAgent may receive a fee",
+    "who_pays": "TaskRequester funds escrow"
+  },
+  "raw_artifacts_exposed": false,
+  "real_funds_used": false,
+  "release_api": {
+    "decision": {
+      "decision": {
+        "blockers": [],
+        "classification": "local_release_candidate",
+        "gate_ok": true,
+        "ok": true,
+        "required_evidence": [
+          "release_gates",
+          "api_snapshot",
+          "storage_schema",
+          "base_dry_run",
+          "dependency_inventory"
+        ],
+        "target": "local"
+      },
+      "ok": true,
+      "target": "local"
+    },
+    "decision_status": 200,
+    "evidence": {
+      "bundle_exists": true,
+      "bundle_hash": "2f25940b93f3bf0af536a68432b06f5ac7afedad95d0e8136180c68ba923b586",
+      "file_count": 10,
+      "files": [
+        "api_snapshot.json",
+        "base_artifacts.json",
+        "base_deployment_plan.json",
+        "clean_clone_validation.json",
+        "dependency_inventory.json",
+        "gpu_evidence.json",
+        "release_gates.json",
+        "release_manifest.json",
+        "rl_benchmarks.json",
+        "storage_schema.json"
+      ],
+      "ok": true,
+      "path": "release_evidence\\bundle\\index.json",
+      "raw_artifacts_exposed": false
+    },
+    "evidence_status": 200,
+    "ok": true,
+    "raw_artifacts_exposed": false,
+    "requires_network_server": false
+  },
+  "rl_env_manifest": {
+    "env_count": 11,
+    "envs": [
+      {
+        "action_count": 5,
+        "actions": [
+          "single_verifier_approve",
+          "multi_verifier_vote",
+          "request_evidence",
+          "escalate_dispute",
+          "slash_colluder"
+        ],
+        "advisory_only": true,
+        "env_id": "colluding_verifier",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "bid_low",
+          "bid_fair",
+          "bid_high",
+          "decline",
+          "request_verifier"
+        ],
+        "advisory_only": true,
+        "env_id": "economy_market",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 4,
+        "actions": [
+          "up",
+          "down",
+          "left",
+          "right"
+        ],
+        "advisory_only": true,
+        "env_id": "gridworld",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "goal",
+          "memory",
+          "safety",
+          "score",
+          "step",
+          "x",
+          "y"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "retrieve_relevant_memory",
+          "retrieve_irrelevant_memory",
+          "ignore_memory",
+          "consolidate_safety_memory",
+          "consolidate_economy_memory"
+        ],
+        "advisory_only": true,
+        "env_id": "memory_retrieval",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "honest_work",
+          "fake_positive_review",
+          "wash_trade",
+          "request_verification",
+          "decline_suspicious_task"
+        ],
+        "advisory_only": true,
+        "env_id": "reputation_gaming",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "execute",
+          "request_approval",
+          "deny",
+          "defer",
+          "choose_safer_plan"
+        ],
+        "advisory_only": true,
+        "env_id": "safety_gate",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "retry",
+          "switch_skill",
+          "ask_human",
+          "write_repair_plan",
+          "disable_failing_skill"
+        ],
+        "advisory_only": true,
+        "env_id": "self_repair",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "self_execute",
+          "delegate_high_rep",
+          "delegate_low_rep",
+          "form_coalition",
+          "request_verification"
+        ],
+        "advisory_only": true,
+        "env_id": "swarm_delegation",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "accept_new_agent",
+          "require_attestation",
+          "raise_reputation_threshold",
+          "ignore_duplicate_signal",
+          "quarantine_cluster"
+        ],
+        "advisory_only": true,
+        "env_id": "sybil_risk",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 5,
+        "actions": [
+          "use_safe_tool",
+          "use_risky_tool",
+          "request_approval",
+          "skip",
+          "write_memory"
+        ],
+        "advisory_only": true,
+        "env_id": "tool_use",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      },
+      {
+        "action_count": 4,
+        "actions": [
+          "approve",
+          "reject",
+          "request_evidence",
+          "escalate_dispute"
+        ],
+        "advisory_only": true,
+        "env_id": "verifier",
+        "observation_keys": [
+          "agent",
+          "economy",
+          "env_id",
+          "memory",
+          "safety",
+          "score",
+          "step",
+          "verification"
+        ],
+        "requires_network": false,
+        "requires_torch": false,
+        "vectorizable": true
+      }
+    ],
+    "ok": true,
+    "safety_authority": "PolicyEngine and ApprovalGate remain authoritative outside RL suggestions"
+  }
+}

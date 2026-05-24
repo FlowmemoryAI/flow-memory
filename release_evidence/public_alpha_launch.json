@@ -1,0 +1,123 @@
+{
+  "api_server_status": "dependency-free local server seam",
+  "branch": "main",
+  "dashboard_mock_snapshot": {
+    "bundle_hash": "dfdfaf21bbd99912df78272fb7ac79b3a00a1bcc39a80c7c8d8104d407f947f8",
+    "file_hashes": {
+      "agent-launch.json": "b921d6ab331de8b2ff32545e1cc4ae29411cfcdbd6b3f344328cbd90fc3b9e1b",
+      "local-network.json": "7d356e252030f28bcbc583e891a82324e93a26e1dd5637f44b396fca57542f14",
+      "neural-status.json": "ef5debb76e849fe32ab52836eb54608fa8526c3044e278c83a1d01e4f9e0ec3a",
+      "payments.json": "31b36a88d45d62ebf1fc17b063c45b373e8b5d640327fd3d1004209cd1c6c011",
+      "rl-benchmarks.json": "5f63cbe56b46718e1ac8c782f5aa7f4c5936d9655d761820cdc17b3b0d2bd668",
+      "runtime.json": "8224330f2b72e482206d07e00954bacf8d8635df2aefb59faa2c9ca0aa9aa3f5"
+    },
+    "files": [
+      "runtime.json",
+      "neural-status.json",
+      "rl-benchmarks.json",
+      "agent-launch.json",
+      "local-network.json",
+      "payments.json"
+    ],
+    "missing": [],
+    "mock_data_only": true,
+    "ok": true
+  },
+  "docs": {
+    "docs/API_AGENT_LAUNCH.md": true,
+    "docs/LAUNCH_NEURAL_AGENTS.md": true,
+    "docs/NEURAL_LEARNING_LOOP.md": true,
+    "docs/PAYMENTS_AND_AGENT_ECONOMY.md": true,
+    "docs/START_HERE.md": true
+  },
+  "full_system_quick": {
+    "hash": "510c72d2c2293920e539532963d0e8484a89deca35ed389007aa8dc1f70a14de",
+    "ok": true,
+    "path": "artifacts\\full_system\\quick_report.json"
+  },
+  "git_commit": "48621a807ea4f21c2c4625e9c48ff8477c8fa36f",
+  "hash": "ecde807c1f95fef375e02675c518240a1bd7deda2f35dac59a28bcd6b5077c3f",
+  "known_limitations": [
+    "contracts unaudited",
+    "sandbox not hardened isolation",
+    "real funds disabled by default",
+    "neural/RL layers are advisory prototypes",
+    "GPU evidence requires real RunPod tarball"
+  ],
+  "local_network": {
+    "hash": "8b141c8964bf423e5048e0405f09f6458a81a0a03d3501e6bf1d9fd31a618d5a",
+    "ok": true,
+    "path": "artifacts\\network\\local_network_report.json"
+  },
+  "neural_evidence_status": "blocked_without_real_gpu_artifact",
+  "real_funds_used": false,
+  "rl_benchmark_summary": {
+    "benchmark_count": 6,
+    "benchmarks": [
+      {
+        "bytes": 2386,
+        "name": "rl_adversarial_env_benchmark",
+        "ok": true,
+        "path": "artifacts\\rl\\rl_adversarial_env_benchmark.json",
+        "sha256": "49ebac48e4c2d4f92cb7b8642c962f83bf3a133fb8135ebf2fc05a82607a88d7",
+        "summary": {}
+      },
+      {
+        "bytes": 565,
+        "name": "rl_economy_market_benchmark",
+        "ok": true,
+        "path": "artifacts\\rl\\rl_economy_market_benchmark.json",
+        "sha256": "53e88a23677c3821973a0b3e5999cf50feeb7629bffff4164c849a82429b2b89",
+        "summary": {
+          "env_id": "economy_market",
+          "prototype_metric": false
+        }
+      },
+      {
+        "bytes": 80,
+        "name": "rl_env_throughput_benchmark",
+        "ok": true,
+        "path": "artifacts\\rl\\rl_env_throughput_benchmark.json",
+        "sha256": "bb8c9a0ea3a23c7bcb806a46ca917daf376e1ccb7cbc2b4195b5577663c1c5d5",
+        "summary": {
+          "steps_per_second": 106544.49564910894
+        }
+      },
+      {
+        "bytes": 1246,
+        "name": "rl_policy_comparison_benchmark",
+        "ok": true,
+        "path": "artifacts\\rl\\rl_policy_comparison_benchmark.json",
+        "sha256": "5af51c507c76c921f0d4f54c1bcc6a3a010ea4d6e53f97cdc7428e8b8cf39cce",
+        "summary": {
+          "best_policy": "heuristic",
+          "env_id": "safety_gate",
+          "tabular_q_improved": true
+        }
+      },
+      {
+        "bytes": 561,
+        "name": "rl_safety_gate_benchmark",
+        "ok": true,
+        "path": "artifacts\\rl\\rl_safety_gate_benchmark.json",
+        "sha256": "e96eb413a9d6837d3ef000cc76e06f2d6673ea7b8a690133b3846ff6f1ee2e44",
+        "summary": {
+          "env_id": "safety_gate",
+          "prototype_metric": true
+        }
+      },
+      {
+        "bytes": 120,
+        "name": "rl_training_smoke_benchmark",
+        "ok": true,
+        "path": "artifacts\\rl\\rl_training_smoke_benchmark.json",
+        "sha256": "05c4ddd1aa9cfd92890658894872a2787f9db0806e77082c95d05bc30dcd5211",
+        "summary": {}
+      }
+    ],
+    "ok": true,
+    "reason": "",
+    "skipped": false
+  },
+  "secret_scan": "no obvious secret patterns found"
+}

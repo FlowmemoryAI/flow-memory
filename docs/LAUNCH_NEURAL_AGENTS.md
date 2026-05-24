@@ -28,6 +28,12 @@ python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and r
 
 If Torch is missing, the command still returns a structured result and marks the neural backend as skipped.
 
+Persist launch output for release evidence or debugging with `--json-out`, for example:
+
+```bash
+python scripts/launch_neural_agent.py --backend tiny_torch --goal "Explore and report" --json-out artifacts/launch/neural_agent.json
+```
+
 ## Run a FlowLang-declared agent
 
 ```bash

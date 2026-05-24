@@ -41,11 +41,20 @@ def launch_local_agent(goal: str) -> dict[str, object]:
     }
 
 
+def write_payload(payload: dict[str, object], path: Path | None) -> None:
+    if path is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Launch a local Flow Memory agent")
     parser.add_argument("--goal", default="Explore and report")
+    parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args()
-    print(json.dumps(launch_local_agent(args.goal), indent=2, sort_keys=True, default=str))
+    payload = launch_local_agent(args.goal)
+    write_payload(payload, args.json_out)
+    print(json.dumps(payload, indent=2, sort_keys=True, default=str))
     return 0
 
 

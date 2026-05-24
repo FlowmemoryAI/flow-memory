@@ -116,3 +116,17 @@ This repo now includes Flow Arena, a dependency-free local RL environment layer 
 ## Launch evidence status
 
 The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` release target are implemented. Current local status is blocked because the actual RunPod tarball was not present at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`; the committed evidence record is an explicit skipped placeholder, not launch proof.
+
+
+## Neural/RL maturity table
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| tiny_torch neural advisory | functional prototype | optional PyTorch backend, CPU-safe smoke path |
+| V-JEPA 2 / VideoMAE | adapter seam | local checkpoints required; no automatic downloads |
+| Flow Arena core | functional prototype | deterministic local environments and vector env |
+| RL Arena policies | functional prototype | random, heuristic, tabular Q; optional TorchPolicy skeleton |
+| RL API endpoints | public-alpha seam | local router/HTTP endpoints with `rl:*` scopes |
+| PufferLib backend | adapter seam | optional/lazy; no vendored Puffer code |
+| Neural GPU evidence | blocked until artifact import | real tarball required for `neural-gpu-smoke` |
+| public-alpha-neural release gate | implemented, currently blocked by GPU artifact | also requires RL benchmark evidence |

@@ -388,3 +388,8 @@ Added `src/flow_memory/rl/torch_policy.py`, `scripts/train_rl_torch_smoke.py`, a
 ## Slice: RL Arena API endpoints
 
 Added `src/flow_memory/api/rl_endpoints.py`, router/manifest/scope wiring for `/rl/envs`, `/rl/benchmarks`, `/rl/evaluate`, and `/rl/train-smoke`, plus HTTP scope tests and `docs/API_RL.md`.
+
+
+## Slice: RL evidence and public-alpha-neural release target
+
+Added `src/flow_memory/release/rl_evidence.py`, release bundle document `rl_benchmarks.json`, release decision target `public-alpha-neural`, and `docs/PUBLIC_ALPHA_LAUNCH_CHECKLIST.md`. The target requires public-alpha evidence, non-skipped GPU evidence, and RL benchmark evidence.

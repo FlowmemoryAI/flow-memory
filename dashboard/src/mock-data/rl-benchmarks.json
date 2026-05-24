@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "source": "mock-data-only",
+  "arena": "Flow Arena",
+  "benchmarks": [
+    {
+      "env": "safety_gate",
+      "randomMeanReward": 0.2,
+      "heuristicMeanReward": 2.0,
+      "qLearningMeanReward": 1.6,
+      "safetyViolationRate": 0.0
+    },
+    {
+      "env": "economy_market",
+      "randomMeanReward": 0.1,
+      "heuristicMeanReward": 2.0,
+      "qLearningMeanReward": 1.4,
+      "disputeRate": 0.1
+    },
+    {
+      "env": "colluding_verifier",
+      "randomMeanReward": -0.2,
+      "heuristicMeanReward": 2.0,
+      "qLearningMeanReward": 1.1,
+      "collusionDetected": true
+    }
+  ],
+  "notes": [
+    "Local deterministic prototype metrics.",
+    "Not PufferLib or CUDA throughput evidence."
+  ]
+}

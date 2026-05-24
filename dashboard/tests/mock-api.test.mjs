@@ -9,4 +9,8 @@ assert.match(mockApi, /mockDashboardSnapshot/);
 assert.match(mockApi, /release_evidence\/clean_clone_validation\.json/);
 assert.match(endpoints, /\/flowlang\/run/);
 assert.match(screens, /Base Sepolia dry-run status/);
+assert.match(mockApi, /rlBenchmarks/);
+assert.match(mockApi, /paymentFlows/);
+assert.match(screens, /neural status/);
+assert.match(screens, /local network scenarios/);
 console.log("dashboard mock api ok");

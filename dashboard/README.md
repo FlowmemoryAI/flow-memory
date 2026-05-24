@@ -8,7 +8,8 @@ Current state:
 - `src/lib/types.ts` defines the dashboard data model.
 - `src/lib/mock-api.ts` exposes a typed mock API client.
 - `src/lib/openapi-types.ts` mirrors the public-alpha endpoint groups.
-- `src/app/screens.ts` enumerates operator-console screens for runtime health, agents, agent state, goals/plans, skills, marketplace, disputes, audit log, reputation, FlowLang compile/run, Base Sepolia dry-run status, and release evidence status.
+- `src/app/screens.ts` enumerates operator-console screens for runtime health, agents, agent state, goals/plans, skills, marketplace, disputes, audit log, reputation, FlowLang compile/run, Base Sepolia dry-run status, neural status, RL benchmark status, agent launch paths, local network scenarios, payment flows, and release evidence status.
+- `src/mock-data/` contains public-alpha mock fixtures for runtime, neural/GPU evidence, RL benchmarks, agent launch, local network, and payment/accounting flows.
 - Live HTTP integration is deliberately not implemented yet.
 
 Local checks when Node is available:

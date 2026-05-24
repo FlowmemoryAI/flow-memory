@@ -13,6 +13,11 @@ export function renderScreenNames(snapshot: DashboardSnapshot): string[] {
     "reputation",
     "FlowLang compile/run",
     "Base Sepolia dry-run status",
+    `neural status: ${snapshot.neural.backend}`,
+    `RL benchmarks: ${snapshot.rlBenchmarks.length}`,
+    `agent launch paths: ${snapshot.launchPaths.length}`,
+    `local network scenarios: ${snapshot.localNetwork.length}`,
+    `payment flows: ${snapshot.paymentFlows.length}`,
     `release evidence: ${snapshot.release.releaseDecision}`
   ];
 }

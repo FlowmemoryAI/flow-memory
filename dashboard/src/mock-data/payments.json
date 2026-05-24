@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "source": "mock-data-only",
+  "mode": "local-simulated-accounting",
+  "roles": ["TaskRequester", "WorkerAgent", "VerifierAgent", "MarketplaceOperator", "Treasury"],
+  "flows": [
+    {"event": "task_funded", "debit": "TaskRequester", "credit": "Escrow"},
+    {"event": "work_verified", "debit": "Escrow", "credit": "WorkerAgent"},
+    {"event": "verification_fee", "debit": "Escrow", "credit": "VerifierAgent"},
+    {"event": "dispute_slashing", "debit": "WorkerAgent", "credit": "Treasury"}
+  ],
+  "realFundsUsed": false,
+  "futurePath": "Base Sepolia / ERC-4337 adapter seam after explicit configuration and audit"
+}

@@ -5,7 +5,7 @@
   "description": "Public-alpha operator console scaffold for Flow Memory mock/API integration.",
   "type": "module",
   "scripts": {
-    "validate:mock-data": "node -e \"JSON.parse(require('node:fs').readFileSync('src/mock-data/runtime.json', 'utf8'))\"",
+    "validate:mock-data": "node -e \"const fs=require('node:fs'); for (const f of fs.readdirSync('src/mock-data').filter(f=>f.endsWith('.json'))) JSON.parse(fs.readFileSync('src/mock-data/'+f, 'utf8'))\"",
     "test": "node tests/mock-api.test.mjs",
     "build": "node tests/mock-api.test.mjs"
   },

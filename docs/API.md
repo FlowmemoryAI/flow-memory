@@ -94,3 +94,8 @@ The internal router, dependency-free HTTP server boundary, OpenAPI generation, s
 ## Flow Arena RL + Neural Evidence RC update
 
 This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.
+
+
+## RL Arena endpoints
+
+See `docs/API_RL.md` for `/rl/envs`, `/rl/benchmarks`, `/rl/evaluate`, and `/rl/train-smoke`. These endpoints are local/public-alpha seams and require `rl:*` scopes when scope enforcement is enabled.

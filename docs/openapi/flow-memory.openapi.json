@@ -825,6 +825,135 @@
         ]
       }
     },
+    "/rl/benchmarks": {
+      "get": {
+        "operationId": "rl_benchmarks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local RL benchmark metadata",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/rl/envs": {
+      "get": {
+        "operationId": "rl_envs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local Flow Arena environments",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/rl/evaluate": {
+      "post": {
+        "operationId": "rl_evaluate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "env_id": {
+                    "type": "string"
+                  },
+                  "episodes": {
+                    "type": "string"
+                  },
+                  "policy": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Evaluate a local RL policy",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
+    "/rl/train-smoke": {
+      "post": {
+        "operationId": "rl_train_smoke",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "env_id": {
+                    "type": "string"
+                  },
+                  "episodes": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run local tabular Q smoke training",
+        "tags": [
+          "rl"
+        ]
+      }
+    },
     "/runtime/status": {
       "get": {
         "operationId": "runtime_status",

@@ -22,6 +22,7 @@ from flow_memory.api.neural_endpoints import (
     neural_train_smoke,
     neural_validate_smoke,
 )
+from flow_memory.api.rl_endpoints import rl_benchmarks, rl_envs, rl_evaluate, rl_train_smoke
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
 
@@ -289,6 +290,20 @@ class LocalApiRouter:
         self.audit_events.append({"event": "neural_train_smoke_requested", "local_only": True})
         return neural_train_smoke(str(payload.get("out", "artifacts/neural/api_smoke")))
 
+    def _rl_envs(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return rl_envs()
+
+    def _rl_benchmarks(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return rl_benchmarks()
+
+    def _rl_evaluate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "rl_evaluate_requested"})
+        return rl_evaluate(payload)
+
+    def _rl_train_smoke(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "rl_train_smoke_requested", "local_only": True})
+        return rl_train_smoke(payload)
+
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -343,6 +358,10 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/neural/checkpoints", router._neural_checkpoints, "neural_checkpoints")
     router.register("POST", "/neural/validate-smoke", router._neural_validate_smoke, "neural_validate_smoke")
     router.register("POST", "/neural/train-smoke", router._neural_train_smoke, "neural_train_smoke")
+    router.register("GET", "/rl/envs", router._rl_envs, "rl_envs")
+    router.register("GET", "/rl/benchmarks", router._rl_benchmarks, "rl_benchmarks")
+    router.register("POST", "/rl/evaluate", router._rl_evaluate, "rl_evaluate")
+    router.register("POST", "/rl/train-smoke", router._rl_train_smoke, "rl_train_smoke")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

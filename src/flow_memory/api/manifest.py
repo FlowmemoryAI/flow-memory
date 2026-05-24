@@ -63,6 +63,10 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/neural/checkpoints", "neural_checkpoints", "List checkpoint metadata without raw weights"),
     EndpointSpec("POST", "/neural/validate-smoke", "neural_validate_smoke", "Return neural validation smoke command/status"),
     EndpointSpec("POST", "/neural/train-smoke", "neural_train_smoke", "Run tiny local neural smoke trainers", request_fields=("out",)),
+    EndpointSpec("GET", "/rl/envs", "rl_envs", "List local Flow Arena environments"),
+    EndpointSpec("GET", "/rl/benchmarks", "rl_benchmarks", "List local RL benchmark metadata"),
+    EndpointSpec("POST", "/rl/evaluate", "rl_evaluate", "Evaluate a local RL policy", request_fields=("env_id", "policy", "episodes")),
+    EndpointSpec("POST", "/rl/train-smoke", "rl_train_smoke", "Run local tabular Q smoke training", request_fields=("env_id", "episodes")),
 )
 
 

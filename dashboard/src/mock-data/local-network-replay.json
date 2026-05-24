@@ -395,7 +395,7 @@
   "ok": true,
   "provenance": "replay",
   "schema_version": "visual.telemetry.v1",
-  "source_report": "artifacts/network/local_network_report.json",
+  "source_report": "E:/FlowMemory/flow-memory/artifacts/network/mission_control_demo_report.json",
   "state": {
     "agents": [
       {

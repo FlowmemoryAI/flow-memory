@@ -21,10 +21,17 @@ class LocalNetworkReport:
     ok: bool
     scenarios: tuple[ScenarioReport, ...]
     topology: Mapping[str, Any]
+    visual_events: tuple[Mapping[str, Any], ...] = ()
+    visual_state: Mapping[str, Any] = field(default_factory=dict)
 
     def as_record(self) -> Mapping[str, Any]:
-        return {
+        record: dict[str, Any] = {
             "ok": self.ok,
             "scenarios": tuple(report.as_record() for report in self.scenarios),
             "topology": dict(self.topology),
         }
+        if self.visual_events:
+            record["visual_events"] = tuple(dict(event) for event in self.visual_events)
+        if self.visual_state:
+            record["visual_state"] = dict(self.visual_state)
+        return record

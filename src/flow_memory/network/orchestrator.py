@@ -11,5 +11,5 @@ from flow_memory.network.reports import LocalNetworkReport
 class LocalNetworkOrchestrator:
     network: LocalFlowMemoryNetwork = field(default_factory=LocalFlowMemoryNetwork)
 
-    def run(self, scenario: str = "all") -> LocalNetworkReport:
-        return self.network.run(scenario)
+    def run(self, scenario: str = "all", *, emit_visual_events: bool = False) -> LocalNetworkReport:
+        return self.network.run(scenario, emit_visual_events=emit_visual_events)

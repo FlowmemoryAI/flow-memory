@@ -1,6 +1,7 @@
 import replay from "../../mock-data/local-network-replay.json";
 import type { VisualNetworkState } from "../../lib/visual-state";
 import { summarizeVisualState } from "../../lib/visual-state";
+import { modeLabel, missionControlModes, missionControlEndpoints } from "../../lib/mission-control-config";
 import { MissionControlCanvas } from "../../components/mission-control/MissionControlCanvas";
 import { AgentDetailDrawer } from "../../components/mission-control/AgentDetailDrawer";
 import { NetworkLegend } from "../../components/mission-control/NetworkLegend";
@@ -19,6 +20,9 @@ export default function MissionControlPage() {
         <p>The Human Compute Network</p>
         <h1>Flow Memory Mission Control</h1>
         <span>{summarizeVisualState(state)}</span>
+        <strong>{modeLabel(state.provenance === "live" ? "live" : "replay")}</strong>
+        <small>Modes: {missionControlModes.map(modeLabel).join(" / ")}</small>
+        <small>Live endpoints: {missionControlEndpoints.filter((endpoint) => endpoint.mode === "live").map((endpoint) => endpoint.path).join(", ")}</small>
       </header>
       <MissionControlCanvas state={state} />
       <AgentDetailDrawer agent={state.agents[0]} />

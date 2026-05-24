@@ -7,7 +7,7 @@ from flow_memory.neural.artifacts import find_text, load_json_if_present, safe_e
 from flow_memory.neural.model_cards import gpu_model_card
 from flow_memory.neural.run_records import GpuRunSummary
 
-DEFAULT_RUN_ID = "cloud_gpu_run_001"
+DEFAULT_RUN_ID = "flow-memory-cloud-gpu-run-001"
 
 
 def import_gpu_run_artifact(tarball: str | Path, out_root: str | Path = "release_evidence/gpu_runs", *, run_id: str = DEFAULT_RUN_ID) -> GpuRunSummary:

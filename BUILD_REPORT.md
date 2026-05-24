@@ -337,3 +337,19 @@ Baseline commit before this build: `34c67f1`.
 - Flow Arena is a local deterministic RL prototype, not a PufferLib/CUDA high-throughput backend.
 - RL policies are advisory only and intentionally cannot execute actions or bypass safety/economy policy.
 - V-JEPA 2, VideoMAE, production neural training scale, browser/WASM neural inference, and PufferLib native backend remain adapter seams/future work.
+
+
+## RunPod GPU evidence launch attempt
+
+Attempted the launch evidence import path for `flow-memory-cloud-gpu-run-001.tar.gz`. The expected source file `C:\Users\ntrap\Downloads\flow-memory-cloud-gpu-run-001.tar.gz` was not present on this workstation, so `scripts/import_gpu_run_artifact.py` created an explicit skipped record under `release_evidence/gpu_runs/flow-memory-cloud-gpu-run-001/`.
+
+Validation outcome:
+
+- `python scripts/import_gpu_run_artifact.py artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`: completed with `skipped: true`.
+- `python scripts/verify_gpu_run_artifact.py flow-memory-cloud-gpu-run-001`: pass for record integrity.
+- `python scripts/summarize_gpu_run.py flow-memory-cloud-gpu-run-001`: shows artifact-missing skipped record.
+- `python scripts/export_release_evidence.py`: pass.
+- `python scripts/verify_release_evidence.py`: pass.
+- `python scripts/release_decision.py --target neural-gpu-smoke`: blocked with `gpu_evidence_verified_run_missing`.
+
+No public launch tag was created because the actual RunPod tarball is still missing locally. Copy the artifact into `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` and rerun the same commands before tagging `v0.3.0-alpha`.

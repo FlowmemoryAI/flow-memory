@@ -5,13 +5,13 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 SRC=ROOT/"src"
 if str(SRC) not in sys.path: sys.path.insert(0,str(SRC))
-from flow_memory.neural.gpu_evidence import import_gpu_run_artifact
+from flow_memory.neural.gpu_evidence import DEFAULT_RUN_ID, import_gpu_run_artifact
 
 def main(argv=None)->int:
     p=argparse.ArgumentParser(description="Import Flow Memory GPU run artifact")
     p.add_argument("artifact", nargs="?", type=Path, default=ROOT/"artifacts"/"incoming"/"flow-memory-cloud-gpu-run-001.tar.gz")
     p.add_argument("--out", type=Path, default=ROOT/"release_evidence"/"gpu_runs")
-    p.add_argument("--run-id", default="cloud_gpu_run_001")
+    p.add_argument("--run-id", default=DEFAULT_RUN_ID)
     args=p.parse_args(argv)
     summary=import_gpu_run_artifact(args.artifact, args.out, run_id=args.run_id)
     print(json.dumps(summary.as_record(), indent=2, sort_keys=True))

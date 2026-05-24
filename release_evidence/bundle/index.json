@@ -1,14 +1,14 @@
 {
-  "bundle_hash": "f2a1d35be5b46c8164b163ea6d107d475cb948d50eaf625e9820b561a89e7560",
+  "bundle_hash": "5434267b3b62af8dac16eefe60b66cbe957135cbe3f96a836c469c4284e62c7f",
   "file_hashes": {
     "api_snapshot.json": "c3d8cd908c42f22bf976f2d05c7b28945970d62dcf38ca8b8e19649126362363",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
     "dependency_inventory.json": "9819542e274c038b6ad5c1c07bfaff0806e2803f26c9a329f0d59d61360ffe83",
-    "gpu_evidence.json": "28f2cf6f311b7240aa0b8dd0d2c007bc4c8e01d8adcb5157989d5297eb0fc9e6",
+    "gpu_evidence.json": "55fb6c05277946061d0c912e89c602c05d0744a2dc4aa32953f8c15bafb26a71",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "b6805213a0a846fe8246f5f7cceee6fabf1f61447e0eb6730bdf9e2fc0f4d8cc",
+    "release_manifest.json": "1eb878276ddc61c9a628868518991a709f6dc03686b2e2a45c6bdab495ec181f",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7"
   },
   "files": [

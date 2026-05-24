@@ -111,3 +111,8 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 ## Flow Arena RL + Neural Evidence RC update
 
 This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.
+
+
+## Launch evidence status
+
+The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` release target are implemented. Current local status is blocked because the actual RunPod tarball was not present at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`; the committed evidence record is an explicit skipped placeholder, not launch proof.

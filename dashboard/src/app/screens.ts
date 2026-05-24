@@ -2,6 +2,8 @@ import type { DashboardSnapshot } from "../lib/types";
 
 export function renderScreenNames(snapshot: DashboardSnapshot): string[] {
   return [
+    "Mission Control: live / replay / mock",
+    "Mission Control visual API: /visual/state /visual/events /network/run-scenario",
     `runtime health: ${snapshot.runtime.status}`,
     `agents: ${snapshot.agents.length}`,
     "agent state",

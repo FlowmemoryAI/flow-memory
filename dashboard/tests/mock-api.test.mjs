@@ -13,4 +13,6 @@ assert.match(mockApi, /rlBenchmarks/);
 assert.match(mockApi, /paymentFlows/);
 assert.match(screens, /neural status/);
 assert.match(screens, /local network scenarios/);
+assert.match(screens, /Mission Control: live \/ replay \/ mock/);
+assert.match(screens, /\/visual\/state/);
 console.log("dashboard mock api ok");

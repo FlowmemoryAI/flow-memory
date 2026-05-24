@@ -158,3 +158,15 @@ Public alpha launch status is local-demo ready once full-system quick validation
 | Dashboard mock data | scaffold | Mock fixtures now cover neural/GPU evidence, RL benchmarks, agent launch, local network scenarios, and payment flows. |
 
 The stronger public alpha release targets remain blocked until real GPU evidence is imported; no fake GPU proof has been added.
+
+## True overnight queue status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Release API endpoint | implemented local seam | `/release/evidence` and `/release/decision/{target}` expose metadata only and require `release:read` under scope enforcement. |
+| Dashboard API endpoint | implemented local seam | `/dashboard/snapshot` exposes mock dashboard metadata only and requires `dashboard:read` under scope enforcement. |
+| Launch output artifacts | implemented | Launch scripts support `--json-out`; validator checks mode, safety authority, neural metadata, and network report presence. |
+| Network/RL/payment utility evidence | implemented | Local scripts validate network reports, export RL env manifests, export simulated payment ledgers, and verify utility evidence hashes. |
+| Public alpha evidence | strengthened | Launch evidence now includes dashboard mock snapshot hashes. |
+
+Current launch posture remains local public alpha only until the real RunPod tarball is imported and the stronger GPU-backed release gates pass.

@@ -545,3 +545,18 @@ Focused validation run for these slices:
 | Dashboard `npm test` | Pass |
 
 The RunPod artifact tarball is still required at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` before `neural-gpu-smoke`, `public-alpha-neural`, or `public-alpha-launch` can pass.
+
+## True overnight build queue completion update
+
+The follow-on autonomous queue completed additional public-alpha hardening slices after the first overnight update:
+
+- Release evidence and dashboard endpoints in the local API, with `release:read` and `dashboard:read` scope checks.
+- Release and dashboard API smoke scripts: `scripts/check_release_api.py` and `scripts/check_dashboard_api.py`.
+- Launch scripts now support `--json-out`; `scripts/validate_launch_output.py` validates emitted launch records.
+- Local network reports can be validated with `scripts/validate_local_network_report.py`.
+- Flow Arena environment contracts can be exported with `scripts/export_rl_env_manifest.py`.
+- Simulated payment ledger evidence can be exported with `scripts/export_payment_ledger_demo.py`.
+- Utility evidence can be exported and verified with `scripts/export_utility_evidence.py` and `scripts/verify_utility_evidence.py`.
+- Dashboard mock snapshot hashes are now included in public-alpha launch evidence.
+
+These additions keep public-alpha claims local and evidence-based. Real GPU evidence still requires the external RunPod artifact tarball; no fake GPU proof, real funds, production auth claim, mainnet deployment, audited-contract claim, or hardened-sandbox claim was added.

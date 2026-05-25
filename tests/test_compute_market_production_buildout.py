@@ -5,7 +5,7 @@ import hmac
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
@@ -72,6 +72,20 @@ def _job_payload() -> dict[str, object]:
         "route_id": "route_live_gpu_1",
         "provider_id": "provider_live_gpu_1",
     }
+
+
+def _metric_total(service: ComputeMarketService, name: str, labels: Mapping[str, str] | None = None) -> float:
+    expected = dict(labels or {})
+    total = 0.0
+    for sample in service.telemetry.snapshot(reset=False)["metrics"]:
+        if not isinstance(sample, Mapping) or sample.get("name") != name:
+            continue
+        sample_labels = sample.get("labels", {})
+        if not isinstance(sample_labels, Mapping):
+            continue
+        if all(str(sample_labels.get(key, "")) == value for key, value in expected.items()):
+            total += float(sample.get("value", 0.0))
+    return total
 
 
 _STRIPE_CHECKOUT_REQUESTS: list[dict[str, object]] = []
@@ -379,6 +393,8 @@ def test_signed_provider_receipt_callback_completes_job_and_blocks_replay(monkey
     assert service.store.count_records("provider_receipt_replay_guard") == 1
     assert replayed["ok"] is False
     assert replayed["error"]["error_code"] == "provider_receipt.replay_detected"
+    assert _metric_total(service, "compute_provider_receipt_accepted_total", {"provider_id": "receipt-provider", "status": "succeeded"}) == 1.0
+    assert _metric_total(service, "compute_provider_receipt_rejected_total", {"provider_id": "receipt-provider", "reason": "provider_receipt.replay_detected"}) == 1.0
 
 
 def test_provider_receipt_callback_rejects_tampered_signature(monkeypatch: Any) -> None:
@@ -415,6 +431,8 @@ def test_provider_receipt_callback_rejects_tampered_signature(monkeypatch: Any) 
     assert rejected["ok"] is False
     assert rejected["error"]["error_code"] == "provider_receipt.signature_invalid"
     assert service.get_job(job_id)["job"]["status"] == "running"
+    assert _metric_total(service, "compute_provider_receipt_accepted_total") == 0.0
+    assert _metric_total(service, "compute_provider_receipt_rejected_total", {"provider_id": "receipt-provider", "reason": "provider_receipt.signature_invalid"}) == 1.0
 
 
 def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:

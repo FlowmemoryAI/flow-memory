@@ -51,6 +51,8 @@ _METRIC_NAMES: tuple[str, ...] = (
     "unexpected_live_settlement_config_total",
     "settlement_attempt_total",
     "audit_chain_verify_fail_total",
+    "compute_provider_receipt_accepted_total",
+    "compute_provider_receipt_rejected_total",
 )
 
 _SPAN_NAMES: tuple[str, ...] = (

@@ -54,6 +54,8 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "provider_execution_failure_total" in names
     assert "redis_unavailable_total" in names
     assert "external_provider_allowlist_missing_total" in names
+    assert "compute_provider_receipt_accepted_total" in names
+    assert "compute_provider_receipt_rejected_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 

@@ -169,6 +169,21 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     checks["job_retry"] = call_json("POST", f"{base}/compute/jobs/{retry_job_id}/retry", headers_execute, {})
     checks["job_cancel"] = call_json("POST", f"{base}/compute/jobs/{retry_job_id}/cancel", headers_execute, {"reason": "public validation"})
     checks["job_dispatch"] = call_json("POST", f"{base}/compute/jobs/{job_id}/dispatch", headers_execute, {})
+    unsigned_receipt = {
+        "receipt_id": f"receipt_public_buildout_unsigned_{suffix}",
+        "timestamp": "2099-01-01T00:00:00Z",
+        "job_id": job_id,
+        "provider_id": provider_id,
+        "route_id": route_id,
+        "status": "succeeded",
+        "actual_units": 2,
+        "actual_total_cost": 0.18,
+        "actual_latency_ms": 1000,
+        "artifact_ref": "s3://flow-memory-results/public-buildout-receipt.json",
+        "funds_moved": False,
+    }
+    checks["job_receipt_wrong_scope"] = call_json("POST", f"{base}/compute/jobs/{job_id}/receipt", headers_read, {"receipt": unsigned_receipt})
+    checks["job_receipt_unsigned"] = call_json("POST", f"{base}/compute/jobs/{job_id}/receipt", headers_execute, {"receipt": unsigned_receipt})
     checks["job_complete"] = call_json(
         "POST",
         f"{base}/compute/jobs/{job_id}/complete",
@@ -227,6 +242,8 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
+    require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
+    require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
     for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics", "alerts"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")

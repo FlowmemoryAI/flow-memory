@@ -915,6 +915,7 @@ class ComputeMarketService:
                 request_id=request_id,
             )
             self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt_job_mismatch",), provider_id=provider_id, route_id=route_id)
+            self.telemetry.increment("compute_provider_receipt_rejected_total", {"provider_id": provider_id, "route_id": route_id, "reason": "provider_receipt.job_mismatch"})
             return {"ok": False, "error": error.as_record()}
         if provider_id != str(job.get("provider_id", "")):
             error = compute_error(
@@ -924,12 +925,14 @@ class ComputeMarketService:
                 request_id=request_id,
             )
             self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt_provider_mismatch",), provider_id=provider_id, route_id=route_id)
+            self.telemetry.increment("compute_provider_receipt_rejected_total", {"provider_id": provider_id, "route_id": route_id, "reason": "provider_receipt.provider_mismatch"})
             return {"ok": False, "error": error.as_record()}
         verification = _verify_provider_receipt(self.store, job, payload, receipt)
         if not verification["ok"]:
             reason = str(verification["error"].get("error_code", "provider_receipt.invalid"))
             error = compute_error(reason, str(verification["error"].get("message", "Provider receipt verification failed.")), details=verification["error"], request_id=request_id)
             self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=(reason,), provider_id=provider_id, route_id=route_id)
+            self.telemetry.increment("compute_provider_receipt_rejected_total", {"provider_id": provider_id, "route_id": route_id, "reason": reason})
             return {"ok": False, "error": error.as_record(), "verification": verification}
         receipt_id = str(verification["receipt_id"])
         receipt_hash = str(verification["receipt_hash"])
@@ -950,12 +953,15 @@ class ComputeMarketService:
             request_id=request_id,
         )
         status = str(receipt.get("status", "")).strip().lower()
-        self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status or "accepted", provider_id=provider_id, route_id=route_id)
         completion_payload = {**dict(receipt), "request_id": request_id}
         if status in {"succeeded", "success", "completed", "complete"}:
+            self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
+            self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
             completed = self.complete_job(job_id, completion_payload)
             return {"ok": True, "receipt": receipt, "verification": verification, "completion": completed, "job": completed["job"]}
         if status in {"failed", "failure", "error"}:
+            self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
+            self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
             failed = self.fail_job(job_id, completion_payload)
             return {"ok": True, "receipt": receipt, "verification": verification, "failure": failed, "job": failed["job"]}
         error = compute_error(
@@ -964,6 +970,8 @@ class ComputeMarketService:
             details={"status": status, "job_id": job_id},
             request_id=request_id,
         )
+        self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt.unsupported_status",), provider_id=provider_id, route_id=route_id)
+        self.telemetry.increment("compute_provider_receipt_rejected_total", {"provider_id": provider_id, "route_id": route_id, "reason": "provider_receipt.unsupported_status", "status": status})
         return {"ok": False, "error": error.as_record(), "verification": verification}
 
     def _dispatch_external_provider_execution(

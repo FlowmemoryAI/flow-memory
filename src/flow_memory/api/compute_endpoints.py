@@ -59,6 +59,54 @@ def compute_provider_disable(provider_id: str, payload: Mapping[str, Any]) -> Ma
 def compute_provider_health(provider_id: str) -> Mapping[str, Any]:
     return default_service().provider_health(provider_id)
 
+def market_provider_apply(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().apply_market_provider(payload)
+
+
+def market_provider(provider_id: str) -> Mapping[str, Any]:
+    return default_service().market_provider(provider_id)
+
+
+def market_provider_verify(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().verify_market_provider(provider_id, payload)
+
+
+def market_provider_disable(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().disable_market_provider(provider_id, payload)
+
+
+def market_provider_reputation(provider_id: str) -> Mapping[str, Any]:
+    return default_service().provider_reputation(provider_id)
+
+
+def market_quote_ingest(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().broker_quote(payload)
+
+
+def market_capacity_list(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().list_capacity(payload)
+
+
+def market_capacity_reserve(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().reserve_capacity(payload)
+
+
+def market_capacity_release(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().release_capacity(payload)
+
+
+def market_capacity_order_book(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().capacity_order_book(payload or {})
+
+
+def market_prices(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    quotes = default_service().store.list_records("compute_quote", filters=payload or {}, limit=int((payload or {}).get("limit", 100))).records
+    return {"ok": True, "prices": quotes}
+
+
+def market_prices_history(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return market_prices(payload)
+
 
 def compute_routes(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().list_routes(payload or {})
@@ -171,6 +219,49 @@ def compute_health() -> Mapping[str, Any]:
 
 def compute_readiness() -> Mapping[str, Any]:
     return default_service().readiness()
+
+def compute_job_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().create_job(payload)
+
+
+def compute_job(job_id: str) -> Mapping[str, Any]:
+    return default_service().get_job(job_id)
+
+
+def compute_job_cancel(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().cancel_job(job_id, payload)
+
+
+def compute_job_events(job_id: str) -> Mapping[str, Any]:
+    return default_service().job_events(job_id)
+
+
+def compute_job_artifacts(job_id: str) -> Mapping[str, Any]:
+    return default_service().job_artifacts(job_id)
+
+
+def compute_job_retry(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().retry_job(job_id, payload)
+
+
+def billing_checkout(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().billing_checkout(payload)
+
+
+def billing_webhook_stripe(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().billing_webhook_stripe(payload)
+
+
+def billing_balance(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().billing_balance(payload or {})
+
+
+def billing_usage(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().billing_usage(payload or {})
+
+
+def admin_reconciliation(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().reconciliation(payload or {})
 
 
 def compute_migrations() -> Mapping[str, Any]:

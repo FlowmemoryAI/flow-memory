@@ -35,6 +35,22 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "audit_event",
     "provider_health_snapshot",
     "quote_cache_entry",
+    "market_provider_application",
+    "provider_secret_ref",
+    "provider_reputation",
+    "quote_replay_guard",
+    "quote_drift_observation",
+    "compute_job",
+    "compute_job_event",
+    "compute_job_artifact",
+    "billing_account",
+    "credit_balance",
+    "credit_transaction",
+    "payment_event",
+    "provider_payout",
+    "usage_charge",
+    "refund",
+    "reconciliation_run",
 )
 
 

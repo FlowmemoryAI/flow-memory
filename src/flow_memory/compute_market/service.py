@@ -1,6 +1,7 @@
 """Production-planning service layer for Flow Memory Compute Market."""
 from __future__ import annotations
 
+import hmac
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping
@@ -9,6 +10,7 @@ from flow_memory.compute_market.config import ComputeMarketConfig, config_from_e
 from flow_memory.compute_market.audit_export import LocalFileAuditExporter, build_checkpoint, verify_audit_export
 from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
+from flow_memory.compute_market.provider_contracts import validate_provider_quote_contract
 from flow_memory.compute_market.memory import query_economic_memory_typed, query_request_from_payload
 from flow_memory.compute_market.models import (
     AuditEvent,
@@ -22,6 +24,7 @@ from flow_memory.compute_market.planner import build_compute_plan, replay_decisi
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
 from flow_memory.compute_market.storage import deterministic_id, migration_plan, utc_now_iso
 from flow_memory.compute_market.storage_backends import ComputeMarketStoreProtocol, create_compute_market_store
+from flow_memory.crypto.hashes import content_hash
 from flow_memory.core.types import new_id
 
 _UNSAFE_KEYS = frozenset(
@@ -281,6 +284,123 @@ class ComputeMarketService:
         self.store.put_record("provider_health_snapshot", snapshot.health_snapshot_id, record, provider_id=provider_id, status=snapshot.status)
         return {"ok": True, "provider_health": record}
 
+    def apply_market_provider(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        _assert_no_inline_credentials(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/providers/apply", request_id=request_id, provider_id=str(payload.get("provider_id", "")))
+        if limited is not None:
+            return limited
+        application = _provider_application(payload, request_id=request_id)
+        application_id = str(application["application_id"])
+        provider_id = str(application["provider_id"])
+        self.store.put_record(
+            "market_provider_application",
+            application_id,
+            application,
+            provider_id=provider_id,
+            status=str(application["status"]),
+            request_id=request_id,
+            idempotency_key=str(payload.get("idempotency_key", "")),
+        )
+        secret_ref = _provider_secret_reference(payload, provider_id=provider_id, request_id=request_id)
+        if secret_ref:
+            self.store.put_record(
+                "provider_secret_ref",
+                str(secret_ref["secret_ref_id"]),
+                secret_ref,
+                provider_id=provider_id,
+                status="active",
+                request_id=request_id,
+            )
+        self._audit("market.provider.applied", payload, request_id=request_id, result="submitted", provider_id=provider_id)
+        return {
+            "ok": True,
+            "provider_application": application,
+            "credential_storage": "external_secret_reference_only",
+            "inline_secrets_stored": False,
+        }
+
+    def market_provider(self, provider_id: str) -> Mapping[str, Any]:
+        application_page = self.store.list_records("market_provider_application", filters={"provider_id": provider_id}, limit=1)
+        provider = self.store.get_record("compute_provider", provider_id)
+        if not application_page.records and provider is None:
+            raise KeyError(f"Unknown market provider: {provider_id}")
+        return {
+            "ok": True,
+            "provider_application": application_page.records[0] if application_page.records else {},
+            "provider": provider or {},
+            "reputation": self.provider_reputation(provider_id)["reputation"],
+        }
+
+    def verify_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/verify", request_id=request_id, provider_id=provider_id)
+        if limited is not None:
+            return limited
+        application = self._latest_provider_application(provider_id)
+        verified_at = utc_now_iso()
+        updated_application = {
+            **application,
+            "status": "verified",
+            "verified": True,
+            "verified_at": verified_at,
+            "verification_notes": str(payload.get("verification_notes", "")),
+            "updated_at": verified_at,
+        }
+        self.store.put_record(
+            "market_provider_application",
+            str(updated_application["application_id"]),
+            updated_application,
+            provider_id=provider_id,
+            status="verified",
+            request_id=request_id,
+        )
+        provider = _provider_from_application(updated_application)
+        self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status="active", request_id=request_id)
+        reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=())
+        self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status="active", request_id=request_id)
+        self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
+        return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
+
+    def disable_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/disable", request_id=request_id, provider_id=provider_id)
+        if limited is not None:
+            return limited
+        disabled_at = utc_now_iso()
+        application = self._latest_provider_application(provider_id)
+        updated_application = {**application, "status": "disabled", "disabled_at": disabled_at, "updated_at": disabled_at}
+        self.store.put_record(
+            "market_provider_application",
+            str(updated_application["application_id"]),
+            updated_application,
+            provider_id=provider_id,
+            status="disabled",
+            request_id=request_id,
+        )
+        provider = self.store.get_record("compute_provider", provider_id)
+        if provider is not None:
+            disabled_provider = {**dict(provider), "status": "disabled", "disabled_at": disabled_at, "updated_at": disabled_at}
+            self.store.put_record("compute_provider", provider_id, disabled_provider, provider_id=provider_id, status="disabled", request_id=request_id)
+        self._audit("market.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
+        return {"ok": True, "provider_application": updated_application}
+
+    def provider_reputation(self, provider_id: str) -> Mapping[str, Any]:
+        jobs = tuple(self.store.list_records("compute_job", filters={"provider_id": provider_id}, limit=500).records)
+        quotes = tuple(self.store.list_records("compute_quote", filters={"provider_id": provider_id}, limit=500).records)
+        health = tuple(self.store.list_records("provider_health_snapshot", filters={"provider_id": provider_id}, limit=100).records)
+        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health)
+        self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
+        return {"ok": True, "reputation": reputation}
+
+    def _latest_provider_application(self, provider_id: str) -> Mapping[str, Any]:
+        applications = self.store.list_records("market_provider_application", filters={"provider_id": provider_id}, limit=1).records
+        if not applications:
+            raise KeyError(f"Unknown market provider application: {provider_id}")
+        return applications[0]
+
     def list_routes(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         page = self.store.list_records("compute_route", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
         return {"ok": True, "routes": page.records, "next_cursor": page.next_cursor}
@@ -365,6 +485,325 @@ class ComputeMarketService:
             error = compute_error("configuration_error", str(exc))
             return {"ok": False, "error": error.as_record()}
         return {"ok": True, "policy_id": policy_id, "validation": "valid", "request": dict(payload)}
+
+    def broker_quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        quote = payload.get("quote", payload)
+        if not isinstance(quote, Mapping):
+            raise ValueError("quote payload must be an object")
+        provider_id = str(quote.get("provider_id", payload.get("provider_id", "")))
+        route_id = str(quote.get("route_id", payload.get("route_id", "")))
+        limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
+        if limited is not None:
+            return limited
+        validation = validate_provider_quote_contract(
+            quote,
+            provider_id=provider_id,
+            allowed_assets=_tuple(payload.get("allowed_assets", ())),
+            allowed_networks=_tuple(payload.get("allowed_networks", ())),
+        )
+        quote_id = str(quote.get("quote_id") or deterministic_id("quote", quote))
+        quote_hash = content_hash(quote)
+        replay_guard = self.store.get_record("quote_replay_guard", quote_id)
+        if replay_guard and str(replay_guard.get("quote_hash", "")) != quote_hash:
+            error = compute_error(
+                "quote.replay_detected",
+                "Provider quote replay detected with a different payload hash.",
+                details={"quote_id": quote_id, "provider_id": provider_id},
+                request_id=request_id,
+            )
+            self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record(), "validation": validation.as_record()}
+        if not validation.ok:
+            self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id}
+        record = _normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash)
+        previous = self.store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=1).records
+        drift = _quote_drift(previous[0] if previous else {}, record)
+        self.store.put_record(
+            "quote_replay_guard",
+            quote_id,
+            {"quote_id": quote_id, "quote_hash": quote_hash, "provider_id": provider_id, "route_id": route_id, "created_at": utc_now_iso()},
+            provider_id=provider_id,
+            route_id=route_id,
+            request_id=request_id,
+        )
+        self.store.put_record(
+            "compute_quote",
+            quote_id,
+            record,
+            provider_id=provider_id,
+            route_id=route_id,
+            status=str(record.get("status", "valid")),
+            expires_at=str(record.get("expires_at", "")),
+            request_id=request_id,
+            idempotency_key=str(payload.get("idempotency_key", "")),
+        )
+        if drift:
+            self.store.put_record(
+                "quote_drift_observation",
+                str(drift["drift_id"]),
+                drift,
+                provider_id=provider_id,
+                route_id=route_id,
+                status=str(drift["status"]),
+                request_id=request_id,
+            )
+        cache_key = self.store.quote_cache_key(provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")))
+        self.store.put_record(
+            "quote_cache_entry",
+            cache_key,
+            {
+                "cache_key": cache_key,
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "task_hash": str(record.get("task_hash", "")),
+                "policy_hash": str(record.get("policy_hash", "")),
+                "quote": record,
+                "source": "live_provider",
+                "created_at": utc_now_iso(),
+                "updated_at": utc_now_iso(),
+                "expires_at": str(record.get("expires_at", "")),
+                "ttl_seconds": int(record.get("quote_ttl_seconds", 300) or 300),
+                "status": str(record.get("status", "valid")),
+            },
+            provider_id=provider_id,
+            route_id=route_id,
+            task_hash=str(record.get("task_hash", "")),
+            status=str(record.get("status", "valid")),
+            expires_at=str(record.get("expires_at", "")),
+            request_id=request_id,
+        )
+        self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
+        self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
+        return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}}
+
+    def list_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/capacity/list", request_id=request_id, provider_id=str(payload.get("provider_id", "")), route_id=str(payload.get("route_id", "")))
+        if limited is not None:
+            return limited
+        window = _capacity_window(payload)
+        self.store.put_record(
+            "compute_capacity_window",
+            str(window["window_id"]),
+            window,
+            provider_id=str(window["provider_id"]),
+            route_id=str(window["route_id"]),
+            status="active",
+            expires_at=str(window["ends_at"]),
+            request_id=request_id,
+        )
+        self._audit("market.capacity.listed", payload, request_id=request_id, result="listed", provider_id=str(window["provider_id"]), route_id=str(window["route_id"]))
+        return {"ok": True, "capacity_window": window}
+
+    def capacity_order_book(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        filters = payload or {}
+        windows = tuple(self.store.list_records("compute_capacity_window", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
+        reservations = tuple(self.store.list_records("compute_reservation", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
+        return {"ok": True, "capacity_windows": windows, "reservations": reservations, "summary": _capacity_summary(windows, reservations)}
+
+    def reserve_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        provider_id = str(payload.get("provider_id", ""))
+        route_id = str(payload.get("route_id", ""))
+        limited = self._rate_limit_response(payload, "POST /market/capacity/reserve", request_id=request_id, provider_id=provider_id, route_id=route_id)
+        if limited is not None:
+            return limited
+        reservation = _capacity_reservation(payload, self.store.list_records("compute_capacity_window", filters={"provider_id": provider_id, "route_id": route_id}, limit=100).records, self.store.list_records("compute_reservation", filters={"provider_id": provider_id, "route_id": route_id}, limit=500).records)
+        self.store.put_record(
+            "compute_reservation",
+            str(reservation["reservation_id"]),
+            reservation,
+            provider_id=provider_id,
+            route_id=route_id,
+            status=str(reservation["status"]),
+            expires_at=str(reservation["hold_expires_at"]),
+            idempotency_key=str(payload.get("idempotency_key", "")),
+            request_id=request_id,
+        )
+        self.telemetry.increment("capacity_reserved_total", {"provider_id": provider_id, "route_id": route_id}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
+        self._audit("market.capacity.reserved", payload, request_id=request_id, result="held", provider_id=provider_id, route_id=route_id)
+        return {"ok": True, "reservation": reservation}
+
+    def release_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        reservation_id = str(payload.get("reservation_id", ""))
+        if not reservation_id:
+            raise ValueError("reservation_id is required")
+        current = self.store.get_record("compute_reservation", reservation_id)
+        if current is None:
+            raise KeyError(f"Unknown capacity reservation: {reservation_id}")
+        released_at = utc_now_iso()
+        reservation = {**dict(current), "status": "released", "released_at": released_at, "updated_at": released_at}
+        self.store.put_record(
+            "compute_reservation",
+            reservation_id,
+            reservation,
+            provider_id=str(reservation.get("provider_id", "")),
+            route_id=str(reservation.get("route_id", "")),
+            status="released",
+            request_id=request_id,
+        )
+        self.telemetry.increment("capacity_released_total", {"provider_id": str(reservation.get("provider_id", "")), "route_id": str(reservation.get("route_id", ""))}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
+        self._audit("market.capacity.released", payload, request_id=request_id, result="released", provider_id=str(reservation.get("provider_id", "")), route_id=str(reservation.get("route_id", "")))
+        return {"ok": True, "reservation": reservation}
+
+    def create_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        provider_id = str(payload.get("provider_id", ""))
+        route_id = str(payload.get("route_id", ""))
+        limited = self._rate_limit_response(payload, "POST /compute/jobs", request_id=request_id, provider_id=provider_id, route_id=route_id)
+        if limited is not None:
+            return limited
+        job = _compute_job(payload, request_id=request_id)
+        self.store.put_record(
+            "compute_job",
+            str(job["job_id"]),
+            job,
+            provider_id=provider_id,
+            route_id=route_id,
+            task_type=str(job["task_type"]),
+            status=str(job["status"]),
+            idempotency_key=str(payload.get("idempotency_key", "")),
+            request_id=request_id,
+        )
+        event = _job_event(str(job["job_id"]), "job.queued", status=str(job["status"]), request_id=request_id, details={"dry_run_only": True})
+        self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=provider_id, route_id=route_id, status=str(job["status"]), request_id=request_id)
+        self.telemetry.increment("compute_job_started_total", {"task_type": str(job["task_type"])})
+        self._audit("compute.job.queued", payload, request_id=request_id, result="queued", provider_id=provider_id, route_id=route_id)
+        return {"ok": True, "job": job, "event": event}
+
+    def get_job(self, job_id: str) -> Mapping[str, Any]:
+        job = self.store.get_record("compute_job", job_id)
+        if job is None:
+            raise KeyError(f"Unknown compute job: {job_id}")
+        return {"ok": True, "job": job}
+
+    def job_events(self, job_id: str) -> Mapping[str, Any]:
+        self.get_job(job_id)
+        events = tuple(event for event in self.store.list_records("compute_job_event", limit=500).records if str(event.get("job_id", "")) == job_id)
+        return {"ok": True, "events": events}
+
+    def job_artifacts(self, job_id: str) -> Mapping[str, Any]:
+        self.get_job(job_id)
+        artifacts = tuple(artifact for artifact in self.store.list_records("compute_job_artifact", limit=500).records if str(artifact.get("job_id", "")) == job_id)
+        return {"ok": True, "artifacts": artifacts}
+
+    def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        request_id = _request_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
+            return {"ok": True, "job": job, "unchanged": True}
+        cancelled_at = utc_now_iso()
+        job.update({"status": "cancelled", "cancelled_at": cancelled_at, "updated_at": cancelled_at})
+        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="cancelled", request_id=request_id)
+        event = _job_event(job_id, "job.cancelled", status="cancelled", request_id=request_id, details={"reason": str(payload.get("reason", ""))})
+        self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), status="cancelled", request_id=request_id)
+        self._audit("compute.job.cancelled", payload, request_id=request_id, result="cancelled", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
+        return {"ok": True, "job": job, "event": event}
+
+    def retry_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        request_id = _request_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        retry_at = utc_now_iso()
+        attempts = int(job.get("attempt", 0) or 0) + 1
+        job.update({"status": "queued", "attempt": attempts, "retried_at": retry_at, "updated_at": retry_at})
+        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="queued", request_id=request_id)
+        event = _job_event(job_id, "job.retry_queued", status="queued", request_id=request_id, details={"attempt": attempts})
+        self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), status="queued", request_id=request_id)
+        self._audit("compute.job.retry_queued", payload, request_id=request_id, result="queued", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
+        return {"ok": True, "job": job, "event": event}
+
+    def billing_checkout(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        account_id = str(payload.get("account_id") or payload.get("tenant_id") or deterministic_id("billing_account", payload))
+        amount = _positive_float(payload.get("amount"), "amount")
+        currency = str(payload.get("currency", "USD")).upper()
+        account = _billing_account(account_id, payload)
+        self.store.put_record("billing_account", account_id, account, tenant_id=str(account.get("tenant_id", "")), workspace_id=str(account.get("workspace_id", "")), status="active", request_id=request_id)
+        checkout = {
+            "payment_event_id": deterministic_id("payment_event", {"account_id": account_id, "amount": amount, "currency": currency, "request_id": request_id}),
+            "account_id": account_id,
+            "provider": str(payload.get("provider", "stripe")),
+            "event_type": "checkout.requested",
+            "amount": amount,
+            "currency": currency,
+            "status": "requires_external_checkout_provider",
+            "dry_run_only": True,
+            "funds_moved": False,
+            "raw_event_hash": content_hash({"account_id": account_id, "amount": amount, "currency": currency, "request_id": request_id}),
+            "created_at": utc_now_iso(),
+        }
+        self.store.put_record("payment_event", str(checkout["payment_event_id"]), checkout, tenant_id=str(account.get("tenant_id", "")), workspace_id=str(account.get("workspace_id", "")), status=str(checkout["status"]), request_id=request_id, idempotency_key=str(payload.get("idempotency_key", "")))
+        self._audit("billing.checkout.requested", payload, request_id=request_id, result="requires_external_provider")
+        return {"ok": False, "checkout": checkout, "next_safe_actions": ("configure Stripe Checkout and webhook secret before accepting payments",)}
+
+    def billing_webhook_stripe(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        raw_event = payload.get("raw_event", {})
+        if not isinstance(raw_event, Mapping):
+            raise ValueError("raw_event must be an object")
+        secret = str(payload.get("webhook_secret", ""))
+        signature = str(payload.get("stripe_signature", ""))
+        verified = _verify_webhook_signature(raw_event, secret, signature)
+        event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
+        record = {
+            "payment_event_id": event_id,
+            "provider": "stripe",
+            "event_type": str(raw_event.get("type", "")),
+            "verified": verified,
+            "status": "verified" if verified else "rejected_unverified",
+            "raw_event_hash": content_hash(raw_event),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "created_at": utc_now_iso(),
+        }
+        self.store.put_record("payment_event", event_id, record, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
+        self._audit("billing.webhook.received", payload, request_id=request_id, result=str(record["status"]), reason_codes=() if verified else ("webhook_signature_invalid",))
+        return {"ok": verified, "payment_event": record}
+
+    def billing_balance(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        account_id = str(payload.get("account_id") or payload.get("tenant_id", ""))
+        if not account_id:
+            raise ValueError("account_id or tenant_id is required")
+        balance = self.store.get_record("credit_balance", account_id) or {
+            "account_id": account_id,
+            "available_credits": 0.0,
+            "reserved_credits": 0.0,
+            "currency": "USD",
+            "updated_at": utc_now_iso(),
+        }
+        return {"ok": True, "balance": balance}
+
+    def billing_usage(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        account_id = str(payload.get("account_id") or payload.get("tenant_id", ""))
+        filters = {"tenant_id": account_id} if account_id else {}
+        charges = tuple(self.store.list_records("usage_charge", filters=filters, limit=int(payload.get("limit", 100) or 100)).records)
+        return {"ok": True, "usage_charges": charges, "account_id": account_id}
+
+    def reconciliation(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        run_id = deterministic_id("reconciliation", {"created_at": utc_now_iso(), "scope": payload})
+        run = {
+            "reconciliation_run_id": run_id,
+            "status": "dry_run_reconciled",
+            "usage_charge_count": self.store.count_records("usage_charge"),
+            "payment_event_count": self.store.count_records("payment_event"),
+            "provider_payout_count": self.store.count_records("provider_payout"),
+            "refund_count": self.store.count_records("refund"),
+            "funds_moved": False,
+            "created_at": utc_now_iso(),
+        }
+        self.store.put_record("reconciliation_run", run_id, run, status=str(run["status"]))
+        return {"ok": True, "reconciliation": run}
 
     def economic_memory(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         limited = self._rate_limit_response(payload or {}, "GET /compute/economic-memory", request_id=_request_id(payload or {}))
@@ -738,6 +1177,338 @@ def _enrich_provider(provider: ComputeProvider) -> ComputeProvider:
         supported_settlement_modes=provider.supported_settlement_modes or ("generic_dry_run",),
         verified=provider.verified or provider.provider_type == "local",
     )
+
+_CREDENTIAL_VALUE_KEYS = frozenset({"api_key", "token", "access_token", "refresh_token", "password", "secret", "secret_key", "private_key"})
+
+
+def _assert_no_inline_credentials(payload: Mapping[str, Any]) -> None:
+    credentials = payload.get("credentials", {})
+    if not isinstance(credentials, Mapping):
+        return
+    for key, value in credentials.items():
+        if str(key) in _CREDENTIAL_VALUE_KEYS and value not in (None, ""):
+            raise ValueError("provider credentials must be supplied as external secret references, not inline values")
+
+
+def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
+    provider_id = str(payload.get("provider_id") or deterministic_id("provider", payload))
+    provider_name = str(payload.get("provider_name", "")).strip()
+    provider_type = str(payload.get("provider_type", "")).strip()
+    quote_endpoint = str(payload.get("quote_endpoint", "")).strip()
+    health_endpoint = str(payload.get("health_endpoint", "")).strip()
+    supported_unit_types = _tuple(payload.get("supported_unit_types", ()))
+    supported_assets = _tuple(payload.get("supported_assets", ()))
+    supported_networks = _tuple(payload.get("supported_networks", ()))
+    missing = tuple(
+        name
+        for name, value in {
+            "provider_name": provider_name,
+            "provider_type": provider_type,
+            "quote_endpoint": quote_endpoint,
+            "health_endpoint": health_endpoint,
+            "supported_unit_types": supported_unit_types,
+            "supported_assets": supported_assets,
+            "supported_networks": supported_networks,
+        }.items()
+        if not value
+    )
+    if missing:
+        raise ValueError(f"provider application missing required fields: {', '.join(missing)}")
+    if not quote_endpoint.startswith("https://") or not health_endpoint.startswith("https://"):
+        raise ValueError("provider quote_endpoint and health_endpoint must be https:// URLs")
+    now = utc_now_iso()
+    return {
+        "application_id": str(payload.get("application_id") or deterministic_id("provider_application", {"provider_id": provider_id, "request_id": request_id})),
+        "provider_id": provider_id,
+        "provider_name": provider_name,
+        "provider_type": provider_type,
+        "status": "pending",
+        "verified": False,
+        "supported_unit_types": supported_unit_types,
+        "supported_assets": supported_assets,
+        "supported_networks": supported_networks,
+        "quote_endpoint": quote_endpoint,
+        "health_endpoint": health_endpoint,
+        "public_key": str(payload.get("public_key", "")),
+        "sla": dict(payload.get("sla", {})) if isinstance(payload.get("sla"), Mapping) else {},
+        "configured_by": str(payload.get("configured_by", "provider-admin")),
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _provider_secret_reference(payload: Mapping[str, Any], *, provider_id: str, request_id: str) -> dict[str, Any]:
+    credentials = payload.get("credentials", {})
+    if not isinstance(credentials, Mapping):
+        return {}
+    secret_ref = str(credentials.get("secret_ref") or credentials.get("vault_path") or credentials.get("env_var") or "")
+    if not secret_ref:
+        return {}
+    return {
+        "secret_ref_id": deterministic_id("provider_secret_ref", {"provider_id": provider_id, "secret_ref": secret_ref}),
+        "provider_id": provider_id,
+        "secret_ref": secret_ref,
+        "secret_ref_hash": content_hash({"provider_id": provider_id, "secret_ref": secret_ref}),
+        "storage": "external_secret_manager",
+        "created_at": utc_now_iso(),
+        "request_id": request_id,
+    }
+
+
+def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]:
+    now = utc_now_iso()
+    return {
+        "provider_id": str(application["provider_id"]),
+        "provider_name": str(application["provider_name"]),
+        "provider_type": str(application["provider_type"]),
+        "market_type": "marketplace",
+        "network": str(_tuple(application.get("supported_networks", ("offchain",)))[0]),
+        "payment_asset": str(_tuple(application.get("supported_assets", ("USD",)))[0]),
+        "capabilities": (),
+        "reliability_score": 1.0,
+        "dry_run_only": True,
+        "capacity_available": True,
+        "metadata": {
+            "quote_endpoint": str(application.get("quote_endpoint", "")),
+            "health_endpoint": str(application.get("health_endpoint", "")),
+            "sla": dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {},
+        },
+        "created_at": str(application.get("created_at", now)),
+        "updated_at": now,
+        "status": "active",
+        "supported_unit_types": _tuple(application.get("supported_unit_types", ())),
+        "supported_networks": _tuple(application.get("supported_networks", ())),
+        "supported_assets": _tuple(application.get("supported_assets", ())),
+        "supported_settlement_modes": ("generic_dry_run",),
+        "average_latency_ms": int((dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {}).get("max_latency_ms", 1000) or 1000),
+        "quote_ttl_seconds": 300,
+        "health_check_url": str(application.get("health_endpoint", "")),
+        "configured_by": str(application.get("configured_by", "provider-admin")),
+        "verified": True,
+        "config_version": 1,
+    }
+
+
+def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...], quotes: tuple[Mapping[str, Any], ...], health: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
+    completed = sum(1 for job in jobs if str(job.get("status", "")) == "succeeded")
+    failed = sum(1 for job in jobs if str(job.get("status", "")) == "failed")
+    valid_quotes = sum(1 for quote in quotes if str(quote.get("status", "")) == "valid")
+    stale_quotes = sum(1 for quote in quotes if quote.get("stale") is True or str(quote.get("status", "")) == "stale")
+    total_jobs = max(1, completed + failed)
+    total_quotes = max(1, len(quotes))
+    uptime = sum(1 for item in health if str(item.get("status", "")) in {"healthy", "configured"}) / max(1, len(health))
+    score = max(0.0, min(1.0, (completed / total_jobs * 0.4) + (valid_quotes / total_quotes * 0.3) + (uptime * 0.3)))
+    return {
+        "provider_id": provider_id,
+        "quote_accuracy_score": round(valid_quotes / total_quotes, 4),
+        "execution_success_rate": round(completed / total_jobs, 4),
+        "latency_reliability": 1.0,
+        "capacity_fulfillment_rate": 1.0,
+        "refund_rate": 0.0,
+        "dispute_rate": 0.0,
+        "stale_quote_rate": round(stale_quotes / total_quotes, 4),
+        "provider_uptime": round(uptime, 4),
+        "sla_breach_count": failed,
+        "manual_review_flags": (),
+        "status": "active" if score >= 0.8 else "probation",
+        "score": round(score, 4),
+        "updated_at": utc_now_iso(),
+    }
+
+
+def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote_hash: str) -> dict[str, Any]:
+    now = utc_now_iso()
+    estimated_total_cost = _positive_float(quote.get("estimated_total_cost"), "estimated_total_cost")
+    return {
+        "quote_id": quote_id,
+        "provider_id": str(quote["provider_id"]),
+        "route_id": str(quote["route_id"]),
+        "provider_or_route": str(quote.get("provider_or_route", quote.get("route_id", ""))),
+        "provider_type": str(quote.get("provider_type", "marketplace")),
+        "market_type": str(quote.get("market_type", "marketplace")),
+        "network": str(quote.get("network", "offchain")),
+        "payment_asset": str(quote.get("currency_or_asset", quote.get("payment_asset", "USD"))),
+        "unit_type": str(quote["unit_type"]),
+        "unit_price": float(quote["unit_price"]),
+        "estimated_units": float(quote["estimated_units"]),
+        "estimated_total_cost": estimated_total_cost,
+        "capacity_available": bool(quote.get("capacity_available", True)),
+        "settlement_mode": "generic_dry_run",
+        "settlement_options": tuple(str(item) for item in quote.get("settlement_modes", ("generic_dry_run",))),
+        "dry_run_only": True,
+        "source": "live_provider",
+        "status": "valid",
+        "quote_ttl_seconds": int(quote.get("quote_ttl_seconds", 300) or 300),
+        "expires_at": str(quote["expires_at"]),
+        "assumptions": tuple(str(item) for item in quote.get("assumptions", ())),
+        "raw_quote_hash": quote_hash,
+        "signed_quote": str(quote.get("signature", "")),
+        "signed_quote_valid": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def _quote_drift(previous: Mapping[str, Any], current: Mapping[str, Any]) -> dict[str, Any]:
+    if not previous:
+        return {}
+    old_price = float(previous.get("estimated_total_cost", 0.0) or 0.0)
+    new_price = float(current.get("estimated_total_cost", 0.0) or 0.0)
+    if old_price <= 0:
+        return {}
+    drift_ratio = abs(new_price - old_price) / old_price
+    if drift_ratio < 0.05:
+        return {}
+    return {
+        "drift_id": deterministic_id("quote_drift", {"previous": previous.get("quote_id", ""), "current": current.get("quote_id", "")}),
+        "provider_id": str(current.get("provider_id", "")),
+        "route_id": str(current.get("route_id", "")),
+        "previous_quote_id": str(previous.get("quote_id", "")),
+        "current_quote_id": str(current.get("quote_id", "")),
+        "previous_total_cost": old_price,
+        "current_total_cost": new_price,
+        "drift_ratio": round(drift_ratio, 6),
+        "status": "review" if drift_ratio >= 0.25 else "observed",
+        "created_at": utc_now_iso(),
+    }
+
+
+def _capacity_window(payload: Mapping[str, Any]) -> dict[str, Any]:
+    provider_id = str(payload.get("provider_id", "")).strip()
+    route_id = str(payload.get("route_id", "")).strip()
+    if not provider_id or not route_id:
+        raise ValueError("provider_id and route_id are required for capacity listing")
+    capacity_units = _positive_float(payload.get("available_units", payload.get("capacity_units")), "capacity_units")
+    starts_at = str(payload.get("starts_at", utc_now_iso()))
+    ends_at = str(payload.get("ends_at", ""))
+    if not ends_at:
+        raise ValueError("ends_at is required for capacity listing")
+    return {
+        "window_id": str(payload.get("window_id") or deterministic_id("capacity_window", {"provider_id": provider_id, "route_id": route_id, "starts_at": starts_at, "ends_at": ends_at})),
+        "provider_id": provider_id,
+        "route_id": route_id,
+        "resource_type": str(payload.get("resource_type", "gpu_hour")),
+        "gpu_type": str(payload.get("gpu_type", "any")),
+        "region": str(payload.get("region", "")),
+        "starts_at": starts_at,
+        "ends_at": ends_at,
+        "capacity_available": True,
+        "capacity_units": capacity_units,
+        "available_units": capacity_units,
+        "price_floor": float(payload.get("price_floor", 0.0) or 0.0),
+        "reservation_required": bool(payload.get("reservation_required", True)),
+        "status": "active",
+        "created_at": utc_now_iso(),
+    }
+
+
+def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
+    if not windows:
+        raise ValueError("no active capacity window found for provider_id and route_id")
+    window = windows[0]
+    requested_units = _positive_float(payload.get("capacity_units"), "capacity_units")
+    reserved = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in reservations if str(item.get("status", "")) in {"held", "confirmed"})
+    available = float(window.get("capacity_units", window.get("available_units", 0.0)) or 0.0) - reserved
+    if requested_units > available:
+        raise ValueError("requested capacity exceeds available capacity")
+    now = utc_now_iso()
+    return {
+        "reservation_id": str(payload.get("reservation_id") or deterministic_id("reservation", {"window_id": window.get("window_id", ""), "payload": payload})),
+        "window_id": str(window.get("window_id", "")),
+        "provider_id": str(payload.get("provider_id", "")),
+        "route_id": str(payload.get("route_id", "")),
+        "capacity_units": requested_units,
+        "unit_type": str(payload.get("unit_type", window.get("resource_type", "gpu_hour"))),
+        "reserved_from": str(payload.get("reserved_from", window.get("starts_at", now))),
+        "reserved_until": str(payload.get("reserved_until", window.get("ends_at", ""))),
+        "status": "held",
+        "hold_expires_at": str(payload.get("hold_expires_at", window.get("ends_at", ""))),
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
+    total_capacity = sum(float(item.get("capacity_units", 0.0) or 0.0) for item in windows)
+    held = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in reservations if str(item.get("status", "")) in {"held", "confirmed"})
+    return {"window_count": len(windows), "reservation_count": len(reservations), "total_capacity_units": total_capacity, "held_capacity_units": held, "available_capacity_units": max(0.0, total_capacity - held)}
+
+
+def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
+    task_type = str(payload.get("task_type", "")).strip()
+    input_ref = str(payload.get("input_ref", "")).strip()
+    runtime = str(payload.get("model_or_runtime", "")).strip()
+    provider_id = str(payload.get("provider_id", "")).strip()
+    route_id = str(payload.get("route_id", "")).strip()
+    if not all((task_type, input_ref, runtime, provider_id, route_id)):
+        raise ValueError("task_type, input_ref, model_or_runtime, provider_id, and route_id are required")
+    now = utc_now_iso()
+    return {
+        "job_id": str(payload.get("job_id") or deterministic_id("job", {"request_id": request_id, "payload": payload})),
+        "task_type": task_type,
+        "input_ref": input_ref,
+        "model_or_runtime": runtime,
+        "resource_request": dict(payload.get("resource_request", {})) if isinstance(payload.get("resource_request"), Mapping) else {},
+        "budget_policy_id": str(payload.get("budget_policy_id", "")),
+        "route_id": route_id,
+        "provider_id": provider_id,
+        "status": "queued",
+        "lifecycle": ("planned", "quoted", "approved", "reserved", "queued"),
+        "dry_run_only": True,
+        "funds_moved": False,
+        "broadcast_allowed": False,
+        "private_key_required": False,
+        "attempt": 0,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _job_event(job_id: str, event_type: str, *, status: str, request_id: str, details: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "event_id": deterministic_id("job_event", {"job_id": job_id, "event_type": event_type, "request_id": request_id, "created_at": utc_now_iso()}),
+        "job_id": job_id,
+        "event_type": event_type,
+        "status": status,
+        "details": dict(details),
+        "created_at": utc_now_iso(),
+        "request_id": request_id,
+    }
+
+
+def _billing_account(account_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+    now = utc_now_iso()
+    return {
+        "account_id": account_id,
+        "tenant_id": str(payload.get("tenant_id", account_id)),
+        "workspace_id": str(payload.get("workspace_id", "")),
+        "status": "active",
+        "billing_provider": str(payload.get("provider", "stripe")),
+        "custody": "none",
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
+def _verify_webhook_signature(raw_event: Mapping[str, Any], secret: str, signature: str) -> bool:
+    if not secret or not signature:
+        return False
+    expected = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+
+def _positive_float(value: object, name: str) -> float:
+    try:
+        amount = float(str(value))
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be numeric") from None
+    if amount <= 0:
+        raise ValueError(f"{name} must be positive")
+    return amount
 
 
 def _assert_no_unsafe(payload: Mapping[str, Any]) -> None:

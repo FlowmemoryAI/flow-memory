@@ -27,6 +27,20 @@ _METRIC_NAMES: tuple[str, ...] = (
     "compute_estimated_cost",
     "compute_actual_cost",
     "compute_roi",
+    "compute_job_started_total",
+    "compute_job_completed_total",
+    "compute_job_failed_total",
+    "provider_quote_latency_ms",
+    "provider_quote_failure_total",
+    "provider_circuit_open_total",
+    "route_selected_total",
+    "policy_denied_total",
+    "quote_stale_total",
+    "capacity_reserved_total",
+    "capacity_released_total",
+    "billing_debit_total",
+    "settlement_attempt_total",
+    "audit_chain_verify_fail_total",
 )
 
 _SPAN_NAMES: tuple[str, ...] = (

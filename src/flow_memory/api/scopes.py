@@ -34,6 +34,8 @@ COMPUTE_AUDIT_SCOPE = "compute:audit"
 COMPUTE_PROVIDER_ADMIN_SCOPE = "compute:provider-admin"
 COMPUTE_POLICY_ADMIN_SCOPE = "compute:policy-admin"
 COMPUTE_SETTLEMENT_ADMIN_SCOPE = "compute:settlement-admin"
+COMPUTE_EXECUTE_SCOPE = "compute:execute"
+COMPUTE_BILLING_SCOPE = "compute:billing"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -60,6 +62,8 @@ KNOWN_SCOPES = frozenset({
     COMPUTE_PROVIDER_ADMIN_SCOPE,
     COMPUTE_POLICY_ADMIN_SCOPE,
     COMPUTE_SETTLEMENT_ADMIN_SCOPE,
+    COMPUTE_EXECUTE_SCOPE,
+    COMPUTE_BILLING_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -165,6 +169,20 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (VISUAL_READ_SCOPE,)
     if path_key == "/events/stream":
         return (VISUAL_STREAM_SCOPE,)
+    if path_key.startswith("/billing/"):
+        return (COMPUTE_BILLING_SCOPE,)
+    if path_key.startswith("/admin/"):
+        return (COMPUTE_ADMIN_SCOPE,)
+    if path_key.startswith("/market/providers") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if path_key.startswith("/market/quotes") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if path_key.startswith("/market/capacity") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if path_key.startswith("/market/"):
+        return (COMPUTE_READ_SCOPE,)
+    if path_key.startswith("/compute/jobs") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_EXECUTE_SCOPE,)
     if path_key.startswith("/compute/audit"):
         return (COMPUTE_AUDIT_SCOPE,)
     if path_key.startswith("/compute/providers") and normalized_method in {"POST", "PATCH", "DELETE"}:

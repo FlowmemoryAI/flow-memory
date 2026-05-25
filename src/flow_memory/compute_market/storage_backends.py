@@ -51,6 +51,22 @@ _POSTGRES_TABLES: dict[str, str] = {
     "audit_event": "compute_audit_events",
     "provider_health_snapshot": "compute_provider_health",
     "quote_cache_entry": "compute_quote_cache",
+    "market_provider_application": "compute_market_provider_applications",
+    "provider_secret_ref": "compute_provider_secret_refs",
+    "provider_reputation": "compute_provider_reputation",
+    "quote_replay_guard": "compute_quote_replay_guard",
+    "quote_drift_observation": "compute_quote_drift_observations",
+    "compute_job": "compute_jobs",
+    "compute_job_event": "compute_job_events",
+    "compute_job_artifact": "compute_job_artifacts",
+    "billing_account": "compute_billing_accounts",
+    "credit_balance": "compute_credit_balances",
+    "credit_transaction": "compute_credit_transactions",
+    "payment_event": "compute_payment_events",
+    "provider_payout": "compute_provider_payouts",
+    "usage_charge": "compute_usage_charges",
+    "refund": "compute_refunds",
+    "reconciliation_run": "compute_reconciliation_runs",
 }
 
 _COMMON_COLUMNS = (

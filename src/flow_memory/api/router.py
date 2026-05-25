@@ -29,6 +29,11 @@ from flow_memory.api.release_endpoints import release_decision_status, release_e
 from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
 from flow_memory.api.compute_endpoints import (
+    admin_reconciliation,
+    billing_balance,
+    billing_checkout,
+    billing_usage,
+    billing_webhook_stripe,
     compute_audit,
     compute_audit_event,
     compute_audit_verify,
@@ -45,6 +50,12 @@ from flow_memory.api.compute_endpoints import (
     compute_economic_memory_summary,
     compute_economic_memory_task,
     compute_health,
+    compute_job,
+    compute_job_artifacts,
+    compute_job_cancel,
+    compute_job_create,
+    compute_job_events,
+    compute_job_retry,
     compute_marketplace_plan,
     compute_payment_plan,
     compute_plan,
@@ -68,6 +79,18 @@ from flow_memory.api.compute_endpoints import (
     compute_route_update,
     compute_routes,
     compute_simulate_settlement,
+    market_capacity_list,
+    market_capacity_order_book,
+    market_capacity_release,
+    market_capacity_reserve,
+    market_prices,
+    market_prices_history,
+    market_provider,
+    market_provider_apply,
+    market_provider_disable,
+    market_provider_reputation,
+    market_provider_verify,
+    market_quote_ingest,
 )
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
@@ -460,6 +483,42 @@ class LocalApiRouter:
     def _compute_provider_health(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_provider_health(params["provider_id"])
 
+    def _market_provider_apply(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_apply(payload)
+
+    def _market_provider(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider(params["provider_id"])
+
+    def _market_provider_verify(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_verify(params["provider_id"], payload)
+
+    def _market_provider_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_disable(params["provider_id"], payload)
+
+    def _market_provider_reputation(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_reputation(params["provider_id"])
+
+    def _market_quote_ingest(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_quote_ingest(payload)
+
+    def _market_capacity_list(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_capacity_list(payload)
+
+    def _market_capacity_reserve(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_capacity_reserve(payload)
+
+    def _market_capacity_release(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_capacity_release(payload)
+
+    def _market_capacity_order_book(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_capacity_order_book(payload)
+
+    def _market_prices(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_prices(payload)
+
+    def _market_prices_history(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_prices_history(payload)
+
     def _compute_routes(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_routes(payload)
 
@@ -533,6 +592,39 @@ class LocalApiRouter:
 
     def _compute_audit_verify_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_audit_verify_export(payload)
+
+    def _compute_job_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_create(payload)
+
+    def _compute_job(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job(params["job_id"])
+
+    def _compute_job_cancel(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_cancel(params["job_id"], payload)
+
+    def _compute_job_events(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_events(params["job_id"])
+
+    def _compute_job_artifacts(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_artifacts(params["job_id"])
+
+    def _compute_job_retry(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_retry(params["job_id"], payload)
+
+    def _billing_checkout(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_checkout(payload)
+
+    def _billing_webhook_stripe(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_webhook_stripe(payload)
+
+    def _billing_balance(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_balance(payload)
+
+    def _billing_usage(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_usage(payload)
+
+    def _admin_reconciliation(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_reconciliation(payload)
 
 
     def _compute_health(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -619,12 +711,30 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/compute/route", router._compute_route, "compute_route")
     router.register("POST", "/compute/payment-plan", router._compute_payment_plan, "compute_payment_plan")
     router.register("POST", "/compute/simulate-settlement", router._compute_simulate_settlement, "compute_simulate_settlement")
+    router.register("POST", "/compute/jobs", router._compute_job_create, "compute_job_create")
+    router.register("GET", "/compute/jobs/{job_id}", router._compute_job, "compute_job")
+    router.register("POST", "/compute/jobs/{job_id}/cancel", router._compute_job_cancel, "compute_job_cancel")
+    router.register("GET", "/compute/jobs/{job_id}/events", router._compute_job_events, "compute_job_events")
+    router.register("GET", "/compute/jobs/{job_id}/artifacts", router._compute_job_artifacts, "compute_job_artifacts")
+    router.register("POST", "/compute/jobs/{job_id}/retry", router._compute_job_retry, "compute_job_retry")
     router.register("GET", "/compute/providers", router._compute_providers, "compute_providers")
     router.register("GET", "/compute/providers/{provider_id}", router._compute_provider, "compute_provider")
     router.register("POST", "/compute/providers", router._compute_provider_create, "compute_provider_create")
     router.register("PATCH", "/compute/providers/{provider_id}", router._compute_provider_update, "compute_provider_update")
     router.register("POST", "/compute/providers/{provider_id}/disable", router._compute_provider_disable, "compute_provider_disable")
     router.register("POST", "/compute/providers/{provider_id}/health-check", router._compute_provider_health, "compute_provider_health")
+    router.register("POST", "/market/providers/apply", router._market_provider_apply, "market_provider_apply")
+    router.register("GET", "/market/providers/{provider_id}", router._market_provider, "market_provider")
+    router.register("POST", "/market/providers/{provider_id}/verify", router._market_provider_verify, "market_provider_verify")
+    router.register("POST", "/market/providers/{provider_id}/disable", router._market_provider_disable, "market_provider_disable")
+    router.register("GET", "/market/providers/{provider_id}/reputation", router._market_provider_reputation, "market_provider_reputation")
+    router.register("POST", "/market/quotes/ingest", router._market_quote_ingest, "market_quote_ingest")
+    router.register("POST", "/market/capacity/list", router._market_capacity_list, "market_capacity_list")
+    router.register("POST", "/market/capacity/reserve", router._market_capacity_reserve, "market_capacity_reserve")
+    router.register("POST", "/market/capacity/release", router._market_capacity_release, "market_capacity_release")
+    router.register("GET", "/market/capacity/order-book", router._market_capacity_order_book, "market_capacity_order_book")
+    router.register("GET", "/market/prices", router._market_prices, "market_prices")
+    router.register("GET", "/market/prices/history", router._market_prices_history, "market_prices_history")
     router.register("GET", "/compute/routes", router._compute_routes, "compute_routes")
     router.register("GET", "/compute/routes/{route_id}", router._compute_route_get, "compute_route_get")
     router.register("POST", "/compute/routes", router._compute_route_create, "compute_route_create")
@@ -652,6 +762,11 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/compute/audit/{audit_event_id}", router._compute_audit_event, "compute_audit_event")
     router.register("GET", "/compute/health", router._compute_health, "compute_health")
     router.register("GET", "/compute/readiness", router._compute_readiness, "compute_readiness")
+    router.register("POST", "/billing/checkout", router._billing_checkout, "billing_checkout")
+    router.register("POST", "/billing/webhooks/stripe", router._billing_webhook_stripe, "billing_webhook_stripe")
+    router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")
+    router.register("GET", "/billing/usage", router._billing_usage, "billing_usage")
+    router.register("GET", "/admin/reconciliation", router._admin_reconciliation, "admin_reconciliation")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

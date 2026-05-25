@@ -359,12 +359,27 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     assert summary["utilization_ratio"] == 0.4
     assert summary["utilization_by_provider"]["provider_live_gpu_1"]["utilization_ratio"] == 0.4
 
+    partial = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 7, "allow_partial": True}
+    )
+    partial_summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]
+
+    assert partial["reservation"]["capacity_units"] == 6
+    assert partial["reservation"]["requested_capacity_units"] == 7
+    assert partial["reservation"]["partial_fill"] is True
+    assert partial["reservation"]["partial_fill_reason"] == "capacity_shortfall"
+    assert partial_summary["held_capacity_units"] == 10
+    assert partial_summary["available_capacity_units"] == 0
+
     try:
         service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 7})
     except ValueError as exc:
         assert "exceeds available" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("overbooked capacity was accepted")
+
+    released_partial = service.release_capacity({"reservation_id": partial["reservation"]["reservation_id"]})
+    assert released_partial["reservation"]["status"] == "released"
 
     released = service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})
     assert released["reservation"]["status"] == "released"

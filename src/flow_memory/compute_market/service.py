@@ -3338,14 +3338,23 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
     active_reservations = tuple(item for item in reservations if _capacity_reservation_active(item, now))
     reserved = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
     available = float(window.get("capacity_units", window.get("available_units", 0.0)) or 0.0) - reserved
+    allow_partial = bool(payload.get("allow_partial", payload.get("partial_fill_allowed", False)))
+    capacity_units = requested_units
+    partial_fill = False
     if requested_units > available:
-        raise ValueError("requested capacity exceeds available capacity")
+        if not allow_partial or available <= 0:
+            raise ValueError("requested capacity exceeds available capacity")
+        capacity_units = available
+        partial_fill = True
     return {
         "reservation_id": str(payload.get("reservation_id") or deterministic_id("reservation", {"window_id": window.get("window_id", ""), "payload": payload})),
         "window_id": str(window.get("window_id", "")),
         "provider_id": str(payload.get("provider_id", "")),
         "route_id": str(payload.get("route_id", "")),
-        "capacity_units": requested_units,
+        "capacity_units": capacity_units,
+        "requested_capacity_units": requested_units,
+        "partial_fill": partial_fill,
+        "partial_fill_reason": "capacity_shortfall" if partial_fill else "",
         "unit_type": str(payload.get("unit_type", window.get("resource_type", "gpu_hour"))),
         "reserved_from": str(payload.get("reserved_from", window.get("starts_at", now))),
         "reserved_until": str(payload.get("reserved_until", window.get("ends_at", ""))),

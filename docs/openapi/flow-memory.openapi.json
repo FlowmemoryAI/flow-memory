@@ -4219,6 +4219,9 @@
               "schema": {
                 "additionalProperties": true,
                 "properties": {
+                  "allow_partial": {
+                    "type": "string"
+                  },
                   "capacity_units": {
                     "type": "string"
                   },
@@ -4256,7 +4259,7 @@
             "description": "Local response"
           }
         },
-        "summary": "Hold capacity without moving funds",
+        "summary": "Hold capacity without moving funds; opt in to partial fills with allow_partial=true",
         "tags": [
           "market"
         ]

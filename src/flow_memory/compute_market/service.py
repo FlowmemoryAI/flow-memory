@@ -463,8 +463,9 @@ class ComputeMarketService:
         quotes = tuple(self.store.list_records("compute_quote", filters={"provider_id": provider_id}, limit=500).records)
         health = tuple(self.store.list_records("provider_health_snapshot", filters={"provider_id": provider_id}, limit=100).records)
         fraud_signals = tuple(self.store.list_records("provider_fraud_signal", filters={"provider_id": provider_id}, limit=500).records)
+        refunds = tuple(self.store.list_records("refund", filters={"provider_id": provider_id}, limit=500).records)
         provider = self.store.get_record("compute_provider", provider_id) or {}
-        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals, provider=provider if isinstance(provider, Mapping) else {})
+        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals, refunds=refunds, provider=provider if isinstance(provider, Mapping) else {})
         self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
         return {"ok": True, "reputation": reputation}
 
@@ -3051,6 +3052,7 @@ def _provider_reputation(
     quotes: tuple[Mapping[str, Any], ...],
     health: tuple[Mapping[str, Any], ...],
     fraud_signals: tuple[Mapping[str, Any], ...],
+    refunds: tuple[Mapping[str, Any], ...] = (),
     provider: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     completed_jobs = tuple(job for job in jobs if str(job.get("status", "")) == "succeeded")
@@ -3085,6 +3087,8 @@ def _provider_reputation(
     critical_fraud_signal_count = sum(1 for signal in fraud_signals if str(signal.get("severity", "")) == "critical")
     fraud_penalty = min(1.0, fraud_signal_count / total_quotes)
     stale_quote_rate = stale_quotes / total_quotes
+    refund_count = sum(1 for refund in refunds if str(refund.get("status", "")) not in {"cancelled", "rejected"})
+    refund_rate = refund_count / total_jobs
     sla_breach_penalty = min(1.0, sla_breach_count / total_jobs)
     score = max(
         0.0,
@@ -3096,7 +3100,8 @@ def _provider_reputation(
             + (latency_reliability * 0.1)
             - (stale_quote_rate * 0.1)
             - (fraud_penalty * 0.2)
-            - (sla_breach_penalty * 0.1),
+            - (sla_breach_penalty * 0.1)
+            - (min(1.0, refund_rate) * 0.05)
         ),
     )
     manual_review_flags = tuple(
@@ -3115,13 +3120,14 @@ def _provider_reputation(
         "execution_success_rate": round(completed / total_jobs, 4),
         "latency_reliability": round(latency_reliability, 4),
         "capacity_fulfillment_rate": 1.0,
-        "refund_rate": 0.0,
+        "refund_rate": round(refund_rate, 4),
         "dispute_rate": 0.0,
         "stale_quote_rate": round(stale_quote_rate, 4),
         "provider_uptime": round(uptime, 4),
         "sla_max_latency_ms": sla_max_latency_ms,
         "sla_latency_breach_count": latency_breaches,
         "sla_breach_count": sla_breach_count,
+        "refund_count": refund_count,
         "quote_replay_count": fraud_counts.get("quote_replay", 0),
         "stale_quote_submission_count": fraud_counts.get("stale_quote_submission", 0),
         "signature_failure_count": fraud_counts.get("signature_failure", 0),

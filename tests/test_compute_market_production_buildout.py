@@ -925,6 +925,9 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     assert replay["refund"]["refund_id"] == refund["refund"]["refund_id"]
     assert service.store.count_records("refund") == 1
     assert service.reconciliation({})["reconciliation"]["refund_count"] == 1
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+    assert reputation["refund_count"] == 1
+    assert reputation["refund_rate"] == 1.0
 
     try:
         service.billing_refund({"usage_charge_id": usage_charge_id, "amount": 0.01, "reason": "excess_refund"})

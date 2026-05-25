@@ -166,6 +166,23 @@ def test_redis_rate_limiter_uses_atomic_counter_and_factory() -> None:
     )
 
 
+
+def test_redis_rate_limiter_shares_state_across_instances() -> None:
+    redis = FakeRedis()
+    limiter_a = RedisRateLimiter("redis://localhost:6379/0", default_limit=2, window_seconds=30, client=redis)
+    limiter_b = RedisRateLimiter("redis://localhost:6379/0", default_limit=2, window_seconds=30, client=redis)
+
+    first = limiter_a.check_limit("actor", "POST /compute/plan", api_key="tenant-key")
+    second = limiter_b.check_limit("actor", "POST /compute/plan", api_key="tenant-key")
+    third = limiter_a.check_limit("actor", "POST /compute/plan", api_key="tenant-key")
+
+    assert first.ok is True
+    assert second.ok is True
+    assert second.remaining == 0
+    assert third.ok is False
+    assert third.reason_code == "rate_limited"
+
+
 def test_redis_rate_limiter_fail_closed_and_fail_open_modes() -> None:
     fail_closed = RedisRateLimiter("redis://localhost", fail_closed=True, client=FakeRedis(fail=True))
     fail_open = RedisRateLimiter("redis://localhost", fail_closed=False, client=FakeRedis(fail=True))
@@ -200,6 +217,20 @@ def test_redis_circuit_breaker_opens_and_factory_selects_backend() -> None:
         RedisCircuitBreaker,
     )
 
+
+
+def test_redis_circuit_breaker_recovers_across_instances_after_half_open_success() -> None:
+    redis = FakeRedis()
+    breaker_a = RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=1, reset_after_seconds=0, client=redis)
+    breaker_b = RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=1, reset_after_seconds=0, client=redis)
+
+    breaker_a.record_failure("provider", route_id="route", error_class="provider_timeout")
+    half_open = breaker_b.allow_request("provider", route_id="route")
+    breaker_b.record_success("provider", route_id="route")
+
+    assert half_open.ok is True
+    assert half_open.state == "half_open"
+    assert breaker_a.allow_request("provider", route_id="route").state == "closed"
 
 def test_redis_circuit_breaker_fail_closed_and_fail_open_modes() -> None:
     fail_closed = RedisCircuitBreaker("redis://localhost", fail_closed=True, client=FakeRedis(fail=True))

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
+from flow_memory.compute_market.adapters import build_external_provider_adapter
 from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, build_checkpoint, create_audit_exporter, verify_audit_export
 from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
@@ -19,8 +20,8 @@ from flow_memory.compute_market.models import (
     ComputeProvider,
     ProviderHealthSnapshot,
 )
-from flow_memory.compute_market.observability import ComputeMarketTelemetry
-from flow_memory.compute_market.planner import build_compute_plan, replay_decision
+from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry
+from flow_memory.compute_market.planner import build_compute_plan, build_task_profile, replay_decision
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
 from flow_memory.compute_market.storage import deterministic_id, migration_plan, utc_now_iso
 from flow_memory.compute_market.storage_backends import ComputeMarketStoreProtocol, create_compute_market_store
@@ -635,6 +636,82 @@ class ComputeMarketService:
         self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
         self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
         return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}}
+
+    def request_external_provider_quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        provider_id = str(payload.get("provider_id", "")).strip()
+        route_id = str(payload.get("route_id", "")).strip()
+        if not provider_id:
+            raise ValueError("provider_id is required")
+        limited = self._rate_limit_response(payload, "POST /compute/providers/external/quote", request_id=request_id, provider_id=provider_id, route_id=route_id)
+        if limited is not None:
+            return limited
+        if not self.config.external_provider_quotes_enabled:
+            error = compute_error(
+                "provider_quotes.disabled",
+                "External provider quote requests are disabled.",
+                details={"provider_id": provider_id, "next_safe_action": "set FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED=true after provider allowlist and contracts are configured"},
+                request_id=request_id,
+            )
+            self._audit("market.quote.external_disabled", payload, request_id=request_id, result="rejected", reason_codes=("external_provider_quotes_disabled",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record()}
+        if not self.config.external_provider_allowlist:
+            error = compute_error(
+                "provider_quotes.allowlist_missing",
+                "External provider quote requests require FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST.",
+                details={"provider_id": provider_id},
+                request_id=request_id,
+            )
+            self._audit("market.quote.external_allowlist_missing", payload, request_id=request_id, result="rejected", reason_codes=("external_provider_allowlist_missing",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record()}
+        circuit = self.circuit_breaker.allow_request(provider_id, route_id=route_id, adapter_type="external_quote")
+        if not circuit.ok:
+            self.telemetry.increment("provider_circuit_open_total", {"provider_id": provider_id})
+            self._audit("market.quote.external_circuit_open", payload, request_id=request_id, result="rejected", reason_codes=("circuit_open",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": compute_error("provider.circuit_open", "Provider circuit is open.", details=circuit.as_record(), request_id=request_id).as_record()}
+        provider = self.store.get_record("compute_provider", provider_id)
+        if provider is None:
+            raise KeyError(f"Unknown compute provider: {provider_id}")
+        routes = tuple(self.store.list_records("compute_route", filters={"provider_id": provider_id}, limit=100).records)
+        adapter = build_external_provider_adapter(provider, routes, self.config)
+        profile = build_task_profile(payload)
+        quotes = tuple(quote.as_record() for quote in adapter.quote(profile, ComputeMarketPolicy()))
+        valid = tuple(quote for quote in quotes if str(quote.get("status", "")) == "valid")
+        if valid:
+            self.circuit_breaker.record_success(provider_id, route_id=route_id, adapter_type="external_quote")
+        else:
+            status = str(quotes[0].get("status", "provider_error")) if quotes else "provider_error"
+            self.circuit_breaker.record_failure(provider_id, route_id=route_id, adapter_type="external_quote", error_class=status)
+            self.telemetry.increment("provider_quote_failure_total", {"provider_id": provider_id, "status": status})
+        accepted: list[Mapping[str, Any]] = []
+        validations: list[Mapping[str, Any]] = []
+        for quote in valid:
+            brokered = self.broker_quote(
+                {
+                    "quote": _contract_quote_from_normalized(quote),
+                    "allowed_assets": payload.get("allowed_assets", ()),
+                    "allowed_networks": payload.get("allowed_networks", ()),
+                    "request_id": request_id,
+                }
+            )
+            validations.append(brokered.get("validation", {}) if isinstance(brokered, Mapping) else {})
+            if brokered.get("ok") is True and isinstance(brokered.get("quote"), Mapping):
+                accepted.append(brokered["quote"])  # type: ignore[arg-type]
+        result = "completed" if accepted else "failed"
+        self._audit("market.quote.external_requested", payload, request_id=request_id, result=result, reason_codes=() if accepted else ("external_quote_failed",), provider_id=provider_id, route_id=route_id)
+        return {
+            "ok": bool(accepted),
+            "provider_id": provider_id,
+            "quotes": tuple(accepted),
+            "raw_quotes": quotes,
+            "validations": tuple(validations),
+            "external_provider_quotes_enabled": True,
+            "dry_run_only": True,
+            "funds_moved": False,
+            "broadcast_allowed": False,
+            "private_key_required": False,
+        }
 
     def list_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -1313,6 +1390,38 @@ class ComputeMarketService:
             "metrics": self.telemetry.prometheus_text(),
         }
 
+    def alert_status(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        _ = payload
+        evaluation = AlertEvaluator().evaluate(self.telemetry).as_record()
+        acknowledgements = tuple(self.store.list_records("alert_acknowledgement", limit=100).records)
+        acknowledged = {str(item.get("rule_name", "")) for item in acknowledgements}
+        firing = tuple(
+            {**dict(item), "acknowledged": str(item.get("rule_name", "")) in acknowledged}
+            for item in evaluation.get("firing", ())
+            if isinstance(item, Mapping)
+        )
+        return {
+            "ok": True,
+            "alerts": {**evaluation, "firing": firing},
+            "acknowledgements": acknowledgements,
+        }
+
+    def acknowledge_alert(self, rule_name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        if not rule_name:
+            raise ValueError("rule_name is required")
+        request_id = _request_id(payload)
+        record = {
+            "acknowledgement_id": deterministic_id("alert_acknowledgement", {"rule_name": rule_name, "request_id": request_id}),
+            "rule_name": rule_name,
+            "acknowledged_by": str(payload.get("acknowledged_by", payload.get("actor_id", "api"))),
+            "status": "acknowledged",
+            "created_at": utc_now_iso(),
+            "request_id": request_id,
+        }
+        self.store.put_record("alert_acknowledgement", str(record["acknowledgement_id"]), record, status="acknowledged", request_id=request_id)
+        self._audit("compute.alert.acknowledged", payload, request_id=request_id, result="acknowledged", reason_codes=(rule_name,))
+        return {"ok": True, "acknowledgement": record}
+
     def _rate_limit_response(
         self,
         payload: Mapping[str, Any],
@@ -1672,6 +1781,19 @@ def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...
         "updated_at": utc_now_iso(),
     }
 
+
+def _contract_quote_from_normalized(quote: Mapping[str, Any]) -> dict[str, Any]:
+    original = quote.get("original_quote", {})
+    record = dict(original) if isinstance(original, Mapping) else {}
+    record.update(dict(quote))
+    record.setdefault("currency_or_asset", record.get("payment_asset", "USD"))
+    record.setdefault("settlement_modes", record.get("settlement_options", ("generic_dry_run",)))
+    record.setdefault("dry_run_supported", bool(record.get("dry_run_only", True)))
+    record.setdefault("assumptions", ())
+    record.setdefault("quote_ttl_seconds", int(record.get("quote_ttl_seconds", 300) or 300))
+    record.setdefault("capacity_available", bool(record.get("capacity_available", True)))
+    record.setdefault("confidence", float(record.get("confidence", 0.75) or 0.75))
+    return record
 
 def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote_hash: str, signed_quote_valid: bool = False) -> dict[str, Any]:
     now = utc_now_iso()

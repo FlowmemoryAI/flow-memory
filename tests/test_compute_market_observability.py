@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from flow_memory.api.router import create_default_router
 from flow_memory.compute_market.config import ComputeMarketConfig
-from flow_memory.compute_market.observability import ComputeMarketTelemetry, MetricSample, TraceSpanRecord, metric_names, span_names
+from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry, MetricSample, TraceSpanRecord, metric_names, span_names
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
 
@@ -52,6 +52,25 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "audit_chain_verify_fail_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
+
+def test_alert_evaluator_fires_on_audit_failures_and_acknowledges_route() -> None:
+    service = _service()
+    reset_default_service(service)
+    router = create_default_router()
+    try:
+        service.telemetry.increment("audit_chain_verify_fail_total")
+        evaluation = AlertEvaluator().evaluate(service.telemetry).as_record()
+        alerts = router.dispatch("GET", "/compute/alerts")
+        ack = router.dispatch("POST", "/compute/alerts/audit-chain-verify-failure/ack", {"acknowledged_by": "test"})
+        acknowledged = router.dispatch("GET", "/compute/alerts")
+    finally:
+        reset_default_service(None)
+
+    assert evaluation["ok"] is False
+    assert evaluation["firing"][0]["rule_name"] == "audit-chain-verify-failure"
+    assert alerts["alerts"]["firing_count"] == 1
+    assert ack["ok"] is True
+    assert acknowledged["alerts"]["firing"][0]["acknowledged"] is True
 
 def test_compute_telemetry_and_metrics_routes_expose_service_samples() -> None:
     service = _service()

@@ -183,6 +183,10 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (COMPUTE_READ_SCOPE,)
     if path_key.startswith("/compute/jobs") and normalized_method in {"POST", "PATCH", "DELETE"}:
         return (COMPUTE_EXECUTE_SCOPE,)
+    if path_key.startswith("/compute/alerts") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_ADMIN_SCOPE,)
+    if path_key.startswith("/compute/alerts"):
+        return (COMPUTE_READ_SCOPE,)
     if path_key.startswith("/compute/audit"):
         return (COMPUTE_AUDIT_SCOPE,)
     if path_key.startswith("/compute/providers") and normalized_method in {"POST", "PATCH", "DELETE"}:

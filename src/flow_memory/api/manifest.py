@@ -92,6 +92,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("PATCH", "/compute/providers/{provider_id}", "compute_provider_update", "Update a compute provider", request_fields=("status", "capabilities"), response_fields=("ok", "provider")),
     EndpointSpec("POST", "/compute/providers/{provider_id}/disable", "compute_provider_disable", "Disable a compute provider", response_fields=("ok", "provider")),
     EndpointSpec("POST", "/compute/providers/{provider_id}/health-check", "compute_provider_health", "Run a provider health check", response_fields=("ok", "provider_health")),
+    EndpointSpec("POST", "/compute/providers/external/quote", "compute_provider_external_quote", "Request a dry-run live quote from an explicitly allowlisted external provider endpoint", request_fields=("provider_id", "task", "profile", "allowed_assets", "allowed_networks"), response_fields=("ok", "provider_id", "quotes", "raw_quotes")),
     EndpointSpec("GET", "/compute/routes", "compute_routes", "List compute routes", response_fields=("ok", "routes", "next_cursor")),
     EndpointSpec("GET", "/compute/routes/{route_id}", "compute_route_get", "Get a compute route", response_fields=("ok", "route")),
     EndpointSpec("POST", "/compute/routes", "compute_route_create", "Create a compute route", request_fields=("route_id", "provider_id", "unit_type", "pricing_model"), response_fields=("ok", "route")),
@@ -148,6 +149,8 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/compute/readiness", "compute_readiness", "Compute Market production readiness check", response_fields=("ok", "migration_plan", "production_safety_defaults")),
     EndpointSpec("GET", "/compute/telemetry", "compute_telemetry", "Return Compute Market telemetry samples and summary", response_fields=("ok", "telemetry", "summary")),
     EndpointSpec("GET", "/compute/metrics", "compute_metrics", "Return Compute Market Prometheus-format metrics text", response_fields=("ok", "content_type", "metrics")),
+    EndpointSpec("GET", "/compute/alerts", "compute_alerts", "Evaluate Compute Market alert rules against in-process telemetry", response_fields=("ok", "alerts", "acknowledgements")),
+    EndpointSpec("POST", "/compute/alerts/{rule_name}/ack", "compute_alert_ack", "Acknowledge a firing Compute Market alert rule", request_fields=("acknowledged_by",), response_fields=("ok", "acknowledgement")),
 )
 
 

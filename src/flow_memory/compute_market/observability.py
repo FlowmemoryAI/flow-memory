@@ -1,6 +1,7 @@
 """Structured observability hooks for Flow Memory Compute Market."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import perf_counter
@@ -74,6 +75,100 @@ class TraceSpanRecord:
 
     def as_record(self) -> dict[str, object]:
         return {"name": self.name, "latency_ms": round(self.latency_ms, 3), "attributes": dict(self.attributes)}
+
+
+@dataclass(frozen=True)
+class AlertRule:
+    name: str
+    metric_name: str
+    threshold: float
+    comparison: str = ">="
+    severity: str = "warning"
+    description: str = ""
+
+    def as_record(self) -> dict[str, object]:
+        return {
+            "name": self.name,
+            "metric_name": self.metric_name,
+            "threshold": self.threshold,
+            "comparison": self.comparison,
+            "severity": self.severity,
+            "description": self.description,
+        }
+
+
+@dataclass(frozen=True)
+class AlertFiringState:
+    rule_name: str
+    metric_name: str
+    value: float
+    threshold: float
+    severity: str
+    description: str
+    fired_at: str
+
+    def as_record(self) -> dict[str, object]:
+        return {
+            "rule_name": self.rule_name,
+            "metric_name": self.metric_name,
+            "value": self.value,
+            "threshold": self.threshold,
+            "severity": self.severity,
+            "description": self.description,
+            "fired_at": self.fired_at,
+        }
+
+
+@dataclass(frozen=True)
+class AlertEvaluationResult:
+    ok: bool
+    rules_evaluated: int
+    firing: tuple[AlertFiringState, ...]
+    evaluated_at: str
+
+    def as_record(self) -> dict[str, object]:
+        return {
+            "ok": self.ok,
+            "rules_evaluated": self.rules_evaluated,
+            "firing_count": len(self.firing),
+            "firing": tuple(state.as_record() for state in self.firing),
+            "evaluated_at": self.evaluated_at,
+        }
+
+
+DEFAULT_ALERT_RULES: tuple[AlertRule, ...] = (
+    AlertRule("audit-chain-verify-failure", "audit_chain_verify_fail_total", 1.0, ">=", "critical", "Tamper-evident audit chain verification failed."),
+    AlertRule("provider-circuit-open", "provider_circuit_open_total", 1.0, ">=", "warning", "Provider circuit breaker opened."),
+    AlertRule("provider-quote-failures", "provider_quote_failure_total", 3.0, ">=", "warning", "Provider quote failures exceeded the public alpha threshold."),
+    AlertRule("policy-denial-spike", "compute_policy_denials_total", 10.0, ">=", "warning", "Policy/rate-limit denials spiked."),
+    AlertRule("unexpected-settlement-attempt", "settlement_attempt_total", 1.0, ">=", "critical", "Settlement path was touched while live settlement remains disabled."),
+)
+
+
+class AlertEvaluator:
+    def __init__(self, rules: tuple[AlertRule, ...] = DEFAULT_ALERT_RULES) -> None:
+        self.rules = rules
+
+    def evaluate(self, telemetry: "ComputeMarketTelemetry") -> AlertEvaluationResult:
+        summary = telemetry.summary()
+        totals = summary.get("metric_totals", {})
+        metric_totals = totals if isinstance(totals, Mapping) else {}
+        evaluated_at = _utc_now_iso()
+        firing = tuple(
+            AlertFiringState(
+                rule_name=rule.name,
+                metric_name=rule.metric_name,
+                value=value,
+                threshold=rule.threshold,
+                severity=rule.severity,
+                description=rule.description,
+                fired_at=evaluated_at,
+            )
+            for rule in self.rules
+            for value in (_metric_value(metric_totals, rule.metric_name),)
+            if _compare(value, rule.comparison, rule.threshold)
+        )
+        return AlertEvaluationResult(ok=not firing, rules_evaluated=len(self.rules), firing=firing, evaluated_at=evaluated_at)
 
 
 @dataclass
@@ -160,6 +255,31 @@ def _prometheus_labels(labels: Mapping[str, str]) -> str:
 
 def _prometheus_escape(value: object) -> str:
     return str(value).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
+def _metric_value(metric_totals: Mapping[str, object], name: str) -> float:
+    try:
+        return float(metric_totals.get(name, 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _compare(value: float, comparison: str, threshold: float) -> bool:
+    if comparison == ">=":
+        return value >= threshold
+    if comparison == ">":
+        return value > threshold
+    if comparison == "<=":
+        return value <= threshold
+    if comparison == "<":
+        return value < threshold
+    if comparison == "==":
+        return value == threshold
+    raise ValueError(f"Unsupported alert comparison: {comparison}")
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(tz=timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def metric_names() -> tuple[str, ...]:

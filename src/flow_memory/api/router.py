@@ -40,6 +40,8 @@ from flow_memory.api.compute_endpoints import (
     compute_audit_checkpoint,
     compute_audit_export,
     compute_audit_verify_export,
+    compute_alert_ack,
+    compute_alerts,
     compute_decision,
     compute_decision_replay,
     compute_economic_memory,
@@ -72,6 +74,7 @@ from flow_memory.api.compute_endpoints import (
     compute_provider_create,
     compute_provider_disable,
     compute_provider_health,
+    compute_provider_external_quote,
     compute_provider_update,
     compute_providers,
     compute_quote,
@@ -489,6 +492,9 @@ class LocalApiRouter:
     def _compute_provider_health(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_provider_health(params["provider_id"])
 
+    def _compute_provider_external_quote(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider_external_quote(payload)
+
     def _market_provider_apply(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_provider_apply(payload)
 
@@ -657,6 +663,12 @@ class LocalApiRouter:
     def _compute_metrics(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_metrics(payload)
 
+    def _compute_alerts(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_alerts(payload)
+
+    def _compute_alert_ack(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_alert_ack(params["rule_name"], payload)
+
 
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
@@ -750,6 +762,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("PATCH", "/compute/providers/{provider_id}", router._compute_provider_update, "compute_provider_update")
     router.register("POST", "/compute/providers/{provider_id}/disable", router._compute_provider_disable, "compute_provider_disable")
     router.register("POST", "/compute/providers/{provider_id}/health-check", router._compute_provider_health, "compute_provider_health")
+    router.register("POST", "/compute/providers/external/quote", router._compute_provider_external_quote, "compute_provider_external_quote")
     router.register("POST", "/market/providers/apply", router._market_provider_apply, "market_provider_apply")
     router.register("GET", "/market/providers/{provider_id}", router._market_provider, "market_provider")
     router.register("POST", "/market/providers/{provider_id}/verify", router._market_provider_verify, "market_provider_verify")
@@ -792,6 +805,8 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/compute/readiness", router._compute_readiness, "compute_readiness")
     router.register("GET", "/compute/telemetry", router._compute_telemetry, "compute_telemetry")
     router.register("GET", "/compute/metrics", router._compute_metrics, "compute_metrics")
+    router.register("GET", "/compute/alerts", router._compute_alerts, "compute_alerts")
+    router.register("POST", "/compute/alerts/{rule_name}/ack", router._compute_alert_ack, "compute_alert_ack")
     router.register("POST", "/billing/checkout", router._billing_checkout, "billing_checkout")
     router.register("POST", "/billing/webhooks/stripe", router._billing_webhook_stripe, "billing_webhook_stripe")
     router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")

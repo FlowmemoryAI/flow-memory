@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import hashlib
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
@@ -25,6 +26,8 @@ class ApiAuthConfig:
     api_key: str = ""
     require_signed_requests: bool = False
     api_key_records: tuple[Mapping[str, Any], ...] = ()
+    enable_nonce_check: bool = False
+    max_request_age_seconds: int = 300
 
 
 @dataclass(frozen=True)
@@ -89,6 +92,8 @@ def authorize_request(
             reasons.append("signed request required")
         elif not verify_request(method, path, payload or {}, signature, signature_key):
             reasons.append("invalid request signature")
+    if config.enable_nonce_check and identity is not None:
+        reasons.extend(_nonce_replay_reasons(headers, identity=identity, max_age_seconds=config.max_request_age_seconds))
     return ApiAuthDecision(
         ok=not reasons,
         reasons=tuple(reasons),
@@ -127,3 +132,40 @@ def _constant_time_equal(left: str, right: str) -> bool:
     import hmac
 
     return hmac.compare_digest(left, right)
+
+
+_NONCE_CACHE: dict[str, float] = {}
+
+
+def _nonce_replay_reasons(headers: Mapping[str, str], *, identity: ApiKeyIdentity, max_age_seconds: int) -> tuple[str, ...]:
+    reasons: list[str] = []
+    nonce = _header(headers, "x-flow-memory-nonce").strip()
+    timestamp = _header(headers, "x-flow-memory-timestamp").strip()
+    if not nonce:
+        reasons.append("missing request nonce")
+    if not timestamp:
+        reasons.append("missing request timestamp")
+    if reasons:
+        return tuple(reasons)
+    now = time.time()
+    try:
+        timestamp_seconds = float(timestamp)
+    except ValueError:
+        return ("invalid request timestamp",)
+    max_age = max(1, int(max_age_seconds))
+    if abs(now - timestamp_seconds) > max_age:
+        return ("stale request timestamp",)
+    _purge_nonce_cache(now=now, max_age_seconds=max_age)
+    namespace = identity.key_id or identity.principal or identity.tenant_id or "legacy"
+    cache_key = f"{namespace}:{nonce}"
+    if cache_key in _NONCE_CACHE:
+        return ("replayed request nonce",)
+    _NONCE_CACHE[cache_key] = timestamp_seconds
+    return ()
+
+
+def _purge_nonce_cache(*, now: float, max_age_seconds: int) -> None:
+    stale_before = now - max_age_seconds
+    for key, seen_at in tuple(_NONCE_CACHE.items()):
+        if seen_at < stale_before:
+            _NONCE_CACHE.pop(key, None)

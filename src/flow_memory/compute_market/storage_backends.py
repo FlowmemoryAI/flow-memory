@@ -67,6 +67,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "usage_charge": "compute_usage_charges",
     "refund": "compute_refunds",
     "reconciliation_run": "compute_reconciliation_runs",
+    "alert_acknowledgement": "compute_alert_acknowledgements",
 }
 
 _COMMON_COLUMNS = (

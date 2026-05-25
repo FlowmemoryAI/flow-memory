@@ -1,4 +1,5 @@
 import json
+import time
 import threading
 import urllib.error
 import urllib.request
@@ -33,6 +34,21 @@ def test_http_gateway_api_key_auth_blocks_missing_key():
     assert root.body["data"]["service"] == "Flow Memory Compute Market"
     assert root.body["data"]["auth"] == "API key required for /compute/* endpoints"
 
+
+def test_http_gateway_nonce_check_blocks_replay_when_enabled():
+    gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", enable_rate_limit=False, enable_nonce_check=True))
+    headers = {
+        "x-flow-memory-api-key": "dev",
+        "x-flow-memory-timestamp": str(time.time()),
+        "x-flow-memory-nonce": "nonce-http-test-1",
+    }
+
+    first = gateway.handle("GET", "/health", headers)
+    replay = gateway.handle("GET", "/health", headers)
+
+    assert first.status == 200
+    assert replay.status == 401
+    assert "replayed request nonce" in replay.body["error"]["details"]["reasons"]
 
 def test_http_gateway_scope_enforcement():
     gateway = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))

@@ -47,6 +47,16 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         default=_int(source.get("FLOW_MEMORY_API_MAX_BODY_BYTES"), 1_048_576),
     )
     parser.add_argument(
+        "--enable-nonce-check",
+        action="store_true",
+        default=_bool(source.get("FLOW_MEMORY_API_ENABLE_NONCE_CHECK"), False),
+    )
+    parser.add_argument(
+        "--max-request-age-seconds",
+        type=int,
+        default=_int(source.get("FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS"), 300),
+    )
+    parser.add_argument(
         "--allow-unauthenticated-public-bind",
         action="store_true",
         help="Allow a non-local bind without FLOW_MEMORY_API_KEY; only safe behind an authenticated private proxy.",
@@ -61,6 +71,8 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         rate_limit=int(args.rate_limit),
         rate_limit_window_seconds=int(args.rate_limit_window_seconds),
         max_body_bytes=int(args.max_body_bytes),
+        enable_nonce_check=bool(args.enable_nonce_check),
+        max_request_age_seconds=int(args.max_request_age_seconds),
     )
     errors = config.validate()
     if errors:

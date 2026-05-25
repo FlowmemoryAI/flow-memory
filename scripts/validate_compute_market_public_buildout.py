@@ -132,6 +132,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     reservation_id = str(data(checks["capacity_reserve"][1]).get("reservation", {}).get("reservation_id", ""))
     checks["capacity_release"] = call_json("POST", f"{base}/market/capacity/release", headers_provider, {"reservation_id": reservation_id})
     checks["quote_ingest"] = call_json("POST", f"{base}/market/quotes/ingest", headers_provider, {"quote": quote, "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+    checks["external_quote_disabled"] = call_json("POST", f"{base}/compute/providers/external/quote", headers_provider, {"provider_id": provider_id, "task": PUBLIC_TASK, "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
     checks["prices"] = call_json("GET", f"{base}/market/prices", headers_read)
     checks["job_create"] = call_json(
         "POST",
@@ -199,6 +200,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     checks["job_fail"] = call_json("POST", f"{base}/compute/jobs/{fail_job_id}/fail", headers_execute, {"error_code": "public_validation_failure_path"})
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
     checks["metrics"] = call_json("GET", f"{base}/compute/metrics", headers_read)
+    checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
     checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": f"acct_public_buildout_{suffix}", "amount": 100, "currency": "USD"})
     checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id=acct_public_buildout_{suffix}", headers_billing)
     checks["admin_reconciliation"] = call_json("GET", f"{base}/admin/reconciliation", headers_admin)
@@ -219,7 +221,8 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
-    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics"):
+    require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics", "alerts"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")

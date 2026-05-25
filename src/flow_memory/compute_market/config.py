@@ -44,6 +44,7 @@ class ComputeMarketConfig:
     tracing_enabled: bool = True
     rate_limits_enabled: bool = True
     external_provider_quotes_enabled: bool = False
+    external_provider_quote_timeout_ms: int = 5_000
     economic_memory_writes_enabled: bool = True
     admin_mutations_enabled: bool = True
     audit_export_required: bool = False
@@ -95,6 +96,8 @@ class ComputeMarketConfig:
             errors.append("max_candidate_routes must be positive")
         if self.quote_cache_ttl < 1:
             errors.append("quote_cache_ttl must be positive")
+        if self.external_provider_quote_timeout_ms < 1_000:
+            errors.append("external_provider_quote_timeout_ms must be at least 1000")
         if self.live_settlement_enabled and not self.settlement_environment:
             errors.append("live_settlement_enabled requires settlement_environment")
         if self.live_settlement_enabled and not self.settlement_security_review_id:
@@ -162,6 +165,7 @@ class ComputeMarketConfig:
             "tracing_enabled": self.tracing_enabled,
             "rate_limits_enabled": self.rate_limits_enabled,
             "external_provider_quotes_enabled": self.external_provider_quotes_enabled,
+            "external_provider_quote_timeout_ms": self.external_provider_quote_timeout_ms,
             "economic_memory_writes_enabled": self.economic_memory_writes_enabled,
             "admin_mutations_enabled": self.admin_mutations_enabled,
             "audit_export_required": self.audit_export_required,
@@ -216,6 +220,7 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         tracing_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_TRACING_ENABLED"), True),
         rate_limits_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED"), True),
         external_provider_quotes_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED"), False),
+        external_provider_quote_timeout_ms=_int(source.get("FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTE_TIMEOUT_MS"), 5_000),
         economic_memory_writes_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ECONOMIC_MEMORY_WRITES_ENABLED"), True),
         admin_mutations_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ADMIN_MUTATIONS_ENABLED"), True),
         audit_export_required=_bool(source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED"), False),

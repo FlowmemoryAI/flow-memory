@@ -59,6 +59,9 @@ def compute_provider_disable(provider_id: str, payload: Mapping[str, Any]) -> Ma
 def compute_provider_health(provider_id: str) -> Mapping[str, Any]:
     return default_service().provider_health(provider_id)
 
+def compute_provider_external_quote(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().request_external_provider_quote(payload)
+
 def market_provider_apply(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().apply_market_provider(payload)
 
@@ -281,6 +284,14 @@ def compute_telemetry(payload: Mapping[str, Any] | None = None) -> Mapping[str, 
 
 def compute_metrics(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().prometheus_metrics(payload or {})
+
+
+def compute_alerts(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().alert_status(payload or {})
+
+
+def compute_alert_ack(rule_name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().acknowledge_alert(rule_name, payload)
 
 
 def admin_reconciliation(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:

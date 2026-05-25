@@ -34,6 +34,8 @@ class HttpApiConfig:
     rate_limit: int = 120
     rate_limit_window_seconds: int = 60
     max_body_bytes: int = 1_048_576
+    enable_nonce_check: bool = False
+    max_request_age_seconds: int = 300
 
     def validate(self) -> tuple[str, ...]:
         errors: list[str] = []
@@ -45,6 +47,8 @@ class HttpApiConfig:
             errors.append("rate_limit_window_seconds must be positive")
         if self.max_body_bytes < 1:
             errors.append("max_body_bytes must be positive")
+        if self.max_request_age_seconds < 1:
+            errors.append("max_request_age_seconds must be positive")
         return tuple(errors)
 
 
@@ -133,7 +137,12 @@ class HttpApiGateway:
                 payload = {**query_payload, **dict(payload)}
             auth = authorize_request(
                 header_map,
-                ApiAuthConfig(api_key=self.config.api_key, api_key_records=self.config.api_key_records),
+                ApiAuthConfig(
+                    api_key=self.config.api_key,
+                    api_key_records=self.config.api_key_records,
+                    enable_nonce_check=self.config.enable_nonce_check,
+                    max_request_age_seconds=self.config.max_request_age_seconds,
+                ),
                 method=context.method,
                 path=context.path,
                 payload=payload,

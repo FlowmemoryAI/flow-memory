@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from flow_memory.compute_market.adapters import (
     HTTPQuoteProvider,
+    build_external_provider_adapter,
     LocalMockComputeProvider,
     MarketplaceProvider,
     QuoteCollector,
@@ -24,7 +25,7 @@ from flow_memory.compute_market.controls import (
     RedisRateLimiter,
 )
 from flow_memory.compute_market.memory import build_economic_memory_record, economic_memory_schema, query_economic_memory
-from flow_memory.compute_market.observability import ComputeMarketTelemetry, metric_names, span_names
+from flow_memory.compute_market.observability import AlertEvaluator, AlertEvaluationResult, AlertFiringState, AlertRule, ComputeMarketTelemetry, DEFAULT_ALERT_RULES, metric_names, span_names
 from flow_memory.compute_market.models import (
     SUPPORTED_UNIT_TYPES,
     AgentBudgetPolicy,
@@ -87,7 +88,12 @@ __all__ = [
     "DistributedCircuitBreaker",
     "DistributedRateLimiter",
     "AuditCheckpoint",
+    "AlertEvaluator",
+    "AlertEvaluationResult",
+    "AlertFiringState",
+    "AlertRule",
     "HTTPQuoteProvider",
+    "build_external_provider_adapter",
     "InMemoryCircuitBreaker",
     "InMemoryRateLimiter",
     "LocalFileAuditExporter",
@@ -125,6 +131,7 @@ __all__ = [
     "SelectionStrategy",
     "SettlementIntent",
     "TaskEconomicProfile",
+    "DEFAULT_ALERT_RULES",
     "UnitPriceSnapshot",
     "build_compute_plan",
     "build_economic_memory_record",

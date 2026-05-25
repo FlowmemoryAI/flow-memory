@@ -525,6 +525,95 @@
         ]
       }
     },
+    "/compute/alerts": {
+      "get": {
+        "operationId": "compute_alerts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "acknowledgements": {
+                      "type": "string"
+                    },
+                    "alerts": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Evaluate Compute Market alert rules against in-process telemetry",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/alerts/{rule_name}/ack": {
+      "post": {
+        "operationId": "compute_alert_ack",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rule_name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "acknowledged_by": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "acknowledgement": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Acknowledge a firing Compute Market alert rule",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/audit": {
       "get": {
         "operationId": "compute_audit",
@@ -2187,6 +2276,70 @@
           }
         },
         "summary": "Create a compute provider",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/providers/external/quote": {
+      "post": {
+        "operationId": "compute_provider_external_quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "allowed_assets": {
+                    "type": "string"
+                  },
+                  "allowed_networks": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider_id": {
+                      "type": "string"
+                    },
+                    "quotes": {
+                      "type": "string"
+                    },
+                    "raw_quotes": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Request a dry-run live quote from an explicitly allowlisted external provider endpoint",
         "tags": [
           "compute"
         ]

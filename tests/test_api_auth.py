@@ -1,4 +1,5 @@
 import unittest
+import time
 
 from flow_memory.api.auth import ApiAuthConfig, api_key_hash, authorize_request, require_api_key
 from flow_memory.api.signed_requests import sign_request
@@ -82,6 +83,32 @@ class ApiAuthTests(unittest.TestCase):
         self.assertFalse(decision.ok)
         self.assertIn("invalid request signature", decision.reasons)
 
+
+    def test_authorize_request_rejects_replayed_nonce_when_enabled(self) -> None:
+        timestamp = str(time.time())
+        headers = {
+            "x-flow-memory-api-key": "test",
+            "x-flow-memory-timestamp": timestamp,
+            "x-flow-memory-nonce": "nonce-auth-test-1",
+        }
+        config = ApiAuthConfig(api_key="test", enable_nonce_check=True, max_request_age_seconds=30)
+
+        first = authorize_request(headers, config)
+        replay = authorize_request(headers, config)
+        stale = authorize_request(
+            {
+                "x-flow-memory-api-key": "test",
+                "x-flow-memory-timestamp": str(time.time() - 120),
+                "x-flow-memory-nonce": "nonce-auth-test-2",
+            },
+            config,
+        )
+
+        self.assertTrue(first.ok, first.reasons)
+        self.assertFalse(replay.ok)
+        self.assertIn("replayed request nonce", replay.reasons)
+        self.assertFalse(stale.ok)
+        self.assertIn("stale request timestamp", stale.reasons)
 
 if __name__ == "__main__":
     unittest.main()

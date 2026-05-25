@@ -276,12 +276,21 @@ class HTTPQuoteProvider:
         return tuple(_quote_with_status(collect_quote(route, task_profile), last_status) for route in self.list_routes())
 
     def normalize_quote(self, raw_quote: Mapping[str, Any]) -> ComputeQuote:
+        normalized_raw = dict(raw_quote)
+        normalized_raw.setdefault("provider_or_route", normalized_raw.get("route_id", self.provider.provider_name))
+        normalized_raw.setdefault("provider_type", self.provider.provider_type)
+        normalized_raw.setdefault("market_type", self.provider.market_type)
+        normalized_raw.setdefault("network", normalized_raw.get("supported_network", self.provider.network))
+        normalized_raw.setdefault("payment_asset", normalized_raw.get("currency_or_asset", self.provider.payment_asset))
+        normalized_raw.setdefault("settlement_options", tuple(str(item) for item in normalized_raw.get("settlement_modes", ("generic_dry_run",))))
+        normalized_raw.setdefault("dry_run_only", True)
+        normalized_raw.setdefault("original_quote", dict(raw_quote))
         required = {"quote_id", "provider_id", "provider_or_route", "provider_type", "route_id", "market_type", "network", "payment_asset", "unit_type", "unit_price", "estimated_units", "estimated_total_cost"}
-        missing = tuple(key for key in required if key not in raw_quote)
+        missing = tuple(key for key in required if key not in normalized_raw)
         if missing:
             raise ValueError(f"provider quote missing fields: {missing}")
         allowed = set(ComputeQuote.__dataclass_fields__)
-        sanitized = {str(key): value for key, value in raw_quote.items() if str(key) in allowed}
+        sanitized = {str(key): value for key, value in normalized_raw.items() if str(key) in allowed}
         sanitized["source"] = "live"
         sanitized.setdefault("status", QuoteStatus.VALID.value)
         sanitized.setdefault("confidence", 0.75)
@@ -410,6 +419,135 @@ class QuoteCollector:
                 expires_at=expires_at,
             )
         return (*cached, *live_quotes)
+
+
+def build_external_provider_adapter(
+    provider_record: Mapping[str, Any],
+    routes: tuple[Mapping[str, Any], ...],
+    config: object,
+) -> HTTPQuoteProvider:
+    provider = _provider_from_record(provider_record)
+    endpoint = _quote_endpoint(provider_record)
+    route_records = routes or (_synthetic_route_record(provider_record),)
+    route_objects = tuple(_route_from_record(route, provider) for route in route_records)
+    timeout_ms = int(getattr(config, "external_provider_quote_timeout_ms", getattr(config, "provider_timeout_ms", 5_000)) or 5_000)
+    return HTTPQuoteProvider(
+        provider,
+        route_objects,
+        endpoint=endpoint,
+        enabled=bool(getattr(config, "external_provider_quotes_enabled", False)),
+        allowed_hosts=tuple(str(item) for item in getattr(config, "external_provider_allowlist", ()) if str(item)),
+        allow_private_networks=str(getattr(config, "compute_market_mode", "")) == "test",
+        max_response_bytes=65_536,
+        timeout_seconds=max(1.0, timeout_ms / 1000.0),
+        auth_header_name=str(_metadata_value(provider_record, "auth_header_name", "")),
+        auth_header_value_env=str(_metadata_value(provider_record, "auth_header_value_env", "")),
+    )
+
+
+def _provider_from_record(record: Mapping[str, Any]) -> ComputeProvider:
+    metadata = record.get("metadata", {})
+    metadata_map = metadata if isinstance(metadata, Mapping) else {}
+    return ComputeProvider(
+        provider_id=str(record.get("provider_id", "")),
+        provider_name=str(record.get("provider_name", record.get("provider_id", ""))),
+        provider_type=str(record.get("provider_type", "marketplace")),
+        market_type=str(record.get("market_type", "marketplace")),
+        network=str(record.get("network") or _first(record.get("supported_networks"), "offchain")),
+        payment_asset=str(record.get("payment_asset") or _first(record.get("supported_assets"), "USD")),
+        capabilities=(),
+        reliability_score=float(record.get("reliability_score", 1.0) or 1.0),
+        dry_run_only=bool(record.get("dry_run_only", True)),
+        capacity_available=bool(record.get("capacity_available", True)),
+        metadata=dict(metadata_map),
+        status=str(record.get("status", "active")),
+        supported_unit_types=_tuple(record.get("supported_unit_types", ())),
+        supported_networks=_tuple(record.get("supported_networks", ())),
+        supported_assets=_tuple(record.get("supported_assets", ())),
+        supported_settlement_modes=_tuple(record.get("supported_settlement_modes", ("generic_dry_run",))),
+        average_latency_ms=int(record.get("average_latency_ms", 1000) or 1000),
+        quote_ttl_seconds=int(record.get("quote_ttl_seconds", 300) or 300),
+        health_check_url=str(record.get("health_check_url", metadata_map.get("health_endpoint", ""))),
+        configured_by=str(record.get("configured_by", "provider-admin")),
+        verified=bool(record.get("verified", False)),
+        config_version=int(record.get("config_version", 1) or 1),
+    )
+
+
+def _route_from_record(record: Mapping[str, Any], provider: ComputeProvider) -> ComputeRoute:
+    return ComputeRoute(
+        route_id=str(record.get("route_id") or f"{provider.provider_id}:external"),
+        provider_id=provider.provider_id,
+        provider_or_route=str(record.get("provider_or_route", provider.provider_name)),
+        provider_type=str(record.get("provider_type", provider.provider_type)),
+        market_type=str(record.get("market_type", provider.market_type)),
+        network=str(record.get("network", provider.network)),
+        payment_asset=str(record.get("payment_asset", provider.payment_asset)),
+        unit_type=str(record.get("unit_type") or _first(provider.supported_unit_types, "request")),
+        unit_price=_optional_float(record.get("unit_price")),
+        estimated_units=float(record.get("estimated_units", 0.0) or 0.0),
+        estimated_total_cost=_optional_float(record.get("estimated_total_cost")),
+        estimated_latency_ms=int(record.get("estimated_latency_ms", provider.average_latency_ms) or provider.average_latency_ms),
+        capacity_available=bool(record.get("capacity_available", True)),
+        reservation_required=bool(record.get("reservation_required", False)),
+        settlement_mode="generic_dry_run",
+        settlement_modes=("generic_dry_run",),
+        dry_run_only=True,
+        fallback_route=bool(record.get("fallback_route", False)),
+        quote_ttl_seconds=int(record.get("quote_ttl_seconds", provider.quote_ttl_seconds) or provider.quote_ttl_seconds),
+        confidence=float(record.get("confidence", 0.75) or 0.75),
+        metadata=dict(record.get("metadata", {})) if isinstance(record.get("metadata"), Mapping) else {},
+        enabled=bool(record.get("enabled", True)),
+        verified_provider_required=bool(record.get("verified_provider_required", False)),
+        config_version=int(record.get("config_version", 1) or 1),
+    )
+
+
+def _quote_endpoint(record: Mapping[str, Any]) -> str:
+    return str(record.get("quote_endpoint") or _metadata_value(record, "quote_endpoint", ""))
+
+
+def _synthetic_route_record(provider_record: Mapping[str, Any]) -> Mapping[str, Any]:
+    provider_id = str(provider_record.get("provider_id", "external_provider"))
+    return {
+        "route_id": f"{provider_id}:external",
+        "provider_id": provider_id,
+        "provider_or_route": str(provider_record.get("provider_name", provider_id)),
+        "provider_type": str(provider_record.get("provider_type", "marketplace")),
+        "market_type": "marketplace",
+        "network": _first(provider_record.get("supported_networks"), "offchain"),
+        "payment_asset": _first(provider_record.get("supported_assets"), "USD"),
+        "unit_type": _first(provider_record.get("supported_unit_types"), "request"),
+        "enabled": True,
+    }
+
+
+def _metadata_value(record: Mapping[str, Any], key: str, default: object) -> object:
+    metadata = record.get("metadata", {})
+    if isinstance(metadata, Mapping) and key in metadata:
+        return metadata[key]
+    return record.get(key, default)
+
+
+def _first(value: object, default: str) -> str:
+    values = _tuple(value)
+    return values[0] if values else default
+
+
+def _tuple(value: object) -> tuple[str, ...]:
+    if value in (None, ""):
+        return ()
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (tuple, list, set)):
+        return tuple(str(item) for item in value if str(item))
+    return (str(value),)
+
+
+def _optional_float(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    return float(value)
 
 
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):

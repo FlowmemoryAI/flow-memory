@@ -87,6 +87,11 @@ def test_compute_database_config_supports_explicit_storage_settings() -> None:
     assert config.storage_timeout_ms == 7000
     assert config.migrations_enabled is True
     assert "managed_sql_notes" in migration_plan()["steps"][0]
+    plan = migration_plan()
+    assert "market_provider_application" in plan["record_types"]
+    assert "compute_jobs" in plan["steps"][0]["postgres_tables"]
+    assert "quote replay guard by quote_id/hash" in plan["steps"][0]["indexes"]
+    assert "Live settlement" in plan["steps"][0]["managed_sql_notes"][3]
 
 
 def test_backend_factory_selects_sqlite_and_postgres_without_connecting() -> None:
@@ -119,6 +124,10 @@ def test_postgres_schema_generation_contains_required_tables_indexes_and_jsonb()
         "compute_economic_memory",
         "compute_audit_events",
         "compute_provider_health",
+        "compute_market_provider_applications",
+        "compute_quote_replay_guard",
+        "compute_jobs",
+        "compute_billing_accounts",
         "compute_migrations",
     ):
         assert table in sql

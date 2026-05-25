@@ -12,7 +12,7 @@ import time
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from flow_memory.api.auth import ApiAuthConfig, authorize_request
 from flow_memory.api.audit_middleware import LocalAuditSink
@@ -76,7 +76,8 @@ class HttpApiGateway:
     def handle(self, method: str, target: str, headers: Mapping[str, str] | None = None, body: bytes = b"") -> HttpApiResponse:
         header_map = {str(key): str(value) for key, value in (headers or {}).items()}
         request_id = _header(header_map, "x-request-id") or new_id("request")
-        path = urlsplit(target).path or "/"
+        split_target = urlsplit(target)
+        path = split_target.path or "/"
         context = context_from_headers(method, path, header_map)
         context = context.__class__(
             method=context.method,
@@ -125,6 +126,9 @@ class HttpApiGateway:
             )
         try:
             payload = self._parse_body(method, body)
+            query_payload = _query_payload(split_target.query)
+            if query_payload:
+                payload = {**query_payload, **dict(payload)}
             auth = authorize_request(
                 header_map,
                 ApiAuthConfig(api_key=self.config.api_key),
@@ -223,6 +227,12 @@ def serve_local_api(config: HttpApiConfig | None = None) -> None:
 
 def _headers(request_id: str) -> dict[str, str]:
     return {"content-type": "application/json; charset=utf-8", "x-request-id": request_id}
+
+def _query_payload(query: str) -> Mapping[str, Any]:
+    if not query:
+        return {}
+    parsed = parse_qs(query, keep_blank_values=True)
+    return {key: values[-1] if values else "" for key, values in parsed.items()}
 
 
 def _header(headers: Mapping[str, str], name: str) -> str:

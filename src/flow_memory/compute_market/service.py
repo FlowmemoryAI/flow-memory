@@ -221,25 +221,38 @@ class ComputeMarketService:
 
     def create_provider(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
-        limited = self._rate_limit_response(payload, "POST /compute/providers", request_id=_request_id(payload), provider_id=str(payload.get("provider_id", "")))
+        _assert_no_inline_credentials(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /compute/providers", request_id=request_id, provider_id=str(payload.get("provider_id", "")))
         if limited is not None:
             return limited
         provider_id = str(payload.get("provider_id") or deterministic_id("provider", payload))
-        provider = {**dict(payload), "provider_id": provider_id, "status": str(payload.get("status", "active"))}
-        self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status=str(provider["status"]))
-        self._audit("compute.provider.created", payload, result="created", provider_id=provider_id)
-        return {"ok": True, "provider": provider}
+        provider_payload = _provider_admin_payload(payload)
+        provider = {**provider_payload, "provider_id": provider_id, "status": str(provider_payload.get("status", "active"))}
+        self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status=str(provider["status"]), request_id=request_id)
+        secret_ref = _provider_secret_reference(payload, provider_id=provider_id, request_id=request_id)
+        if secret_ref:
+            self.store.put_record("provider_secret_ref", str(secret_ref["secret_ref_id"]), secret_ref, provider_id=provider_id, status="active", request_id=request_id)
+        self._audit("compute.provider.created", payload, request_id=request_id, result="created", provider_id=provider_id)
+        return {"ok": True, "provider": provider, "credential_storage": "external_secret_reference_only", "inline_secrets_stored": False}
 
     def update_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
-        limited = self._rate_limit_response(payload, "PATCH /compute/providers/{provider_id}", request_id=_request_id(payload), provider_id=provider_id)
+        _assert_no_inline_credentials(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "PATCH /compute/providers/{provider_id}", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
         current = dict(self.get_provider(provider_id)["provider"])
-        updated = {**current, **dict(payload), "provider_id": provider_id}
-        self.store.put_record("compute_provider", provider_id, updated, provider_id=provider_id, status=str(updated.get("status", "")))
-        self._audit("compute.provider.updated", payload, result="updated", provider_id=provider_id)
-        return {"ok": True, "provider": updated}
+        updated = {**current, **_provider_admin_payload(payload), "provider_id": provider_id}
+        for key in ("credentials", *_CREDENTIAL_VALUE_KEYS):
+            updated.pop(key, None)
+        self.store.put_record("compute_provider", provider_id, updated, provider_id=provider_id, status=str(updated.get("status", "")), request_id=request_id)
+        secret_ref = _provider_secret_reference(payload, provider_id=provider_id, request_id=request_id)
+        if secret_ref:
+            self.store.put_record("provider_secret_ref", str(secret_ref["secret_ref_id"]), secret_ref, provider_id=provider_id, status="active", request_id=request_id)
+        self._audit("compute.provider.updated", payload, request_id=request_id, result="updated", provider_id=provider_id)
+        return {"ok": True, "provider": updated, "credential_storage": "external_secret_reference_only", "inline_secrets_stored": False}
 
     def disable_provider(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
@@ -1182,12 +1195,17 @@ _CREDENTIAL_VALUE_KEYS = frozenset({"api_key", "token", "access_token", "refresh
 
 
 def _assert_no_inline_credentials(payload: Mapping[str, Any]) -> None:
-    credentials = payload.get("credentials", {})
-    if not isinstance(credentials, Mapping):
-        return
-    for key, value in credentials.items():
-        if str(key) in _CREDENTIAL_VALUE_KEYS and value not in (None, ""):
+    for key, value in _walk(payload):
+        if key in _CREDENTIAL_VALUE_KEYS and value not in (None, ""):
             raise ValueError("provider credentials must be supplied as external secret references, not inline values")
+
+
+def _provider_admin_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        str(key): value
+        for key, value in payload.items()
+        if str(key) != "credentials" and str(key) not in _CREDENTIAL_VALUE_KEYS
+    }
 
 
 def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:

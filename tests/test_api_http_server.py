@@ -4,6 +4,9 @@ import urllib.error
 import urllib.request
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
+from flow_memory.compute_market.config import ComputeMarketConfig
+from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+from flow_memory.compute_market.storage import ComputeMarketStore
 
 
 def test_http_gateway_health_response():
@@ -50,6 +53,25 @@ def test_http_gateway_invalid_json_error_contract():
     response = gateway.handle("POST", "/runtime/tick", {"x-flow-memory-scopes": "api:write"}, b"{")
     assert response.status == 400
     assert response.body["error"]["code"] == "request.invalid"
+
+def test_http_gateway_get_query_payload_reaches_router():
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    try:
+        gateway = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))
+        response = gateway.handle(
+            "GET",
+            "/billing/balance?account_id=acct_query",
+            {"x-flow-memory-scopes": "compute:billing"},
+        )
+    finally:
+        reset_default_service(None)
+
+    assert response.status == 200
+    assert response.body["data"]["balance"]["account_id"] == "acct_query"
 
 
 def test_dependency_free_http_server_handles_local_request():

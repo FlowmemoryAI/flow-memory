@@ -176,18 +176,33 @@ def wait_deploy_live(api_key: str, service_id: str, deploy_id: str) -> dict[str,
     raise AssertionError("unreachable")
 
 
+def list_service_deploys(api_key: str, service_id: str, *, limit: int = 10) -> list[dict[str, Any]]:
+    deploys = render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}/deploys?limit={limit}")
+    results: list[dict[str, Any]] = []
+    for item in deploys if isinstance(deploys, list) else []:
+        envelope = item.get("deploy", item) if isinstance(item, dict) else {}
+        if isinstance(envelope, dict) and envelope.get("id"):
+            results.append(envelope)
+    return results
+
+
 def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
+    before_ids = {str(deploy.get("id", "")) for deploy in list_service_deploys(api_key, service_id)}
     deploy = render_request(api_key, "POST", f"/services/{urllib.parse.quote(service_id)}/deploys", {"clearCache": "do_not_clear"})
     envelope = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
     deploy_id = str(envelope.get("id", ""))
     if not deploy_id:
-        deploys = render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}/deploys?limit=5")
-        for item in deploys if isinstance(deploys, list) else []:
-            candidate = item.get("deploy", item) if isinstance(item, dict) else {}
-            candidate_id = str(candidate.get("id", ""))
-            if candidate_id:
-                deploy_id = candidate_id
-                break
+        deadline = time.time() + 300
+        while time.time() < deadline and not deploy_id:
+            for candidate in list_service_deploys(api_key, service_id):
+                candidate_id = str(candidate.get("id", ""))
+                if candidate_id and candidate_id not in before_ids:
+                    deploy_id = candidate_id
+                    break
+            if not deploy_id:
+                time.sleep(5)
+    if not deploy_id:
+        emit("failed_deployment", 35, reason="render_deploy_id_missing")
     return wait_deploy_live(api_key, service_id, deploy_id)
 
 

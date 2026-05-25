@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from flow_memory.api.server_cli import build_http_api_config
+import scripts.deploy_compute_market_render_level1 as render_deploy
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -58,3 +59,32 @@ def test_api_server_cli_accepts_public_bind_with_api_key_and_scopes() -> None:
     assert config.host == "0.0.0.0"
     assert config.api_key == "dev-key"
     assert config.require_scopes is True
+
+
+def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = {"deploy_list": 0, "waited_for": ""}
+
+    def fake_render_request(api_key: str, method: str, path: str, body=None):
+        if method == "GET" and path == "/services/srv_1/deploys?limit=10":
+            calls["deploy_list"] = int(calls["deploy_list"]) + 1
+            if calls["deploy_list"] == 1:
+                return [{"deploy": {"id": "deploy_old", "status": "live"}}]
+            return [
+                {"deploy": {"id": "deploy_new", "status": "build_in_progress"}},
+                {"deploy": {"id": "deploy_old", "status": "live"}},
+            ]
+        if method == "POST" and path == "/services/srv_1/deploys":
+            return {"deploy": {"status": "created"}}
+        raise AssertionError(f"unexpected Render call: {method} {path}")
+
+    def fake_wait_deploy_live(api_key: str, service_id: str, deploy_id: str):
+        calls["waited_for"] = deploy_id
+        return {"id": deploy_id, "status": "live"}
+
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+    monkeypatch.setattr(render_deploy, "wait_deploy_live", fake_wait_deploy_live)
+
+    result = render_deploy.trigger_service_deploy("render-key", "srv_1")
+
+    assert calls["waited_for"] == "deploy_new"
+    assert result["status"] == "live"

@@ -85,6 +85,30 @@ def test_provider_onboarding_rejects_inline_credentials() -> None:
         raise AssertionError("inline provider credential was accepted")
 
 
+def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only() -> None:
+    service = _service()
+
+    try:
+        service.create_provider({"provider_id": "admin-provider", "provider_name": "Admin Provider", "api_key": "do-not-store"})
+    except ValueError as exc:
+        assert "external secret references" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("inline provider admin credential was accepted")
+
+    created = service.create_provider(
+        {
+            "provider_id": "admin-provider",
+            "provider_name": "Admin Provider",
+            "provider_type": "gpu",
+            "credentials": {"secret_ref": "render/env/FLOW_MEMORY_PROVIDER_ADMIN_TOKEN"},
+        }
+    )
+    assert created["inline_secrets_stored"] is False
+    assert "credentials" not in created["provider"]
+    assert service.store.count_records("provider_secret_ref") == 1
+
+
+
 def test_quote_broker_validates_replay_cache_and_drift() -> None:
     service = _service()
 

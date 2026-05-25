@@ -332,8 +332,13 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     assert window["capacity_window"]["capacity_units"] == 10
 
     held = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 4})
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]
+
     assert held["reservation"]["status"] == "held"
-    assert service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]["held_capacity_units"] == 4
+    assert summary["held_capacity_units"] == 4
+    assert summary["available_capacity_units"] == 6
+    assert summary["utilization_ratio"] == 0.4
+    assert summary["utilization_by_provider"]["provider_live_gpu_1"]["utilization_ratio"] == 0.4
 
     try:
         service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 7})
@@ -344,6 +349,9 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
 
     released = service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})
     assert released["reservation"]["status"] == "released"
+    released_summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]
+    assert released_summary["held_capacity_units"] == 0
+    assert released_summary["utilization_ratio"] == 0.0
 
 
 def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:

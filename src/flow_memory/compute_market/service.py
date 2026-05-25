@@ -3265,8 +3265,60 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
 
 def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
     total_capacity = sum(float(item.get("capacity_units", 0.0) or 0.0) for item in windows)
-    held = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in reservations if str(item.get("status", "")) in {"held", "confirmed"})
-    return {"window_count": len(windows), "reservation_count": len(reservations), "total_capacity_units": total_capacity, "held_capacity_units": held, "available_capacity_units": max(0.0, total_capacity - held)}
+    active_reservations = tuple(
+        item for item in reservations if str(item.get("status", "")) in {"held", "confirmed"}
+    )
+    held = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
+    utilization_by_provider: dict[str, dict[str, float]] = {}
+    for window in windows:
+        provider_id = str(window.get("provider_id", ""))
+        if not provider_id:
+            continue
+        provider = utilization_by_provider.setdefault(
+            provider_id,
+            {
+                "total_capacity_units": 0.0,
+                "held_capacity_units": 0.0,
+                "available_capacity_units": 0.0,
+                "utilization_ratio": 0.0,
+            },
+        )
+        provider["total_capacity_units"] += float(window.get("capacity_units", 0.0) or 0.0)
+    for reservation in active_reservations:
+        provider_id = str(reservation.get("provider_id", ""))
+        if not provider_id:
+            continue
+        provider = utilization_by_provider.setdefault(
+            provider_id,
+            {
+                "total_capacity_units": 0.0,
+                "held_capacity_units": 0.0,
+                "available_capacity_units": 0.0,
+                "utilization_ratio": 0.0,
+            },
+        )
+        provider["held_capacity_units"] += float(
+            reservation.get("capacity_units", reservation.get("units_reserved", 0.0)) or 0.0
+        )
+    for provider in utilization_by_provider.values():
+        provider["available_capacity_units"] = max(
+            0.0,
+            provider["total_capacity_units"] - provider["held_capacity_units"],
+        )
+        provider["utilization_ratio"] = (
+            round(provider["held_capacity_units"] / provider["total_capacity_units"], 6)
+            if provider["total_capacity_units"]
+            else 0.0
+        )
+    return {
+        "window_count": len(windows),
+        "reservation_count": len(reservations),
+        "total_capacity_units": total_capacity,
+        "held_capacity_units": held,
+        "available_capacity_units": max(0.0, total_capacity - held),
+        "utilization_ratio": round(held / total_capacity, 6) if total_capacity else 0.0,
+        "utilization_by_provider": utilization_by_provider,
+    }
 
 
 def _claim_candidates(

@@ -379,39 +379,38 @@ function renderInteractive3DHero(payload) {
   const stories = [
     {
       mode: 'swarm',
-      visual: 'Loose signals',
-      title: 'Work becomes signal',
-      copy: 'Every run event starts as a thin strand from human compute.',
+      visual: 'Signal field',
+      title: 'Signals appear',
+      copy: 'Human work enters as separate fibers with direction, weight, and provenance.',
     },
     {
       mode: 'contact',
       visual: 'Neural braid',
-      title: 'Strands combine',
-      copy: 'Curved links pull together through the proof mesh like a living neural net.',
+      title: 'Fibers converge',
+      copy: 'The strands pull into a shared proof knot instead of orbiting a single toy object.',
     },
     {
       mode: 'manim',
-      visual: 'Memory weave',
-      title: 'Memory takes shape',
-      copy: 'The braid resolves into a durable path that operators can replay and trust.',
+      visual: 'Memory loom',
+      title: 'Memory is woven',
+      copy: 'Verified strands settle into a replayable weave operators can inspect later.',
     },
   ];
   const steps = stories.map((story, index) => `
-        <li>
-          <button type="button" data-3d-mode="${story.mode}" data-active="${index === 0}" data-story-title="${text(story.title)}" data-story-copy="${text(story.copy)}" data-story-label="${text(story.visual)}">
-            <span>${text(story.visual)}</span>
-            <strong>${text(story.title)}</strong>
-            <small>${text(story.copy)}</small>
-          </button>
-        </li>`).join('');
+          <li>
+            <button type="button" data-3d-mode="${story.mode}" data-active="${index === 0}" data-story-title="${text(story.title)}" data-story-copy="${text(story.copy)}" data-story-label="${text(story.visual)}">
+              <span>${text(story.visual)}</span>
+              <strong>${text(story.title)}</strong>
+            </button>
+          </li>`).join('');
   return `
-    <aside class="mission-3d-visualizer" aria-label="Interactive Flow Memory 3D visualization">
-      <div class="mission-3d-canvas-frame" data-3d-ready="pending" data-story-mode="swarm" data-neural-strands="true">
-        <canvas id="mission-3d-canvas" aria-label="Interactive 3D memory field. Drag to rotate and scroll to zoom."></canvas>
-        <div class="mission-3d-fallback">Loading visual story field</div>
+    <aside class="mission-3d-visualizer" aria-label="Interactive Flow Memory neural loom visualization">
+      <div class="mission-3d-canvas-frame" data-3d-ready="pending" data-story-mode="swarm" data-neural-strands="loom">
+        <canvas id="mission-3d-canvas" aria-label="Interactive neural loom. Drag to rotate and scroll to zoom."></canvas>
+        <div class="mission-3d-fallback">Loading neural loom</div>
         <div class="mission-3d-overlay">
-          <strong>Neural strands become memory</strong>
-          <span>Drag to rotate · Scroll to zoom · strands combine locally</span>
+          <strong>Neural loom</strong>
+          <span>Strings of work converge into memory</span>
         </div>
         <div class="mission-3d-status">
           <span>GPU evidence ${text(gpuStatus)}</span>
@@ -422,14 +421,14 @@ function renderInteractive3DHero(payload) {
           <strong data-story-title>${text(stories[0].title)}</strong>
           <p data-story-copy>${text(stories[0].copy)}</p>
         </div>
-        <div class="mission-3d-callout mission-3d-callout-source">Human work traces</div>
-        <div class="mission-3d-callout mission-3d-callout-proof">Proof mesh resolves</div>
-        <div class="mission-3d-callout mission-3d-callout-weave">Neural strands combine</div>
-        <div class="mission-3d-callout mission-3d-callout-memory">Durable memory path</div>
+        <div class="mission-3d-callout mission-3d-callout-source">Human signal fibers</div>
+        <div class="mission-3d-callout mission-3d-callout-proof">Proof knot tension</div>
+        <div class="mission-3d-callout mission-3d-callout-weave">Neural braid forming</div>
+        <div class="mission-3d-callout mission-3d-callout-memory">Memory weave</div>
+        <ol class="mission-story-steps mission-loom-rail" aria-label="Neural loom story controls">${steps}
+        </ol>
       </div>
-      <ol class="mission-story-steps" aria-label="Visualization story controls">${steps}
-      </ol>
-      <p class="mission-3d-caption">A neural strand story: signals enter as loose fibers, braid through the proof mesh, and resolve into durable Flow Memory.</p>
+      <p class="mission-3d-caption">A calmer neural strand visualization: separate work fibers braid into proof, then resolve into durable Flow Memory.</p>
     </aside>`;
 }
 
@@ -526,101 +525,148 @@ import * as THREE from '/vendor/three.module.js';
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xf4f0e5, 9, 18);
+  scene.fog = new THREE.Fog(0x101826, 6.5, 16);
 
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
-  camera.position.set(0, 1.1, 8.2);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 80);
+  camera.position.set(0, 0.15, 8.7);
 
   const root = new THREE.Group();
+  root.rotation.x = -0.06;
   scene.add(root);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-  const key = new THREE.DirectionalLight(0xffffff, 1.8);
-  key.position.set(4, 5, 7);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+  const key = new THREE.DirectionalLight(0xdbe8ff, 1.4);
+  key.position.set(3.8, 4.6, 5.2);
   scene.add(key);
 
-  const coreMaterial = new THREE.MeshStandardMaterial({
-    color: 0x0052ff,
-    roughness: 0.38,
-    metalness: 0.12,
-    transparent: true,
-    opacity: 0.92,
-  });
-  const darkMaterial = new THREE.MeshStandardMaterial({
-    color: 0x131110,
-    roughness: 0.55,
-    metalness: 0.08,
-    transparent: true,
-    opacity: 0.86,
-  });
-  const warmMaterial = new THREE.MeshStandardMaterial({
-    color: 0x9d7040,
-    roughness: 0.5,
-    metalness: 0.1,
-    transparent: true,
-    opacity: 0.9,
-  });
-  const translucentBlue = new THREE.MeshStandardMaterial({
-    color: 0x0052ff,
-    roughness: 0.42,
-    metalness: 0.08,
-    transparent: true,
-    opacity: 0.16,
-    wireframe: true,
-  });
+  const sourceColor = new THREE.Color(0xd3a66a);
+  const coreColor = new THREE.Color(0x1f6dff);
+  const memoryColor = new THREE.Color(0xe8eef7);
+  const mutedBlue = new THREE.Color(0x6fa4ff);
+  const inkColor = new THREE.Color(0x101826);
+  const colorScratch = new THREE.Color();
 
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.58, 3), coreMaterial);
-  root.add(core);
+  const storyOrder = ['swarm', 'contact', 'manim'];
+  const fallbackStory = {
+    swarm: {
+      label: 'Signal field',
+      title: 'Signals appear',
+      copy: 'Human work enters as separate fibers with direction, weight, and provenance.',
+    },
+    contact: {
+      label: 'Neural braid',
+      title: 'Fibers converge',
+      copy: 'The strands pull into a shared proof knot instead of orbiting a single toy object.',
+    },
+    manim: {
+      label: 'Memory loom',
+      title: 'Memory is woven',
+      copy: 'Verified strands settle into a replayable weave operators can inspect later.',
+    },
+  };
 
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(1.1, 0.012, 12, 140),
-    new THREE.MeshBasicMaterial({ color: 0x0052ff, transparent: true, opacity: 0.72 }),
+  function seeded(seed) {
+    const value = Math.sin(seed * 12.9898) * 43758.5453;
+    return value - Math.floor(value);
+  }
+
+  function noise(seed) {
+    return seeded(seed) * 2 - 1;
+  }
+
+  function makeNodeMaterial(color, opacity) {
+    return new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }
+
+  function makeLineMaterial(opacity) {
+    return new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }
+
+  function makeTubeMaterial(color, opacity) {
+    return new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }
+
+  const sourceAnchors = [];
+  const memoryAnchors = [];
+  const braidAnchors = [];
+
+  for (let i = 0; i < 18; i += 1) {
+    const t = i / 17;
+    sourceAnchors.push(new THREE.Vector3(-3.9, (t - 0.5) * 3.45, noise(i + 2.1) * 1.15));
+  }
+
+  for (let i = 0; i < 16; i += 1) {
+    const t = i / 15;
+    memoryAnchors.push(new THREE.Vector3(3.55, (t - 0.5) * 2.75 + Math.sin(i * 0.8) * 0.12, noise(i + 9.6) * 0.95));
+  }
+
+  for (let i = 0; i < 9; i += 1) {
+    const angle = i / 9 * Math.PI * 2;
+    braidAnchors.push(new THREE.Vector3(Math.cos(angle) * 0.48, Math.sin(angle) * 0.34, Math.sin(angle * 1.7) * 0.46));
+  }
+
+  const dustCount = 720;
+  const dustPositions = new Float32Array(dustCount * 3);
+  for (let i = 0; i < dustCount; i += 1) {
+    dustPositions[i * 3] = noise(i + 17.4) * 5.9;
+    dustPositions[i * 3 + 1] = noise(i + 28.9) * 2.8;
+    dustPositions[i * 3 + 2] = noise(i + 39.2) * 2.3;
+  }
+  const dustGeometry = new THREE.BufferGeometry();
+  dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+  const dust = new THREE.Points(
+    dustGeometry,
+    new THREE.PointsMaterial({
+      color: 0xb8cfff,
+      size: 0.012,
+      transparent: true,
+      opacity: 0.26,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
   );
-  ring.rotation.x = Math.PI * 0.52;
-  root.add(ring);
+  root.add(dust);
 
   const strandGroup = new THREE.Group();
+  const knotGroup = new THREE.Group();
   const strandPulses = [];
   const strandLines = [];
-  const sourceColor = new THREE.Color(0x9d7040);
-  const coreColor = new THREE.Color(0x0052ff);
-  const memoryColor = new THREE.Color(0x131110);
-  const colorScratch = new THREE.Color();
-  const pulseGeometry = new THREE.SphereGeometry(0.045, 12, 12);
-  const pulseMaterial = new THREE.MeshBasicMaterial({ color: 0x0052ff, transparent: true, opacity: 0.86 });
-  const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0x131110, transparent: true, opacity: 0.58 });
-  const tubeMaterial = new THREE.MeshBasicMaterial({ color: 0x0052ff, transparent: true, opacity: 0.16, depthWrite: false });
-  const strandAnchors = [];
+  const strandNodes = [];
+  const strandPulseGeometry = new THREE.SphereGeometry(0.038, 10, 10);
+  const strandNodeGeometry = new THREE.SphereGeometry(0.032, 10, 10);
 
-  function addAnchorNode(position, scale) {
-    const node = new THREE.Mesh(new THREE.SphereGeometry(0.038 * scale, 10, 10), nodeMaterial.clone());
+  function addNode(position, zone, scale, color) {
+    const node = new THREE.Mesh(strandNodeGeometry, makeNodeMaterial(color, 0.54));
     node.position.copy(position);
-    strandAnchors.push(node);
+    node.scale.setScalar(scale);
+    node.userData.zone = zone;
+    node.userData.baseScale = scale;
+    strandNodes.push(node);
     strandGroup.add(node);
   }
 
-  function makeNeuralStrand(index) {
-    const lane = (index % 9) - 4;
-    const band = Math.floor(index / 3);
-    const startY = lane * 0.22 + Math.sin(index * 1.7) * 0.16;
-    const startZ = Math.cos(index * 1.13) * 1.16;
-    const endY = lane * -0.14 + Math.cos(index * 0.91) * 0.22;
-    const endZ = Math.sin(index * 1.37) * 1.06;
-    const midLift = Math.sin(index * 0.63) * 0.46;
-    const controlPoints = [
-      new THREE.Vector3(-3.45, startY, startZ),
-      new THREE.Vector3(-2.26, startY * 0.62 + 0.48, startZ * 0.74),
-      new THREE.Vector3(-0.86, midLift, Math.sin(index) * 0.58),
-      new THREE.Vector3(0.08, Math.sin(index * 1.31) * 0.22, Math.cos(index * 0.72) * 0.32),
-      new THREE.Vector3(1.34, endY * 0.48 - 0.36, endZ * 0.76),
-      new THREE.Vector3(3.22, endY, endZ),
-    ];
-    const curve = new THREE.CatmullRomCurve3(controlPoints, false, 'centripetal', 0.62);
-    const samples = curve.getPoints(118);
-    const geometry = new THREE.BufferGeometry().setFromPoints(samples);
-    const colors = new Float32Array(samples.length * 3);
-    for (let i = 0; i < samples.length; i += 1) {
-      const t = i / (samples.length - 1);
+  function applyGradient(geometry, points) {
+    const colors = new Float32Array(points.length * 3);
+    for (let i = 0; i < points.length; i += 1) {
+      const t = i / (points.length - 1);
       if (t < 0.5) colorScratch.lerpColors(sourceColor, coreColor, t * 2);
       else colorScratch.lerpColors(coreColor, memoryColor, (t - 0.5) * 2);
       colors[i * 3] = colorScratch.r;
@@ -628,167 +674,98 @@ import * as THREE from '/vendor/three.module.js';
       colors[i * 3 + 2] = colorScratch.b;
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    const material = new THREE.LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.28 + (index % 4) * 0.035,
-      depthWrite: false,
-    });
-    const line = new THREE.Line(geometry, material);
-    line.userData.baseOpacity = material.opacity;
-    line.userData.phase = index * 0.37;
+  }
+
+  function makeStrand(index) {
+    const source = sourceAnchors[index % sourceAnchors.length];
+    const target = memoryAnchors[(index * 7) % memoryAnchors.length];
+    const braid = braidAnchors[(index * 5) % braidAnchors.length];
+    const lift = noise(index + 61.2) * 0.52;
+    const controlPoints = [
+      source,
+      new THREE.Vector3(-2.75, source.y * 0.78 + lift * 0.15, source.z * 0.74 + noise(index + 4.1) * 0.28),
+      new THREE.Vector3(-1.28, braid.y + lift, braid.z + noise(index + 8.4) * 0.46),
+      new THREE.Vector3(braid.x, braid.y * 0.55, braid.z),
+      new THREE.Vector3(1.38, braid.y - lift * 0.6, braid.z + noise(index + 11.8) * 0.42),
+      new THREE.Vector3(2.55, target.y * 0.76 - lift * 0.12, target.z * 0.78),
+      target,
+    ];
+    const curve = new THREE.CatmullRomCurve3(controlPoints, false, 'centripetal', 0.58);
+    const samples = curve.getPoints(146);
+    const geometry = new THREE.BufferGeometry().setFromPoints(samples);
+    applyGradient(geometry, samples);
+
+    const line = new THREE.Line(geometry, makeLineMaterial(0.18 + (index % 5) * 0.026));
+    line.userData.baseOpacity = line.material.opacity;
+    line.userData.phase = index * 0.29;
+    line.userData.zone = index % 3;
     strandLines.push(line);
     strandGroup.add(line);
 
-    if (index % 3 === 0) {
+    if (index % 2 === 0 || index % 7 === 0) {
       const tube = new THREE.Mesh(
-        new THREE.TubeGeometry(curve, 72, 0.008 + band * 0.002, 5, false),
-        tubeMaterial.clone(),
+        new THREE.TubeGeometry(curve, 96, 0.0065 + (index % 4) * 0.0018, 5, false),
+        makeTubeMaterial(index % 4 === 0 ? 0xd3a66a : 0x1f6dff, 0.10 + (index % 3) * 0.025),
       );
       tube.userData.baseOpacity = tube.material.opacity;
-      tube.userData.phase = index * 0.41;
+      tube.userData.phase = index * 0.34;
+      tube.userData.zone = index % 3;
       strandLines.push(tube);
       strandGroup.add(tube);
     }
 
-    const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial.clone());
+    const pulse = new THREE.Mesh(strandPulseGeometry, makeNodeMaterial(0xcfe2ff, 0.72));
     pulse.userData.points = samples;
-    pulse.userData.speed = 0.085 + (index % 5) * 0.018;
-    pulse.userData.offset = (index * 0.071) % 1;
+    pulse.userData.speed = 0.052 + (index % 6) * 0.012;
+    pulse.userData.offset = (index * 0.083) % 1;
+    pulse.userData.zone = index % 3;
     strandPulses.push(pulse);
     strandGroup.add(pulse);
 
-    if (index % 2 === 0) addAnchorNode(controlPoints[0], 1);
-    if (index % 5 === 0) addAnchorNode(controlPoints[3], 1.35);
-    if (index % 3 === 0) addAnchorNode(controlPoints[5], 1.1);
+    if (index % 3 === 0) addNode(source, 'source', 1.7, sourceColor);
+    if (index % 4 === 0) addNode(braid, 'braid', 2.1, coreColor);
+    if (index % 5 === 0) addNode(target, 'memory', 1.8, memoryColor);
   }
 
-  for (let i = 0; i < 18; i += 1) makeNeuralStrand(i);
-  root.add(strandGroup);
+  for (let i = 0; i < 44; i += 1) makeStrand(i);
 
-  const storyGroup = new THREE.Group();
-  const storyRail = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-2.85, -1.55, -0.18),
-      new THREE.Vector3(-1.28, -1.24, 0.08),
-      new THREE.Vector3(0, -1.38, 0.22),
-      new THREE.Vector3(1.28, -1.24, 0.08),
-      new THREE.Vector3(2.85, -1.55, -0.18),
-    ]),
-    new THREE.LineBasicMaterial({ color: 0x131110, transparent: true, opacity: 0.26 }),
-  );
-  storyGroup.add(storyRail);
-
-  const storyBeacons = {
-    swarm: new THREE.Mesh(new THREE.SphereGeometry(0.08, 22, 22), coreMaterial.clone()),
-    contact: new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), warmMaterial.clone()),
-    manim: new THREE.Mesh(new THREE.OctahedronGeometry(0.12, 0), darkMaterial.clone()),
-  };
-  storyBeacons.swarm.position.set(-2.85, -1.55, -0.18);
-  storyBeacons.contact.position.set(0, -1.38, 0.22);
-  storyBeacons.manim.position.set(2.85, -1.55, -0.18);
-  for (const beacon of Object.values(storyBeacons)) storyGroup.add(beacon);
-  root.add(storyGroup);
-
-  const swarmGroup = new THREE.Group();
-  const swarmCount = 260;
-  const swarmPositions = new Float32Array(swarmCount * 3);
-  const swarmSeeds = [];
-  for (let i = 0; i < swarmCount; i += 1) {
-    const lane = i % 5;
-    const t = i / swarmCount;
-    const angle = t * Math.PI * 7 + lane * 0.7;
-    const radius = 1.1 + lane * 0.28 + Math.sin(t * 12) * 0.18;
-    swarmPositions[i * 3] = Math.cos(angle) * radius;
-    swarmPositions[i * 3 + 1] = Math.sin(t * Math.PI * 5) * 0.72 + (lane - 2) * 0.05;
-    swarmPositions[i * 3 + 2] = Math.sin(angle) * radius + (t - 0.5) * 2.2;
-    swarmSeeds.push({ angle, radius, lane, t });
-  }
-  const swarmGeometry = new THREE.BufferGeometry();
-  swarmGeometry.setAttribute('position', new THREE.BufferAttribute(swarmPositions, 3));
-  const swarm = new THREE.Points(
-    swarmGeometry,
-    new THREE.PointsMaterial({ color: 0x0052ff, size: 0.075, sizeAttenuation: true, transparent: true, opacity: 0.86 }),
-  );
-  swarmGroup.add(swarm);
-  for (let i = 0; i < 8; i += 1) {
-    const star = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.12, 0),
-      i % 2 ? warmMaterial : coreMaterial,
-    );
-    star.position.set(Math.cos(i * 1.2) * 2.8, Math.sin(i * 1.7) * 1.1, Math.sin(i * 1.2) * 1.8);
-    swarmGroup.add(star);
-  }
-  root.add(swarmGroup);
-
-  const contactGroup = new THREE.Group();
-  const meshGeometry = new THREE.PlaneGeometry(5.6, 3.4, 42, 24);
-  meshGeometry.rotateX(-Math.PI * 0.58);
-  const meshSurface = new THREE.Mesh(meshGeometry, translucentBlue);
-  contactGroup.add(meshSurface);
-  const contactNodes = new THREE.Points(
-    meshGeometry,
-    new THREE.PointsMaterial({ color: 0x131110, size: 0.04, sizeAttenuation: true, transparent: true, opacity: 0.60 }),
-  );
-  contactGroup.add(contactNodes);
-  const contactCurve = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-2.6, -0.35, 0.3),
-      new THREE.Vector3(-1.4, -0.02, 0.58),
-      new THREE.Vector3(0, -0.16, 0.72),
-      new THREE.Vector3(1.4, 0.06, 0.58),
-      new THREE.Vector3(2.6, -0.28, 0.3),
-    ]),
-    new THREE.LineBasicMaterial({ color: 0x9d7040, transparent: true, opacity: 0.84 }),
-  );
-  contactGroup.add(contactCurve);
-  contactGroup.visible = false;
-  root.add(contactGroup);
-
-  const manimGroup = new THREE.Group();
-  const makeCurve = (offset, color) => {
-    const pts = [];
-    for (let i = 0; i < 420; i += 1) {
-      const t = i / 38;
-      pts.push(new THREE.Vector3(
-        Math.sin(t * 0.72 + offset) * (1.45 + 0.06 * t),
-        Math.cos(t * 0.47 + offset) * 0.9,
-        (i / 420 - 0.5) * 5.4 + Math.sin(t) * 0.28,
+  function makeKnot(index) {
+    const points = [];
+    const radius = 0.56 + index * 0.055;
+    for (let i = 0; i <= 132; i += 1) {
+      const t = i / 132 * Math.PI * 2;
+      points.push(new THREE.Vector3(
+        Math.cos(t * 2 + index * 0.62) * radius * 0.78,
+        Math.sin(t * 3 + index * 0.37) * radius * 0.44,
+        Math.sin(t * 2.5 + index) * 0.35,
       ));
     }
-    return new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(pts),
-      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.78 }),
-    );
-  };
-  manimGroup.add(makeCurve(0, 0x0052ff));
-  manimGroup.add(makeCurve(1.8, 0x131110));
-  manimGroup.add(makeCurve(3.2, 0x9d7040));
-  const theorem = new THREE.Mesh(new THREE.TorusKnotGeometry(0.62, 0.018, 180, 8), coreMaterial);
-  theorem.position.set(0, 0.2, 0);
-  manimGroup.add(theorem);
-  manimGroup.visible = false;
-  root.add(manimGroup);
+    const curve = new THREE.CatmullRomCurve3(points, true, 'centripetal', 0.5);
+    const samples = curve.getPoints(180);
+    const geometry = new THREE.BufferGeometry().setFromPoints(samples);
+    applyGradient(geometry, samples);
+    const line = new THREE.Line(geometry, makeLineMaterial(0.34));
+    line.userData.baseOpacity = line.material.opacity;
+    line.userData.phase = index * 0.5;
+    strandLines.push(line);
+    knotGroup.add(line);
 
-  const groups = { swarm: swarmGroup, contact: contactGroup, manim: manimGroup };
-  const storyOrder = ['swarm', 'contact', 'manim'];
-  const fallbackStory = {
-    swarm: {
-      label: 'Loose signals',
-      title: 'Work becomes signal',
-      copy: 'Every run event starts as a thin strand from human compute.',
-    },
-    contact: {
-      label: 'Neural braid',
-      title: 'Strands combine',
-      copy: 'Curved links pull together through the proof mesh like a living neural net.',
-    },
-    manim: {
-      label: 'Memory weave',
-      title: 'Memory takes shape',
-      copy: 'The braid resolves into a durable path that operators can replay and trust.',
-    },
-  };
+    const tube = new THREE.Mesh(
+      new THREE.TubeGeometry(curve, 120, 0.01, 5, true),
+      makeTubeMaterial(index % 2 ? 0x1f6dff : 0xe8eef7, 0.18),
+    );
+    tube.userData.baseOpacity = tube.material.opacity;
+    tube.userData.phase = index * 0.45;
+    strandLines.push(tube);
+    knotGroup.add(tube);
+  }
+
+  for (let i = 0; i < 5; i += 1) makeKnot(i);
+
+  root.add(strandGroup);
+  root.add(knotGroup);
+
+  const groups = { swarm: strandGroup, contact: knotGroup, manim: strandGroup };
   let activeMode = 'swarm';
   let autoPausedUntil = 0;
   const buttons = Array.from(document.querySelectorAll('[data-3d-mode]'));
@@ -800,7 +777,6 @@ import * as THREE from '/vendor/three.module.js';
     const nextMode = groups[mode] ? mode : 'swarm';
     activeMode = nextMode;
     frame.dataset["storyMode"] = nextMode;
-    for (const [groupMode, group] of Object.entries(groups)) group.visible = groupMode === nextMode;
 
     const selected = buttons.find((button) => button.dataset["3dMode"] === nextMode);
     for (const button of buttons) button.dataset.active = String(button === selected);
@@ -823,12 +799,12 @@ import * as THREE from '/vendor/three.module.js';
     });
   }
 
-  let targetX = -0.24;
-  let targetY = 0.32;
+  let targetX = -0.16;
+  let targetY = 0.28;
   let dragging = false;
   let lastX = 0;
   let lastY = 0;
-  let zoom = 8.2;
+  let zoom = 8.7;
 
   canvas.addEventListener('pointerdown', (event) => {
     dragging = true;
@@ -841,23 +817,23 @@ import * as THREE from '/vendor/three.module.js';
   canvas.addEventListener('pointercancel', () => { dragging = false; });
   canvas.addEventListener('pointermove', (event) => {
     if (!dragging) return;
-    targetY += (event.clientX - lastX) * 0.006;
-    targetX += (event.clientY - lastY) * 0.006;
-    targetX = Math.max(-1.1, Math.min(1.1, targetX));
+    targetY += (event.clientX - lastX) * 0.005;
+    targetX += (event.clientY - lastY) * 0.005;
+    targetX = Math.max(-0.82, Math.min(0.82, targetX));
     lastX = event.clientX;
     lastY = event.clientY;
   });
   canvas.addEventListener('wheel', (event) => {
     event.preventDefault();
     autoPausedUntil = performance.now() + 18000;
-    zoom = Math.max(5.6, Math.min(11.5, zoom + event.deltaY * 0.006));
+    zoom = Math.max(6.4, Math.min(11.2, zoom + event.deltaY * 0.005));
   }, { passive: false });
 
   window.setInterval(() => {
     if (performance.now() < autoPausedUntil) return;
     const nextIndex = (storyOrder.indexOf(activeMode) + 1) % storyOrder.length;
     activateMode(storyOrder[nextIndex], false);
-  }, 6200);
+  }, 6800);
 
   function resize() {
     const rect = frame.getBoundingClientRect();
@@ -869,68 +845,47 @@ import * as THREE from '/vendor/three.module.js';
   resize();
   activateMode('swarm', false);
 
+  function zoneWeight(zone) {
+    if (activeMode === 'swarm') return zone === 0 ? 1.22 : 0.82;
+    if (activeMode === 'contact') return zone === 1 ? 1.32 : 0.94;
+    return zone === 2 ? 1.24 : 0.88;
+  }
+
   function animate() {
     const elapsed = performance.now() / 1000;
     root.rotation.x += (targetX - root.rotation.x) * 0.05;
-    root.rotation.y += (targetY + elapsed * 0.06 - root.rotation.y) * 0.04;
+    root.rotation.y += (targetY + elapsed * 0.025 - root.rotation.y) * 0.045;
     camera.position.z += (zoom - camera.position.z) * 0.08;
 
-    core.rotation.x = elapsed * 0.38;
-    core.rotation.y = elapsed * 0.52;
-    ring.rotation.z = elapsed * 0.28;
-    storyRail.material.opacity = 0.18 + Math.sin(elapsed * 1.2) * 0.04;
+    dust.rotation.y = elapsed * 0.018;
+    knotGroup.rotation.x = Math.sin(elapsed * 0.32) * 0.12;
+    knotGroup.rotation.y = elapsed * 0.12;
+    strandGroup.rotation.z = Math.sin(elapsed * 0.18) * 0.035;
 
-    for (const [mode, beacon] of Object.entries(storyBeacons)) {
-      const selected = mode === activeMode;
-      const pulse = selected ? 1.22 + Math.sin(elapsed * 3.1) * 0.10 : 0.72;
-      beacon.scale.setScalar(pulse);
-      beacon.material.opacity = selected ? 0.92 : 0.34;
-      beacon.rotation.x = elapsed * 0.34;
-      beacon.rotation.y = elapsed * 0.46;
-    }
-
-    const positions = swarmGeometry.attributes.position.array;
-    for (let i = 0; i < swarmCount; i += 1) {
-      const seed = swarmSeeds[i];
-      const wave = elapsed * (0.42 + seed.lane * 0.045);
-      const angle = seed.angle + wave;
-      positions[i * 3] = Math.cos(angle) * seed.radius;
-      positions[i * 3 + 1] = Math.sin(seed.t * Math.PI * 5 + wave) * 0.72 + (seed.lane - 2) * 0.05;
-      positions[i * 3 + 2] = Math.sin(angle) * seed.radius + (seed.t - 0.5) * 2.2;
-    }
-    swarmGeometry.attributes.position.needsUpdate = true;
-
-    const meshPositions = meshGeometry.attributes.position;
-    for (let i = 0; i < meshPositions.count; i += 1) {
-      const x = meshPositions.getX(i);
-      const y = meshPositions.getY(i);
-      meshPositions.setZ(i, Math.sin(x * 1.8 + elapsed) * 0.16 + Math.cos(y * 2.2 + elapsed * 0.8) * 0.12);
-    }
-    meshPositions.needsUpdate = true;
-    meshGeometry.computeVertexNormals();
-    contactCurve.rotation.y = Math.sin(elapsed * 0.7) * 0.08;
-
-    theorem.rotation.x = elapsed * 0.34;
-    theorem.rotation.y = elapsed * 0.52;
-
-    const strandIntensity = activeMode === 'contact' ? 1.18 : activeMode === 'manim' ? 0.94 : 0.82;
-    strandGroup.rotation.z = Math.sin(elapsed * 0.22) * 0.035;
     for (const item of strandLines) {
-      item.material.opacity = item.userData.baseOpacity * strandIntensity + Math.sin(elapsed * 1.6 + item.userData.phase) * 0.035;
+      const weight = zoneWeight(item.userData.zone || 1);
+      item.material.opacity = Math.max(0.04, item.userData.baseOpacity * weight + Math.sin(elapsed * 1.45 + item.userData.phase) * 0.025);
     }
+
     for (let i = 0; i < strandPulses.length; i += 1) {
       const pulse = strandPulses[i];
       const points = pulse.userData.points;
       const travel = (elapsed * pulse.userData.speed + pulse.userData.offset) % 1;
       const pointIndex = Math.min(points.length - 1, Math.floor(travel * points.length));
       pulse.position.copy(points[pointIndex]);
-      pulse.scale.setScalar(activeMode === 'contact' ? 1.22 : 0.92);
-      pulse.material.opacity = 0.34 + Math.sin(elapsed * 2.2 + i) * 0.12 + (activeMode === 'contact' ? 0.28 : 0.08);
+      pulse.scale.setScalar(0.78 + zoneWeight(pulse.userData.zone) * 0.28);
+      pulse.material.opacity = 0.26 + zoneWeight(pulse.userData.zone) * 0.34 + Math.sin(elapsed * 2.1 + i) * 0.08;
     }
-    for (let i = 0; i < strandAnchors.length; i += 1) {
-      const anchor = strandAnchors[i];
-      anchor.scale.setScalar(0.86 + Math.sin(elapsed * 1.8 + i * 0.31) * 0.14);
-      anchor.material.opacity = activeMode === 'swarm' ? 0.72 : 0.46;
+
+    for (let i = 0; i < strandNodes.length; i += 1) {
+      const node = strandNodes[i];
+      const zone =
+        node.userData.zone === 'source' ? 0 :
+        node.userData.zone === 'braid' ? 1 :
+        2;
+      const weight = zoneWeight(zone);
+      node.scale.setScalar(node.userData.baseScale * (0.84 + Math.sin(elapsed * 1.7 + i * 0.23) * 0.08 + weight * 0.08));
+      node.material.opacity = 0.22 + weight * 0.28;
     }
 
     renderer.render(scene, camera);

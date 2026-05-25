@@ -22,10 +22,14 @@ class ApiErrorContractTests(unittest.TestCase):
                 "ok": False,
                 "error": {
                     "code": "request.invalid",
+                    "error_code": "request.invalid",
+                    "error_category": "validation_error",
                     "message": "Invalid request",
                     "status": 400,
                     "details": {"a": {"b": ("c",)}, "z": 2},
                     "request_id": "req-1",
+                    "retryable": False,
+                    "next_safe_actions": ("correct the request payload and retry",),
                 },
             },
         )
@@ -48,7 +52,21 @@ class ApiErrorContractTests(unittest.TestCase):
     def test_validation_error_shape(self) -> None:
         response = validation_error("Bad payload").as_record()
 
-        self.assertEqual(response, {"ok": False, "error": {"code": "request.invalid", "message": "Bad payload", "status": 400}})
+        self.assertEqual(
+            response,
+            {
+                "ok": False,
+                "error": {
+                    "code": "request.invalid",
+                    "error_code": "request.invalid",
+                    "error_category": "validation_error",
+                    "message": "Bad payload",
+                    "status": 400,
+                    "retryable": False,
+                    "next_safe_actions": ("correct the request payload and retry",),
+                },
+            },
+        )
 
 
 if __name__ == "__main__":

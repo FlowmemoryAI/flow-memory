@@ -1,6 +1,7 @@
 """Baseline policies for Flow Arena."""
 from __future__ import annotations
-import json, random
+import json
+import random
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 from flow_memory.rl.env import FlowEnv

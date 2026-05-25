@@ -1,4 +1,6 @@
-import json, threading, urllib.request
+import json
+import threading
+import urllib.request
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
 
 def test_neural_http_server_endpoint():
@@ -13,4 +15,5 @@ def test_neural_http_server_endpoint():
             data=json.loads(res.read().decode())
         assert data["data"]["ok"] is True
     finally:
-        server.shutdown(); server.server_close()
+        server.shutdown()
+        server.server_close()

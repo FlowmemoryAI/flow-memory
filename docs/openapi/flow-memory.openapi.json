@@ -328,6 +328,1804 @@
         ]
       }
     },
+    "/compute/audit": {
+      "get": {
+        "operationId": "compute_audit",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "audit_events": {
+                      "type": "string"
+                    },
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List compute audit events",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/checkpoint": {
+      "post": {
+        "operationId": "compute_audit_checkpoint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "chain_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "checkpoint": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a compute audit checkpoint",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/export": {
+      "post": {
+        "operationId": "compute_audit_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "chain_id": {
+                    "type": "string"
+                  },
+                  "from_sequence": {
+                    "type": "string"
+                  },
+                  "out": {
+                    "type": "string"
+                  },
+                  "to_sequence": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "checkpoint": {
+                      "type": "string"
+                    },
+                    "manifest_hash": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Export compute audit events with a checkpoint",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/verify": {
+      "get": {
+        "operationId": "compute_audit_verify",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "audit_chain": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Verify tamper-evident compute audit hash chains",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/verify-export": {
+      "post": {
+        "operationId": "compute_audit_verify_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "checkpoint_hash": {
+                      "type": "string"
+                    },
+                    "event_count": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Verify an exported compute audit checkpoint",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/{audit_event_id}": {
+      "get": {
+        "operationId": "compute_audit_event",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "audit_event_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "audit_event": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get a compute audit event",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/decisions/{decision_id}": {
+      "get": {
+        "operationId": "compute_decision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route_decision": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get a route decision",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/decisions/{decision_id}/replay": {
+      "post": {
+        "operationId": "compute_decision_replay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "decision_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "current_decision": {
+                      "type": "string"
+                    },
+                    "differences": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "original_decision": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Replay a compute route decision without mutating the original",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory": {
+      "get": {
+        "operationId": "compute_economic_memory",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "records": {
+                      "type": "string"
+                    },
+                    "schema_fields": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return durable compute economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/anomalies": {
+      "get": {
+        "operationId": "compute_economic_memory_anomalies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "warnings": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List compute economic memory anomalies",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/providers/{provider_id}": {
+      "get": {
+        "operationId": "compute_economic_memory_provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize provider economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/query": {
+      "post": {
+        "operationId": "compute_economic_memory_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "cursor": {
+                    "type": "string"
+                  },
+                  "goal_id": {
+                    "type": "string"
+                  },
+                  "limit": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "query": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "task_type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "confidence": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "query": {
+                      "type": "string"
+                    },
+                    "sample_size": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Query durable compute economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/routes/{route_id}": {
+      "get": {
+        "operationId": "compute_economic_memory_route",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "route_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize route economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/summary": {
+      "get": {
+        "operationId": "compute_economic_memory_summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "confidence": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize compute economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/economic-memory/tasks/{task_type}": {
+      "get": {
+        "operationId": "compute_economic_memory_task",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "task_type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize task-type economic memory",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/health": {
+      "get": {
+        "operationId": "compute_health",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "audit_log_writable": {
+                      "type": "string"
+                    },
+                    "compute_market_enabled": {
+                      "type": "string"
+                    },
+                    "database_reachable": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Compute Market health check",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/marketplace-plan": {
+      "post": {
+        "operationId": "compute_marketplace_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "budget_policy": {
+                    "type": "string"
+                  },
+                  "market_policy": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "selection_strategy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "compute_plan": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a marketplace-only compute plan",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/payment-plan": {
+      "post": {
+        "operationId": "compute_payment_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "budget_policy": {
+                    "type": "string"
+                  },
+                  "market_policy": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "selection_strategy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "dry_run_only": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "payment_plan": {
+                      "type": "string"
+                    },
+                    "settlement_intent": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a dry-run compute payment plan",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/plan": {
+      "post": {
+        "operationId": "compute_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "budget_policy": {
+                    "type": "string"
+                  },
+                  "dry_run": {
+                    "type": "string"
+                  },
+                  "goal_id": {
+                    "type": "string"
+                  },
+                  "idempotency_key": {
+                    "type": "string"
+                  },
+                  "market_policy": {
+                    "type": "string"
+                  },
+                  "network_preferences": {
+                    "type": "string"
+                  },
+                  "payment_asset_preferences": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "provider_constraints": {
+                    "type": "string"
+                  },
+                  "request_id": {
+                    "type": "string"
+                  },
+                  "selection_strategy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "compute_plan": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a Flow Memory Compute Market plan",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/policies": {
+      "get": {
+        "operationId": "compute_policies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "default_market_policy": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "policies": {
+                      "type": "string"
+                    },
+                    "selection_strategies": {
+                      "type": "string"
+                    },
+                    "simulation_scenarios": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return compute policies and simulation scenarios",
+        "tags": [
+          "compute"
+        ]
+      },
+      "post": {
+        "operationId": "compute_policy_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "dry_run_required": {
+                    "type": "string"
+                  },
+                  "max_total_cost": {
+                    "type": "string"
+                  },
+                  "policy_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a compute policy",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/policies/{policy_id}": {
+      "get": {
+        "operationId": "compute_policy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get a compute policy",
+        "tags": [
+          "compute"
+        ]
+      },
+      "patch": {
+        "operationId": "compute_policy_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "policy": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Update a compute policy",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/policies/{policy_id}/validate": {
+      "post": {
+        "operationId": "compute_policy_validate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "policy_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "validation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Validate a compute policy",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/providers": {
+      "get": {
+        "operationId": "compute_providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "providers": {
+                      "type": "string"
+                    },
+                    "registry": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List compute provider metadata",
+        "tags": [
+          "compute"
+        ]
+      },
+      "post": {
+        "operationId": "compute_provider_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "provider_name": {
+                    "type": "string"
+                  },
+                  "provider_type": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a compute provider",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/providers/{provider_id}": {
+      "get": {
+        "operationId": "compute_provider",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get a compute provider",
+        "tags": [
+          "compute"
+        ]
+      },
+      "patch": {
+        "operationId": "compute_provider_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "capabilities": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Update a compute provider",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/providers/{provider_id}/disable": {
+      "post": {
+        "operationId": "compute_provider_disable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Disable a compute provider",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/providers/{provider_id}/health-check": {
+      "post": {
+        "operationId": "compute_provider_health",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider_health": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run a provider health check",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/quote": {
+      "post": {
+        "operationId": "compute_quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "budget_policy": {
+                    "type": "string"
+                  },
+                  "market_policy": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "request_id": {
+                    "type": "string"
+                  },
+                  "scenario": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "profile": {
+                      "type": "string"
+                    },
+                    "quotes": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Collect normalized compute quotes",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/readiness": {
+      "get": {
+        "operationId": "compute_readiness",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "migration_plan": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "production_safety_defaults": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Compute Market production readiness check",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/route": {
+      "post": {
+        "operationId": "compute_route",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "budget_policy": {
+                    "type": "string"
+                  },
+                  "market_policy": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "selection_strategy": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route_decision": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Select a compute route under policy",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/routes": {
+      "get": {
+        "operationId": "compute_routes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "routes": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List compute routes",
+        "tags": [
+          "compute"
+        ]
+      },
+      "post": {
+        "operationId": "compute_route_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "pricing_model": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "unit_type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a compute route",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/routes/{route_id}": {
+      "get": {
+        "operationId": "compute_route_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "route_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get a compute route",
+        "tags": [
+          "compute"
+        ]
+      },
+      "patch": {
+        "operationId": "compute_route_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "route_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "capacity_window": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Update a compute route",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/routes/{route_id}/disable": {
+      "post": {
+        "operationId": "compute_route_disable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "route_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Disable a compute route",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/simulate-settlement": {
+      "post": {
+        "operationId": "compute_simulate_settlement",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "budget_policy": {
+                    "type": "string"
+                  },
+                  "market_policy": {
+                    "type": "string"
+                  },
+                  "profile": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "dry_run_only": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "payment_plan": {
+                      "type": "string"
+                    },
+                    "settlement_intent": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate dry-run compute settlement",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/dashboard/snapshot": {
       "get": {
         "operationId": "dashboard_snapshot",
@@ -1260,179 +3058,6 @@
         "summary": "Advance local runtime tick",
         "tags": [
           "runtime"
-        ]
-      }
-    },
-    "/squire/docs-sources": {
-      "get": {
-        "operationId": "squire_docs_sources",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return machine-readable Squire docs sync sources",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/memory-schema": {
-      "get": {
-        "operationId": "squire_memory_schema",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Squire economic memory fields",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/plan": {
-      "post": {
-        "operationId": "squire_plan",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "goal": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Build a Squire goal plan",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/routes": {
-      "post": {
-        "operationId": "squire_routes",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "marketplace_only": {
-                    "type": "string"
-                  },
-                  "max_input_price_per_million": {
-                    "type": "string"
-                  },
-                  "max_output_price_per_million": {
-                    "type": "string"
-                  },
-                  "quality_sensitive": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Select a budget-aware Squire route",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/skill": {
-      "get": {
-        "operationId": "squire_skill",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Squire goal skill metadata",
-        "tags": [
-          "squire"
-        ]
-      }
-    },
-    "/squire/status": {
-      "get": {
-        "operationId": "squire_status",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Squire ecosystem control-plane status",
-        "tags": [
-          "squire"
         ]
       }
     },

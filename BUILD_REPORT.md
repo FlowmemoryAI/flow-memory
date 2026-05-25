@@ -586,31 +586,31 @@ Focused validation observed during this pass:
 
 The system remains public-alpha/local/testnet-dry-run only: not production-certified, not mainnet-ready, not audited, and not hardened sandboxing. Missing RunPod artifact `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` continues to block GPU-backed release targets by design.
 
-## Squire Goal control-plane build — 2026-05-24
+## Flow Memory Compute Market build — 2026-05-24
 
-This implementation adds a live-first Squire ecosystem planning layer for Flow Memory. It treats Squire as an agentic compute treasury/routing substrate rather than a token-first workflow.
+This implementation adds a Flow Memory-native compute-market planning layer. It treats compute capacity as the economic resource and keeps token pricing as one supported unit, not the product identity.
 
 Added:
 
-- `src/flow_memory/squire/` with typed treasury, routing, economic memory, tool-commerce, provider setup, docs-sync, and `/goal squire` orchestration records.
-- `skills/squire-goal/SKILL.md` as a progressive-disclosure skill bundle.
-- `scripts/squire_goal.py` and `examples/squire_goal_demo.py`.
-- Local API endpoints under `/squire/*` with `squire:read` and `squire:plan` scopes.
-- `docs/SQUIRE_GOAL.md`.
+- `src/flow_memory/compute_market/` with typed provider, route, quote, capacity, reservation, payment-plan, settlement-intent, policy, route-decision, and economic-memory records.
+- `skills/compute-market/SKILL.md` as a progressive-disclosure skill bundle.
+- `scripts/compute_market.py` and `examples/compute_market_demo.py`.
+- Local API endpoints under `/compute/*` with `compute:read` and `compute:plan` scopes.
+- `docs/COMPUTE_MARKET.md`.
 
 Safety posture:
 
+- All payment and settlement flows are dry-run only.
 - No real funds.
 - No private keys.
-- No live Level5/UsePod/agent-wallet calls in tests.
-- No SQUIRE token redemption assumptions.
-- UsePod coordinator internals are treated as private.
-- TEE attestation, on-chain slashing, compute futures, native SQUIRE redemption, and native Dolphin inventory are labeled roadmap/adjacent unless explicitly verified.
+- No transaction broadcast.
+- No production custody.
+- Live settlement requires a future security-reviewed phase.
 
 Focused validation for this slice:
 
 | Check | Result |
 | --- | --- |
-| `python -m pytest -q tests/test_squire_core.py tests/test_api_squire_endpoints.py tests/test_squire_skill_file.py` | Pass: `14 passed` |
-| `python scripts/squire_goal.py --goal "UsePod routing with budget controls"` | Pass |
-| `python examples/squire_goal_demo.py` | Pass |
+| `python -m pytest tests/test_compute_market_core.py tests/test_api_compute_endpoints.py tests/test_compute_market_naming.py tests/test_cli.py` | Pass |
+| `python scripts/compute_market.py --task "run agent batch inference" --marketplace-only --asset USDC --network solana --max-total-cost 10` | Pass |
+| `python examples/compute_market_demo.py` | Pass |

@@ -1,7 +1,7 @@
 """In-process vectorized Flow Arena environments."""
 from __future__ import annotations
 from typing import Callable
-from flow_memory.rl.env import FlowEnv, StepResult
+from flow_memory.rl.env import FlowEnv
 
 class FlowVectorEnv:
     def __init__(self, factories: tuple[Callable[[], FlowEnv], ...]):

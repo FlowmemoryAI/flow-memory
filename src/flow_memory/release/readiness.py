@@ -58,8 +58,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
 
     root_path = Path(root).resolve()
     gates = run_release_gates(root_path)
+    blockers: tuple[str, ...]
+    evidence: tuple[str, ...]
     if target == "local":
-        blockers: tuple[str, ...] = () if gates.ok else ("release_gates_failed",)
+        blockers = () if gates.ok else ("release_gates_failed",)
         classification = "local_release_candidate" if gates.ok else "blocked_local_release"
         evidence = ("release_gates", "api_snapshot", "storage_schema", "base_dry_run", "dependency_inventory")
     elif target == "public-alpha":

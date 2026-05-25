@@ -13,7 +13,6 @@ from flow_memory.simulation.adversaries import (
     ADVERSARY_RULES,
     COLLUDING_VERIFIER,
     HONEST,
-    OVERPRICED_BIDDER,
     REPEATED_DISPUTER,
     REPUTATION_FARMER,
     SPAM_BIDDER,

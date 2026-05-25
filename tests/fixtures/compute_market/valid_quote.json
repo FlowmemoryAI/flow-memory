@@ -1,0 +1,19 @@
+{
+  "provider_id": "provider-local-gpu",
+  "route_id": "route-local-gpu-hour",
+  "quote_id": "quote-valid-token",
+  "unit_type": "gpu_hour",
+  "unit_price": 2.5,
+  "estimated_units": 2.0,
+  "estimated_total_cost": 5.0,
+  "currency_or_asset": "USDC",
+  "network": "base-sepolia",
+  "quote_ttl_seconds": 300,
+  "expires_at": "2099-01-01T00:00:00Z",
+  "confidence": 0.93,
+  "capacity_available": true,
+  "settlement_modes": ["dry_run"],
+  "dry_run_supported": true,
+  "assumptions": ["dry-run quote", "no live settlement"],
+  "verification": {"type": "fixture"}
+}

@@ -8,7 +8,7 @@ from typing import Any, Mapping
 from flow_memory.core.types import MemoryRecord, PerceptionOutput, Prediction
 from flow_memory.memory.economic import EconomicMemory
 from flow_memory.memory.episodic import EpisodicMemory
-from flow_memory.memory.procedural import ProceduralSkill, SkillLibrary
+from flow_memory.memory.procedural import ProceduralSkill, SkillLibrary  # noqa: F401
 from flow_memory.memory.semantic import SemanticGraph
 from flow_memory.memory.working import WorkingMemory
 

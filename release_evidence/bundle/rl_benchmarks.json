@@ -1,5 +1,5 @@
 {
-  "benchmark_count": 6,
+  "benchmark_count": 2,
   "benchmarks": [
     {
       "bytes": 2386,
@@ -8,27 +8,6 @@
       "path": "artifacts\\rl\\rl_adversarial_env_benchmark.json",
       "sha256": "49ebac48e4c2d4f92cb7b8642c962f83bf3a133fb8135ebf2fc05a82607a88d7",
       "summary": {}
-    },
-    {
-      "bytes": 565,
-      "name": "rl_economy_market_benchmark",
-      "ok": true,
-      "path": "artifacts\\rl\\rl_economy_market_benchmark.json",
-      "sha256": "53e88a23677c3821973a0b3e5999cf50feeb7629bffff4164c849a82429b2b89",
-      "summary": {
-        "env_id": "economy_market",
-        "prototype_metric": false
-      }
-    },
-    {
-      "bytes": 80,
-      "name": "rl_env_throughput_benchmark",
-      "ok": true,
-      "path": "artifacts\\rl\\rl_env_throughput_benchmark.json",
-      "sha256": "bb8c9a0ea3a23c7bcb806a46ca917daf376e1ccb7cbc2b4195b5577663c1c5d5",
-      "summary": {
-        "steps_per_second": 106544.49564910894
-      }
     },
     {
       "bytes": 1246,
@@ -41,25 +20,6 @@
         "env_id": "safety_gate",
         "tabular_q_improved": true
       }
-    },
-    {
-      "bytes": 561,
-      "name": "rl_safety_gate_benchmark",
-      "ok": true,
-      "path": "artifacts\\rl\\rl_safety_gate_benchmark.json",
-      "sha256": "e96eb413a9d6837d3ef000cc76e06f2d6673ea7b8a690133b3846ff6f1ee2e44",
-      "summary": {
-        "env_id": "safety_gate",
-        "prototype_metric": true
-      }
-    },
-    {
-      "bytes": 120,
-      "name": "rl_training_smoke_benchmark",
-      "ok": true,
-      "path": "artifacts\\rl\\rl_training_smoke_benchmark.json",
-      "sha256": "05c4ddd1aa9cfd92890658894872a2787f9db0806e77082c95d05bc30dcd5211",
-      "summary": {}
     }
   ],
   "ok": true,

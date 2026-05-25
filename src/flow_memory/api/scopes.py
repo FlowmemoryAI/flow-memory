@@ -26,8 +26,14 @@ RELEASE_READ_SCOPE = "release:read"
 DASHBOARD_READ_SCOPE = "dashboard:read"
 VISUAL_READ_SCOPE = "visual:read"
 VISUAL_STREAM_SCOPE = "visual:stream"
-SQUIRE_READ_SCOPE = "squire:read"
-SQUIRE_PLAN_SCOPE = "squire:plan"
+COMPUTE_READ_SCOPE = "compute:read"
+COMPUTE_PLAN_SCOPE = "compute:plan"
+COMPUTE_WRITE_SCOPE = "compute:write"
+COMPUTE_ADMIN_SCOPE = "compute:admin"
+COMPUTE_AUDIT_SCOPE = "compute:audit"
+COMPUTE_PROVIDER_ADMIN_SCOPE = "compute:provider-admin"
+COMPUTE_POLICY_ADMIN_SCOPE = "compute:policy-admin"
+COMPUTE_SETTLEMENT_ADMIN_SCOPE = "compute:settlement-admin"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -46,8 +52,14 @@ KNOWN_SCOPES = frozenset({
     DASHBOARD_READ_SCOPE,
     VISUAL_READ_SCOPE,
     VISUAL_STREAM_SCOPE,
-    SQUIRE_READ_SCOPE,
-    SQUIRE_PLAN_SCOPE,
+    COMPUTE_READ_SCOPE,
+    COMPUTE_PLAN_SCOPE,
+    COMPUTE_WRITE_SCOPE,
+    COMPUTE_ADMIN_SCOPE,
+    COMPUTE_AUDIT_SCOPE,
+    COMPUTE_PROVIDER_ADMIN_SCOPE,
+    COMPUTE_POLICY_ADMIN_SCOPE,
+    COMPUTE_SETTLEMENT_ADMIN_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -104,8 +116,9 @@ def require_scopes(
                 details={"invalid": invalid},
             ),
         )
+    admin_scopes = {ADMIN_SCOPE, COMPUTE_ADMIN_SCOPE}
     missing = tuple(
-        scope for scope in required_scopes if scope not in granted and ADMIN_SCOPE not in granted
+        scope for scope in required_scopes if scope not in granted and not (admin_scopes & granted)
     )
     if missing:
         return ScopeDecision(
@@ -152,10 +165,33 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (VISUAL_READ_SCOPE,)
     if path_key == "/events/stream":
         return (VISUAL_STREAM_SCOPE,)
-    if path_key == "/squire/plan" or path_key == "/squire/routes":
-        return (SQUIRE_PLAN_SCOPE,)
-    if path_key.startswith("/squire/"):
-        return (SQUIRE_READ_SCOPE,)
+    if path_key.startswith("/compute/audit"):
+        return (COMPUTE_AUDIT_SCOPE,)
+    if path_key.startswith("/compute/providers") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if "/health-check" in path_key and path_key.startswith("/compute/providers"):
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if path_key.startswith("/compute/routes") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if path_key.startswith("/compute/policies") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_POLICY_ADMIN_SCOPE,)
+    if path_key.endswith("/validate") and path_key.startswith("/compute/policies"):
+        return (COMPUTE_POLICY_ADMIN_SCOPE,)
+    if path_key.startswith("/compute/decisions/") and path_key.endswith("/replay"):
+        return (COMPUTE_PLAN_SCOPE,)
+    if path_key in {
+        "/compute/plan",
+        "/compute/marketplace-plan",
+        "/compute/quote",
+        "/compute/route",
+        "/compute/payment-plan",
+        "/compute/simulate-settlement",
+        "/compute/economic-memory/query",
+        "/compute/decisions/{decision_id}/replay",
+    }:
+        return (COMPUTE_PLAN_SCOPE,)
+    if path_key.startswith("/compute/"):
+        return (COMPUTE_READ_SCOPE,)
     if normalized_method in READ_METHODS:
         return (READ_SCOPE,)
     return (WRITE_SCOPE,)

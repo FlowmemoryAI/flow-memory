@@ -28,13 +28,46 @@ from flow_memory.api.rl_endpoints import rl_benchmarks, rl_envs, rl_evaluate, rl
 from flow_memory.api.release_endpoints import release_decision_status, release_evidence_status
 from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
-from flow_memory.api.squire_endpoints import (
-    squire_docs_sources,
-    squire_memory_schema,
-    squire_plan,
-    squire_routes,
-    squire_skill_manifest,
-    squire_status,
+from flow_memory.api.compute_endpoints import (
+    compute_audit,
+    compute_audit_event,
+    compute_audit_verify,
+    compute_audit_checkpoint,
+    compute_audit_export,
+    compute_audit_verify_export,
+    compute_decision,
+    compute_decision_replay,
+    compute_economic_memory,
+    compute_economic_memory_anomalies,
+    compute_economic_memory_provider,
+    compute_economic_memory_query,
+    compute_economic_memory_route,
+    compute_economic_memory_summary,
+    compute_economic_memory_task,
+    compute_health,
+    compute_marketplace_plan,
+    compute_payment_plan,
+    compute_plan,
+    compute_policies,
+    compute_policy,
+    compute_policy_create,
+    compute_policy_update,
+    compute_policy_validate,
+    compute_provider,
+    compute_provider_create,
+    compute_provider_disable,
+    compute_provider_health,
+    compute_provider_update,
+    compute_providers,
+    compute_quote,
+    compute_readiness,
+    compute_route,
+    compute_route_create,
+    compute_route_disable,
+    compute_route_get,
+    compute_route_update,
+    compute_routes,
+    compute_simulate_settlement,
 )
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
@@ -389,24 +422,124 @@ class LocalApiRouter:
     def _dashboard_snapshot(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return dashboard_snapshot()
 
-    def _squire_status(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return squire_status()
+    def _compute_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "compute_plan_requested"})
+        return compute_plan(payload)
 
-    def _squire_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        self.audit_events.append({"event": "squire_plan_requested"})
-        return squire_plan(payload)
+    def _compute_marketplace_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        self.audit_events.append({"event": "compute_marketplace_plan_requested"})
+        return compute_marketplace_plan(payload)
 
-    def _squire_routes(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return squire_routes(payload)
+    def _compute_quote(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_quote(payload)
 
-    def _squire_memory_schema(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return squire_memory_schema()
+    def _compute_route(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_route(payload)
 
-    def _squire_docs_sources(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return squire_docs_sources()
+    def _compute_payment_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_payment_plan(payload)
 
-    def _squire_skill(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return squire_skill_manifest()
+    def _compute_simulate_settlement(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_simulate_settlement(payload)
+
+    def _compute_providers(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_providers(payload)
+
+    def _compute_provider(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider(params["provider_id"])
+
+    def _compute_provider_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider_create(payload)
+
+    def _compute_provider_update(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider_update(params["provider_id"], payload)
+
+    def _compute_provider_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider_disable(params["provider_id"], payload)
+
+    def _compute_provider_health(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider_health(params["provider_id"])
+
+    def _compute_routes(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_routes(payload)
+
+    def _compute_route_get(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_route_get(params["route_id"])
+
+    def _compute_route_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_route_create(payload)
+
+    def _compute_route_update(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_route_update(params["route_id"], payload)
+
+    def _compute_route_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_route_disable(params["route_id"], payload)
+
+    def _compute_policies(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_policies(payload)
+
+    def _compute_policy(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_policy(params["policy_id"])
+
+    def _compute_policy_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_policy_create(payload)
+
+    def _compute_policy_update(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_policy_update(params["policy_id"], payload)
+
+    def _compute_policy_validate(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_policy_validate(params["policy_id"], payload)
+
+    def _compute_economic_memory(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory(payload)
+
+    def _compute_economic_memory_query(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory_query(payload)
+
+    def _compute_economic_memory_summary(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory_summary(payload)
+
+    def _compute_economic_memory_anomalies(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory_anomalies(payload)
+
+    def _compute_economic_memory_provider(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory_provider(params["provider_id"], payload)
+
+    def _compute_economic_memory_route(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory_route(params["route_id"], payload)
+
+    def _compute_economic_memory_task(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_economic_memory_task(params["task_type"], payload)
+
+    def _compute_decision(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_decision(params["decision_id"])
+
+    def _compute_decision_replay(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_decision_replay(params["decision_id"], payload)
+
+    def _compute_audit(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit(payload)
+
+    def _compute_audit_event(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_event(params["audit_event_id"])
+
+    def _compute_audit_verify(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_verify(payload)
+    def _compute_audit_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_export(payload)
+
+    def _compute_audit_checkpoint(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_checkpoint(payload)
+
+    def _compute_audit_verify_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_verify_export(payload)
+
+
+    def _compute_health(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_health()
+
+    def _compute_readiness(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_readiness()
 
 
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -480,12 +613,45 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/release/evidence", router._release_evidence, "release_evidence")
     router.register("GET", "/release/decision/{target}", router._release_decision, "release_decision")
     router.register("GET", "/dashboard/snapshot", router._dashboard_snapshot, "dashboard_snapshot")
-    router.register("GET", "/squire/status", router._squire_status, "squire_status")
-    router.register("POST", "/squire/plan", router._squire_plan, "squire_plan")
-    router.register("POST", "/squire/routes", router._squire_routes, "squire_routes")
-    router.register("GET", "/squire/memory-schema", router._squire_memory_schema, "squire_memory_schema")
-    router.register("GET", "/squire/docs-sources", router._squire_docs_sources, "squire_docs_sources")
-    router.register("GET", "/squire/skill", router._squire_skill, "squire_skill")
+    router.register("POST", "/compute/plan", router._compute_plan, "compute_plan")
+    router.register("POST", "/compute/marketplace-plan", router._compute_marketplace_plan, "compute_marketplace_plan")
+    router.register("POST", "/compute/quote", router._compute_quote, "compute_quote")
+    router.register("POST", "/compute/route", router._compute_route, "compute_route")
+    router.register("POST", "/compute/payment-plan", router._compute_payment_plan, "compute_payment_plan")
+    router.register("POST", "/compute/simulate-settlement", router._compute_simulate_settlement, "compute_simulate_settlement")
+    router.register("GET", "/compute/providers", router._compute_providers, "compute_providers")
+    router.register("GET", "/compute/providers/{provider_id}", router._compute_provider, "compute_provider")
+    router.register("POST", "/compute/providers", router._compute_provider_create, "compute_provider_create")
+    router.register("PATCH", "/compute/providers/{provider_id}", router._compute_provider_update, "compute_provider_update")
+    router.register("POST", "/compute/providers/{provider_id}/disable", router._compute_provider_disable, "compute_provider_disable")
+    router.register("POST", "/compute/providers/{provider_id}/health-check", router._compute_provider_health, "compute_provider_health")
+    router.register("GET", "/compute/routes", router._compute_routes, "compute_routes")
+    router.register("GET", "/compute/routes/{route_id}", router._compute_route_get, "compute_route_get")
+    router.register("POST", "/compute/routes", router._compute_route_create, "compute_route_create")
+    router.register("PATCH", "/compute/routes/{route_id}", router._compute_route_update, "compute_route_update")
+    router.register("POST", "/compute/routes/{route_id}/disable", router._compute_route_disable, "compute_route_disable")
+    router.register("GET", "/compute/policies", router._compute_policies, "compute_policies")
+    router.register("GET", "/compute/policies/{policy_id}", router._compute_policy, "compute_policy")
+    router.register("POST", "/compute/policies", router._compute_policy_create, "compute_policy_create")
+    router.register("PATCH", "/compute/policies/{policy_id}", router._compute_policy_update, "compute_policy_update")
+    router.register("POST", "/compute/policies/{policy_id}/validate", router._compute_policy_validate, "compute_policy_validate")
+    router.register("GET", "/compute/economic-memory", router._compute_economic_memory, "compute_economic_memory")
+    router.register("GET", "/compute/economic-memory/summary", router._compute_economic_memory_summary, "compute_economic_memory_summary")
+    router.register("GET", "/compute/economic-memory/anomalies", router._compute_economic_memory_anomalies, "compute_economic_memory_anomalies")
+    router.register("GET", "/compute/economic-memory/providers/{provider_id}", router._compute_economic_memory_provider, "compute_economic_memory_provider")
+    router.register("GET", "/compute/economic-memory/routes/{route_id}", router._compute_economic_memory_route, "compute_economic_memory_route")
+    router.register("GET", "/compute/economic-memory/tasks/{task_type}", router._compute_economic_memory_task, "compute_economic_memory_task")
+    router.register("POST", "/compute/economic-memory/query", router._compute_economic_memory_query, "compute_economic_memory_query")
+    router.register("GET", "/compute/decisions/{decision_id}", router._compute_decision, "compute_decision")
+    router.register("POST", "/compute/decisions/{decision_id}/replay", router._compute_decision_replay, "compute_decision_replay")
+    router.register("GET", "/compute/audit", router._compute_audit, "compute_audit")
+    router.register("GET", "/compute/audit/verify", router._compute_audit_verify, "compute_audit_verify")
+    router.register("POST", "/compute/audit/export", router._compute_audit_export, "compute_audit_export")
+    router.register("POST", "/compute/audit/checkpoint", router._compute_audit_checkpoint, "compute_audit_checkpoint")
+    router.register("POST", "/compute/audit/verify-export", router._compute_audit_verify_export, "compute_audit_verify_export")
+    router.register("GET", "/compute/audit/{audit_event_id}", router._compute_audit_event, "compute_audit_event")
+    router.register("GET", "/compute/health", router._compute_health, "compute_health")
+    router.register("GET", "/compute/readiness", router._compute_readiness, "compute_readiness")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

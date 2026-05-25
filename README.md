@@ -26,7 +26,7 @@ python scripts/test_full_system.py --quick --json-out artifacts/full_system/quic
 python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json
-python scripts/squire_goal.py --goal "UsePod routing with budget controls and no surprise fallback"
+python scripts/compute_market.py --task "run agent batch inference" --marketplace-only --asset USDC --network solana --max-total-cost 10
 ```
 
 Neural and RL models advise. Policy and approval gates remain authoritative.
@@ -59,11 +59,43 @@ The project now combines:
 - sandbox hardening interfaces
 - MCP/A2A/libp2p protocol seams
 - dashboard scaffold and CI workflows
-- Squire/UsePod/Level5 control-plane seams for agentic compute routing
+- Flow Memory Compute Market production-planning seams for provider registry, route selection, quote normalization, policy enforcement, durable economic memory, audit logs, observability, and dry-run payment planning
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
 Flow Memory is production-shaped, not production-certified, not audited, and not mainnet-ready. It does not claim audited contracts, hardened sandboxing, production API authentication, safe real-funds custody, or trained ML model performance.
+
+## Flow Memory Compute Market Production Planning Release
+
+Flow Memory Compute Market gives AI agents economic memory for compute.
+
+Flow Memory Compute Market gives agents economic memory for compute.
+
+Instead of treating inference as an opaque token bill, Flow Memory models provider routes, normalizes compute quotes, enforces budget policy, simulates dry-run payment intents, and remembers which compute decisions were worth it in durable economic memory.
+
+It supports:
+
+- production-grade compute planning
+- provider registry
+- route selection
+- quote normalization
+- policy enforcement
+- durable economic memory
+- audit logs
+- observability
+- dry-run payment planning
+- decision replay
+- provider health checks
+- admin-safe provider, route, and policy operations
+
+It does not enable live settlement by default.
+
+Safety copy:
+All payment and settlement flows are dry-run by default. Flow Memory does not accept private keys, does not move funds, and does not broadcast transactions unless a future live-settlement mode is explicitly enabled through documented security gates.
+
+Flow Memory Compute Market Alpha surfaces remain backward compatible for existing `/compute/*` and `flow-memory compute` callers.
+All payment and settlement flows are dry-run only. Flow Memory does not handle private keys, does not move funds, and does not broadcast transactions in this release.
+production compute futures require separate legal, security, and compliance review.
 
 ## Install
 
@@ -160,7 +192,7 @@ Observed during the public-alpha RC1 preflight build:
 - `docs/SANDBOX_HARDENING.md`
 - `docs/PROTOCOL_GATEWAYS.md`
 - `docs/THREAT_MODEL.md`
-- `docs/SQUIRE_GOAL.md`
+- `docs/COMPUTE_MARKET.md`
 - `docs/PRODUCTION_READINESS.md`
 - `BUILD_REPORT.md`
 - `FLOW_MEMORY_STATUS.md`
@@ -175,7 +207,7 @@ Observed during the public-alpha RC1 preflight build:
 - Sandbox hardening includes profiles, receipts, policy checks, and an optional Docker backend seam; default local sandboxing is not hardened isolation.
 - Protocol gateways are local/offline-safe seams, not production transports.
 - Dashboard is a typed mock API scaffold, not a live operator console.
-- Squire integration is a local planning/routing seam; it does not redeem SQUIRE tokens, move funds, or call live billing APIs by default.
+- Flow Memory Compute Market is production-planning infrastructure; it does not move funds, accept private keys, broadcast transactions, or imply live settlement by default.
 
 
 ## Neural Agent Layer v1

@@ -13,7 +13,7 @@ from flow_memory.network.topology import LocalNetworkTopology, default_topology
 from flow_memory.rl.envs.safety_gate_env import SafetyGateEnv
 from flow_memory.rl.trainer import SimpleQLearningTrainer
 from flow_memory.visualization import VisualEvent, reduce_visual_events, visual_event
-from flow_memory.visualization.adapters import agent_participants_to_visual_events, economy_receipts_to_visual_events, economy_records_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
+from flow_memory.visualization.adapters import agent_participants_to_visual_events, economy_receipts_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
 
 
 @dataclass

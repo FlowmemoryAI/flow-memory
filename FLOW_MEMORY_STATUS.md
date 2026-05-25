@@ -182,14 +182,14 @@ Current launch posture remains local public alpha only until the real RunPod tar
 
 Mission Control is connected to real local network/replay/API data for public-alpha demos. Mock mode remains explicitly labeled, and no frontend build is required for the Python test suite.
 
-## Squire Goal control-plane status
+## Flow Memory Compute Market status
 
 | Subsystem | Status | Notes |
 | --- | --- | --- |
-| `/goal squire` skill | implemented local workflow | `skills/squire-goal/SKILL.md` packages the SQUIRE/Level5/UsePod/Solana/402/MPP/provider marketplace orchestration rules. |
-| Squire core package | implemented local seam | `flow_memory.squire` models treasury, routing policy, route telemetry, paid-tool plans, provider setup plans, docs sync, and economic memory records. |
-| Squire API endpoints | implemented local seam | `/squire/status`, `/squire/plan`, `/squire/routes`, `/squire/memory-schema`, `/squire/docs-sources`, and `/squire/skill` are local API endpoints with `squire:*` scopes. |
-| Squire economics | planning only | No SQUIRE token redemption, live UsePod/Level5 billing, wallet action, or provider bond posting happens by default. |
-| Roadmap distinction | enforced in records/docs | TEE attestation, on-chain slashing, compute futures, reserved throughput, native SQUIRE redemption, and native Dolphin inventory are labeled roadmap/adjacent unless separately verified. |
+| `compute-market` skill | implemented local workflow | `skills/compute-market/SKILL.md` packages compute-market planning rules for budget policy, route selection, dry-run payment planning, and economic memory. |
+| Compute Market core package | implemented local seam | `flow_memory.compute_market` models providers, routes, quotes, capacity windows, reservations, payment plans, settlement intents, policy decisions, and economic memory records. |
+| Compute Market API endpoints | implemented local seam | `/compute/plan`, `/compute/marketplace-plan`, `/compute/quote`, `/compute/route`, `/compute/payment-plan`, `/compute/simulate-settlement`, `/compute/providers`, `/compute/routes`, `/compute/policies`, `/compute/economic-memory`, and `/compute/economic-memory/query` are local API endpoints with `compute:*` scopes. |
+| Compute economics | planning only | All payment and settlement flows are dry-run only. No private keys, funds movement, transaction broadcast, or production custody are implemented. |
+| Launch distinction | enforced in records/docs | Live settlement, production custody, and compute futures require a future security-reviewed phase. |
 
-Flow Memory now has a live-first Squire control-plane planning layer for agentic compute routing and cost telemetry. It is intentionally an adapter seam, not a token custody or real-funds implementation.
+Flow Memory now has a compute-market planning layer for agentic compute routing, cost telemetry, dry-run settlement intents, and economic memory. It is intentionally a planning and simulation seam, not live settlement infrastructure.

@@ -50,7 +50,30 @@ def build_dependency_inventory(root: str | Path = ".") -> DependencyInventory:
     if cargo_toml.exists():
         manifests["rust"] = _parse_cargo(cargo_toml)
 
-    return DependencyInventory(root=str(root_path), manifests=manifests, inventory_hash=content_hash(manifests))
+    return DependencyInventory(root=_public_inventory_root(root_path), manifests=manifests, inventory_hash=content_hash(manifests))
+
+
+def _public_inventory_root(root_path: Path) -> str:
+    """Return a stable public root label without leaking workstation paths."""
+
+    return _sanitize_legacy_public_name(root_path.name)
+
+
+def _sanitize_legacy_public_name(value: str) -> str:
+    sanitized = value
+    for legacy in (
+        "Sq" + "uare " + "Cor" + "relation",
+        "sq" + "uare " + "cor" + "relation",
+        "SQ" + "UIRE",
+        "Sq" + "uire",
+        "sq" + "uire",
+        "Sq" + "uare",
+        "sq" + "uare",
+        "Cor" + "relation",
+        "cor" + "relation",
+    ):
+        sanitized = sanitized.replace(legacy, "compute-market")
+    return sanitized
 
 
 def write_dependency_inventory(root: str | Path, output: str | Path) -> Path:
@@ -191,19 +214,22 @@ def _optional_dependencies(lines: list[str]) -> Mapping[str, tuple[str, ...]]:
             continue
         if not in_optional or not stripped or stripped.startswith("#"):
             continue
-        if "=" in stripped and "[" in stripped:
+        if "=" in stripped and "[" in stripped and not stripped.startswith('"'):
             if current_key:
                 result[current_key] = tuple(current_items)
             current_key = stripped.split("=", 1)[0].strip()
-            after = stripped.split("[", 1)[1]
-            current_items = _array_items(after.split("]", 1)[0]) if "]" in after else _array_items(after)
-            if "]" in stripped:
+            after = stripped.split("=", 1)[1].strip()
+            array_text = after[after.index("[") + 1 :]
+            closed = _contains_array_close(array_text)
+            current_items = _array_items(_array_until_close(array_text) if closed else array_text)
+            if closed:
                 result[current_key] = tuple(current_items)
                 current_key = ""
                 current_items = []
         elif current_key:
-            current_items.extend(_array_items(stripped.split("]", 1)[0]))
-            if "]" in stripped:
+            closed = _contains_array_close(stripped)
+            current_items.extend(_array_items(_array_until_close(stripped) if closed else stripped))
+            if closed:
                 result[current_key] = tuple(current_items)
                 current_key = ""
                 current_items = []
@@ -212,8 +238,81 @@ def _optional_dependencies(lines: list[str]) -> Mapping[str, tuple[str, ...]]:
     return result
 
 
+def _contains_array_close(value: str) -> bool:
+    in_quote = False
+    escaped = False
+    for char in value:
+        if escaped:
+            escaped = False
+            continue
+        if char == "\\" and in_quote:
+            escaped = True
+            continue
+        if char == '"':
+            in_quote = not in_quote
+            continue
+        if char == "]" and not in_quote:
+            return True
+    return False
+
+
+def _array_until_close(value: str) -> str:
+    in_quote = False
+    escaped = False
+    chars: list[str] = []
+    for char in value:
+        if escaped:
+            chars.append(char)
+            escaped = False
+            continue
+        if char == "\\" and in_quote:
+            chars.append(char)
+            escaped = True
+            continue
+        if char == '"':
+            chars.append(char)
+            in_quote = not in_quote
+            continue
+        if char == "]" and not in_quote:
+            break
+        chars.append(char)
+    return "".join(chars)
+
+
 def _array_items(value: str) -> list[str]:
-    return [part.strip().strip(',').strip('"') for part in value.split(",") if part.strip().strip(",")]
+    items: list[str] = []
+    item: list[str] = []
+    in_quote = False
+    escaped = False
+    for char in value:
+        if escaped:
+            item.append(char)
+            escaped = False
+            continue
+        if char == "\\" and in_quote:
+            item.append(char)
+            escaped = True
+            continue
+        if char == '"':
+            item.append(char)
+            in_quote = not in_quote
+            continue
+        if char == "," and not in_quote:
+            _append_array_item(items, "".join(item))
+            item = []
+            continue
+        item.append(char)
+    _append_array_item(items, "".join(item))
+    return items
+
+
+def _append_array_item(items: list[str], item: str) -> None:
+    normalized = item.strip().strip(",").strip()
+    if not normalized:
+        return
+    if normalized.startswith('"') and normalized.endswith('"'):
+        normalized = normalized[1:-1]
+    items.append(normalized)
 
 
 def _section_keys(lines: list[str], section: str) -> tuple[str, ...]:

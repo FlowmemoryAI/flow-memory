@@ -1,0 +1,91 @@
+{
+  "format": "flow-memory-compute-market-hardening-evidence-v1",
+  "release_label": "Flow Memory Compute Market Production Planning Release with Hardened Audit and Provider Safety",
+  "production_launch_verdict": "ready_for_production_planning_deployment",
+  "live_settlement_enabled": false,
+  "live_settlement_production_ready": false,
+  "changed_surface_summary": [
+    "src/flow_memory/compute_market storage/config/controls/adapters/service/models/planner hardening",
+    "src/flow_memory/api compute audit verify route and manifest updates",
+    "src/flow_memory/cli audit verify and compute smoke path updates",
+    "tests/test_compute_market_storage.py",
+    "tests/test_compute_market_rate_limits.py",
+    "tests/test_compute_market_audit.py",
+    "tests/test_compute_market_provider_adapters.py",
+    "docs/COMPUTE_MARKET.md",
+    "docs/ops/COMPUTE_MARKET_DEPLOYMENT.md",
+    "docs/ops/COMPUTE_MARKET_PRODUCTION_CHECKLIST.md",
+    "docs/security/COMPUTE_MARKET_THREAT_MODEL.md",
+    "docs/security/COMPUTE_MARKET_LIVE_SETTLEMENT_GATES.md",
+    "docs/compliance/COMPUTE_MARKET_RISK_NOTES.md",
+    "docs/API_SNAPSHOT.json",
+    "docs/openapi/flow-memory.openapi.json"
+  ],
+  "verification": {
+    "pytest": "583 passed, 17 skipped in 85.20s (0:01:25)",
+    "ruff": "OK",
+    "full_mypy": "fails: Found 551 errors in 267 files (checked 729 source files); categories are legacy tests missing annotations, neural training typing debt, release/network tuple typing, protocol export/no-redef issues, web3 helper annotations, and unrelated storage/test optional typing",
+    "production_mypy": "OK for src/flow_memory/compute_market src/flow_memory/api/compute_endpoints.py",
+    "expanded_compute_mypy": "OK for compute_market, compute_endpoints, and new hardening tests",
+    "hardening_tests": "38 passed in 7.59s",
+    "api_smoke": "6 passed in 2.27s",
+    "cli_smoke": "flow-memory console script readiness/health/providers/routes/policies/plan/audit/audit verify all exited 0 with ok=True",
+    "git_diff_check": "exit 0 with CRLF warnings for dashboard/src/mock-data/local-network-replay.json and docs/openapi/flow-memory.openapi.json",
+    "naming_audit": "acceptable hits only: checklist command text, geometric square in synthetic dataset, tests proving legacy naming absent",
+    "safety_audit": "acceptable hits only: safety docs, rejection lists, dry-run settlement simulation, disabled broadcast flags, tests, and gate documentation",
+    "release_evidence_verify": "ok=true; bundle_hash=fdd647e97e6aebad6a607cda2434a07cb4da4ef1e89b6585046c2ea688336fea"
+  },
+  "implemented_controls": {
+    "storage": [
+      "FLOW_MEMORY_COMPUTE_DATABASE_URL",
+      "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND",
+      "FLOW_MEMORY_COMPUTE_STORAGE_POOL_SIZE",
+      "FLOW_MEMORY_COMPUTE_STORAGE_TIMEOUT_MS",
+      "FLOW_MEMORY_COMPUTE_MIGRATIONS_ENABLED",
+      "SQLite URL handling",
+      "migration status reporting",
+      "managed SQL/PostgreSQL schema notes"
+    ],
+    "rate_limits_and_circuits": [
+      "RateLimiter protocol",
+      "InMemoryRateLimiter",
+      "DistributedRateLimiter scaffold",
+      "CircuitBreaker protocol",
+      "InMemoryCircuitBreaker",
+      "DistributedCircuitBreaker scaffold",
+      "planning skips open-circuit providers",
+      "rate-limited requests audit events"
+    ],
+    "audit_integrity": [
+      "previous_hash",
+      "event_hash",
+      "hash_algorithm",
+      "chain_id",
+      "sequence_number",
+      "canonical_payload_hash",
+      "audit chain verification",
+      "GET /compute/audit/verify",
+      "flow-memory compute audit verify --json"
+    ],
+    "http_provider_hardening": [
+      "explicit enabled flag",
+      "allowlist and scheme validation",
+      "private/local network SSRF protection",
+      "redirect rejection",
+      "timeout/retry",
+      "max response size",
+      "JSON shape validation",
+      "secret header injection without logging",
+      "typed quote-field filtering",
+      "stale/unknown-price status classification"
+    ]
+  },
+  "known_limitations": [
+    "Live settlement remains disabled and is not production-ready.",
+    "No private-key custody, signing service, or transaction broadcast is implemented.",
+    "Full repo mypy still fails in legacy/non-production areas.",
+    "SQLite remains the concrete bundled store; managed SQL deployment requires adapter/infrastructure integration.",
+    "Distributed rate limiter/circuit breaker scaffolds exist but require an injected backend in multi-node production.",
+    "Audit hash chaining is tamper-evident, not WORM storage."
+  ]
+}

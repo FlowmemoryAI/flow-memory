@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from flow_memory.storage import SQLiteStore, create_backup, restore_backup, validate_backup, write_backup
+from flow_memory.storage import SQLiteStore, create_backup, restore_backup, validate_backup
 
 
 class StorageBackupTests(unittest.TestCase):

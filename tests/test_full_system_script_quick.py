@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-from scripts.test_full_system import ROOT as SCRIPT_ROOT, full_checks
+from scripts.test_full_system import ROOT as SCRIPT_ROOT, full_checks  # noqa: E402
 
 
 def test_full_system_quick_report_passes(tmp_path):

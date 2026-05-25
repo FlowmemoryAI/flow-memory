@@ -1,11 +1,11 @@
 {
-  "inventory_hash": "3b100928010ae1e55bfaa97eb06b7290ddf5a03a9b3c9b99c1912f2e87220c2a",
+  "inventory_hash": "6518d46f3ca9259dba6fd9bd76ea567d90dce0a34177384a80dc80cbb0e67729",
   "manifests": {
     "dashboard": {
       "dependencies": {},
       "dev_dependencies": {},
       "name": "@flow-memory/dashboard",
-      "path": "dashboard/package.json",
+      "path": "package.json",
       "private": true,
       "version": "0.0.0"
     },
@@ -19,6 +19,7 @@
           "redis>=5.0",
           "qdrant-client>=1.9",
           "neo4j>=5.20",
+          "psycopg[binary,pool]>=3.1",
           "web3>=6.20",
           "eth-account>=0.11",
           "langgraph>=0.2"
@@ -40,6 +41,9 @@
           "torch>=2.2",
           "numpy>=1.26"
         ],
+        "postgres": [
+          "psycopg[binary,pool]>=3.1"
+        ],
         "web3": [
           "web3>=6.20",
           "eth-account>=0.11"
@@ -53,9 +57,9 @@
       "dependencies": [],
       "edition": "2021",
       "name": "flow-memory-core",
-      "path": "rust/flow-memory-core/Cargo.toml",
+      "path": "Cargo.toml",
       "version": "0.1.0"
     }
   },
-  "root": "E:\\FlowMemory\\flow-memory"
+  "root": "flow-memory-compute-market-v2"
 }

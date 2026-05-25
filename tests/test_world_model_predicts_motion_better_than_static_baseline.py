@@ -2,7 +2,7 @@ import pytest
 
 
 def test_tiny_world_model_static_baseline_contract():
-    torch = pytest.importorskip("torch")
+    pytest.importorskip("torch")
     from flow_memory.neural.perception.dual_stream import TinyDualStreamEncoder
     from flow_memory.neural.training.synthetic_motion_dataset import SyntheticMotionDataset
     from flow_memory.neural.world_model.jepa import TinyJEPAWorldModel

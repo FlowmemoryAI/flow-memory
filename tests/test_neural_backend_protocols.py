@@ -1,4 +1,3 @@
-from typing import get_type_hints
 
 from flow_memory.neural.backends.base import NeuralVideoBackend
 

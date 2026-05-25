@@ -151,6 +151,9 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
         def do_POST(self) -> None:  # noqa: N802 - stdlib method name
             self._handle()
 
+        def do_PATCH(self) -> None:  # noqa: N802 - stdlib method name
+            self._handle()
+
         def do_HEAD(self) -> None:  # noqa: N802 - stdlib method name
             self._handle(head_only=True)
 

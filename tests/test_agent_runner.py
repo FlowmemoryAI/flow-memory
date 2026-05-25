@@ -1,6 +1,6 @@
 import unittest
 
-from flow_memory.agents import RiskBudget, create_agent_profile, run_agent_cycle
+from flow_memory.agents import create_agent_profile, run_agent_cycle
 
 
 class AgentRunnerTests(unittest.TestCase):

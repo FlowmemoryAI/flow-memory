@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from flow_memory import Agent
@@ -13,11 +14,13 @@ from flow_memory.protocols import CapabilityManifest
 from flow_memory.flowlang import run_flowlang_agent
 from flow_memory.agents.neural_binding import AgentNeuralBinding
 from flow_memory.agents.profile import AgentProfile
+from flow_memory.compute_market.service import default_service
+from flow_memory.compute_market.provider_contracts import validate_provider_contract_file
 
 
 def _json_default(value: Any) -> str:
     try:
-        return value.isoformat()
+        return str(value.isoformat())
     except AttributeError:
         return repr(value)
 
@@ -71,10 +74,182 @@ def _manifest(argv: list[str]) -> int:
     return 0
 
 
+def _compute(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="flow-memory compute",
+        description=(
+            "Flow Memory Compute Market production-planning CLI. Dry-run only by default: "
+            "no private keys, no funds moved, no transaction broadcast."
+        ),
+        epilog='Example: flow-memory compute plan --task "run agent batch inference" --marketplace-only --asset USDC --network solana --dry-run --json',
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    planning_commands = ("plan", "quote", "route", "payment-plan", "simulate-settlement")
+    for name in planning_commands:
+        sub = subparsers.add_parser(name, help=f"Run compute-market {name} planning")
+        _add_compute_common_args(sub)
+    for name in ("providers", "routes", "policies", "economic-memory", "health", "readiness"):
+        sub = subparsers.add_parser(name, help=f"Inspect compute-market {name}")
+        _add_compute_query_args(sub)
+    provider_health = subparsers.add_parser("provider-health", help="Run a provider health check")
+    _add_compute_query_args(provider_health)
+    audit = subparsers.add_parser("audit", help="Inspect compute-market audit events or verify audit hash chains")
+    _add_compute_query_args(audit)
+    audit.add_argument("audit_action", nargs="?", default="")
+    audit.add_argument("--chain-id", default="all")
+    audit.add_argument("--out", default="")
+    audit.add_argument("--path", default="")
+    audit.add_argument("--from-sequence", type=int, default=1)
+    audit.add_argument("--to-sequence", type=int, default=0)
+    replay = subparsers.add_parser("replay-decision", help="Replay a past compute route decision")
+    _add_compute_query_args(replay)
+    replay.add_argument("decision_id")
+    contract = subparsers.add_parser("provider-contract", help="Validate compute provider quote contracts")
+    contract.add_argument("contract_action", choices=("validate",), help="Provider contract action")
+    contract.add_argument("file", help="Quote JSON file to validate")
+    contract.add_argument("--json", action="store_true", help="Print JSON output")
+    contract.add_argument("--provider", default="")
+    args = parser.parse_args(argv)
+    service = default_service()
+    payload = _compute_payload(args)
+    try:
+        if args.command == "providers":
+            output = service.list_providers(payload)
+        elif args.command == "provider-health":
+            output = service.provider_health(str(args.provider))
+        elif args.command == "routes":
+            output = service.list_routes(payload)
+        elif args.command == "policies":
+            output = service.list_policies(payload)
+        elif args.command == "economic-memory":
+            output = service.economic_memory_query(payload)
+        elif args.command == "audit":
+            action = str(getattr(args, "audit_action", ""))
+            if action == "verify":
+                output = service.audit_verify(payload)
+            elif action == "export":
+                output = service.audit_export(payload)
+            elif action == "checkpoint":
+                output = service.audit_checkpoint(payload)
+            elif action == "verify-export":
+                output = service.audit_verify_export(payload)
+            else:
+                output = service.audit(payload)
+        elif args.command == "health":
+            output = service.health()
+        elif args.command == "readiness":
+            output = service.readiness()
+        elif args.command == "replay-decision":
+            output = service.replay_decision(str(args.decision_id), payload)
+        elif args.command == "provider-contract":
+            output = validate_provider_contract_file(Path(str(args.file)), provider_id=str(getattr(args, "provider", "")))
+        elif args.command == "quote":
+            output = service.quote(payload)
+        elif args.command == "route":
+            output = service.route(payload)
+        elif args.command == "payment-plan":
+            output = service.payment_plan(payload)
+        elif args.command == "simulate-settlement":
+            output = service.simulate_settlement(payload)
+        else:
+            output = service.plan(payload)
+    except ValueError as exc:
+        output = {
+            "ok": False,
+            "error": {
+                "message": str(exc),
+                "reason_code": "validation_error",
+                "next_safe_action": "remove unsafe fields or correct compute planning options",
+                "request_id": payload.get("request_id", ""),
+            },
+        }
+        print(json.dumps(output, indent=2, sort_keys=True, default=_json_default))
+        return 2
+    print(json.dumps(output, indent=2, sort_keys=True, default=_json_default))
+    if not bool(output.get("ok", True)):
+        allow_no_route = bool(getattr(args, "allow_no_route", False))
+        no_route = "no_valid_route" in json.dumps(output, default=str)
+        return 0 if allow_no_route and no_route else 1
+    plan = output.get("compute_plan")
+    if isinstance(plan, dict) and not bool(plan.get("ok", True)):
+        allow_no_route = bool(getattr(args, "allow_no_route", False))
+        no_route = "no_valid_route" in json.dumps(plan, default=str)
+        return 0 if allow_no_route and no_route else 1
+    return 0
+
+
+def _add_compute_common_args(sub: argparse.ArgumentParser) -> None:
+    _add_compute_query_args(sub)
+    sub.add_argument("--task", default="plan compute for agent task")
+    sub.add_argument("--marketplace-only", action="store_true")
+    sub.add_argument("--asset", action="append", default=[])
+    sub.add_argument("--network", action="append", default=[])
+    sub.add_argument("--max-total-cost", type=float, default=0.0)
+    sub.add_argument("--max-unit-price", type=float, default=0.0)
+    sub.add_argument("--selection-strategy", "--strategy", dest="selection_strategy", default="balanced")
+    sub.add_argument("--scenario", default="provider_quote_available")
+    sub.add_argument("--dry-run", action="store_true", default=True)
+    sub.add_argument("--allow-unknown-price", action="store_true")
+    sub.add_argument("--allow-stale-quote", action="store_true")
+    sub.add_argument("--fallback-denied", action="store_true")
+    sub.add_argument("--allow-no-route", action="store_true")
+
+
+def _add_compute_query_args(sub: argparse.ArgumentParser) -> None:
+    sub.add_argument("--json", action="store_true", help="Print JSON output")
+    sub.add_argument("--request-id", default="")
+    sub.add_argument("--idempotency-key", default="")
+    sub.add_argument("--agent-id", default="")
+    sub.add_argument("--goal-id", default="")
+    sub.add_argument("--policy", default="")
+    sub.add_argument("--provider", default="")
+    sub.add_argument("--route", default="")
+    sub.add_argument("--limit", type=int, default=100)
+    sub.add_argument("--cursor", default="")
+
+
+def _compute_payload(args: Any) -> dict[str, Any]:
+    policy = {
+        "policy_id": str(getattr(args, "policy", "") or "default-compute-market-policy"),
+        "marketplace_only": bool(getattr(args, "marketplace_only", False)),
+        "dry_run_required": bool(getattr(args, "dry_run", True)),
+        "fallback_allowed": not bool(getattr(args, "fallback_denied", False)),
+        "max_total_cost": float(getattr(args, "max_total_cost", 0.0) or 0.0),
+        "max_unit_price": float(getattr(args, "max_unit_price", 0.0) or 0.0),
+        "allowed_assets": tuple(getattr(args, "asset", ()) or ()),
+        "allowed_networks": tuple(getattr(args, "network", ()) or ()),
+        "allow_unknown_price": bool(getattr(args, "allow_unknown_price", False)),
+        "allow_stale_quote": bool(getattr(args, "allow_stale_quote", False)),
+    }
+    return {
+        "task": str(getattr(args, "task", "plan compute for agent task")),
+        "agent_id": str(getattr(args, "agent_id", "")),
+        "goal_id": str(getattr(args, "goal_id", "")),
+        "request_id": str(getattr(args, "request_id", "")),
+        "idempotency_key": str(getattr(args, "idempotency_key", "")),
+        "provider_id": str(getattr(args, "provider", "")),
+        "route_id": str(getattr(args, "route", "")),
+        "policy": policy,
+        "selection_strategy": str(getattr(args, "selection_strategy", "balanced")),
+        "provider_constraints": (str(getattr(args, "provider", "")),) if getattr(args, "provider", "") else (),
+        "scenario": str(getattr(args, "scenario", "provider_quote_available")),
+        "limit": int(getattr(args, "limit", 100) or 100),
+        "cursor": str(getattr(args, "cursor", "")),
+        "chain_id": str(getattr(args, "chain_id", "")),
+        "out": str(getattr(args, "out", "")),
+        "path": str(getattr(args, "path", "")),
+        "from_sequence": int(getattr(args, "from_sequence", 1) or 1),
+        "to_sequence": int(getattr(args, "to_sequence", 0) or 0),
+        "dry_run": True,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "manifest":
         return _manifest(argv[1:])
+    if argv and argv[0] == "compute":
+        return _compute(argv[1:])
     if argv and argv[0] == "run":
         argv = argv[1:]
 

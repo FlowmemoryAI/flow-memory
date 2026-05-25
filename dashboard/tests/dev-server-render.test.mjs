@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { dashboardHtml, createMissionControlDevServer } from "../scripts/dev-server.mjs";
+import http from "node:http";
+import { dashboardHtml, createMissionControlDevServer, startMissionControlDevServer } from "../scripts/dev-server.mjs";
 
 const html = dashboardHtml();
 
@@ -29,5 +30,39 @@ assert.doesNotMatch(html, /POST \/compute\//);
 const server = createMissionControlDevServer();
 assert.equal(typeof server.listen, "function");
 server.close();
+
+async function listenAtOrAbove(startPort) {
+  for (let candidate = startPort; candidate < startPort + 100; candidate += 1) {
+    const candidateServer = http.createServer((_, res) => {
+      res.writeHead(200, { "content-type": "text/plain" });
+      res.end("occupied");
+    });
+    const started = await new Promise((resolve) => {
+      candidateServer.once("error", () => resolve(false));
+      candidateServer.listen(candidate, "127.0.0.1", () => resolve(true));
+    });
+    if (started) return { server: candidateServer, port: candidate };
+  }
+  throw new Error("No available local test port found");
+}
+
+const occupied = await listenAtOrAbove(31000);
+const logs = [];
+const started = await startMissionControlDevServer({
+  port: occupied.port,
+  host: "127.0.0.1",
+  maxAttempts: 100,
+  log: (message) => logs.push(message),
+});
+try {
+  assert.notEqual(started.port, occupied.port);
+  assert.match(logs.join("\n"), /already in use; trying/);
+  const response = await fetch(started.url);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /Mission Control for verified work memory/);
+} finally {
+  started.server.close();
+  occupied.server.close();
+}
 
 console.log("mission control dev server renders real dashboard ok");

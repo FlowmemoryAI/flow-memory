@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projectRoot = path.resolve(root, '..');
 const port = Number(process.env.PORT || 4173);
+const host = process.env.HOST || '127.0.0.1';
 const mockDataDir = path.join(root, 'src', 'mock-data');
 const stylePath = path.join(root, 'src', 'styles', 'mission-control.css');
 
@@ -491,9 +492,51 @@ export function createMissionControlDevServer() {
   });
 }
 
+export function startMissionControlDevServer(options = {}) {
+  const preferredPort = Number(options.port ?? port);
+  const listenHost = String(options.host ?? host);
+  const maxAttempts = Number(options.maxAttempts ?? 20);
+  const log = typeof options.log === 'function' ? options.log : console.log;
+
+  return new Promise((resolve, reject) => {
+    const tryListen = (candidatePort, attemptIndex) => {
+      const server = createMissionControlDevServer();
+
+      server.once('error', (error) => {
+        if (
+          error?.code === 'EADDRINUSE' &&
+          Number.isInteger(candidatePort) &&
+          candidatePort > 0 &&
+          candidatePort < 65535 &&
+          attemptIndex + 1 < maxAttempts
+        ) {
+          const nextPort = candidatePort + 1;
+          log(`Port ${candidatePort} is already in use; trying ${nextPort}.`);
+          tryListen(nextPort, attemptIndex + 1);
+          return;
+        }
+        reject(error);
+      });
+
+      server.once('listening', () => {
+        const address = server.address();
+        const actualPort = typeof address === 'object' && address ? address.port : candidatePort;
+        const url = `http://${listenHost}:${actualPort}/mission-control`;
+        log(`Flow Memory Mission Control dev server: ${url}`);
+        resolve({ server, host: listenHost, port: actualPort, url });
+      });
+
+      server.listen(candidatePort, listenHost);
+    };
+
+    tryListen(preferredPort, 0);
+  });
+}
+
 const entryPoint = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (entryPoint === fileURLToPath(import.meta.url)) {
-  createMissionControlDevServer().listen(port, '127.0.0.1', () => {
-    console.log(`Flow Memory Mission Control dev server: http://127.0.0.1:${port}/mission-control`);
+  startMissionControlDevServer().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
   });
 }

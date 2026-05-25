@@ -376,26 +376,59 @@ function renderInteractive3DHero(payload) {
   const embodiment = payload?.embodiment || {};
   const gpuStatus = embodiment.gpu_evidence_status || 'verified';
   const phase = embodiment.current_loop_phase || 'observed';
+  const stories = [
+    {
+      mode: 'swarm',
+      visual: 'Agent swarm',
+      title: 'Human work enters',
+      copy: 'Local run events gather as a living field before anything is committed.',
+    },
+    {
+      mode: 'contact',
+      visual: 'Contact mesh',
+      title: 'Proof resolves',
+      copy: 'GPU evidence and policy checks compress the swarm into a legible proof surface.',
+    },
+    {
+      mode: 'manim',
+      visual: 'Manim path',
+      title: 'Memory persists',
+      copy: 'The verified run becomes a geometric memory path operators can replay and trust.',
+    },
+  ];
+  const steps = stories.map((story, index) => `
+        <li>
+          <button type="button" data-3d-mode="${story.mode}" data-active="${index === 0}" data-story-title="${text(story.title)}" data-story-copy="${text(story.copy)}" data-story-label="${text(story.visual)}">
+            <span>${text(story.visual)}</span>
+            <strong>${text(story.title)}</strong>
+            <small>${text(story.copy)}</small>
+          </button>
+        </li>`).join('');
   return `
     <aside class="mission-3d-visualizer" aria-label="Interactive Flow Memory 3D visualization">
-      <div class="mission-3d-canvas-frame" data-3d-ready="pending">
+      <div class="mission-3d-canvas-frame" data-3d-ready="pending" data-story-mode="swarm">
         <canvas id="mission-3d-canvas" aria-label="Interactive 3D memory field. Drag to rotate and scroll to zoom."></canvas>
-        <div class="mission-3d-fallback">Loading interactive memory field</div>
+        <div class="mission-3d-fallback">Loading visual story field</div>
         <div class="mission-3d-overlay">
-          <strong>Interactive memory field</strong>
-          <span>Drag to rotate · Scroll to zoom · Local replay only</span>
+          <strong>Watch work become memory</strong>
+          <span>Drag to rotate · Scroll to zoom · Story cycles locally</span>
         </div>
         <div class="mission-3d-status">
           <span>GPU evidence ${text(gpuStatus)}</span>
           <span>Phase ${text(phase)}</span>
         </div>
+        <div class="mission-3d-story-readout" aria-live="polite">
+          <span data-story-label>${text(stories[0].visual)}</span>
+          <strong data-story-title>${text(stories[0].title)}</strong>
+          <p data-story-copy>${text(stories[0].copy)}</p>
+        </div>
+        <div class="mission-3d-callout mission-3d-callout-source">Human work traces</div>
+        <div class="mission-3d-callout mission-3d-callout-proof">Proof mesh resolves</div>
+        <div class="mission-3d-callout mission-3d-callout-memory">Durable memory path</div>
       </div>
-      <div class="mission-3d-controls" role="tablist" aria-label="3D visualization modes">
-        <button type="button" data-3d-mode="swarm" data-active="true">Agent swarm</button>
-        <button type="button" data-3d-mode="contact" data-active="false">Contact mesh</button>
-        <button type="button" data-3d-mode="manim" data-active="false">Manim path</button>
-      </div>
-      <p class="mission-3d-caption">A simple client-side scene for trying the visual language: Puffer-style swarms, contact-solver meshes, and Manim-like geometric traces.</p>
+      <ol class="mission-story-steps" aria-label="Visualization story controls">${steps}
+      </ol>
+      <p class="mission-3d-caption">A visual proof story: swarms enter, contact meshes resolve, and Manim-like traces become durable Flow Memory.</p>
     </aside>`;
 }
 
@@ -516,11 +549,15 @@ import * as THREE from '/vendor/three.module.js';
     color: 0x131110,
     roughness: 0.55,
     metalness: 0.08,
+    transparent: true,
+    opacity: 0.86,
   });
   const warmMaterial = new THREE.MeshStandardMaterial({
     color: 0x9d7040,
     roughness: 0.5,
     metalness: 0.1,
+    transparent: true,
+    opacity: 0.9,
   });
   const translucentBlue = new THREE.MeshStandardMaterial({
     color: 0x0052ff,
@@ -541,8 +578,32 @@ import * as THREE from '/vendor/three.module.js';
   ring.rotation.x = Math.PI * 0.52;
   root.add(ring);
 
+  const storyGroup = new THREE.Group();
+  const storyRail = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-2.85, -1.55, -0.18),
+      new THREE.Vector3(-1.28, -1.24, 0.08),
+      new THREE.Vector3(0, -1.38, 0.22),
+      new THREE.Vector3(1.28, -1.24, 0.08),
+      new THREE.Vector3(2.85, -1.55, -0.18),
+    ]),
+    new THREE.LineBasicMaterial({ color: 0x131110, transparent: true, opacity: 0.26 }),
+  );
+  storyGroup.add(storyRail);
+
+  const storyBeacons = {
+    swarm: new THREE.Mesh(new THREE.SphereGeometry(0.08, 22, 22), coreMaterial.clone()),
+    contact: new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), warmMaterial.clone()),
+    manim: new THREE.Mesh(new THREE.OctahedronGeometry(0.12, 0), darkMaterial.clone()),
+  };
+  storyBeacons.swarm.position.set(-2.85, -1.55, -0.18);
+  storyBeacons.contact.position.set(0, -1.38, 0.22);
+  storyBeacons.manim.position.set(2.85, -1.55, -0.18);
+  for (const beacon of Object.values(storyBeacons)) storyGroup.add(beacon);
+  root.add(storyGroup);
+
   const swarmGroup = new THREE.Group();
-  const swarmCount = 220;
+  const swarmCount = 260;
   const swarmPositions = new Float32Array(swarmCount * 3);
   const swarmSeeds = [];
   for (let i = 0; i < swarmCount; i += 1) {
@@ -562,7 +623,7 @@ import * as THREE from '/vendor/three.module.js';
     new THREE.PointsMaterial({ color: 0x0052ff, size: 0.075, sizeAttenuation: true, transparent: true, opacity: 0.86 }),
   );
   swarmGroup.add(swarm);
-  for (let i = 0; i < 6; i += 1) {
+  for (let i = 0; i < 8; i += 1) {
     const star = new THREE.Mesh(
       new THREE.OctahedronGeometry(0.12, 0),
       i % 2 ? warmMaterial : coreMaterial,
@@ -573,15 +634,26 @@ import * as THREE from '/vendor/three.module.js';
   root.add(swarmGroup);
 
   const contactGroup = new THREE.Group();
-  const meshGeometry = new THREE.PlaneGeometry(5.6, 3.4, 38, 22);
+  const meshGeometry = new THREE.PlaneGeometry(5.6, 3.4, 42, 24);
   meshGeometry.rotateX(-Math.PI * 0.58);
   const meshSurface = new THREE.Mesh(meshGeometry, translucentBlue);
   contactGroup.add(meshSurface);
   const contactNodes = new THREE.Points(
     meshGeometry,
-    new THREE.PointsMaterial({ color: 0x131110, size: 0.035, sizeAttenuation: true, transparent: true, opacity: 0.55 }),
+    new THREE.PointsMaterial({ color: 0x131110, size: 0.04, sizeAttenuation: true, transparent: true, opacity: 0.60 }),
   );
   contactGroup.add(contactNodes);
+  const contactCurve = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-2.6, -0.35, 0.3),
+      new THREE.Vector3(-1.4, -0.02, 0.58),
+      new THREE.Vector3(0, -0.16, 0.72),
+      new THREE.Vector3(1.4, 0.06, 0.58),
+      new THREE.Vector3(2.6, -0.28, 0.3),
+    ]),
+    new THREE.LineBasicMaterial({ color: 0x9d7040, transparent: true, opacity: 0.84 }),
+  );
+  contactGroup.add(contactCurve);
   contactGroup.visible = false;
   root.add(contactGroup);
 
@@ -611,13 +683,55 @@ import * as THREE from '/vendor/three.module.js';
   root.add(manimGroup);
 
   const groups = { swarm: swarmGroup, contact: contactGroup, manim: manimGroup };
+  const storyOrder = ['swarm', 'contact', 'manim'];
+  const fallbackStory = {
+    swarm: {
+      label: 'Agent swarm',
+      title: 'Human work enters',
+      copy: 'Local run events gather as a living field before anything is committed.',
+    },
+    contact: {
+      label: 'Contact mesh',
+      title: 'Proof resolves',
+      copy: 'GPU evidence and policy checks compress the swarm into a legible proof surface.',
+    },
+    manim: {
+      label: 'Manim path',
+      title: 'Memory persists',
+      copy: 'The verified run becomes a geometric memory path operators can replay and trust.',
+    },
+  };
   let activeMode = 'swarm';
+  let autoPausedUntil = 0;
   const buttons = Array.from(document.querySelectorAll('[data-3d-mode]'));
+  const storyLabel = frame.querySelector('[data-story-label]');
+  const storyTitle = frame.querySelector('[data-story-title]');
+  const storyCopy = frame.querySelector('[data-story-copy]');
+
+  function activateMode(mode, userInitiated) {
+    const nextMode = groups[mode] ? mode : 'swarm';
+    activeMode = nextMode;
+    frame.dataset["storyMode"] = nextMode;
+    for (const [groupMode, group] of Object.entries(groups)) group.visible = groupMode === nextMode;
+
+    const selected = buttons.find((button) => button.dataset["3dMode"] === nextMode);
+    for (const button of buttons) button.dataset.active = String(button === selected);
+
+    const data = selected ? {
+      label: selected.dataset["storyLabel"],
+      title: selected.dataset["storyTitle"],
+      copy: selected.dataset["storyCopy"],
+    } : fallbackStory[nextMode];
+
+    if (storyLabel) storyLabel.textContent = data.label || fallbackStory[nextMode].label;
+    if (storyTitle) storyTitle.textContent = data.title || fallbackStory[nextMode].title;
+    if (storyCopy) storyCopy.textContent = data.copy || fallbackStory[nextMode].copy;
+    if (userInitiated) autoPausedUntil = performance.now() + 18000;
+  }
+
   for (const button of buttons) {
     button.addEventListener('click', () => {
-      activeMode = button.dataset["3dMode"] || 'swarm';
-      for (const [mode, group] of Object.entries(groups)) group.visible = mode === activeMode;
-      for (const item of buttons) item.dataset.active = String(item === button);
+      activateMode(button.dataset["3dMode"] || 'swarm', true);
     });
   }
 
@@ -630,6 +744,7 @@ import * as THREE from '/vendor/three.module.js';
 
   canvas.addEventListener('pointerdown', (event) => {
     dragging = true;
+    autoPausedUntil = performance.now() + 18000;
     lastX = event.clientX;
     lastY = event.clientY;
     canvas.setPointerCapture(event.pointerId);
@@ -646,8 +761,15 @@ import * as THREE from '/vendor/three.module.js';
   });
   canvas.addEventListener('wheel', (event) => {
     event.preventDefault();
+    autoPausedUntil = performance.now() + 18000;
     zoom = Math.max(5.6, Math.min(11.5, zoom + event.deltaY * 0.006));
   }, { passive: false });
+
+  window.setInterval(() => {
+    if (performance.now() < autoPausedUntil) return;
+    const nextIndex = (storyOrder.indexOf(activeMode) + 1) % storyOrder.length;
+    activateMode(storyOrder[nextIndex], false);
+  }, 6200);
 
   function resize() {
     const rect = frame.getBoundingClientRect();
@@ -657,6 +779,7 @@ import * as THREE from '/vendor/three.module.js';
   }
   window.addEventListener('resize', resize);
   resize();
+  activateMode('swarm', false);
 
   function animate() {
     const elapsed = performance.now() / 1000;
@@ -667,6 +790,16 @@ import * as THREE from '/vendor/three.module.js';
     core.rotation.x = elapsed * 0.38;
     core.rotation.y = elapsed * 0.52;
     ring.rotation.z = elapsed * 0.28;
+    storyRail.material.opacity = 0.18 + Math.sin(elapsed * 1.2) * 0.04;
+
+    for (const [mode, beacon] of Object.entries(storyBeacons)) {
+      const selected = mode === activeMode;
+      const pulse = selected ? 1.22 + Math.sin(elapsed * 3.1) * 0.10 : 0.72;
+      beacon.scale.setScalar(pulse);
+      beacon.material.opacity = selected ? 0.92 : 0.34;
+      beacon.rotation.x = elapsed * 0.34;
+      beacon.rotation.y = elapsed * 0.46;
+    }
 
     const positions = swarmGeometry.attributes.position.array;
     for (let i = 0; i < swarmCount; i += 1) {
@@ -687,6 +820,7 @@ import * as THREE from '/vendor/three.module.js';
     }
     meshPositions.needsUpdate = true;
     meshGeometry.computeVertexNormals();
+    contactCurve.rotation.y = Math.sin(elapsed * 0.7) * 0.08;
 
     theorem.rotation.x = elapsed * 0.34;
     theorem.rotation.y = elapsed * 0.52;

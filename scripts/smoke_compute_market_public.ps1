@@ -66,7 +66,7 @@ function Invoke-ComputeMarketRequest {
         Uri = "$baseUrl$Path"
         Method = $Method
         Headers = $headers
-        TimeoutSec = 30
+        TimeoutSec = 90
     }
 
     if ($PSBoundParameters.ContainsKey('Body')) {

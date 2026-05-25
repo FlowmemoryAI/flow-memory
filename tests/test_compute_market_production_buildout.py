@@ -314,6 +314,25 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["fraud_signal_count"] == 2
 
 
+def test_plan_records_route_rejection_metrics() -> None:
+    service = _service()
+    result = service.plan(
+        {
+            "task": "plan a gpu inference job",
+            "estimated_units": {"gpu_minute": 2, "request": 1, "token": 1000},
+            "policy": {"denied_providers": ["gpu-time-provider"]},
+        }
+    )
+    rejected_routes = result["compute_plan"]["rejected_routes"]
+
+    assert result["ok"] is True
+    assert any(route["route_id"] == "gpu-minute-route" for route in rejected_routes)
+    assert _metric_total(
+        service,
+        "compute_route_rejected_total",
+        {"provider_id": "gpu-time-provider", "route_id": "gpu-minute-route", "reason": "provider_denied"},
+    ) == 1.0
+
 def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     service = _service()
     window = service.list_capacity(
@@ -352,6 +371,33 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     released_summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]
     assert released_summary["held_capacity_units"] == 0
     assert released_summary["utilization_ratio"] == 0.0
+
+    stale_hold = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 10,
+            "hold_expires_at": "2000-01-01T00:00:00Z",
+        }
+    )
+    assert stale_hold["reservation"]["status"] == "held"
+
+    expired = service.expire_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})
+    assert expired["expired_count"] == 1
+    assert expired["expired_reservations"][0]["status"] == "expired"
+    assert _metric_total(
+        service,
+        "capacity_hold_expired_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 10.0
+
+    expired_summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]
+    assert expired_summary["held_capacity_units"] == 0
+    assert expired_summary["expired_capacity_units"] == 10
+    assert expired_summary["available_capacity_units"] == 10
+
+    replacement = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 10})
+    assert replacement["reservation"]["status"] == "held"
 
 
 def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:

@@ -97,6 +97,10 @@ def market_capacity_reserve(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().reserve_capacity(payload)
 
 
+def market_capacity_expire(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().expire_capacity(payload)
+
+
 def market_capacity_release(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().release_capacity(payload)
 

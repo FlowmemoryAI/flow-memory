@@ -4009,6 +4009,58 @@
         ]
       }
     },
+    "/market/capacity/expire": {
+      "post": {
+        "operationId": "market_capacity_expire",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "expired_count": {
+                      "type": "string"
+                    },
+                    "expired_reservations": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Expire stale capacity holds so capacity can be re-reserved",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/capacity/list": {
       "post": {
         "operationId": "market_capacity_list",

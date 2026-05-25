@@ -128,6 +128,17 @@ class ComputeMarketService:
             plan = build_compute_plan({**dict(payload_for_plan), "request_id": request_id, "idempotency_key": idempotency_key})
         record = plan.as_record()
         self._persist_plan(record)
+        for rejected_route in plan.rejected_routes:
+            route_id = str(rejected_route.get("route_id", ""))
+            reasons = tuple(plan.rejected_reasons.get(route_id, ()))
+            self.telemetry.increment(
+                "compute_route_rejected_total",
+                {
+                    "route_id": route_id,
+                    "provider_id": str(rejected_route.get("provider_id", "")),
+                    "reason": "|".join(reasons) or "policy_rejected",
+                },
+            )
         if plan.fail_closed_errors:
             self.telemetry.increment("compute_plan_fail_closed_total")
             self.telemetry.increment("compute_policy_denials_total")
@@ -814,9 +825,31 @@ class ComputeMarketService:
 
     def capacity_order_book(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         filters = payload or {}
+        request_id = _request_id(filters)
+        expired_reservations = self._expire_capacity_holds(filters, request_id=request_id)
         windows = tuple(self.store.list_records("compute_capacity_window", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
         reservations = tuple(self.store.list_records("compute_reservation", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
-        return {"ok": True, "capacity_windows": windows, "reservations": reservations, "summary": _capacity_summary(windows, reservations)}
+        return {"ok": True, "capacity_windows": windows, "reservations": reservations, "expired_reservations": expired_reservations, "summary": _capacity_summary(windows, reservations)}
+
+    def expire_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        provider_id = str(payload.get("provider_id", ""))
+        route_id = str(payload.get("route_id", ""))
+        limited = self._rate_limit_response(payload, "POST /market/capacity/expire", request_id=request_id, provider_id=provider_id, route_id=route_id)
+        if limited is not None:
+            return limited
+        expired_reservations = self._expire_capacity_holds(payload, request_id=request_id)
+        self._audit(
+            "market.capacity.expired",
+            payload,
+            request_id=request_id,
+            result="expired" if expired_reservations else "noop",
+            reason_codes=() if expired_reservations else ("no_expired_holds",),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return {"ok": True, "expired_reservations": expired_reservations, "expired_count": len(expired_reservations)}
 
     def reserve_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -826,6 +859,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/capacity/reserve", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        self._expire_capacity_holds(payload, request_id=request_id)
         reservation = _capacity_reservation(payload, self.store.list_records("compute_capacity_window", filters={"provider_id": provider_id, "route_id": route_id}, limit=100).records, self.store.list_records("compute_reservation", filters={"provider_id": provider_id, "route_id": route_id}, limit=500).records)
         self.store.put_record(
             "compute_reservation",
@@ -865,6 +899,41 @@ class ComputeMarketService:
         self.telemetry.increment("capacity_released_total", {"provider_id": str(reservation.get("provider_id", "")), "route_id": str(reservation.get("route_id", ""))}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
         self._audit("market.capacity.released", payload, request_id=request_id, result="released", provider_id=str(reservation.get("provider_id", "")), route_id=str(reservation.get("route_id", "")))
         return {"ok": True, "reservation": reservation}
+
+    def _expire_capacity_holds(self, payload: Mapping[str, Any], *, request_id: str) -> tuple[Mapping[str, Any], ...]:
+        provider_id = str(payload.get("provider_id", ""))
+        route_id = str(payload.get("route_id", ""))
+        filters: dict[str, str] = {}
+        if provider_id:
+            filters["provider_id"] = provider_id
+        if route_id:
+            filters["route_id"] = route_id
+        page = self.store.list_records("compute_reservation", filters=filters, limit=500)
+        now = utc_now_iso()
+        expired: list[Mapping[str, Any]] = []
+        for current in page.records:
+            if not _capacity_hold_expired(current, now):
+                continue
+            reservation_id = str(current.get("reservation_id", current.get("record_id", "")))
+            if not reservation_id:
+                continue
+            updated = {**dict(current), "status": "expired", "expired_at": now, "updated_at": now}
+            self.store.put_record(
+                "compute_reservation",
+                reservation_id,
+                updated,
+                provider_id=str(updated.get("provider_id", "")),
+                route_id=str(updated.get("route_id", "")),
+                status="expired",
+                request_id=request_id,
+            )
+            self.telemetry.increment(
+                "capacity_hold_expired_total",
+                {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
+                value=float(updated.get("capacity_units", 0.0) or 0.0),
+            )
+            expired.append(updated)
+        return tuple(expired)
 
     def create_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -3241,16 +3310,36 @@ def _capacity_window(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _capacity_reservation_active(reservation: Mapping[str, Any], now: str) -> bool:
+    status = str(reservation.get("status", ""))
+    if status == "confirmed":
+        reserved_until = str(reservation.get("reserved_until", ""))
+        return not reserved_until or reserved_until > now
+    if status != "held":
+        return False
+    hold_expires_at = str(reservation.get("hold_expires_at", reservation.get("expires_at", "")))
+    return not hold_expires_at or hold_expires_at > now
+
+
+def _capacity_hold_expired(reservation: Mapping[str, Any], now: str) -> bool:
+    hold_expires_at = str(reservation.get("hold_expires_at", reservation.get("expires_at", "")))
+    return str(reservation.get("status", "")) == "held" and bool(hold_expires_at) and hold_expires_at <= now
+
+
 def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
     if not windows:
         raise ValueError("no active capacity window found for provider_id and route_id")
-    window = windows[0]
+    now = utc_now_iso()
+    active_windows = tuple(window for window in windows if str(window.get("status", "active")) == "active" and str(window.get("ends_at", "")) > now)
+    if not active_windows:
+        raise ValueError("no unexpired active capacity window found for provider_id and route_id")
+    window = active_windows[0]
     requested_units = _positive_float(payload.get("capacity_units"), "capacity_units")
-    reserved = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in reservations if str(item.get("status", "")) in {"held", "confirmed"})
+    active_reservations = tuple(item for item in reservations if _capacity_reservation_active(item, now))
+    reserved = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
     available = float(window.get("capacity_units", window.get("available_units", 0.0)) or 0.0) - reserved
     if requested_units > available:
         raise ValueError("requested capacity exceeds available capacity")
-    now = utc_now_iso()
     return {
         "reservation_id": str(payload.get("reservation_id") or deterministic_id("reservation", {"window_id": window.get("window_id", ""), "payload": payload})),
         "window_id": str(window.get("window_id", "")),
@@ -3270,13 +3359,15 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
 
 
 def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
-    total_capacity = sum(float(item.get("capacity_units", 0.0) or 0.0) for item in windows)
-    active_reservations = tuple(
-        item for item in reservations if str(item.get("status", "")) in {"held", "confirmed"}
-    )
+    now = utc_now_iso()
+    active_windows = tuple(window for window in windows if str(window.get("status", "active")) == "active" and str(window.get("ends_at", "")) > now)
+    total_capacity = sum(float(item.get("capacity_units", 0.0) or 0.0) for item in active_windows)
+    active_reservations = tuple(item for item in reservations if _capacity_reservation_active(item, now))
+    expired_reservations = tuple(item for item in reservations if _capacity_hold_expired(item, now) or str(item.get("status", "")) == "expired")
     held = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
+    expired_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in expired_reservations)
     utilization_by_provider: dict[str, dict[str, float]] = {}
-    for window in windows:
+    for window in active_windows:
         provider_id = str(window.get("provider_id", ""))
         if not provider_id:
             continue
@@ -3286,6 +3377,7 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
                 "total_capacity_units": 0.0,
                 "held_capacity_units": 0.0,
                 "available_capacity_units": 0.0,
+                "expired_capacity_units": 0.0,
                 "utilization_ratio": 0.0,
             },
         )
@@ -3300,10 +3392,28 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
                 "total_capacity_units": 0.0,
                 "held_capacity_units": 0.0,
                 "available_capacity_units": 0.0,
+                "expired_capacity_units": 0.0,
                 "utilization_ratio": 0.0,
             },
         )
         provider["held_capacity_units"] += float(
+            reservation.get("capacity_units", reservation.get("units_reserved", 0.0)) or 0.0
+        )
+    for reservation in expired_reservations:
+        provider_id = str(reservation.get("provider_id", ""))
+        if not provider_id:
+            continue
+        provider = utilization_by_provider.setdefault(
+            provider_id,
+            {
+                "total_capacity_units": 0.0,
+                "held_capacity_units": 0.0,
+                "available_capacity_units": 0.0,
+                "expired_capacity_units": 0.0,
+                "utilization_ratio": 0.0,
+            },
+        )
+        provider["expired_capacity_units"] += float(
             reservation.get("capacity_units", reservation.get("units_reserved", 0.0)) or 0.0
         )
     for provider in utilization_by_provider.values():
@@ -3317,10 +3427,13 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
             else 0.0
         )
     return {
-        "window_count": len(windows),
+        "window_count": len(active_windows),
         "reservation_count": len(reservations),
+        "active_reservation_count": len(active_reservations),
+        "expired_reservation_count": len(expired_reservations),
         "total_capacity_units": total_capacity,
         "held_capacity_units": held,
+        "expired_capacity_units": expired_units,
         "available_capacity_units": max(0.0, total_capacity - held),
         "utilization_ratio": round(held / total_capacity, 6) if total_capacity else 0.0,
         "utilization_by_provider": utilization_by_provider,

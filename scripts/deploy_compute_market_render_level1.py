@@ -199,7 +199,7 @@ def env_var(key: str, value: str) -> dict[str, str]:
     return {"key": key, "value": value}
 
 
-def build_env_vars(api_key_value: str, database_url: str, redis_url: str) -> list[dict[str, str]]:
+def build_env_vars(api_key_value: str, database_url: str, redis_url: str, public_api_url: str = "") -> list[dict[str, str]]:
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
@@ -252,6 +252,8 @@ def build_env_vars(api_key_value: str, database_url: str, redis_url: str) -> lis
         "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT": "",
         "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID": "",
     }
+    if public_api_url:
+        values["FLOW_MEMORY_PUBLIC_API_URL"] = public_api_url
     return [env_var(key, value) for key, value in values.items()]
 
 
@@ -433,6 +435,9 @@ def main() -> int:
             url = public_url(service)
         if not url:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
+        env_vars = build_env_vars(api_key_value, str(pg_conn["internalConnectionString"]), str(kv_conn["internalConnectionString"]), url)
+        render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
+        render_request(args.api_key, "POST", f"/services/{urllib.parse.quote(str(service['id']))}/deploys", {"clearCache": "do_not_clear"})
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
             last_smoke = smoke_public(url, api_key_value)

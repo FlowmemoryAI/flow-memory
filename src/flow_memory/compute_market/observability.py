@@ -31,6 +31,8 @@ _METRIC_NAMES: tuple[str, ...] = (
     "compute_job_started_total",
     "compute_job_completed_total",
     "compute_job_failed_total",
+    "provider_execution_request_total",
+    "provider_execution_failure_total",
     "provider_quote_latency_ms",
     "provider_quote_failure_total",
     "provider_circuit_open_total",
@@ -40,6 +42,13 @@ _METRIC_NAMES: tuple[str, ...] = (
     "capacity_reserved_total",
     "capacity_released_total",
     "billing_debit_total",
+    "billing_checkout_created_total",
+    "billing_checkout_failed_total",
+    "billing_webhook_failures_total",
+    "postgres_unavailable_total",
+    "redis_unavailable_total",
+    "external_provider_allowlist_missing_total",
+    "unexpected_live_settlement_config_total",
     "settlement_attempt_total",
     "audit_chain_verify_fail_total",
 )
@@ -142,6 +151,11 @@ DEFAULT_ALERT_RULES: tuple[AlertRule, ...] = (
     AlertRule("provider-quote-failures", "provider_quote_failure_total", 3.0, ">=", "warning", "Provider quote failures exceeded the public alpha threshold."),
     AlertRule("policy-denial-spike", "compute_policy_denials_total", 10.0, ">=", "warning", "Policy/rate-limit denials spiked."),
     AlertRule("unexpected-settlement-attempt", "settlement_attempt_total", 1.0, ">=", "critical", "Settlement path was touched while live settlement remains disabled."),
+    AlertRule("billing-webhook-failures", "billing_webhook_failures_total", 1.0, ">=", "critical", "Billing webhook verification failed."),
+    AlertRule("redis-unavailable", "redis_unavailable_total", 1.0, ">=", "critical", "Managed Redis backend is unavailable or unconfigured."),
+    AlertRule("postgres-unavailable", "postgres_unavailable_total", 1.0, ">=", "critical", "Managed PostgreSQL backend is unavailable."),
+    AlertRule("external-provider-allowlist-missing", "external_provider_allowlist_missing_total", 1.0, ">=", "critical", "External provider mode is enabled without an allowlist."),
+    AlertRule("unexpected-live-settlement-config", "unexpected_live_settlement_config_total", 1.0, ">=", "critical", "Live settlement configuration failed safety gates."),
 )
 
 

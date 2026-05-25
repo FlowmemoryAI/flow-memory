@@ -50,6 +50,10 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "compute_job_completed_total" in names
     assert "billing_debit_total" in names
     assert "audit_chain_verify_fail_total" in names
+    assert "billing_webhook_failures_total" in names
+    assert "provider_execution_failure_total" in names
+    assert "redis_unavailable_total" in names
+    assert "external_provider_allowlist_missing_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 
@@ -71,6 +75,45 @@ def test_alert_evaluator_fires_on_audit_failures_and_acknowledges_route() -> Non
     assert alerts["alerts"]["firing_count"] == 1
     assert ack["ok"] is True
     assert acknowledged["alerts"]["firing"][0]["acknowledged"] is True
+
+
+def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> None:
+    service = _service()
+    webhook = service.billing_webhook_stripe(
+        {
+            "raw_event": {
+                "id": "evt_bad_signature",
+                "type": "checkout.session.completed",
+                "amount": 100,
+                "currency": "usd",
+                "metadata": {"account_id": "acct_bad"},
+            },
+            "webhook_secret": "whsec_test_secret",
+            "stripe_signature": "not-valid",
+        }
+    )
+    assert webhook["ok"] is False
+
+    allowlist_service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_quotes_enabled=True,
+        ),
+    )
+    readiness = allowlist_service.readiness()
+
+    assert "external_provider_allowlist_missing" in readiness["readiness_failures"]
+    assert service.telemetry.summary()["metric_totals"]["billing_webhook_failures_total"] == 1.0
+    assert allowlist_service.telemetry.summary()["metric_totals"]["external_provider_allowlist_missing_total"] == 1.0
+
+    service.telemetry.increment("redis_unavailable_total")
+    alerts = AlertEvaluator().evaluate(service.telemetry).as_record()
+    rule_names = {item["rule_name"] for item in alerts["firing"]}
+    assert "billing-webhook-failures" in rule_names
+    assert "redis-unavailable" in rule_names
 
 def test_compute_telemetry_and_metrics_routes_expose_service_samples() -> None:
     service = _service()

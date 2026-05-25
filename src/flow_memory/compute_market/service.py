@@ -853,6 +853,7 @@ class ComputeMarketService:
                 details={"provider_id": provider_id, "route_id": route_id},
                 request_id=request_id,
             )
+            self.telemetry.increment("external_provider_allowlist_missing_total", {"provider_id": provider_id})
             self._audit("compute.job.external_execution_allowlist_missing", payload, request_id=request_id, result="rejected", reason_codes=("external_provider_allowlist_missing",), provider_id=provider_id, route_id=route_id)
             return {"required": True, "ok": False, "error": error.as_record(), "external_provider_called": False}
         circuit = self.circuit_breaker.allow_request(provider_id, route_id=route_id, adapter_type="external_execution")
@@ -868,10 +869,12 @@ class ComputeMarketService:
         adapter = build_external_provider_adapter(provider, routes, self.config)
         result = dict(adapter.execute_plan({**dict(job), "request_id": request_id, "worker_id": str(payload.get("worker_id", ""))}))
         if result.get("ok") is True:
+            self.telemetry.increment("provider_execution_request_total", {"provider_id": provider_id})
             self.circuit_breaker.record_success(provider_id, route_id=route_id, adapter_type="external_execution")
             self._audit("compute.job.external_execution_requested", payload, request_id=request_id, result=str(result.get("status", "accepted")), provider_id=provider_id, route_id=route_id)
             return {"required": True, **result}
         error_code = str(result.get("error_code", "provider_execution.failed"))
+        self.telemetry.increment("provider_execution_failure_total", {"provider_id": provider_id, "error_code": error_code})
         self.circuit_breaker.record_failure(provider_id, route_id=route_id, adapter_type="external_execution", error_class=error_code)
         self._audit("compute.job.external_execution_failed", payload, request_id=request_id, result="rejected", reason_codes=(error_code,), provider_id=provider_id, route_id=route_id)
         error = compute_error(error_code, str(result.get("message", "Provider execution request failed.")), details={"provider_id": provider_id, "route_id": route_id}, request_id=request_id)
@@ -1473,6 +1476,10 @@ class ComputeMarketService:
                     reason_codes = ()
                     next_safe_actions = ("redirect user to external_checkout_url", "credit balance only after verified Stripe webhook")
 
+        if ok:
+            self.telemetry.increment("billing_checkout_created_total", {"provider": str(checkout["provider"])})
+        elif checkout["status"] in {"external_checkout_failed", "requires_stripe_checkout_config"}:
+            self.telemetry.increment("billing_checkout_failed_total", {"provider": str(checkout["provider"])})
         self.store.put_record(
             "payment_event",
             payment_event_id,
@@ -1521,6 +1528,8 @@ class ComputeMarketService:
             "external_payment_recorded": verified,
             "created_at": utc_now_iso(),
         }
+        if not verified:
+            self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
         self.store.put_record("payment_event", event_id, record, tenant_id=account_id, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
         credit_record: Mapping[str, Any] = {}
         if verified and account_id and credit["amount"] > 0 and _stripe_event_posts_credit(raw_event):
@@ -1936,6 +1945,7 @@ class ComputeMarketService:
             failures.append("unsafe_broadcast_config")
         if self.config.private_key_inputs_allowed:
             failures.append("unsafe_private_key_config")
+        _record_readiness_failure_metrics(self.telemetry, tuple(dict.fromkeys(failures)))
         ready = not failures and bool(health.get("compute_market_enabled"))
         health["ready"] = ready
         health["ok"] = ready
@@ -2203,6 +2213,25 @@ def default_service() -> ComputeMarketService:
 def reset_default_service(service: ComputeMarketService | None = None) -> None:
     global _default_service
     _default_service = service
+
+
+_READINESS_FAILURE_METRICS = {
+    "database_unavailable": "postgres_unavailable_total",
+    "rate_limiter_unavailable": "redis_unavailable_total",
+    "circuit_breaker_unavailable": "redis_unavailable_total",
+    "external_provider_allowlist_missing": "external_provider_allowlist_missing_total",
+    "unsafe_live_settlement_config": "unexpected_live_settlement_config_total",
+}
+
+
+def _record_readiness_failure_metrics(
+    telemetry: ComputeMarketTelemetry,
+    failures: tuple[str, ...],
+) -> None:
+    for failure in failures:
+        metric_name = _READINESS_FAILURE_METRICS.get(failure)
+        if metric_name:
+            telemetry.increment(metric_name)
 
 
 def _audit_replay_event(event: Mapping[str, Any]) -> dict[str, Any]:

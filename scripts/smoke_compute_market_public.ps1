@@ -20,12 +20,16 @@ if (-not ($baseUrl -match '^https://')) {
 function Read-HttpErrorBody {
     param([Parameter(Mandatory = $true)] $ErrorRecord)
 
-    $response = $ErrorRecord.Exception.Response
+    $response = $null
+    if ($null -ne $ErrorRecord.Exception -and ($ErrorRecord.Exception.PSObject.Properties.Name -contains 'Response')) {
+        $response = $ErrorRecord.Exception.Response
+    }
     if ($null -eq $response) {
-        return @{ StatusCode = 0; Body = $ErrorRecord.Exception.Message }
+        $message = if ($null -ne $ErrorRecord.Exception) { $ErrorRecord.Exception.Message } else { [string]$ErrorRecord }
+        return @{ StatusCode = 0; Body = $message }
     }
 
-    if ($response -is [System.Net.Http.HttpResponseMessage]) {
+    if ($response.GetType().FullName -eq 'System.Net.Http.HttpResponseMessage') {
         $body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
         return @{ StatusCode = [int]$response.StatusCode; Body = $body }
     }
@@ -75,7 +79,7 @@ function Invoke-ComputeMarketRequest {
         $content = [string]$response.Content
         $json = $null
         if ($content.Trim().Length -gt 0) {
-            $json = $content | ConvertFrom-Json -Depth 32
+            $json = $content | ConvertFrom-Json
         }
         return @{ StatusCode = [int]$response.StatusCode; Json = $json; Body = $content }
     }
@@ -83,7 +87,7 @@ function Invoke-ComputeMarketRequest {
         $errorResult = Read-HttpErrorBody -ErrorRecord $_
         $json = $null
         if ([string]$errorResult.Body -and ([string]$errorResult.Body).Trim().Length -gt 0) {
-            try { $json = ([string]$errorResult.Body | ConvertFrom-Json -Depth 32) } catch { $json = $null }
+            try { $json = ([string]$errorResult.Body | ConvertFrom-Json) } catch { $json = $null }
         }
         return @{ StatusCode = [int]$errorResult.StatusCode; Json = $json; Body = [string]$errorResult.Body }
     }

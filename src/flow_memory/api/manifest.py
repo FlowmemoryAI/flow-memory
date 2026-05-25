@@ -27,6 +27,10 @@ class EndpointSpec:
 
 API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/health", "health", "Router health check", response_fields=("ok", "service")),
+    EndpointSpec("GET", "/auth/api-keys", "auth_api_keys", "List API key records without secret material", response_fields=("ok", "api_keys")),
+    EndpointSpec("POST", "/auth/api-keys", "auth_api_key_create", "Create a tenant-scoped API key and return the raw key once", request_fields=("tenant_id", "workspace_id", "principal", "scopes"), response_fields=("ok", "api_key", "record")),
+    EndpointSpec("POST", "/auth/api-keys/{key_id}/rotate", "auth_api_key_rotate", "Rotate an API key, disable the old record, and return the new raw key once", response_fields=("ok", "api_key", "record", "previous_record")),
+    EndpointSpec("POST", "/auth/api-keys/{key_id}/disable", "auth_api_key_disable", "Disable an API key record without exposing secret material", request_fields=("reason",), response_fields=("ok", "record")),
     EndpointSpec("GET", "/runtime/status", "runtime_status", "Local runtime status"),
     EndpointSpec("POST", "/runtime/tick", "runtime_tick", "Advance local runtime tick"),
     EndpointSpec("GET", "/agents", "agents_list", "List registered agent cards"),

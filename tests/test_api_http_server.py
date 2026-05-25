@@ -116,6 +116,68 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header():
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
 
 
+def test_http_gateway_api_key_management_rotates_active_tenant_key() -> None:
+    admin_key = "fmk_admin_secret"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "admin-key",
+                    "key_prefix": "fmk_admin_",
+                    "key_hash": api_key_hash(admin_key),
+                    "tenant_id": "admin",
+                    "principal": "svc-admin",
+                    "scopes": "api:admin",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    create_response = gateway.handle(
+        "POST",
+        "/auth/api-keys",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps(
+            {
+                "key_id": "tenant-compute-key-v1",
+                "tenant_id": "tenant_compute",
+                "principal": "svc-compute",
+                "scopes": ["compute:read"],
+                "key_prefix": "fmk_compute_",
+            }
+        ).encode("utf-8"),
+    )
+    assert create_response.status == 200
+    issued_key = create_response.body["data"]["api_key"]
+    public_record = create_response.body["data"]["record"]
+    assert "key_hash" not in public_record
+    assert public_record["key_hash_configured"] is True
+    assert gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": issued_key}).status == 200
+
+    rotate_response = gateway.handle(
+        "POST",
+        "/auth/api-keys/tenant-compute-key-v1/rotate",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps({"key_id": "tenant-compute-key-v2"}).encode("utf-8"),
+    )
+    assert rotate_response.status == 200
+    rotated_key = rotate_response.body["data"]["api_key"]
+    assert rotate_response.body["data"]["previous_record"]["status"] == "rotated"
+    assert gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": issued_key}).status == 401
+    assert gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": rotated_key}).status == 200
+
+    disable_response = gateway.handle(
+        "POST",
+        "/auth/api-keys/tenant-compute-key-v2/disable",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps({"reason": "operator_rotation_test"}).encode("utf-8"),
+    )
+    assert disable_response.status == 200
+    assert disable_response.body["data"]["record"]["status"] == "disabled"
+    assert gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": rotated_key}).status == 401
+
 def test_dependency_free_http_server_handles_local_request():
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server = create_http_server(gateway, host="127.0.0.1", port=0)

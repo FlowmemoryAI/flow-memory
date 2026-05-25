@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import time
 import hashlib
 from dataclasses import dataclass
@@ -71,6 +72,94 @@ def resolve_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> ApiKey
 
 def api_key_hash(api_key: str) -> str:
     return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+
+
+def issue_api_key_record(
+    payload: Mapping[str, Any],
+    *,
+    api_key: str | None = None,
+) -> Mapping[str, Any]:
+    prefix = str(payload.get("key_prefix") or "fmk_")
+    if not prefix or any(character.isspace() for character in prefix):
+        raise ValueError("key_prefix must be non-empty and contain no whitespace")
+    secret = api_key or f"{prefix}{secrets.token_urlsafe(32)}"
+    if not secret.startswith(prefix):
+        raise ValueError("api key must start with key_prefix")
+    key_id = str(payload.get("key_id") or f"key_{secrets.token_hex(8)}")
+    tenant_id = str(payload.get("tenant_id") or "")
+    principal = str(payload.get("principal") or payload.get("created_by") or "api-key")
+    scopes = _parse_scopes(payload.get("scopes", ()))
+    now = int(time.time())
+    record = {
+        "key_id": key_id,
+        "key_prefix": prefix,
+        "key_hash": api_key_hash(secret),
+        "tenant_id": tenant_id,
+        "workspace_id": str(payload.get("workspace_id", "")),
+        "principal": principal,
+        "scopes": scopes,
+        "enabled": True,
+        "status": "active",
+        "created_by": str(payload.get("created_by", principal)),
+        "created_at_epoch": now,
+        "rotation_counter": int(payload.get("rotation_counter", 0) or 0),
+    }
+    previous_key_id = str(payload.get("previous_key_id", ""))
+    if previous_key_id:
+        record["previous_key_id"] = previous_key_id
+    return {"api_key": secret, "record": record}
+
+
+def rotate_api_key_record(
+    existing: Mapping[str, Any],
+    payload: Mapping[str, Any] | None = None,
+    *,
+    api_key: str | None = None,
+) -> Mapping[str, Any]:
+    update = dict(payload or {})
+    previous_key_id = str(existing.get("key_id", ""))
+    if not previous_key_id:
+        raise ValueError("existing api key record missing key_id")
+    now = int(time.time())
+    disabled = {
+        **dict(existing),
+        "enabled": False,
+        "status": "rotated",
+        "rotated_at_epoch": now,
+        "rotation_reason": str(update.get("reason", "rotation")),
+    }
+    next_payload = {
+        "key_prefix": str(update.get("key_prefix", existing.get("key_prefix", "fmk_"))),
+        "tenant_id": str(update.get("tenant_id", existing.get("tenant_id", ""))),
+        "workspace_id": str(update.get("workspace_id", existing.get("workspace_id", ""))),
+        "principal": str(update.get("principal", existing.get("principal", "api-key"))),
+        "scopes": update.get("scopes", existing.get("scopes", ())),
+        "created_by": str(update.get("created_by", existing.get("principal", "api-key"))),
+        "previous_key_id": previous_key_id,
+        "rotation_counter": int(existing.get("rotation_counter", 0) or 0) + 1,
+    }
+    if update.get("key_id"):
+        next_payload["key_id"] = str(update["key_id"])
+    issued = issue_api_key_record(next_payload, api_key=api_key)
+    return {"previous_record": disabled, "record": issued["record"], "api_key": issued["api_key"]}
+
+
+def disable_api_key_record(record: Mapping[str, Any], *, reason: str = "operator_requested") -> Mapping[str, Any]:
+    if not record.get("key_id"):
+        raise ValueError("api key record missing key_id")
+    return {
+        **dict(record),
+        "enabled": False,
+        "status": "disabled",
+        "disabled_at_epoch": int(time.time()),
+        "disabled_reason": reason,
+    }
+
+
+def public_api_key_record(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    public = {str(key): value for key, value in record.items() if key not in {"key_hash", "api_key"}}
+    public["key_hash_configured"] = bool(record.get("key_hash"))
+    return public
 
 
 def authorize_request(

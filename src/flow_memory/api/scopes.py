@@ -143,6 +143,8 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
     path_key = normalized_path.rstrip("/") or "/"
     if path_key == "/audit":
         return (AUDIT_SCOPE,)
+    if path_key.startswith("/auth/"):
+        return (ADMIN_SCOPE,)
     if path_key.startswith("/neural/gpu-runs"):
         return (NEURAL_EVIDENCE_SCOPE,)
     if path_key == "/neural/validate-smoke":

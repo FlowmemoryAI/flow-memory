@@ -5,6 +5,12 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 from urllib.parse import unquote
 
+from flow_memory.api.auth import (
+    disable_api_key_record,
+    issue_api_key_record,
+    public_api_key_record,
+    rotate_api_key_record,
+)
 from flow_memory.api.manifest import API_ENDPOINTS, endpoint_manifest
 from flow_memory.core.types import new_id
 from flow_memory.economy.attestations import Attestation
@@ -138,6 +144,7 @@ class LocalApiRouter:
     delegations: dict[str, DelegationContract] = field(default_factory=dict)
     attestations: list[Attestation] = field(default_factory=list)
     audit_events: list[Mapping[str, Any]] = field(default_factory=list)
+    api_key_records: dict[str, Mapping[str, Any]] = field(default_factory=dict)
     runtime_ticks: int = 0
     latest_verification: Mapping[str, Any] = field(default_factory=dict)
 
@@ -706,6 +713,50 @@ class LocalApiRouter:
         return compute_alert_ack(params["rule_name"], payload)
 
 
+    def _auth_api_keys(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {
+            "ok": True,
+            "api_keys": tuple(public_api_key_record(record) for record in self.api_key_records.values()),
+        }
+
+    def _auth_api_key_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        issued = issue_api_key_record(payload)
+        record = issued["record"]
+        if not isinstance(record, Mapping):
+            raise ValueError("api key issuer returned invalid record")
+        key_id = str(record["key_id"])
+        self.api_key_records[key_id] = record
+        return {"ok": True, "api_key": issued["api_key"], "record": public_api_key_record(record)}
+
+    def _auth_api_key_rotate(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        key_id = params["key_id"]
+        existing = self.api_key_records.get(key_id)
+        if existing is None:
+            raise KeyError(f"Unknown API key: {key_id}")
+        rotated = rotate_api_key_record(existing, payload)
+        previous_record = rotated["previous_record"]
+        record = rotated["record"]
+        if not isinstance(previous_record, Mapping) or not isinstance(record, Mapping):
+            raise ValueError("api key rotation returned invalid record")
+        previous_key_id = str(previous_record["key_id"])
+        next_key_id = str(record["key_id"])
+        self.api_key_records[previous_key_id] = previous_record
+        self.api_key_records[next_key_id] = record
+        return {
+            "ok": True,
+            "api_key": rotated["api_key"],
+            "previous_record": public_api_key_record(previous_record),
+            "record": public_api_key_record(record),
+        }
+
+    def _auth_api_key_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        key_id = params["key_id"]
+        existing = self.api_key_records.get(key_id)
+        if existing is None:
+            raise KeyError(f"Unknown API key: {key_id}")
+        disabled = disable_api_key_record(existing, reason=str(payload.get("reason", "operator_requested")))
+        self.api_key_records[key_id] = disabled
+        return {"ok": True, "record": public_api_key_record(disabled)}
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -725,6 +776,10 @@ class LocalApiRouter:
 def create_default_router() -> LocalApiRouter:
     router = LocalApiRouter()
     router.register("GET", "/health", router._health, "health")
+    router.register("GET", "/auth/api-keys", router._auth_api_keys, "auth_api_keys")
+    router.register("POST", "/auth/api-keys", router._auth_api_key_create, "auth_api_key_create")
+    router.register("POST", "/auth/api-keys/{key_id}/rotate", router._auth_api_key_rotate, "auth_api_key_rotate")
+    router.register("POST", "/auth/api-keys/{key_id}/disable", router._auth_api_key_disable, "auth_api_key_disable")
     router.register("GET", "/runtime/status", router._runtime_status, "runtime_status")
     router.register("POST", "/runtime/tick", router._runtime_tick, "runtime_tick")
     router.register("GET", "/agents", router._agents_list, "agents_list")

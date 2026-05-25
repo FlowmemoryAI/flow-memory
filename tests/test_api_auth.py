@@ -1,7 +1,16 @@
 import unittest
 import time
 
-from flow_memory.api.auth import ApiAuthConfig, api_key_hash, authorize_request, require_api_key
+from flow_memory.api.auth import (
+    ApiAuthConfig,
+    api_key_hash,
+    authorize_request,
+    disable_api_key_record,
+    issue_api_key_record,
+    public_api_key_record,
+    require_api_key,
+    rotate_api_key_record,
+)
 from flow_memory.api.signed_requests import sign_request
 from flow_memory.crypto import generate_local_keypair
 
@@ -109,6 +118,42 @@ class ApiAuthTests(unittest.TestCase):
         self.assertIn("replayed request nonce", replay.reasons)
         self.assertFalse(stale.ok)
         self.assertIn("stale request timestamp", stale.reasons)
+
+    def test_api_key_issue_rotate_disable_records_never_expose_hash_publicly(self) -> None:
+        issued = issue_api_key_record(
+            {
+                "key_id": "key_tenant_rotation_v1",
+                "tenant_id": "tenant_rotation",
+                "principal": "svc-rotation",
+                "scopes": ["compute:read"],
+                "key_prefix": "fmk_rot_",
+            },
+            api_key="fmk_rot_secret_v1",
+        )
+        record = issued["record"]
+        self.assertEqual(issued["api_key"], "fmk_rot_secret_v1")
+        self.assertNotIn("api_key", record)
+        self.assertEqual(record["key_hash"], api_key_hash("fmk_rot_secret_v1"))
+        self.assertTrue(
+            authorize_request({"x-flow-memory-api-key": "fmk_rot_secret_v1"}, ApiAuthConfig(api_key_records=(record,))).ok
+        )
+
+        rotated = rotate_api_key_record(record, {"key_id": "key_tenant_rotation_v2"}, api_key="fmk_rot_secret_v2")
+        previous = rotated["previous_record"]
+        next_record = rotated["record"]
+        self.assertFalse(previous["enabled"])
+        self.assertEqual(previous["status"], "rotated")
+        self.assertEqual(next_record["previous_key_id"], "key_tenant_rotation_v1")
+        config = ApiAuthConfig(api_key_records=(previous, next_record))
+        self.assertFalse(authorize_request({"x-flow-memory-api-key": "fmk_rot_secret_v1"}, config).ok)
+        self.assertTrue(authorize_request({"x-flow-memory-api-key": "fmk_rot_secret_v2"}, config).ok)
+
+        disabled = disable_api_key_record(next_record, reason="compromised")
+        public = public_api_key_record(disabled)
+        self.assertFalse(disabled["enabled"])
+        self.assertNotIn("key_hash", public)
+        self.assertTrue(public["key_hash_configured"])
+        self.assertEqual(public["disabled_reason"], "compromised")
 
 if __name__ == "__main__":
     unittest.main()

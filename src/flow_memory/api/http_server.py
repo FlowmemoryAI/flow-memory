@@ -135,11 +135,14 @@ class HttpApiGateway:
             query_payload = _query_payload(split_target.query)
             if query_payload:
                 payload = {**query_payload, **dict(payload)}
+            api_key_records = self.config.api_key_records
+            if self.router.api_key_records:
+                api_key_records = (*api_key_records, *tuple(self.router.api_key_records.values()))
             auth = authorize_request(
                 header_map,
                 ApiAuthConfig(
                     api_key=self.config.api_key,
-                    api_key_records=self.config.api_key_records,
+                    api_key_records=api_key_records,
                     enable_nonce_check=self.config.enable_nonce_check,
                     max_request_age_seconds=self.config.max_request_age_seconds,
                 ),

@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 134,
-  "manifest_hash": "f95a9d0d0a8902736cd547ee384adc1e8869cee2a025e49f047e60ec1cdda80c",
-  "openapi_hash": "e9014a7602bd080a248b16df16287276ae30b1892204b7b31b61438c69f5f372",
+  "endpoint_count": 138,
+  "manifest_hash": "ae13ec9af100f379560ab202b63cccbbe26b961cef3fbc4451876b165f1caa28",
+  "openapi_hash": "2b64f030af42c4ad5463df6801ad475db5cde912e27c03a8dce50c2c3c19fb1c",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -12,6 +12,7 @@
     "GET /agents/{did}/memory",
     "GET /agents/{did}/skills",
     "GET /audit",
+    "GET /auth/api-keys",
     "GET /billing/balance",
     "GET /billing/usage",
     "GET /compute/alerts",
@@ -76,6 +77,9 @@
     "POST /agents/launch-neural",
     "POST /agents/{did}/run",
     "POST /attestations",
+    "POST /auth/api-keys",
+    "POST /auth/api-keys/{key_id}/disable",
+    "POST /auth/api-keys/{key_id}/rotate",
     "POST /billing/checkout",
     "POST /billing/webhooks/stripe",
     "POST /compute/alerts/{rule_name}/ack",
@@ -138,7 +142,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 127,
+  "path_count": 130,
   "paths": [
     "/admin/audit/export",
     "/admin/reconciliation",
@@ -154,6 +158,9 @@
     "/agents/{did}/skills",
     "/attestations",
     "/audit",
+    "/auth/api-keys",
+    "/auth/api-keys/{key_id}/disable",
+    "/auth/api-keys/{key_id}/rotate",
     "/billing/balance",
     "/billing/checkout",
     "/billing/usage",

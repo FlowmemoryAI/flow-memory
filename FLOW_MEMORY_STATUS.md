@@ -312,6 +312,7 @@ The visible embodiment layer is a public-alpha visual/replay surface. It does no
 | Mission Control Live 3D Mode | implemented local/read-only scaffold | `Live3DModePanel.tsx` renders neural embodiment telemetry as CSS 3D/WebGL-ready local/replay state with policy/approval authority intact. |
 | Live 3D release evidence | implemented | `mission_control_live_3d.json` validates dashboard component wiring, 3D-ready fixture data, docs, and no-overclaim invariants. |
 | Public Alpha Launch Finalizer | implemented | `python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json` records launch evidence, release decisions, demo bundle, Live 3D readiness, neural embodiment readiness, and C:\tmp backup exclusion. |
+| Dashboard dev server | implemented real replay UI | `npm run dev` serves `/mission-control` with run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Neural Embodiment, Live 3D Mode, GPU evidence, and finalizer status from local fixtures. |
 | Finalizer API | implemented local seam | `POST /launch/finalize/public-alpha` requires `launch:export` when scope checks are enabled. |
 | Finalizer release target | implemented | `public-alpha-launch-finalizer` requires local launch evidence, GPU-backed launch readiness, Live 3D evidence, and the finalizer record. |
 

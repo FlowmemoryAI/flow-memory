@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "d38badbf746ffe256c76b66911d1258222587d07",
-  "hash": "0c42c1e49981fe372f849f8f0a79c0693767fef849980b8581f8ead8c727c228",
+  "git_commit": "72eb78559cb45b6cc19ea269967040c679ce8e7d",
+  "hash": "7315c5852762cb3bf96322cd10ff5e8433295edde93a1023ce0d542806d5ecf5",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -95,6 +95,7 @@
     "ok": true
   },
   "mission_control_run_console": {
+    "dev_server": true,
     "fixtures": true,
     "ok": true,
     "selector": true,

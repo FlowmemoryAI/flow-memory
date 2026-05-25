@@ -14,6 +14,7 @@ REQUIRED_CONSOLE_ENDPOINTS = (
     "GET /launch/console/runs/{run_id}",
     "GET /launch/console/fixtures",
     "POST /launch/bundles/public-alpha",
+    "POST /launch/finalize/public-alpha",
 )
 
 REQUIRED_FIXTURES = (
@@ -42,6 +43,7 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
     dashboard_config = _read_text(root_path / "dashboard" / "src" / "lib" / "mission-control-config.ts")
     run_console_ts = _read_text(root_path / "dashboard" / "src" / "lib" / "run-console.ts")
     run_selector_component = _read_text(root_path / "dashboard" / "src" / "components" / "mission-control" / "RunSelector.tsx")
+    dev_server = _read_text(root_path / "dashboard" / "scripts" / "dev-server.mjs")
     docs = {relative: (root_path / relative).exists() for relative in REQUIRED_DOCS}
     fixtures = _fixtures_status(root_path)
     docs_safe = _docs_safe(root_path)
@@ -55,6 +57,7 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
     selector_available = "RunSelector" in dashboard_page and "Mission Control Run Selector" in run_selector_component and "missionControlRunFixtures" in dashboard_config
     status_card_available = "run-status-card" in dashboard_page or "run-status-card" in run_selector_component
     replay_selector_valid = fixtures.get("ok") is True and fixture_manifest.get("ok") is True
+    dev_server_rendered = _dev_server_renders_real_dashboard(dev_server)
     ok = (
         not missing_endpoints
         and _cli_has_bundle(cli_text)
@@ -69,6 +72,7 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
         and docs_safe.get("ok") is True
         and "eventCategoryCounts" in run_console_ts
         and console.get("ok") is True
+        and dev_server_rendered
     )
     return {
         "ok": ok,
@@ -89,6 +93,7 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
         "public_alpha_demo_bundle_no_live_provider_calls": dict(bundle_loaded.get("invariants", {})).get("no_live_provider_calls") is True,
         "public_alpha_demo_bundle_no_funds_moved": dict(bundle_loaded.get("invariants", {})).get("no_funds_moved") is True,
         "public_alpha_demo_bundle_docs_updated": all(docs.values()) and docs_safe.get("ok") is True,
+        "mission_control_dev_server_renders_real_dashboard": dev_server_rendered,
         "missing_endpoints": missing_endpoints,
         "dashboard_fixtures": fixtures,
         "docs": docs,
@@ -109,6 +114,24 @@ def _cli_has_bundle(cli_text: str) -> bool:
 
 def _api_available(missing_endpoints: tuple[str, ...]) -> bool:
     return not missing_endpoints
+
+def _dev_server_renders_real_dashboard(dev_server: str) -> bool:
+    required = (
+        "dashboardHtml",
+        "Mission Control Run Selector",
+        "Visible neural embodiment",
+        "Mission Control Live 3D Mode",
+        "Public-alpha finalizer status",
+        "safeLiveReadEndpoints",
+        "method_not_allowed",
+    )
+    unsafe = (
+        "production frontend bundling remains a public-alpha next step",
+        "POST /launch/",
+        "POST /network/run-scenario",
+        "POST /compute/",
+    )
+    return all(item in dev_server for item in required) and not any(item in dev_server for item in unsafe)
 
 
 def _fixtures_status(root: Path) -> Mapping[str, Any]:

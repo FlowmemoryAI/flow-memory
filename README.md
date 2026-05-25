@@ -69,6 +69,7 @@ npm test
 
 Mission Control is connected to local state/replay/API data, with mock fallback clearly labeled.
 Live 3D Mode renders the neural embodiment as read-only local/replay telemetry; it is not an agent launcher, provider connector, settlement console, or policy bypass.
+`cd dashboard && npm run dev` serves the real Mission Control replay UI at `/mission-control` with the run selector, neural embodiment panel, Live 3D Mode, GPU evidence status, and public-alpha finalizer status from local fixtures. It does not expose unsafe write/control endpoints.
 
 The project now combines:
 

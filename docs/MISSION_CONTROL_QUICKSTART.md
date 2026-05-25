@@ -89,11 +89,9 @@ npm run build
 npm run dev
 ```
 
-For local development, run a frontend dev server around the existing TypeScript dashboard scaffold and choose one mode:
+For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
 
-- `mock`: clearly labeled fallback data.
-- `replay`: generated `dashboard/src/mock-data/local-network-replay.json`.
-- `live`: polling the local API server.
+The dev server exposes fixture JSON and read-only page rendering only. It does not expose launch, network-run, compute, settlement, or control POST endpoints. Optional local API mode remains a separate read-only polling path through `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`.
 
 
 ## Mission Control run selector

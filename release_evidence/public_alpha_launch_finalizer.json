@@ -37,10 +37,10 @@
   "ctmp_backup_tracked_paths": [],
   "git": {
     "branch": "main",
-    "commit": "d38badbf746ffe256c76b66911d1258222587d07",
+    "commit": "72eb78559cb45b6cc19ea269967040c679ce8e7d",
     "tracked_ctmp_backup_paths": []
   },
-  "hash": "b7ae47c35e80a53b2c500f806f61a0bcd559101cb622355c3e6542fd524ebac5",
+  "hash": "dd8e681ed31e288b9b7c56c0ba8751311f865694288cc3bed59e2a79ace35daa",
   "invariants": {
     "ctmp_backup_not_tracked": true,
     "local_only": true,
@@ -102,7 +102,7 @@
   "operator_handoff": "Mission Control Live 3D Mode + Public Alpha Launch Finalizer",
   "project": "Flow Memory",
   "public_alpha_demo_bundle": {
-    "bundle_hash": "3c92cee5e0cd644bcdee81e32c5daab455d2bd6bafca130c7c0aac6dbb5f3d17",
+    "bundle_hash": "d28a48b5ecebc1f75582aa415aeeab8663d8bec0916213972f946e52a0bb2d67",
     "fixture_count": 5,
     "gpu_evidence_status": "verified",
     "missing_invariants": [],

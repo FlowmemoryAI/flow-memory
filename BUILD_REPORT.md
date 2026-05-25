@@ -832,3 +832,13 @@ Implemented the Mission Control visible neural embodiment slice.
 - Updated Mission Control, neural-live, launchpad, readiness, README, and status docs.
 
 RunPod RTX 4090 evidence is imported and verified for GPU-gated release checks. This does not claim AGI, consciousness, unbounded autonomous operation, live settlement, live provider calls, or production ML certification.
+
+## Mission Control dashboard app wiring update
+
+Implemented the dashboard app wiring slice so `cd dashboard && npm run dev` serves the real Mission Control replay UI at `/mission-control` instead of a static placeholder.
+
+- Replaced the dependency-free dev-server placeholder with server-rendered Mission Control HTML backed by checked-in replay fixtures.
+- The rendered page includes the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Neural Embodiment panel, Live 3D Mode panel, verified GPU evidence status, and public-alpha finalizer status.
+- Replay/mock mode works without the local API. Optional local API mode remains separate and read-only.
+- The dev server rejects non-GET methods and does not expose launch, network-run, compute, settlement, or control POST endpoints.
+- Added dashboard tests proving `/mission-control` renders the real panels and no longer contains the previous frontend-bundling placeholder copy.

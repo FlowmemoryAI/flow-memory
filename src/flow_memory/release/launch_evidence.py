@@ -222,6 +222,7 @@ def _mission_control_run_console_status(root: Path) -> Mapping[str, Any]:
         "selector": bool(evidence.get("mission_control_run_selector_available")),
         "status_card": bool(evidence.get("mission_control_run_status_card_available")),
         "fixtures": bool(evidence.get("mission_control_replay_fixture_selector_validated")),
+        "dev_server": bool(evidence.get("mission_control_dev_server_renders_real_dashboard")),
     }
 
 def _mission_control_live_3d_status(root: Path) -> Mapping[str, Any]:

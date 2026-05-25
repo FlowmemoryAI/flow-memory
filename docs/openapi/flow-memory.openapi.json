@@ -35,6 +35,90 @@
         ]
       }
     },
+    "/admin/redis/diagnostics": {
+      "get": {
+        "operationId": "admin_redis_diagnostics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "circuit_breaker": {
+                      "type": "string"
+                    },
+                    "circuit_breaker_probe": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "rate_limit_probe": {
+                      "type": "string"
+                    },
+                    "rate_limiter": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Verify managed Redis limiter and circuit-breaker probes through the active production backend",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/storage/diagnostics": {
+      "get": {
+        "operationId": "admin_storage_diagnostics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "audit_chain": {
+                      "type": "string"
+                    },
+                    "migration_history": {
+                      "type": "string"
+                    },
+                    "migration_status": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "production_readiness": {
+                      "type": "string"
+                    },
+                    "schema_verification": {
+                      "type": "string"
+                    },
+                    "storage": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Verify managed SQL migrations, required tables, indexes, advisory lock access, and audit chain state",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/agents": {
       "get": {
         "operationId": "agents_list",

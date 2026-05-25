@@ -9,7 +9,7 @@ from typing import Any, Mapping
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.adapters import build_external_provider_adapter
 from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, build_checkpoint, create_audit_exporter, verify_audit_export
-from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, create_circuit_breaker, create_rate_limiter
+from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, RedisCircuitBreaker, RedisRateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
 from flow_memory.compute_market.provider_contracts import validate_provider_quote_contract, verify_provider_quote_signature
 from flow_memory.compute_market.memory import query_economic_memory_typed, query_request_from_payload
@@ -23,7 +23,7 @@ from flow_memory.compute_market.models import (
 from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry
 from flow_memory.compute_market.planner import build_compute_plan, build_task_profile, replay_decision
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
-from flow_memory.compute_market.storage import deterministic_id, migration_plan, utc_now_iso
+from flow_memory.compute_market.storage import deterministic_id, migration_plan, schema_hash, utc_now_iso
 from flow_memory.compute_market.storage_backends import ComputeMarketStoreProtocol, create_compute_market_store
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.core.types import new_id
@@ -1422,6 +1422,49 @@ class ComputeMarketService:
         self._audit("compute.alert.acknowledged", payload, request_id=request_id, result="acknowledged", reason_codes=(rule_name,))
         return {"ok": True, "acknowledgement": record}
 
+    def admin_storage_diagnostics(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        _ = payload
+        migration_status = self.store.migration_status()
+        migration_history = self.store.migration_history()
+        schema = self.store.schema_verification()
+        production = self.store.production_readiness_check()
+        audit_chain = self.store.verify_audit_chain().as_record()
+        return {
+            "ok": bool(schema.get("ok")) and bool(migration_status.get("current")) and bool(production.get("production_ready")) and bool(audit_chain.get("ok")),
+            "storage": self.store.storage_status(),
+            "migration_status": migration_status,
+            "migration_history": migration_history,
+            "schema_verification": schema,
+            "production_readiness": production,
+            "audit_chain": audit_chain,
+            "schema_hash": schema_hash(),
+        }
+
+    def admin_redis_diagnostics(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        request_id = _request_id(payload or {})
+        limiter_status = self.rate_limiter.get_status("diagnostics")
+        circuit_status = self.circuit_breaker.get_state("diagnostics")
+        rate_probe = _redis_rate_limit_probe(self.rate_limiter, request_id=request_id, redis_prefix=self.config.redis_prefix)
+        circuit_probe = _redis_circuit_probe(self.circuit_breaker, request_id=request_id, redis_prefix=self.config.redis_prefix)
+        expected_redis = (
+            self.config.rate_limit_backend.strip().lower() == "redis"
+            or self.config.circuit_breaker_backend.strip().lower() == "redis"
+        )
+        probes_ok = (
+            (not expected_redis or bool(rate_probe.get("ok")))
+            and (not expected_redis or bool(circuit_probe.get("ok")))
+        )
+        return {
+            "ok": probes_ok,
+            "expected_redis": expected_redis,
+            "rate_limiter": limiter_status,
+            "circuit_breaker": circuit_status,
+            "rate_limit_probe": rate_probe,
+            "circuit_breaker_probe": circuit_probe,
+            "rate_limit_fail_closed": self.config.rate_limit_fail_closed,
+            "circuit_breaker_fail_closed": self.config.circuit_breaker_fail_closed,
+        }
+
     def _rate_limit_response(
         self,
         payload: Mapping[str, Any],
@@ -2185,6 +2228,58 @@ def _tuple(value: object) -> tuple[str, ...]:
     return (str(value),)
 
 
+
+def _redis_rate_limit_probe(limiter: RateLimiter, *, request_id: str, redis_prefix: str) -> Mapping[str, Any]:
+    if not isinstance(limiter, RedisRateLimiter):
+        return {"ok": False, "skipped": True, "reason": "redis_rate_limiter_not_configured"}
+    probe = RedisRateLimiter(
+        limiter.redis_url,
+        prefix=f"{redis_prefix}:diagnostic:{request_id}",
+        default_limit=1,
+        window_seconds=30,
+        fail_closed=limiter.fail_closed,
+        client=limiter.client,
+    )
+    first = probe.check_limit("diagnostic-actor", "GET /admin/redis/diagnostics")
+    second = probe.check_limit("diagnostic-actor", "GET /admin/redis/diagnostics")
+    status = probe.get_status("diagnostics")
+    return {
+        "ok": bool(status.get("configured")) and first.ok is True and second.ok is False and second.reason_code == "rate_limited",
+        "backend": "redis",
+        "configured": bool(status.get("configured")),
+        "first": first.as_record(),
+        "second": second.as_record(),
+        "fail_closed": limiter.fail_closed,
+    }
+
+
+def _redis_circuit_probe(breaker: CircuitBreaker, *, request_id: str, redis_prefix: str) -> Mapping[str, Any]:
+    if not isinstance(breaker, RedisCircuitBreaker):
+        return {"ok": False, "skipped": True, "reason": "redis_circuit_breaker_not_configured"}
+    probe = RedisCircuitBreaker(
+        breaker.redis_url,
+        prefix=f"{redis_prefix}:diagnostic:{request_id}",
+        failure_threshold=1,
+        reset_after_seconds=30,
+        fail_closed=breaker.fail_closed,
+        client=breaker.client,
+    )
+    provider_id = "diagnostic-provider"
+    before = probe.allow_request(provider_id, adapter_type="diagnostics")
+    probe.record_failure(provider_id, adapter_type="diagnostics", error_class="diagnostic_failure")
+    opened = probe.allow_request(provider_id, adapter_type="diagnostics")
+    probe.reset(provider_id, adapter_type="diagnostics")
+    recovered = probe.allow_request(provider_id, adapter_type="diagnostics")
+    status = probe.get_state(provider_id, adapter_type="diagnostics")
+    return {
+        "ok": bool(status.get("configured")) and before.ok is True and opened.ok is False and opened.reason_code == "circuit_open" and recovered.ok is True,
+        "backend": "redis",
+        "configured": bool(status.get("configured")),
+        "before": before.as_record(),
+        "opened": opened.as_record(),
+        "recovered": recovered.as_record(),
+        "fail_closed": breaker.fail_closed,
+    }
 
 def _log_fields(plan: Mapping[str, Any]) -> Mapping[str, Any]:
     selected = plan.get("selected_route", {}) if isinstance(plan.get("selected_route"), Mapping) else {}

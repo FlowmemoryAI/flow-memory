@@ -1,9 +1,11 @@
 {
-  "endpoint_count": 125,
-  "manifest_hash": "e411fca79e2205f3972d61dbc9058f34f33be7eeb574b61f1222ec3953e28296",
-  "openapi_hash": "b85f4b0758f12a9c29c853ccf8c6248687f5ba9260ef34c1b3b1b76870c65b07",
+  "endpoint_count": 127,
+  "manifest_hash": "5500bb20fd436f92c9777450b945d2dc44b47507ac386f1b93efbffae30ae868",
+  "openapi_hash": "d370fe26f7585073f9a651972084b263cd4cf12ef899b6e11f2ec47a916d9632",
   "operations": [
     "GET /admin/reconciliation",
+    "GET /admin/redis/diagnostics",
+    "GET /admin/storage/diagnostics",
     "GET /agents",
     "GET /agents/{did}",
     "GET /agents/{did}/memory",
@@ -129,9 +131,11 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 118,
+  "path_count": 120,
   "paths": [
     "/admin/reconciliation",
+    "/admin/redis/diagnostics",
+    "/admin/storage/diagnostics",
     "/agents",
     "/agents/launch",
     "/agents/launch-flowlang",

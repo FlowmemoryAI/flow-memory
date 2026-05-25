@@ -157,6 +157,11 @@ class ComputeMarketStoreProtocol(Protocol):
     def verify_audit_chain(self, *, chain_id: str = "") -> AuditChainVerification: ...
 
     def audit_chain_ids(self) -> tuple[str, ...]: ...
+    def migration_history(self) -> Mapping[str, Any]: ...
+
+    def schema_verification(self) -> Mapping[str, Any]: ...
+
+    def production_readiness_check(self) -> Mapping[str, Any]: ...
 
 
 @dataclass(frozen=True)
@@ -338,6 +343,73 @@ class PostgresComputeMarketStore:
             "schema_hash": schema_hash(),
             "managed_sql_ready": True,
             "production_note": "PostgreSQL storage is suitable for multi-node production when deployed with backups and migrations.",
+        }
+
+    def migration_history(self) -> Mapping[str, Any]:
+        try:
+            with self._connection() as conn:
+                rows = conn.execute("select version, name, applied_at from compute_migrations order by version").fetchall()
+        except Exception as exc:
+            return {"ok": False, "backend": self.backend, "reason": f"migration_history_failed:{type(exc).__name__}", "history": ()}
+        history = tuple(
+            {
+                "version": int(row.get("version") or 0),
+                "name": str(row.get("name", "")),
+                "applied_at": str(row.get("applied_at", "")),
+            }
+            for row in rows
+            if isinstance(row, Mapping)
+        )
+        return {
+            "ok": True,
+            "backend": self.backend,
+            "migration_lock": "postgres_advisory_lock",
+            "migration_lock_id": _POSTGRES_MIGRATION_LOCK_ID,
+            "history": history,
+        }
+
+    def schema_verification(self) -> Mapping[str, Any]:
+        expected_tables = ("compute_migrations", *_POSTGRES_TABLES.values())
+        expected_indexes = tuple(statement.name for record_type in COMPUTE_RECORD_TYPES for statement in _postgres_index_statements(record_type))
+        try:
+            with self._connection() as conn:
+                table_rows = conn.execute(
+                    "select table_name from information_schema.tables where table_schema = current_schema()"
+                ).fetchall()
+                index_rows = conn.execute(
+                    "select indexname from pg_indexes where schemaname = current_schema()"
+                ).fetchall()
+                lock_row = conn.execute("select pg_try_advisory_lock(%s) as locked", (_POSTGRES_MIGRATION_LOCK_ID,)).fetchone()
+                lock_acquired = bool(lock_row.get("locked")) if isinstance(lock_row, Mapping) else False
+                if lock_acquired:
+                    conn.execute("select pg_advisory_unlock(%s)", (_POSTGRES_MIGRATION_LOCK_ID,))
+        except Exception as exc:
+            return {"ok": False, "backend": self.backend, "reason": f"schema_verification_failed:{type(exc).__name__}"}
+        actual_tables = {str(row.get("table_name", "")) for row in table_rows if isinstance(row, Mapping)}
+        actual_indexes = {str(row.get("indexname", "")) for row in index_rows if isinstance(row, Mapping)}
+        missing_tables = tuple(name for name in expected_tables if name not in actual_tables)
+        missing_indexes = tuple(name for name in expected_indexes if name not in actual_indexes)
+        return {
+            "ok": not missing_tables and not missing_indexes,
+            "backend": self.backend,
+            "required_table_count": len(expected_tables),
+            "missing_tables": missing_tables,
+            "required_index_count": len(expected_indexes),
+            "missing_indexes": missing_indexes,
+            "advisory_lock_probe": {"lock_id": _POSTGRES_MIGRATION_LOCK_ID, "acquired": lock_acquired},
+        }
+
+    def production_readiness_check(self) -> Mapping[str, Any]:
+        migration = self.migration_status()
+        schema = self.schema_verification()
+        return {
+            "ok": bool(migration.get("current")) and bool(schema.get("ok")),
+            "production_ready": bool(migration.get("current")) and bool(schema.get("ok")),
+            "managed_sql_confirmed": True,
+            "backend": self.backend,
+            "migration_current": bool(migration.get("current")),
+            "schema_ok": bool(schema.get("ok")),
+            "postgres_ssl_mode": self.ssl_mode,
         }
 
     def put_record(

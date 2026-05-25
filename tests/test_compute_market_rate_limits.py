@@ -228,3 +228,53 @@ def test_readiness_reports_missing_redis_when_required() -> None:
     assert readiness["ready"] is False
     assert "rate_limiter_unavailable" in readiness["readiness_failures"]
     assert "circuit_breaker_unavailable" in readiness["readiness_failures"]
+
+
+def test_admin_redis_diagnostics_probe_shared_limiter_and_circuit_state() -> None:
+    redis = FakeRedis()
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limit_backend="redis",
+            circuit_breaker_backend="redis",
+            redis_url="redis://localhost:6379/0",
+        ),
+        rate_limiter=RedisRateLimiter("redis://localhost:6379/0", default_limit=100, client=redis),
+        circuit_breaker=RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=3, client=redis),
+    )
+
+    diagnostics = service.admin_redis_diagnostics({"request_id": "redis-diagnostic-test"})
+
+    assert diagnostics["ok"] is True
+    assert diagnostics["expected_redis"] is True
+    assert diagnostics["rate_limiter"]["configured"] is True
+    assert diagnostics["circuit_breaker"]["configured"] is True
+    assert diagnostics["rate_limit_probe"]["ok"] is True
+    assert diagnostics["rate_limit_probe"]["second"]["reason_code"] == "rate_limited"
+    assert diagnostics["circuit_breaker_probe"]["ok"] is True
+    assert diagnostics["circuit_breaker_probe"]["opened"]["reason_code"] == "circuit_open"
+
+
+def test_admin_redis_diagnostics_fails_when_required_backend_is_unavailable() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limit_backend="redis",
+            circuit_breaker_backend="redis",
+            redis_url="redis://localhost:6379/0",
+        ),
+        rate_limiter=RedisRateLimiter("redis://localhost:6379/0", fail_closed=True, client=FakeRedis(fail=True)),
+        circuit_breaker=RedisCircuitBreaker("redis://localhost:6379/0", fail_closed=True, client=FakeRedis(fail=True)),
+    )
+
+    diagnostics = service.admin_redis_diagnostics({"request_id": "redis-unavailable-test"})
+
+    assert diagnostics["ok"] is False
+    assert diagnostics["rate_limit_probe"]["ok"] is False
+    assert diagnostics["rate_limit_probe"]["first"]["reason_code"] == "rate_limit_backend_unavailable"
+    assert diagnostics["circuit_breaker_probe"]["ok"] is False
+    assert diagnostics["circuit_breaker_probe"]["before"]["reason_code"] == "circuit_backend_unavailable"

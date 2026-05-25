@@ -219,3 +219,35 @@ def test_readiness_reports_multi_node_required_controls() -> None:
     assert "audit_export_unavailable" in readiness["readiness_failures"]
     assert "external_provider_allowlist_missing" in readiness["readiness_failures"]
     assert "provider_contracts_unverified" in readiness["readiness_failures"]
+
+
+def test_storage_diagnostics_report_schema_migrations_and_sqlite_production_guard() -> None:
+    store = ComputeMarketStore(":memory:")
+    diagnostics = store.schema_verification()
+    history = store.migration_history()
+    production = store.production_readiness_check()
+
+    assert diagnostics["ok"] is True
+    assert diagnostics["missing_tables"] == ()
+    assert diagnostics["missing_indexes"] == ()
+    assert history["ok"] is True
+    assert history["migration_lock"] == "sqlite_single_writer"
+    assert production["production_ready"] is False
+    assert production["reason"] == "sqlite_disallowed_in_production"
+
+
+def test_admin_storage_diagnostics_exposes_authoritative_readiness_evidence() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"),
+    )
+    service.plan({"task": "diagnostic audit chain coverage"})
+
+    diagnostics = service.admin_storage_diagnostics({})
+
+    assert diagnostics["ok"] is False
+    assert diagnostics["migration_status"]["current"] is True
+    assert diagnostics["schema_verification"]["ok"] is True
+    assert diagnostics["production_readiness"]["production_ready"] is False
+    assert diagnostics["audit_chain"]["ok"] is True
+    assert diagnostics["schema_hash"]

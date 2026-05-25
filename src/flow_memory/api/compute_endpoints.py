@@ -298,5 +298,13 @@ def admin_reconciliation(payload: Mapping[str, Any] | None = None) -> Mapping[st
     return default_service().reconciliation(payload or {})
 
 
+def admin_storage_diagnostics(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().admin_storage_diagnostics(payload or {})
+
+
+def admin_redis_diagnostics(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().admin_redis_diagnostics(payload or {})
+
+
 def compute_migrations() -> Mapping[str, Any]:
     return {"ok": True, "migration_plan": migration_plan(), "default_market_policy": ComputeMarketPolicy().as_record()}

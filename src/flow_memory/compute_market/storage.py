@@ -526,6 +526,56 @@ class ComputeMarketStore:
             ).fetchall()
         return tuple(json.loads(str(row["payload"])) for row in rows)
 
+    def migration_history(self) -> Mapping[str, Any]:
+        with self._connection() as conn:
+            rows = conn.execute(
+                "select version, name, applied_at from compute_market_migrations order by version"
+            ).fetchall()
+        history = tuple({"version": int(row["version"]), "name": str(row["name"]), "applied_at": str(row["applied_at"])} for row in rows)
+        return {
+            "ok": True,
+            "backend": self.backend,
+            "migration_lock": "sqlite_single_writer",
+            "history": history,
+        }
+
+    def schema_verification(self) -> Mapping[str, Any]:
+        required_tables = ("compute_market_records", "compute_market_migrations")
+        required_indexes = _sqlite_required_index_names()
+        with self._connection() as conn:
+            tables = {
+                str(row["name"])
+                for row in conn.execute(
+                    "select name from sqlite_master where type = 'table' and name in (?, ?)",
+                    required_tables,
+                ).fetchall()
+            }
+            indexes = {
+                str(row["name"])
+                for row in conn.execute(
+                    "select name from sqlite_master where type = 'index'"
+                ).fetchall()
+            }
+        missing_tables = tuple(name for name in required_tables if name not in tables)
+        missing_indexes = tuple(name for name in required_indexes if name not in indexes)
+        return {
+            "ok": not missing_tables and not missing_indexes,
+            "backend": self.backend,
+            "required_tables": required_tables,
+            "missing_tables": missing_tables,
+            "required_index_count": len(required_indexes),
+            "missing_indexes": missing_indexes,
+        }
+
+    def production_readiness_check(self) -> Mapping[str, Any]:
+        return {
+            "ok": False,
+            "production_ready": False,
+            "managed_sql_confirmed": False,
+            "backend": self.backend,
+            "reason": "sqlite_disallowed_in_production",
+            "requires": "postgresql",
+        }
     def close(self) -> None:
         if self._memory:
             self.conn.close()
@@ -684,6 +734,25 @@ def migrate_alpha_memory(store: ComputeMarketStore, records: tuple[Mapping[str, 
         )
     return MigrationResult(ok=True, version=COMPUTE_MARKET_STORAGE_VERSION, applied=("alpha_memory_import",), schema_hash=schema_hash())
 
+
+def _sqlite_required_index_names() -> tuple[str, ...]:
+    return (
+        "idx_compute_records_type_created",
+        "idx_compute_records_agent",
+        "idx_compute_records_goal",
+        "idx_compute_records_provider",
+        "idx_compute_records_route",
+        "idx_compute_records_task",
+        "idx_compute_records_status",
+        "idx_compute_records_expires",
+        "idx_compute_records_idempotency",
+        "idx_compute_records_request",
+        "idx_compute_records_actor",
+        "idx_compute_records_chain",
+        "idx_compute_records_event_hash",
+        "idx_compute_records_action",
+        "idx_compute_records_tenant",
+    )
 
 def _cursor_to_offset(cursor: str) -> int:
     if not cursor:

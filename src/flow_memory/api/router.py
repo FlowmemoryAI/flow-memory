@@ -30,6 +30,8 @@ from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
 from flow_memory.api.compute_endpoints import (
     admin_reconciliation,
+    admin_redis_diagnostics,
+    admin_storage_diagnostics,
     billing_balance,
     billing_checkout,
     billing_usage,
@@ -650,6 +652,12 @@ class LocalApiRouter:
     def _admin_reconciliation(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return admin_reconciliation(payload)
 
+    def _admin_storage_diagnostics(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_storage_diagnostics(payload)
+
+    def _admin_redis_diagnostics(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_redis_diagnostics(payload)
+
 
     def _compute_health(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_health()
@@ -812,6 +820,8 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")
     router.register("GET", "/billing/usage", router._billing_usage, "billing_usage")
     router.register("GET", "/admin/reconciliation", router._admin_reconciliation, "admin_reconciliation")
+    router.register("GET", "/admin/storage/diagnostics", router._admin_storage_diagnostics, "admin_storage_diagnostics")
+    router.register("GET", "/admin/redis/diagnostics", router._admin_redis_diagnostics, "admin_redis_diagnostics")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

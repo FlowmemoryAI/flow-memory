@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from flow_memory.api.auth import ApiAuthConfig, authorize_request
 from flow_memory.api.audit_middleware import LocalAuditSink
-from flow_memory.api.errors import ApiError, auth_error, error_response, validation_error
+from flow_memory.api.errors import ApiError, auth_error, error_response, forbidden_error, validation_error
 from flow_memory.api.rate_limits import LocalRateLimiter, RateLimitRule
 from flow_memory.api.router import LocalApiRouter, create_default_router
 from flow_memory.api.scopes import context_from_headers, require_scopes
@@ -170,7 +170,8 @@ class HttpApiGateway:
                 rate_decision = self.limiter.check(context, now=int(time.time()))
                 if not rate_decision.ok and rate_decision.error is not None:
                     raise rate_decision.error
-            router_payload = _inject_provider_callback_ip(context.method, context.path, payload, header_map)
+            router_payload = _tenant_scoped_payload(context, payload)
+            router_payload = _inject_provider_callback_ip(context.method, context.path, router_payload, header_map)
             result = self.router.dispatch(context.method, context.path, router_payload)
             self.audit_sink.record(_audit_event(context, True, 200, ""))
             return HttpApiResponse(
@@ -260,6 +261,21 @@ def _query_payload(query: str) -> Mapping[str, Any]:
         return {}
     parsed = parse_qs(query, keep_blank_values=True)
     return {key: values[-1] if values else "" for key, values in parsed.items()}
+
+
+def _tenant_scoped_payload(context: Any, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    tenant_id = str(context.tenant_id or "").strip()
+    if "api:admin" in context.scopes or "compute:admin" in context.scopes:
+        return payload
+    if not tenant_id:
+        return payload
+    explicit_tenant = str(payload.get("tenant_id", "")).strip()
+    if explicit_tenant and explicit_tenant != tenant_id:
+        raise forbidden_error(
+            "Authenticated tenant cannot access another tenant",
+            details={"tenant_id": tenant_id, "requested_tenant_id": explicit_tenant},
+        )
+    return {**dict(payload), "tenant_id": tenant_id, "_flow_memory_principal": str(context.principal or "")}
 
 
 def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str]) -> Mapping[str, Any]:

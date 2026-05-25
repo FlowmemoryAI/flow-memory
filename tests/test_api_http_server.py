@@ -119,6 +119,45 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header():
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
 
 
+def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    key = "fmk_tenant_billing"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-billing-key",
+                    "key_prefix": "fmk_tenant_",
+                    "key_hash": api_key_hash(key),
+                    "tenant_id": "tenant_billing",
+                    "principal": "svc-billing",
+                    "scopes": "compute:billing",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    try:
+        scoped = gateway.handle("GET", "/billing/balance", {"x-flow-memory-api-key": key})
+        mismatch = gateway.handle("GET", "/billing/balance?tenant_id=tenant_other", {"x-flow-memory-api-key": key})
+    finally:
+        reset_default_service(None)
+
+    assert scoped.status == 200
+    assert scoped.body["data"]["balance"]["account_id"] == "tenant_billing"
+    assert mismatch.status == 403
+    assert mismatch.body["error"]["code"] == "auth.forbidden"
+    assert mismatch.body["error"]["details"]["tenant_id"] == "tenant_billing"
+    assert mismatch.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+
+
+
 def test_http_gateway_api_key_management_rotates_active_tenant_key() -> None:
     admin_key = "fmk_admin_secret"
     gateway = HttpApiGateway(

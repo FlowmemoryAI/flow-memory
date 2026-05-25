@@ -1004,6 +1004,8 @@ class ComputeMarketService:
                 status="available",
                 request_id=request_id,
             )
+        credit_debit: Mapping[str, Any] = {}
+        provider_payout: Mapping[str, Any] = {}
         usage_charge = _usage_charge(job, payload, request_id=request_id, amount=cost, units=actual_units)
         if usage_charge:
             self.store.put_record(
@@ -1028,6 +1030,31 @@ class ComputeMarketService:
                 route_id=str(job.get("route_id", "")),
             )
             self.telemetry.increment("billing_debit_total", {"provider_id": str(job.get("provider_id", ""))}, value=float(usage_charge["amount"]))
+            account_id = str(usage_charge.get("account_id", ""))
+            if account_id:
+                credit_debit = _debit_credit(
+                    self.store,
+                    account_id,
+                    amount=float(usage_charge["amount"]),
+                    currency=str(usage_charge["currency"]),
+                    request_id=request_id,
+                    usage_charge_id=str(usage_charge["usage_charge_id"]),
+                )
+                provider_payout = _accrue_provider_payout(
+                    self.store,
+                    provider_id=str(job.get("provider_id", "")),
+                    job_id=job_id,
+                    account_id=account_id,
+                    route_id=str(job.get("route_id", "")),
+                    amount=float(usage_charge["amount"]),
+                    currency=str(usage_charge["currency"]),
+                    request_id=request_id,
+                    usage_charge_id=str(usage_charge["usage_charge_id"]),
+                )
+                if credit_debit:
+                    self._audit("billing.usage.debited", payload, request_id=request_id, result=str(credit_debit.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
+                if provider_payout:
+                    self._audit("billing.provider_payout.accrued", payload, request_id=request_id, result=str(provider_payout.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
         event = _job_event(
             job_id,
             "job.completed",
@@ -1036,6 +1063,8 @@ class ComputeMarketService:
             details={
                 "artifact_recorded": bool(artifact),
                 "usage_charge_recorded": bool(usage_charge),
+                "credit_debit_recorded": bool(credit_debit),
+                "provider_payout_recorded": bool(provider_payout),
                 "actual_total_cost": cost,
                 "funds_moved": False,
                 "worker_id": worker_id,
@@ -1062,7 +1091,7 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event, "artifact": artifact, "usage_charge": usage_charge}
+        return {"ok": True, "job": job, "event": event, "artifact": artifact, "usage_charge": usage_charge, "credit_debit": credit_debit, "provider_payout": provider_payout}
 
     def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -2734,6 +2763,95 @@ def _apply_credit(
     store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
     store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status="posted", request_id=request_id, idempotency_key=transaction_id)
     return transaction
+
+
+def _debit_credit(
+    store: ComputeMarketStoreProtocol,
+    account_id: str,
+    *,
+    amount: float,
+    currency: str,
+    request_id: str,
+    usage_charge_id: str,
+) -> Mapping[str, Any]:
+    if not account_id or amount <= 0:
+        return {}
+    transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
+    existing = store.get_record("credit_transaction", transaction_id)
+    if existing is not None:
+        return existing
+    now = utc_now_iso()
+    current = store.get_record("credit_balance", account_id) or {
+        "account_id": account_id,
+        "available_credits": 0.0,
+        "reserved_credits": 0.0,
+        "currency": currency,
+        "created_at": now,
+    }
+    available = float(current.get("available_credits", 0.0) or 0.0)
+    sufficient = available >= amount
+    transaction = {
+        "credit_transaction_id": transaction_id,
+        "account_id": account_id,
+        "transaction_type": "debit",
+        "amount": amount,
+        "currency": currency,
+        "usage_charge_id": usage_charge_id,
+        "status": "posted" if sufficient else "insufficient_credit",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "request_id": request_id,
+    }
+    if sufficient:
+        balance = {
+            **dict(current),
+            "account_id": account_id,
+            "available_credits": round(available - amount, 6),
+            "reserved_credits": float(current.get("reserved_credits", 0.0) or 0.0),
+            "currency": currency,
+            "updated_at": now,
+        }
+        store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
+    store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status=str(transaction["status"]), request_id=request_id, idempotency_key=transaction_id)
+    return transaction
+
+
+def _accrue_provider_payout(
+    store: ComputeMarketStoreProtocol,
+    *,
+    provider_id: str,
+    job_id: str,
+    account_id: str,
+    route_id: str,
+    amount: float,
+    currency: str,
+    request_id: str,
+    usage_charge_id: str,
+) -> Mapping[str, Any]:
+    if not provider_id or amount <= 0:
+        return {}
+    payout_id = deterministic_id("provider_payout", {"provider_id": provider_id, "job_id": job_id, "usage_charge_id": usage_charge_id})
+    existing = store.get_record("provider_payout", payout_id)
+    if existing is not None:
+        return existing
+    payout = {
+        "provider_payout_id": payout_id,
+        "provider_id": provider_id,
+        "job_id": job_id,
+        "account_id": account_id,
+        "route_id": route_id,
+        "usage_charge_id": usage_charge_id,
+        "amount": amount,
+        "currency": currency,
+        "status": "accrued",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": utc_now_iso(),
+        "request_id": request_id,
+    }
+    store.put_record("provider_payout", payout_id, payout, tenant_id=account_id, provider_id=provider_id, route_id=route_id, status="accrued", request_id=request_id, idempotency_key=payout_id)
+    return payout
 
 
 def _billing_account(account_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:

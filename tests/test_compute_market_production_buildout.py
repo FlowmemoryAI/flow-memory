@@ -233,6 +233,8 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert completed["artifact"]["artifact_ref"] == "s3://flow-memory-results/job-1.json"
     assert completed["usage_charge"]["amount"] == 0.18
     assert completed["usage_charge"]["funds_moved"] is False
+    assert completed["credit_debit"] == {}
+    assert completed["provider_payout"] == {}
     assert service.job_artifacts(job_id)["artifacts"]
     assert service.billing_usage({})["usage_charges"]
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
@@ -456,6 +458,41 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert webhook["payment_event"]["verified"] is True
     assert webhook["credit_transaction"]["amount"] == 100.0
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
+
+
+def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:
+    service = _service()
+    raw_event = {"id": "evt_credit_1", "type": "checkout.session.completed", "amount": 1.0, "currency": "usd", "metadata": {"account_id": "acct_paid"}}
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_paid_compute"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(job_id, {"account_id": "acct_paid", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
+
+    assert completed["credit_debit"]["status"] == "posted"
+    assert completed["credit_debit"]["transaction_type"] == "debit"
+    assert completed["provider_payout"]["status"] == "accrued"
+    assert completed["provider_payout"]["provider_id"] == "provider_live_gpu_1"
+    assert completed["provider_payout"]["funds_moved"] is False
+    assert service.billing_balance({"account_id": "acct_paid"})["balance"]["available_credits"] == 0.82
+
+
+def test_prepaid_credit_debit_insufficient_balance_does_not_overdraw() -> None:
+    service = _service()
+    raw_event = {"id": "evt_credit_tiny", "type": "checkout.session.completed", "amount": 0.1, "currency": "usd", "metadata": {"account_id": "acct_tiny"}}
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_paid_compute_insufficient"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(job_id, {"account_id": "acct_tiny", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
+
+    assert completed["credit_debit"]["status"] == "insufficient_credit"
+    assert completed["provider_payout"]["status"] == "accrued"
+    assert service.billing_balance({"account_id": "acct_tiny"})["balance"]["available_credits"] == 0.1
 
 
 def test_marketplace_api_routes_and_scopes() -> None:

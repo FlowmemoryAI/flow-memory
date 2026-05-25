@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any, Mapping
 
 UTC_EPOCH = "2026-05-24T00:00:00Z"
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 PLANNER_VERSION = "compute-market-planner-v2"
 SUPPORTED_UNIT_TYPES: tuple[str, ...] = (
     "token",

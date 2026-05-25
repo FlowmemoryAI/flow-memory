@@ -5,6 +5,45 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/admin/audit/export": {
+      "get": {
+        "operationId": "admin_audit_export_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "audit_exporter_status": {
+                      "type": "string"
+                    },
+                    "immutable": {
+                      "type": "string"
+                    },
+                    "latest_checkpoint": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "retention_policy": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return audit exporter binding, immutable retention policy, and latest checkpoint",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/reconciliation": {
       "get": {
         "operationId": "admin_reconciliation",
@@ -731,6 +770,42 @@
         ]
       }
     },
+    "/compute/audit/chain/monitor": {
+      "get": {
+        "operationId": "compute_audit_chain_monitor",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "chains": {
+                      "type": "string"
+                    },
+                    "checkpoint_count": {
+                      "type": "string"
+                    },
+                    "latest_checkpoint": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return per-chain audit integrity and checkpoint coverage",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/audit/checkpoint": {
       "post": {
         "operationId": "compute_audit_checkpoint",
@@ -772,6 +847,67 @@
           }
         },
         "summary": "Create a compute audit checkpoint",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/checkpoint-schedule": {
+      "post": {
+        "operationId": "compute_audit_checkpoint_schedule",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "chain_id": {
+                    "type": "string"
+                  },
+                  "export": {
+                    "type": "string"
+                  },
+                  "force": {
+                    "type": "string"
+                  },
+                  "min_events": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "due": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "pending_event_count": {
+                      "type": "string"
+                    },
+                    "scheduled_result": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Schedule or force an audit checkpoint/export when event thresholds are met",
         "tags": [
           "compute"
         ]
@@ -830,6 +966,61 @@
           }
         },
         "summary": "Export compute audit events with a checkpoint",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/audit/replay": {
+      "post": {
+        "operationId": "compute_audit_replay",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "chain_id": {
+                    "type": "string"
+                  },
+                  "from_sequence": {
+                    "type": "string"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "to_sequence": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "replay": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Forensically replay audit events from the store or an exported NDJSON file",
         "tags": [
           "compute"
         ]

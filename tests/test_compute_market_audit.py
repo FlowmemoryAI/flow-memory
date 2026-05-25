@@ -68,7 +68,7 @@ def test_missing_audit_event_fails_verification() -> None:
     for index in range(3):
         service.plan({"task": f"missing audit {index}", "request_id": f"audit-{index}"})
     events = service.audit({})["audit_events"]
-    middle = events[1]
+    middle = next(event for event in events if int(event.get("sequence_number", 0) or 0) == 2)
     service.store.delete_record("audit_event", middle["audit_event_id"])
 
     result = service.store.verify_audit_chain()
@@ -242,6 +242,71 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     assert manifest["storage_uri"] == exported["path"]
     assert manifest["retention_until"]
 
+
+
+def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> None:
+    out = tmp_path / "scheduled.ndjson"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", audit_export_uri=str(out), audit_export_required=True),
+    )
+    service.plan({"task": "checkpoint schedule one", "request_id": "sched-1"})
+    service.plan({"task": "checkpoint schedule two", "request_id": "sched-2"})
+
+    skipped = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100})
+    scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 1, "force": True})
+    monitor = service.audit_chain_monitor({})
+    admin_status = service.admin_audit_export_status({})
+
+    assert skipped["due"] is False
+    assert scheduled["due"] is True
+    assert scheduled["scheduled_result"]["checkpoint_record"]["checkpoint_id"]
+    assert service.store.count_records("audit_checkpoint_manifest") == 1
+    assert monitor["ok"] is True
+    assert monitor["checkpoint_count"] == 1
+    assert admin_status["ok"] is True
+    assert admin_status["immutable"] is False
+    assert admin_status["latest_checkpoint"]["checkpoint_id"] == scheduled["scheduled_result"]["checkpoint_record"]["checkpoint_id"]
+
+
+def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None:
+    service = _service()
+    service.plan({"task": "replay source", "request_id": "replay-1"})
+    out = tmp_path / "replay.ndjson"
+    exported = service.audit_export({"out": str(out), "chain_id": "all"})
+    store_replay = service.audit_forensic_replay({"chain_id": "all"})
+    file_replay = service.audit_forensic_replay({"path": str(out)})
+
+    assert exported["ok"] is True
+    assert store_replay["ok"] is True
+    assert file_replay["ok"] is True
+    assert store_replay["replay"]["timeline"]
+    assert file_replay["replay"]["timeline"]
+    assert file_replay["replay"]["source"] == "export_file"
+    assert file_replay["replay"]["summary"]["event_count"] == file_replay["replay"]["event_count"]
+    assert service.store.count_records("audit_replay_run") == 2
+
+
+def test_audit_operations_are_exposed_through_http_gateway(tmp_path: Any) -> None:
+    service = _service()
+    service.plan({"task": "http audit ops", "request_id": "http-audit"})
+    reset_default_service(service)
+    gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", require_scopes=True, enable_rate_limit=False))
+    headers = {"x-flow-memory-api-key": "dev", "x-flow-memory-scopes": "compute:audit compute:admin"}
+
+    replay = gateway.handle("POST", "/compute/audit/replay", headers, b"{}")
+    monitor = gateway.handle("GET", "/compute/audit/chain/monitor", headers)
+    scheduled = gateway.handle("POST", "/compute/audit/checkpoint-schedule", headers, b'{"force":true}')
+    admin = gateway.handle("GET", "/admin/audit/export", headers)
+
+    assert replay.status == 200
+    assert replay.body["data"]["ok"] is True
+    assert monitor.status == 200
+    assert monitor.body["data"]["ok"] is True
+    assert scheduled.status == 200
+    assert scheduled.body["data"]["due"] is True
+    assert admin.status == 200
+    assert "audit_exporter_status" in admin.body["data"]
 
 def test_audit_checkpoint_paginates_all_events() -> None:
     service = _service()

@@ -68,6 +68,8 @@ _POSTGRES_TABLES: dict[str, str] = {
     "refund": "compute_refunds",
     "reconciliation_run": "compute_reconciliation_runs",
     "alert_acknowledgement": "compute_alert_acknowledgements",
+    "audit_checkpoint_manifest": "compute_audit_checkpoint_manifests",
+    "audit_replay_run": "compute_audit_replay_runs",
 }
 
 _COMMON_COLUMNS = (
@@ -303,9 +305,9 @@ class PostgresComputeMarketStore:
                     conn.execute(
                         "insert into compute_migrations(version, name, applied_at) values (%s, %s, %s) "
                         "on conflict (version) do nothing",
-                        (COMPUTE_MARKET_STORAGE_VERSION, "compute_market_postgresql_records_v4", utc_now_iso()),
+                        (COMPUTE_MARKET_STORAGE_VERSION, "compute_market_postgresql_records_v5_audit_operations", utc_now_iso()),
                     )
-                    applied.append("compute_market_postgresql_records_v4")
+                    applied.append("compute_market_postgresql_records_v5_audit_operations")
             finally:
                 conn.execute("select pg_advisory_unlock(%s)", (_POSTGRES_MIGRATION_LOCK_ID,))
         return MigrationResult(True, COMPUTE_MARKET_STORAGE_VERSION, tuple(applied), schema_hash())

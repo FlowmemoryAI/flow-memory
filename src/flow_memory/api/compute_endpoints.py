@@ -219,6 +219,22 @@ def compute_audit_verify_export(payload: Mapping[str, Any]) -> Mapping[str, Any]
     return default_service().audit_verify_export(payload)
 
 
+def compute_audit_checkpoint_schedule(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().audit_checkpoint_schedule(payload)
+
+
+def compute_audit_chain_monitor(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().audit_chain_monitor(payload or {})
+
+
+def compute_audit_replay(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().audit_forensic_replay(payload)
+
+
+def admin_audit_export_status(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().admin_audit_export_status(payload or {})
+
+
 def compute_health() -> Mapping[str, Any]:
     return default_service().health()
 

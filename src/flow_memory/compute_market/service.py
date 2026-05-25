@@ -8,7 +8,7 @@ from typing import Any, Mapping
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.adapters import build_external_provider_adapter
-from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, build_checkpoint, create_audit_exporter, verify_audit_export
+from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, audit_events_from_export_file, build_checkpoint, create_audit_exporter, verify_audit_export, verify_exported_chain
 from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, RedisCircuitBreaker, RedisRateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
 from flow_memory.compute_market.provider_contracts import validate_provider_quote_contract, verify_provider_quote_signature
@@ -1242,25 +1242,146 @@ class ComputeMarketService:
         except ValueError as exc:
             self._audit("compute.audit.export_failed", payload, result="failed", reason_codes=("audit_export_refused",))
             return {"ok": False, "path": out, "warnings": ("audit_export_refused",), "error": str(exc)}
-        exporter.write_checkpoint(result.checkpoint)
+        checkpoint_write = exporter.write_checkpoint(result.checkpoint)
+        checkpoint_record = self._persist_audit_checkpoint(
+            result.checkpoint,
+            manifest_hash=result.manifest_hash,
+            storage_uri=result.path,
+            checkpoint_write=checkpoint_write,
+        )
         self._audit("compute.audit.exported", payload, result="completed", reason_codes=())
-        return result.as_record()
+        return {**result.as_record(), "checkpoint_record": checkpoint_record}
 
     def audit_checkpoint(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         chain_id = str(payload.get("chain_id", "all") or "all")
+        from_sequence = int(payload.get("from_sequence", 1) or 1)
+        to_sequence = int(payload.get("to_sequence", 0) or 0)
         events = self._all_audit_events()
         if chain_id not in {"", "all"}:
             events = tuple(event for event in events if isinstance(event, Mapping) and str(event.get("chain_id", "")) == chain_id)
+        events = tuple(
+            event
+            for event in events
+            if int(event.get("sequence_number", 0) or 0) >= from_sequence
+            and (to_sequence <= 0 or int(event.get("sequence_number", 0) or 0) <= to_sequence)
+        )
         checkpoint = build_checkpoint(
             tuple(event for event in events if isinstance(event, Mapping)),
             chain_id=chain_id,
-            from_sequence=1,
-            to_sequence=0,
+            from_sequence=from_sequence,
+            to_sequence=to_sequence,
             export_uri=str(payload.get("out", "")),
             exported_to="checkpoint_only",
         )
+        manifest_hash = content_hash({"checkpoint": checkpoint.as_record(), "event_count": checkpoint.event_count})
+        checkpoint_record = self._persist_audit_checkpoint(checkpoint, manifest_hash=manifest_hash, storage_uri=str(payload.get("out", "")))
         self._audit("compute.audit.checkpointed", payload, result="completed", reason_codes=())
-        return {"ok": True, "checkpoint": checkpoint.as_record()}
+        return {"ok": True, "checkpoint": checkpoint.as_record(), "checkpoint_record": checkpoint_record}
+
+    def audit_checkpoint_schedule(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        chain_id = str(payload.get("chain_id", "all") or "all")
+        min_events = max(1, int(payload.get("min_events", payload.get("checkpoint_min_events", 1000)) or 1000))
+        force = bool(payload.get("force", False))
+        export = bool(payload.get("export", False))
+        events = self._audit_events_for_chain(chain_id)
+        last_checkpoint = self._last_audit_checkpoint(chain_id)
+        last_sequence = int((last_checkpoint or {}).get("to_sequence", 0) or 0)
+        pending_events = tuple(event for event in events if int(event.get("sequence_number", 0) or 0) > last_sequence)
+        due = force or len(pending_events) >= min_events
+        result: Mapping[str, Any] = {}
+        if due:
+            scheduled_payload = {**dict(payload), "chain_id": chain_id, "from_sequence": max(1, last_sequence + 1)}
+            result = self.audit_export(scheduled_payload) if export else self.audit_checkpoint(scheduled_payload)
+        else:
+            self._audit("compute.audit.checkpoint_schedule_checked", payload, result="skipped", reason_codes=("not_due",))
+        return {
+            "ok": True,
+            "due": due,
+            "chain_id": chain_id,
+            "min_events": min_events,
+            "pending_event_count": len(pending_events),
+            "last_checkpoint": last_checkpoint or {},
+            "scheduled_result": result,
+        }
+
+    def audit_chain_monitor(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        requested_chain = str(payload.get("chain_id", ""))
+        chain_ids = (requested_chain,) if requested_chain else (self.store.audit_chain_ids() or ("",))
+        chains = tuple(self.store.verify_audit_chain(chain_id=chain_id).as_record() for chain_id in chain_ids)
+        checkpoint_page = self.store.list_records("audit_checkpoint_manifest", filters={"chain_id": requested_chain} if requested_chain else {}, limit=100, include_archived=True)
+        ok = all(bool(chain.get("ok")) for chain in chains)
+        if not ok:
+            self.telemetry.increment("audit_chain_verify_fail_total")
+        self._audit("compute.audit.chain_monitored", payload, result="completed" if ok else "failed", reason_codes=() if ok else ("audit_chain_invalid",))
+        return {
+            "ok": ok,
+            "chains": chains,
+            "checkpoint_count": len(checkpoint_page.records),
+            "latest_checkpoint": checkpoint_page.records[-1] if checkpoint_page.records else {},
+            "audit_exporter_status": self.audit_exporter.get_status(),
+        }
+
+    def admin_audit_export_status(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        chain_id = str(payload.get("chain_id", ""))
+        checkpoint_page = self.store.list_records("audit_checkpoint_manifest", filters={"chain_id": chain_id} if chain_id else {}, limit=100, include_archived=True)
+        status = self.audit_exporter.get_status()
+        immutable = bool(status.get("immutable", False))
+        return {
+            "ok": bool(status.get("configured")),
+            "immutable": immutable,
+            "audit_exporter_status": status,
+            "checkpoint_count": len(checkpoint_page.records),
+            "latest_checkpoint": checkpoint_page.records[-1] if checkpoint_page.records else {},
+            "retention_policy": {
+                "object_lock_mode": status.get("object_lock_mode", ""),
+                "retention_days": status.get("retention_days", 0),
+            },
+        }
+
+    def audit_forensic_replay(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        path = str(payload.get("path") or payload.get("out") or "")
+        chain_id = str(payload.get("chain_id", ""))
+        from_sequence = int(payload.get("from_sequence", 1) or 1)
+        to_sequence = int(payload.get("to_sequence", 0) or 0)
+        if path:
+            events = audit_events_from_export_file(path)
+            integrity = verify_exported_chain(events)
+            export_verification = verify_audit_export(path).as_record()
+            source = "export_file"
+        else:
+            events = self._audit_events_for_chain(chain_id or "all")
+            integrity = self.store.verify_audit_chain(chain_id=chain_id).as_record()
+            export_verification = {}
+            source = "store"
+        filtered = tuple(
+            event
+            for event in events
+            if (chain_id in {"", "all"} or str(event.get("chain_id", "")) == chain_id)
+            and int(event.get("sequence_number", 0) or 0) >= from_sequence
+            and (to_sequence <= 0 or int(event.get("sequence_number", 0) or 0) <= to_sequence)
+        )
+        timeline = tuple(_audit_replay_event(event) for event in filtered)
+        replay_id = deterministic_id("audit_replay", {"path": path, "chain_id": chain_id, "from_sequence": from_sequence, "to_sequence": to_sequence, "event_count": len(filtered)})
+        replay = {
+            "replay_id": replay_id,
+            "source": source,
+            "path": path,
+            "chain_id": chain_id or "all",
+            "from_sequence": from_sequence,
+            "to_sequence": to_sequence or (int(filtered[-1].get("sequence_number", 0) or 0) if filtered else 0),
+            "event_count": len(filtered),
+            "timeline": timeline,
+            "summary": _audit_replay_summary(filtered),
+            "integrity": integrity,
+            "export_verification": export_verification,
+            "created_at": utc_now_iso(),
+        }
+        self.store.put_record("audit_replay_run", replay_id, replay, status="verified" if bool(integrity.get("ok")) else "failed", request_id=str(payload.get("request_id", "")))
+        self._audit("compute.audit.replayed", payload, result="completed" if bool(integrity.get("ok")) else "failed", reason_codes=() if bool(integrity.get("ok")) else (str(integrity.get("error_code", "audit_replay_failed")),))
+        return {"ok": bool(integrity.get("ok")), "replay": replay}
 
     def audit_verify_export(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         path = str(payload.get("path") or payload.get("out") or "")
@@ -1274,6 +1395,52 @@ class ComputeMarketService:
             reason_codes=() if result.ok else (result.error_code,),
         )
         return result.as_record()
+
+    def _persist_audit_checkpoint(
+        self,
+        checkpoint: Any,
+        *,
+        manifest_hash: str,
+        storage_uri: str,
+        checkpoint_write: Mapping[str, Any] | None = None,
+    ) -> Mapping[str, Any]:
+        record = {
+            **checkpoint.as_record(),
+            "manifest_hash": manifest_hash,
+            "storage_uri": storage_uri or str(checkpoint.as_record().get("storage_uri", "")),
+            "checkpoint_write": dict(checkpoint_write or {}),
+            "status": "completed",
+            "updated_at": utc_now_iso(),
+        }
+        self.store.put_record(
+            "audit_checkpoint_manifest",
+            str(record["checkpoint_id"]),
+            record,
+            status="completed",
+            request_id=str(record.get("checkpoint_id", "")),
+        )
+        return record
+
+    def _last_audit_checkpoint(self, chain_id: str) -> Mapping[str, Any] | None:
+        page = self.store.list_records(
+            "audit_checkpoint_manifest",
+            filters={"chain_id": chain_id} if chain_id not in {"", "all"} else {},
+            limit=500,
+            include_archived=True,
+        )
+        records = tuple(
+            record for record in page.records
+            if chain_id in {"", "all"} or str(record.get("chain_id", "")) == chain_id
+        )
+        if not records:
+            return None
+        return max(records, key=lambda record: int(record.get("to_sequence", 0) or 0))
+
+    def _audit_events_for_chain(self, chain_id: str) -> tuple[Mapping[str, Any], ...]:
+        events = self._all_audit_events()
+        if chain_id in {"", "all"}:
+            return events
+        return tuple(event for event in events if str(event.get("chain_id", "")) == chain_id)
 
     def health(self) -> Mapping[str, Any]:
         provider_page = self.store.list_records("compute_provider", limit=50)
@@ -1635,6 +1802,42 @@ def reset_default_service(service: ComputeMarketService | None = None) -> None:
     global _default_service
     _default_service = service
 
+
+def _audit_replay_event(event: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "chain_id": str(event.get("chain_id", "")),
+        "sequence_number": int(event.get("sequence_number", 0) or 0),
+        "audit_event_id": str(event.get("audit_event_id", "")),
+        "action": str(event.get("action", "")),
+        "result": str(event.get("result", "")),
+        "actor_id": str(event.get("actor_id", "")),
+        "resource_id": str(event.get("resource_id", "")),
+        "event_hash": str(event.get("event_hash", "")),
+        "previous_hash": str(event.get("previous_hash", "")),
+        "created_at": str(event.get("created_at", "")),
+    }
+
+
+def _audit_replay_summary(events: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
+    actions: dict[str, int] = {}
+    results: dict[str, int] = {}
+    actors: dict[str, int] = {}
+    for event in events:
+        action = str(event.get("action", ""))
+        result = str(event.get("result", ""))
+        actor = str(event.get("actor_id", ""))
+        if action:
+            actions[action] = actions.get(action, 0) + 1
+        if result:
+            results[result] = results.get(result, 0) + 1
+        if actor:
+            actors[actor] = actors.get(actor, 0) + 1
+    return {
+        "event_count": len(events),
+        "actions": tuple({"action": key, "count": value} for key, value in sorted(actions.items())),
+        "results": tuple({"result": key, "count": value} for key, value in sorted(results.items())),
+        "actors": tuple({"actor_id": key, "count": value} for key, value in sorted(actors.items())),
+    }
 
 def _request_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("request_id") or new_id("request"))

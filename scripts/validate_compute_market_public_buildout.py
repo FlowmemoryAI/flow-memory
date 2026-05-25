@@ -206,6 +206,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     checks["admin_reconciliation"] = call_json("GET", f"{base}/admin/reconciliation", headers_admin)
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
+    checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
 
     root_data = data(checks["root"][1])
     readiness = data(checks["readiness"][1])
@@ -234,6 +235,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(checks["admin_reconciliation"][0] == 200 and checks["admin_reconciliation"][1].get("ok") is True, "admin reconciliation failed")
     require(checks["admin_storage_diagnostics"][0] == 200 and storage_diag.get("ok") is True and storage_diag.get("production_readiness", {}).get("production_ready") is True, "admin storage diagnostics failed")
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
+    require(checks["admin_audit_export"][0] == 200 and "audit_exporter_status" in data(checks["admin_audit_export"][1]), "admin audit export status failed")
 
     return {
         "status": "passed",

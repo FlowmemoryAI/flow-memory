@@ -52,6 +52,8 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "refund",
     "reconciliation_run",
     "alert_acknowledgement",
+    "audit_checkpoint_manifest",
+    "audit_replay_run",
 )
 
 
@@ -660,7 +662,7 @@ def migration_plan() -> Mapping[str, Any]:
         "steps": (
             {
                 "version": COMPUTE_MARKET_STORAGE_VERSION,
-                "name": "compute_market_production_records_v4_marketplace_primitives",
+                "name": "compute_market_production_records_v5_audit_operations",
                 "creates_tables": ("compute_market_records", "compute_market_migrations"),
                 "postgres_tables": (
                     "compute_market_provider_applications",
@@ -679,6 +681,8 @@ def migration_plan() -> Mapping[str, Any]:
                     "compute_usage_charges",
                     "compute_refunds",
                     "compute_reconciliation_runs",
+                    "compute_audit_checkpoint_manifests",
+                    "compute_audit_replay_runs",
                 ),
                 "indexes": (
                     "economic_memory by agent_id",
@@ -701,6 +705,8 @@ def migration_plan() -> Mapping[str, Any]:
                     "audit events by actor_id via payload and request_id/created_at indexes",
                     "audit events by chain_id/sequence_number",
                     "audit events by event_hash",
+                    "audit checkpoint manifests by chain_id/status",
+                    "audit replay runs by request_id/status",
                 ),
                 "description": "Create durable typed JSON record storage, marketplace provider onboarding, quote replay protection, capacity reservations, dry-run job execution, no-custody billing ledgers, production query indexes, and tamper-evident audit chain columns for Flow Memory Compute Market.",
                 "reversible": False,

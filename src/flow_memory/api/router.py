@@ -30,6 +30,7 @@ from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
 from flow_memory.api.compute_endpoints import (
     admin_reconciliation,
+    admin_audit_export_status,
     admin_redis_diagnostics,
     admin_storage_diagnostics,
     billing_balance,
@@ -40,8 +41,11 @@ from flow_memory.api.compute_endpoints import (
     compute_audit_event,
     compute_audit_verify,
     compute_audit_checkpoint,
+    compute_audit_chain_monitor,
+    compute_audit_checkpoint_schedule,
     compute_audit_export,
     compute_audit_verify_export,
+    compute_audit_replay,
     compute_alert_ack,
     compute_alerts,
     compute_decision,
@@ -607,6 +611,15 @@ class LocalApiRouter:
     def _compute_audit_verify_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_audit_verify_export(payload)
 
+    def _compute_audit_checkpoint_schedule(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_checkpoint_schedule(payload)
+
+    def _compute_audit_chain_monitor(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_chain_monitor(payload)
+
+    def _compute_audit_replay(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_audit_replay(payload)
+
     def _compute_job_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_create(payload)
 
@@ -657,6 +670,9 @@ class LocalApiRouter:
 
     def _admin_redis_diagnostics(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return admin_redis_diagnostics(payload)
+
+    def _admin_audit_export_status(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_audit_export_status(payload)
 
 
     def _compute_health(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -808,6 +824,9 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/compute/audit/export", router._compute_audit_export, "compute_audit_export")
     router.register("POST", "/compute/audit/checkpoint", router._compute_audit_checkpoint, "compute_audit_checkpoint")
     router.register("POST", "/compute/audit/verify-export", router._compute_audit_verify_export, "compute_audit_verify_export")
+    router.register("POST", "/compute/audit/checkpoint-schedule", router._compute_audit_checkpoint_schedule, "compute_audit_checkpoint_schedule")
+    router.register("GET", "/compute/audit/chain/monitor", router._compute_audit_chain_monitor, "compute_audit_chain_monitor")
+    router.register("POST", "/compute/audit/replay", router._compute_audit_replay, "compute_audit_replay")
     router.register("GET", "/compute/audit/{audit_event_id}", router._compute_audit_event, "compute_audit_event")
     router.register("GET", "/compute/health", router._compute_health, "compute_health")
     router.register("GET", "/compute/readiness", router._compute_readiness, "compute_readiness")
@@ -822,6 +841,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/admin/reconciliation", router._admin_reconciliation, "admin_reconciliation")
     router.register("GET", "/admin/storage/diagnostics", router._admin_storage_diagnostics, "admin_storage_diagnostics")
     router.register("GET", "/admin/redis/diagnostics", router._admin_redis_diagnostics, "admin_redis_diagnostics")
+    router.register("GET", "/admin/audit/export", router._admin_audit_export_status, "admin_audit_export_status")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

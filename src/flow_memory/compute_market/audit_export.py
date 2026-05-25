@@ -201,7 +201,7 @@ class LocalFileAuditExporter:
 
     def verify_export(self) -> AuditExportVerification:
         try:
-            parsed = _read_export(self.path)
+            parsed = read_export_file(self.path)
             manifest = parsed[0]
             checkpoint_line = parsed[-1]
             events = tuple(_event_from_line(item) for item in parsed[1:-1])
@@ -499,6 +499,25 @@ def verify_audit_export(path: str | Path) -> AuditExportVerification:
     return LocalFileAuditExporter(Path(path)).verify_export()
 
 
+def read_export_file(path: str | Path) -> tuple[Mapping[str, Any], ...]:
+    return tuple(json.loads(line) for line in Path(path).read_text(encoding="utf-8").splitlines() if line.strip())
+
+
+def audit_events_from_export_file(path: str | Path) -> tuple[Mapping[str, Any], ...]:
+    parsed = read_export_file(path)
+    events = tuple(_event_from_line(item) for item in parsed[1:-1])
+    if any(event is None for event in events):
+        raise ValueError("audit export contains a malformed event line")
+    return tuple(event for event in events if event is not None)
+
+
+def verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> Mapping[str, Any]:
+    error = _verify_exported_chain(events)
+    if error:
+        return {"ok": False, "event_count": len(events), "error_code": error[0], "message": error[1]}
+    return {"ok": True, "event_count": len(events), "error_code": "", "message": ""}
+
+
 def _select_events(
     store: ComputeMarketStoreProtocol,
     *,
@@ -558,7 +577,7 @@ def _verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> tuple[str, 
 
 
 def _read_export(path: Path) -> tuple[Mapping[str, Any], ...]:
-    return tuple(json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+    return read_export_file(path)
 
 
 def _event_from_line(item: Mapping[str, Any]) -> Mapping[str, Any] | None:

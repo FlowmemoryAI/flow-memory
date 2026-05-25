@@ -144,3 +144,12 @@ These operate on local launch run metadata and replay artifacts only.
 - `POST /launch/supervisor/runs/{run_id}/stop`
 
 These endpoints expose local supervisor metadata and heartbeat artifacts only. They remain bounded, local-only, and policy-gated.
+
+## Mission Control run console and demo bundle endpoints
+
+- `GET /launch/console/runs`
+- `GET /launch/console/runs/{run_id}`
+- `GET /launch/console/fixtures`
+- `POST /launch/bundles/public-alpha`
+
+Console read endpoints require `launch:read`; demo bundle export requires `launch:export` when scope checks are enabled. They expose local replay/run metadata and a compact public-alpha bundle with fixture references, docs references, commands, release evidence summary, GPU evidence status, and honest limitations.

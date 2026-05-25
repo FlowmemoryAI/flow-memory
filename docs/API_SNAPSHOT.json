@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 87,
-  "manifest_hash": "34a382277df4601a0bfd7a1d45f7803b05130669324ced01d7904e532e766df8",
-  "openapi_hash": "77ea8b236fec934eac19ad54f8e07ce051b1e15fae3e4dfbc5263517b9ebff67",
+  "endpoint_count": 91,
+  "manifest_hash": "98546ae191ef670ebd62b447145c5edbc8c418a2c5e8b6c175c75f2d0072d79c",
+  "openapi_hash": "37bab20113759f17c8150bc86c833e5fa4c2add7b7085e804f7f5237f5b64ed2",
   "operations": [
     "GET /agents",
     "GET /agents/{did}",
@@ -16,6 +16,9 @@
     "GET /dashboard/snapshot",
     "GET /flowlang/examples",
     "GET /health",
+    "GET /launch/console/fixtures",
+    "GET /launch/console/runs",
+    "GET /launch/console/runs/{run_id}",
     "GET /launch/runs",
     "GET /launch/runs/{run_id}",
     "GET /launch/supervisor/runs/{run_id}",
@@ -61,6 +64,7 @@
     "POST /flowlang/validate",
     "POST /launch/agent",
     "POST /launch/agent/from-flow",
+    "POST /launch/bundles/public-alpha",
     "POST /launch/runs/{run_id}/export",
     "POST /launch/runs/{run_id}/replay",
     "POST /launch/runs/{run_id}/stop",
@@ -91,7 +95,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 85,
+  "path_count": 89,
   "paths": [
     "/agents",
     "/agents/launch",
@@ -123,6 +127,10 @@
     "/health",
     "/launch/agent",
     "/launch/agent/from-flow",
+    "/launch/bundles/public-alpha",
+    "/launch/console/fixtures",
+    "/launch/console/runs",
+    "/launch/console/runs/{run_id}",
     "/launch/runs",
     "/launch/runs/{run_id}",
     "/launch/runs/{run_id}/export",

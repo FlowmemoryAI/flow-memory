@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "99806d764571bbd775df1a2852cd60270eb6a17f",
-  "hash": "c4e2203866b7a07dac8bdbb078f827e3b9a1df6316760698afe0f70abd2f3432",
+  "git_commit": "f639dad22d08bb0550310196df1ba68c5d0944d1",
+  "hash": "f5c50f4bf2f3f8bbb3cbb35ae00f6548d644118a6668740d2eec132d9617c2c1",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -83,11 +83,22 @@
     "visual_replay": true
   },
   "local_network": {
-    "hash": "d9c53bc00b8ae7432316a38ba0e81fb0b830bde70244dfa3e670224fe4af4688",
+    "hash": "f80e51c5f2da5f8e14876906228230d870f5c52d7c27509a4d2410b1875c6d78",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },
+  "mission_control_run_console": {
+    "fixtures": true,
+    "ok": true,
+    "selector": true,
+    "status_card": true
+  },
   "neural_evidence_status": "blocked_without_real_gpu_artifact",
+  "public_alpha_demo_bundle": {
+    "gpu_status_honest": true,
+    "ok": true,
+    "path": "artifacts\\launch\\bundles\\public-alpha-local-demo.json"
+  },
   "public_alpha_launch_test": {
     "hash": "cb9edbcfcd0fb2c3223d76016afc4095647952604c3f82ee61493fb7fdac4d99",
     "ok": true,

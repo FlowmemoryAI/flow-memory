@@ -23,6 +23,8 @@ python scripts/release_decision.py --target public-alpha-local-launch
 | Neural advisory/live launch | Functional local prototype; Torch optional; neural-live runtime sessions and telemetry are local/advisory. |
 | Live Agent Launchpad | Implemented for local neural-live demos; writes replay/evidence metadata and remains GPU-honest. |
 | Live Agent Operations | Implemented for local run records, replay lookup, bundle export, safe completed-run stop/no-op behavior, and launch doctor checks. |
+| Mission Control run console | Implemented for launchpad, operations, supervisor, and local-network replay fixture selection/status summaries. |
+| Public-alpha demo bundle | Implemented as local JSON bundle with replay references, docs, commands, release evidence, GPU status, and honest limitations. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
@@ -53,3 +55,20 @@ Do not claim production certification, audited contracts, mainnet readiness, har
 Local public alpha includes a bounded Live Agent Supervisor for neural-live runs. It writes local supervisor state, heartbeat artifacts, run records, Mission Control replay telemetry, and exportable run bundles. It is finite by default, stoppable, inspectable, and policy-gated.
 
 GPU-gated neural release targets are still separate and require the real RunPod artifact to be imported and verified.
+
+## Mission Control run console readiness
+
+Local public alpha includes a Mission Control run selector/status card over these fixtures:
+
+- `live-neural-agent-launch`
+- `live-agent-operations`
+- `live-agent-supervisor`
+- `local-network-replay`
+
+Generate the local public-alpha demo bundle:
+
+```bash
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+```
+
+The bundle is reference-oriented and local-only. It must keep GPU status honest, neural outputs advisory, policy gates authoritative, and real-funds/provider behavior disabled.

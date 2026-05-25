@@ -70,6 +70,15 @@ python -m flow_memory launch doctor --json
 ```
 
 Run records live under `artifacts/launch/runs/` and are local JSON metadata only.
+
+Mission Control run console and demo bundle:
+
+```bash
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+```
+
+The bundle references replay fixtures and run records instead of embedding large artifacts, and records that GPU-gated release targets remain blocked until a real RunPod artifact is verified.
+
 ## API examples
 
 Create a live session:
@@ -178,3 +187,4 @@ python -m flow_memory launch supervisor stop <run_id> --json
 ```
 
 The supervisor is bounded, local-only, inspectable, and policy-gated. Resume creates a continuation run from prior metadata rather than reviving a hidden process.
+Mission Control can display supervisor and launchpad runs through a local run selector/status card. The selector reads replay fixtures for live neural launch, operations, supervisor, and local-network runs.

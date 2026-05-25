@@ -85,3 +85,22 @@ Example request:
 ```
 
 Supervisor endpoints are local-only and bounded. Scope requirements: `launch:read` for status/show/heartbeat, `launch:run` for start/resume, and `launch:control` for pause/stop.
+
+## Mission Control run console and demo bundle API
+
+```http
+GET /launch/console/runs
+GET /launch/console/runs/{run_id}
+GET /launch/console/fixtures
+POST /launch/bundles/public-alpha
+```
+
+Example bundle request:
+
+```json
+{
+  "out": "artifacts/launch/bundles/public-alpha-local-demo.json"
+}
+```
+
+Console read endpoints require `launch:read` when scopes are enabled. The public-alpha demo bundle endpoint requires `launch:export`. These endpoints are local-only and return replay/run metadata, fixture references, release evidence summaries, demo commands, and GPU evidence status without external model calls, provider-network calls, real funds, private keys, broadcasts, or settlement execution.

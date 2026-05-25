@@ -30,6 +30,7 @@ from flow_memory.launch_supervisor import (
     supervisor_state_path,
     heartbeat_path,
 )
+from flow_memory.visualization.run_console import build_public_alpha_demo_bundle
 
 
 def _json_default(value: Any) -> str:
@@ -154,6 +155,12 @@ def _launch(argv: list[str]) -> int:
     supervisor_stop.add_argument("run_id")
     supervisor_stop.add_argument("--json", action="store_true")
 
+    bundle = sub.add_parser("bundle", description="Build local launch/demo bundles")
+    bundle_sub = bundle.add_subparsers(dest="bundle_command", required=True)
+    public_alpha_bundle = bundle_sub.add_parser("public-alpha")
+    public_alpha_bundle.add_argument("--out", default="artifacts/launch/bundles/public-alpha-local-demo.json")
+    public_alpha_bundle.add_argument("--json", action="store_true")
+
     doctor = sub.add_parser("doctor", description="Check local launch/neural/Mission Control readiness")
     doctor.add_argument("--json", action="store_true")
 
@@ -227,6 +234,10 @@ def _launch(argv: list[str]) -> int:
             if args.supervisor_command == "stop":
                 payload = stop_supervisor_run(".", args.run_id)
                 return _print_launch_payload(payload, json_output=args.json, human=f"supervisor {args.run_id}: {payload.get('status_before')} -> {payload.get('status_after')}")
+        if args.resource == "bundle":
+            if args.bundle_command == "public-alpha":
+                payload = build_public_alpha_demo_bundle(".", args.out)
+                return _print_launch_payload(payload, json_output=args.json, human=f"demo bundle {payload.get('bundle_path', '')}")
         if args.resource == "doctor":
             payload = _launch_doctor()
             return _print_launch_payload(payload, json_output=args.json, human="launch doctor ok" if payload["ok"] else "launch doctor failed")
@@ -264,6 +275,9 @@ def _launch_doctor() -> Mapping[str, Any]:
     ops_fixture = Path("dashboard/src/mock-data/live-agent-operations.json")
     supervisor_fixture = Path("dashboard/src/mock-data/live-agent-supervisor.json")
     launch_fixture = Path("dashboard/src/mock-data/live-neural-agent-launch.json")
+    run_console_lib = Path("dashboard/src/lib/run-console.ts")
+    run_selector_component = Path("dashboard/src/components/mission-control/RunSelector.tsx")
+    public_alpha_bundle_default = Path("artifacts/launch/bundles/public-alpha-local-demo.json")
     artifact_dir = root / "artifacts" / "launch" / "runs"
     heartbeat_dir = root / "artifacts" / "launch" / "supervisor" / "heartbeats"
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -281,6 +295,12 @@ def _launch_doctor() -> Mapping[str, Any]:
         "POST /launch/supervisor/runs/{run_id}/resume",
         "POST /launch/supervisor/runs/{run_id}/stop",
     ))
+    console_endpoint_ok = all(endpoint in endpoints for endpoint in (
+        "GET /launch/console/runs",
+        "GET /launch/console/runs/{run_id}",
+        "GET /launch/console/fixtures",
+        "POST /launch/bundles/public-alpha",
+    ))
     checks = {
         "tiny_torch": True,
         "torch_available": is_torch_available(),
@@ -297,6 +317,11 @@ def _launch_doctor() -> Mapping[str, Any]:
         "operations_fixture": ops_fixture.exists(),
         "dashboard_supervisor_fixture_present": supervisor_fixture.exists(),
         "api_endpoints_registered": supervisor_endpoint_ok,
+        "run_console_available": run_console_lib.exists(),
+        "run_selector_available": run_selector_component.exists(),
+        "public_alpha_demo_bundle_command_available": True,
+        "public_alpha_demo_bundle_directory_writable": public_alpha_bundle_default.parent.exists() or bool(public_alpha_bundle_default.parent.mkdir(parents=True, exist_ok=True) is None),
+        "console_api_endpoints_registered": console_endpoint_ok,
         "cli_commands_available": True,
         "no_external_call_mode": True,
     }

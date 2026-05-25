@@ -1038,6 +1038,152 @@
         ]
       }
     },
+    "/launch/bundles/public-alpha": {
+      "post": {
+        "operationId": "launch_bundle_public_alpha",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "out": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "bundle_path": {
+                      "type": "string"
+                    },
+                    "commands": {
+                      "type": "string"
+                    },
+                    "mission_control_fixtures": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build a local public-alpha demo bundle",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/console/fixtures": {
+      "get": {
+        "operationId": "launch_console_fixtures",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "fixtures": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List Mission Control replay/demo fixtures",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/console/runs": {
+      "get": {
+        "operationId": "launch_console_runs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "fixtures": {
+                      "type": "string"
+                    },
+                    "runs": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List Mission Control run console summaries",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/console/runs/{run_id}": {
+      "get": {
+        "operationId": "launch_console_run",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "run": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one Mission Control run console summary",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
     "/launch/runs": {
       "get": {
         "operationId": "launch_runs_list",

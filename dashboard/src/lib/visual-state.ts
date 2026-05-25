@@ -65,6 +65,41 @@ export type VisualNeuralSignal = {
   source_event_id?: string;
 };
 
+export type VisualComputeMarketSignal = {
+  signal_id: string;
+  agent_id: string;
+  task_id: string;
+  event: string;
+  status: string;
+  provider_id?: string;
+  route_id?: string;
+  quote_total?: number;
+  payment_rail?: string;
+  dry_run_only?: boolean;
+  no_funds_moved?: boolean;
+  provenance?: VisualProvenance | string;
+  source_event_id?: string;
+};
+
+export type VisualSupervisorSignal = {
+  signal_id: string;
+  supervisor_id: string;
+  run_id: string;
+  agent_id: string;
+  session_id: string;
+  backend: string;
+  status: string;
+  current_phase?: string;
+  ticks_completed?: number;
+  max_ticks?: number;
+  policy_gate_state?: string;
+  last_heartbeat_at?: string;
+  parent_run_id?: string;
+  bounded?: boolean;
+  provenance?: VisualProvenance | string;
+  source_event_id?: string;
+};
+
 export type VisualRLEpisode = {
   episode_id: string;
   agent_id: string;
@@ -118,6 +153,8 @@ export type VisualNetworkState = {
   economy: VisualEconomyEdge[];
   neural: VisualNeuralSignal[];
   rl: VisualRLEpisode[];
+  compute?: VisualComputeMarketSignal[];
+  supervisor?: VisualSupervisorSignal[];
   safety: VisualSafetyGate[];
   audit: VisualAuditTrailItem[];
   layout?: { layout_version: string; seed: number; positions: Record<string, [number, number, number]> };

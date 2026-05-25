@@ -62,6 +62,10 @@ Useful endpoints:
 - `POST /launch/runs/{run_id}/replay`
 - `POST /launch/runs/{run_id}/export`
 - `POST /launch/runs/{run_id}/stop`
+- `GET /launch/console/runs`
+- `GET /launch/console/runs/{run_id}`
+- `GET /launch/console/fixtures`
+- `POST /launch/bundles/public-alpha`
 With local auth/scopes:
 
 ```bash
@@ -69,6 +73,7 @@ python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765 --api-key de
 ```
 
 Read visual endpoints with `x-flow-memory-scopes: visual:read`; run network scenarios with `x-flow-memory-scopes: network:run`.
+Launch console read endpoints require `x-flow-memory-scopes: launch:read`; public-alpha demo bundle export requires `x-flow-memory-scopes: launch:export`.
 
 ## 4. Run dashboard checks
 
@@ -85,6 +90,30 @@ For local development, run a frontend dev server around the existing TypeScript 
 - `mock`: clearly labeled fallback data.
 - `replay`: generated `dashboard/src/mock-data/local-network-replay.json`.
 - `live`: polling the local API server.
+
+
+## Mission Control run selector
+
+The dashboard includes a scoped run selector for these replay/demo fixtures:
+
+- **Live Neural Agent Launch** — `dashboard/src/mock-data/live-neural-agent-launch.json`
+- **Live Agent Operations** — `dashboard/src/mock-data/live-agent-operations.json`
+- **Live Agent Supervisor** — `dashboard/src/mock-data/live-agent-supervisor.json`
+- **Local Network Replay** — `dashboard/src/mock-data/local-network-replay.json`
+
+The selected run status card shows run id, kind, agent id, backend, status, current phase, ticks, policy gate state, risk/confidence, memory writes, visual event count, GPU evidence status, replay artifact path, and run record path.
+
+Event category counts separate neural, policy, memory, action, supervisor, compute/economy, and audit/safety events.
+
+## Public-alpha local demo bundle
+
+Build a compact bundle with local demo commands, fixture references, release evidence summary, and honest limitations:
+
+```bash
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+```
+
+The bundle is local-only. It does not embed secrets, model weights, private keys, provider-network calls, settlement execution, or real-funds activity.
 
 ## Visual semantics
 

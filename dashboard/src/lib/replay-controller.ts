@@ -1,6 +1,6 @@
 import type { VisualNetworkState } from "./visual-state";
 
-export type ReplayEventType = "agent" | "memory" | "economy" | "neural" | "rl" | "safety" | "audit" | "task";
+export type ReplayEventType = "agent" | "memory" | "economy" | "compute" | "neural" | "rl" | "safety" | "audit" | "task" | "supervisor";
 
 export type ReplayControllerState = {
   playing: boolean;
@@ -17,7 +17,7 @@ export type ReplayEvent = {
   payload: Record<string, unknown>;
 };
 
-export const replayEventTypes: ReplayEventType[] = ["agent", "memory", "economy", "neural", "rl", "safety", "audit", "task"];
+export const replayEventTypes: ReplayEventType[] = ["agent", "memory", "economy", "compute", "neural", "rl", "safety", "audit", "task", "supervisor"];
 
 export function initialReplayState(): ReplayControllerState {
   return { playing: false, cursor: 0, speed: 1, filters: [...replayEventTypes] };

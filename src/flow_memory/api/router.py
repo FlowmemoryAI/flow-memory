@@ -25,6 +25,7 @@ from flow_memory.launch_supervisor import (
     stop_supervisor_run,
     supervisor_status,
 )
+from flow_memory.visualization.run_console import build_public_alpha_demo_bundle, get_run_console_run, list_run_console_runs, run_console_fixtures
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -264,6 +265,19 @@ class LocalApiRouter:
 
     def _launch_supervisor_stop(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return stop_supervisor_run(".", params["run_id"])
+
+    def _launch_console_runs(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return list_run_console_runs(".")
+
+    def _launch_console_run(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return get_run_console_run(".", params["run_id"])
+
+    def _launch_console_fixtures(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return run_console_fixtures(".")
+
+    def _launch_bundle_public_alpha(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        out = str(payload.get("out", "artifacts/launch/bundles/public-alpha-local-demo.json") or "artifacts/launch/bundles/public-alpha-local-demo.json")
+        return build_public_alpha_demo_bundle(".", out)
 
 
     def _marketplace_task_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -609,6 +623,10 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/launch/supervisor/runs/{run_id}/pause", router._launch_supervisor_pause, "launch_supervisor_pause")
     router.register("POST", "/launch/supervisor/runs/{run_id}/resume", router._launch_supervisor_resume, "launch_supervisor_resume")
     router.register("POST", "/launch/supervisor/runs/{run_id}/stop", router._launch_supervisor_stop, "launch_supervisor_stop")
+    router.register("GET", "/launch/console/runs", router._launch_console_runs, "launch_console_runs")
+    router.register("GET", "/launch/console/runs/{run_id}", router._launch_console_run, "launch_console_run")
+    router.register("GET", "/launch/console/fixtures", router._launch_console_fixtures, "launch_console_fixtures")
+    router.register("POST", "/launch/bundles/public-alpha", router._launch_bundle_public_alpha, "launch_bundle_public_alpha")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

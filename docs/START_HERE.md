@@ -45,6 +45,13 @@ python -m flow_memory launch runs show <run_id> --json
 python -m flow_memory launch runs replay <run_id> --json
 ```
 
+Mission Control run console and demo bundle:
+
+```bash
+python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+```
+
 ## Local network + Mission Control replay
 
 ```bash
@@ -98,3 +105,4 @@ python -m flow_memory launch supervisor heartbeat <run_id> --json
 ```
 
 Supervisor runs are local-only, finite, and policy-gated.
+The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural outputs advisory.

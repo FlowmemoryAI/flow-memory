@@ -80,6 +80,10 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
         blockers.append("live_agent_operations_missing_or_failed")
     if dict(evidence.get("live_agent_supervisor", {})).get("ok") is not True:
         blockers.append("live_agent_supervisor_missing_or_failed")
+    if dict(evidence.get("mission_control_run_console", {})).get("ok") is not True:
+        blockers.append("mission_control_run_console_missing_or_failed")
+    if dict(evidence.get("public_alpha_demo_bundle", {})).get("ok") is not True:
+        blockers.append("public_alpha_demo_bundle_missing_or_failed")
     return LaunchEvidenceDecision(not blockers, tuple(blockers), evidence)
 
 
@@ -102,6 +106,8 @@ def _collect(root: Path) -> Mapping[str, Any]:
         "live_agent_launchpad": _live_agent_launchpad_status(root),
         "live_agent_operations": _live_agent_operations_status(root),
         "live_agent_supervisor": _live_agent_supervisor_status(root),
+        "mission_control_run_console": _mission_control_run_console_status(root),
+        "public_alpha_demo_bundle": _public_alpha_demo_bundle_status(root),
         "docs": {relative: (root / relative).exists() for relative in REQUIRED_DOCS},
         "dashboard_mock_snapshot": _dashboard_mock_snapshot(root),
         "known_limitations": (
@@ -199,6 +205,36 @@ def _live_agent_supervisor_status(root: Path) -> Mapping[str, Any]:
         "pause_resume": bool(evidence.get("live_agent_supervisor_pause_resume_validated")),
         "visual_replay": bool(dict(evidence.get("live_agent_supervisor_visual_replay_validated", {})).get("ok")),
         "gpu_status_honest": bool(evidence.get("live_agent_supervisor_gpu_status_honest")),
+    }
+
+def _mission_control_run_console_status(root: Path) -> Mapping[str, Any]:
+    try:
+        from flow_memory.release.run_console_evidence import mission_control_run_console_evidence
+
+        evidence = mission_control_run_console_evidence(root)
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
+    return {
+        "ok": bool(evidence.get("ok")),
+        "selector": bool(evidence.get("mission_control_run_selector_available")),
+        "status_card": bool(evidence.get("mission_control_run_status_card_available")),
+        "fixtures": bool(evidence.get("mission_control_replay_fixture_selector_validated")),
+    }
+
+
+def _public_alpha_demo_bundle_status(root: Path) -> Mapping[str, Any]:
+    try:
+        from flow_memory.visualization.run_console import build_public_alpha_demo_bundle
+
+        out = root / "artifacts" / "launch" / "bundles" / "public-alpha-local-demo.json"
+        bundle = build_public_alpha_demo_bundle(root, out)
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
+    invariants = dict(bundle.get("invariants", {})) if isinstance(bundle.get("invariants", {}), Mapping) else {}
+    return {
+        "ok": bool(bundle.get("ok")) and invariants.get("no_external_model_calls") is True and invariants.get("no_funds_moved") is True,
+        "path": bundle.get("bundle_path", ""),
+        "gpu_status_honest": bundle.get("gpu_evidence_status") in {"blocked_missing_artifact", "artifact_present_not_verified", "verified"},
     }
 
 

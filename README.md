@@ -40,6 +40,7 @@ python -m flow_memory launch agent --flow examples/live_research_agent.flow --ti
 python -m flow_memory launch runs list --json
 python -m flow_memory launch runs replay <run_id> --json
 python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -82,6 +83,9 @@ The project now combines:
 - Flow Memory Compute Market dry-run provider/route/quote/settlement simulation
 - Live Agent Launchpad for one-command local neural-live agent runs and Mission Control replay artifacts
 - Live Agent Operations registry for local run inspection, replay lookup, safe stop/no-op handling, and bundle export
+- Bounded Live Agent Supervisor with heartbeat/status artifacts, continuation semantics, and Mission Control supervisor replay
+- Mission Control run console for launchpad, operations, supervisor, and local-network replay fixture selection/status summaries
+- Public-alpha local demo bundle export with replay references, docs, commands, release evidence, GPU status, and honest limitations
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
@@ -225,3 +229,11 @@ python -m flow_memory launch supervisor heartbeat <run_id> --json
 ```
 
 The supervisor is local-only, bounded, inspectable, and policy-gated. GPU-gated release targets still require imported RunPod evidence.
+
+Mission Control run console and demo bundle:
+
+```bash
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+```
+
+The dashboard run selector can inspect Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, and Local Network Replay fixtures. The bundle is local-only and does not move funds, use private keys, broadcast transactions, or claim GPU validation without imported evidence.

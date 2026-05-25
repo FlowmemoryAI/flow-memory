@@ -805,3 +805,16 @@ Implemented bounded local supervisor support for neural-live launchpad runs.
 - Added release evidence fields for supervisor availability, CLI/API coverage, heartbeat validation, pause/resume/stop validation, policy gating, local-only invariants, and GPU-status honesty.
 
 Validation for this slice is recorded in the final run output.
+
+## Mission Control run console and public-alpha demo bundle update
+
+Implemented the Mission Control Live Run Console + Public Alpha Demo Bundle slice.
+
+- Added a dashboard-facing run console data contract for launchpad, operations, supervisor, and local-network replay fixtures.
+- Added Mission Control run selector/status card support and replay category counts for neural, policy, memory, action, supervisor, compute/economy, and audit/safety events.
+- Added CLI bundle export: `python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json`.
+- Added local API endpoints: `GET /launch/console/runs`, `GET /launch/console/runs/{run_id}`, `GET /launch/console/fixtures`, and `POST /launch/bundles/public-alpha`.
+- Added release evidence for run console availability, fixture validity, status card/selector presence, public-alpha demo bundle validation, local-only invariants, and GPU-status honesty.
+- Updated launch, neural, Mission Control, readiness, START_HERE, API, and README docs.
+
+Safety posture remains unchanged: the bundle and console are local-only metadata/replay surfaces. They do not call external models/providers, move funds, use private keys, broadcast transactions, or claim GPU validation without imported RunPod evidence.

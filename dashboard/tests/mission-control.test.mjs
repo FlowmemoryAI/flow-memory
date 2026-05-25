@@ -9,6 +9,8 @@ const config = readFileSync(new URL("../src/lib/mission-control-config.ts", impo
 const controls = readFileSync(new URL("../src/components/mission-control/ReplayControls.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles/mission-control.css", import.meta.url), "utf8");
 const eventStream = readFileSync(new URL("../src/lib/event-stream.ts", import.meta.url), "utf8");
+const runConsole = readFileSync(new URL("../src/lib/run-console.ts", import.meta.url), "utf8");
+const runSelector = readFileSync(new URL("../src/components/mission-control/RunSelector.tsx", import.meta.url), "utf8");
 
 assert.match(page, /The Human Compute Network/);
 assert.match(canvas, /AgentNode3D/);
@@ -20,6 +22,14 @@ assert.match(config, /live local API/);
 assert.match(config, /visualFieldMappings/);
 assert.match(config, /network:run/);
 assert.match(page, /ReplayControls/);
+assert.match(page, /RunSelector/);
+assert.match(runSelector, /Mission Control Run Selector/);
+assert.match(config, /missionControlRunFixtures/);
+assert.ok(config.includes("/launch/console/runs"));
+assert.ok(config.includes("/launch/bundles/public-alpha"));
+assert.match(runConsole, /eventCategoryCounts/);
+assert.match(runConsole, /Live Agent Supervisor/);
+assert.match(runSelector, /run-status-card/);
 assert.match(eventStream, /Local API disconnected/);
 assert.match(controls, /Step forward/);
 assert.match(controls, /event filters/);

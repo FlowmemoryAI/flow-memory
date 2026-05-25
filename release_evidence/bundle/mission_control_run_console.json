@@ -1,0 +1,71 @@
+{
+  "bundle_safety_scan": {
+    "hits": [],
+    "missing": [],
+    "ok": true
+  },
+  "dashboard_fixtures": {
+    "files": {
+      "dashboard/src/mock-data/live-agent-operations.json": {
+        "event_count": 25,
+        "exists": true,
+        "has_state": true,
+        "ok": true
+      },
+      "dashboard/src/mock-data/live-agent-supervisor.json": {
+        "event_count": 36,
+        "exists": true,
+        "has_state": true,
+        "ok": true
+      },
+      "dashboard/src/mock-data/live-neural-agent-launch.json": {
+        "event_count": 39,
+        "exists": true,
+        "has_state": true,
+        "ok": true
+      },
+      "dashboard/src/mock-data/local-network-replay.json": {
+        "event_count": 41,
+        "exists": true,
+        "has_state": true,
+        "ok": true
+      }
+    },
+    "ok": true
+  },
+  "docs": {
+    "docs/LIVE_AGENT_LAUNCHPAD.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
+    "docs/NEURAL_LIVE_AGENTS.md": true,
+    "docs/PUBLIC_ALPHA_READINESS.md": true,
+    "docs/START_HERE.md": true
+  },
+  "docs_safety_scan": {
+    "hits": [],
+    "ok": true
+  },
+  "missing_endpoints": [],
+  "mission_control_launch_fixture_validated": true,
+  "mission_control_local_network_fixture_validated": true,
+  "mission_control_operations_fixture_validated": true,
+  "mission_control_replay_fixture_selector_validated": true,
+  "mission_control_run_console_available": true,
+  "mission_control_run_selector_available": true,
+  "mission_control_run_status_card_available": true,
+  "mission_control_supervisor_fixture_validated": true,
+  "ok": true,
+  "public_alpha_demo_bundle_api_available": true,
+  "public_alpha_demo_bundle_cli_available": true,
+  "public_alpha_demo_bundle_docs_updated": true,
+  "public_alpha_demo_bundle_gpu_status_honest": true,
+  "public_alpha_demo_bundle_no_external_calls": true,
+  "public_alpha_demo_bundle_no_funds_moved": true,
+  "public_alpha_demo_bundle_no_live_provider_calls": true,
+  "public_alpha_demo_bundle_validated": true,
+  "sample_bundle": {
+    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpcdtwo4p8\\public-alpha-local-demo.json",
+    "command_count": 14,
+    "fixture_count": 4,
+    "gpu_evidence_status": "blocked_missing_artifact"
+  }
+}

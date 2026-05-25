@@ -160,6 +160,10 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (LAUNCH_RUN_SCOPE,)
     if path_key.startswith("/launch/supervisor/runs/") and (path_key.endswith("/pause") or path_key.endswith("/stop")):
         return (LAUNCH_CONTROL_SCOPE,)
+    if path_key.startswith("/launch/console/"):
+        return (LAUNCH_READ_SCOPE,)
+    if path_key == "/launch/bundles/public-alpha":
+        return (LAUNCH_EXPORT_SCOPE,)
     if path_key == "/launch/runs" or path_key.startswith("/launch/runs/"):
         if normalized_method in READ_METHODS or path_key.endswith("/replay"):
             return (LAUNCH_READ_SCOPE,)

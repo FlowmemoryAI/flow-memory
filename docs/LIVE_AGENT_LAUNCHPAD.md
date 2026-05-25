@@ -199,6 +199,28 @@ POST /launch/supervisor/runs/{run_id}/stop
 ```
 
 When API scopes are enabled, supervisor read paths require `launch:read`, start/resume require `launch:run`, and pause/stop require `launch:control`.
+
+## Mission Control run console and demo bundle
+
+Mission Control can inspect launchpad, operations, supervisor, and local-network replay fixtures through a run console contract. Local API read paths are:
+
+```text
+GET /launch/console/runs
+GET /launch/console/runs/{run_id}
+GET /launch/console/fixtures
+POST /launch/bundles/public-alpha
+```
+
+When API scopes are enabled, console reads require `launch:read`; bundle export requires `launch:export`.
+
+Build the local public-alpha demo bundle with:
+
+```bash
+python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+```
+
+The bundle references local replay fixtures, run records, docs, release evidence, and exact demo commands. It records GPU evidence status honestly and keeps neural decisions advisory, policy-gated, and local-only.
+
 ## Safety and maturity
 
 - Local neural-live agents are available.

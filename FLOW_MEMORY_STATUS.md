@@ -26,6 +26,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Forge tests | Pass: `16 passed` |
 | Live neural agents targeted validation | Pass: `16 passed`; broader neural/agent/FlowLang/visual/release targeted set `175 passed, 3 skipped` |
 
+| Mission Control run console + demo bundle | Pass: targeted tests added; full validation pending this slice |
 ## Maturity table
 
 | Capability | Status |
@@ -238,6 +239,19 @@ The Launchpad is local public-alpha UX for neural-live agents. It does not perfo
 | Operations evidence | implemented | Release evidence validates registry, CLI, API, replay, export, examples, policy-gated behavior, no external calls, no funds, and honest GPU status. |
 
 Live Agent Operations is local public-alpha run bookkeeping, replay, and export. It does not manage hidden hosted processes or perform external provider calls.
+
+## Mission Control run console and demo bundle status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Run console contract | implemented local projection | `flow_memory.visualization.run_console` summarizes launchpad, operations, supervisor, and local-network replay/run artifacts for dashboard use. |
+| Dashboard run selector | implemented scaffold | Mission Control includes a selector/status card for Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, and Local Network Replay fixtures. |
+| Replay category counts | implemented | Events are grouped into neural, policy, memory, action, supervisor, compute/economy, and audit/safety categories. |
+| Public-alpha demo bundle | implemented local export | `python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json` writes replay references, docs, commands, release evidence summary, GPU status, and honest limitations. |
+| Console API | implemented local seam | `/launch/console/runs`, `/launch/console/runs/{run_id}`, `/launch/console/fixtures`, and `/launch/bundles/public-alpha` are local metadata endpoints with launch scopes. |
+| Evidence | implemented | Release evidence validates console/dashboard fixtures, bundle CLI/API availability, local-only invariants, and GPU-status honesty. |
+
+The run console and demo bundle are local public-alpha metadata/replay surfaces only. They do not add external model/provider calls, real funds, private keys, broadcasts, or GPU-backed claims.
 
 ## Mission Control V2 recovery/polish branch status
 

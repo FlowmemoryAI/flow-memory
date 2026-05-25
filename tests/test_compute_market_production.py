@@ -3,7 +3,7 @@ import json
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.adapters import HTTPQuoteProvider, LocalMockComputeProvider, ProviderCircuitBreaker, ReservedCapacityProvider
-from flow_memory.compute_market.config import ComputeMarketConfig
+from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.models import ComputeMarketPolicy
 from flow_memory.compute_market.planner import build_compute_plan, build_task_profile
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
@@ -131,3 +131,17 @@ def test_live_settlement_config_gates_fail_closed() -> None:
     assert "live_settlement_enabled requires settlement_environment" in errors
     assert "live_settlement_enabled requires settlement_security_review_id" in errors
     assert ComputeMarketConfig(database_url=":memory:").private_key_inputs_allowed is False
+
+
+def test_provider_callback_ip_allowlist_config_from_env() -> None:
+    config = ComputeMarketConfig(
+        database_url=":memory:",
+        compute_market_mode="test",
+        provider_callback_ip_allowlist=("203.0.113.0/24", "2001:db8::1"),
+    )
+    from_env = config_from_env(
+        {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "203.0.113.0/24,2001:db8::1"}
+    )
+
+    assert config.as_record()["provider_callback_ip_allowlist_configured"] is True
+    assert from_env.provider_callback_ip_allowlist == ("203.0.113.0/24", "2001:db8::1")

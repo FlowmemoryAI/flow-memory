@@ -59,6 +59,7 @@ class ComputeMarketConfig:
     provider_contracts_required: bool = False
     provider_contracts_verified: bool = False
     external_provider_allowlist: tuple[str, ...] = ()
+    provider_callback_ip_allowlist: tuple[str, ...] = ()
     settlement_environment: str = ""
     settlement_security_review_id: str = ""
     stripe_checkout_enabled: bool = False
@@ -217,6 +218,7 @@ class ComputeMarketConfig:
             "provider_contracts_required": self.provider_contracts_required,
             "provider_contracts_verified": self.provider_contracts_verified,
             "external_provider_allowlist_configured": bool(self.external_provider_allowlist),
+            "provider_callback_ip_allowlist_configured": bool(self.provider_callback_ip_allowlist),
             "settlement_environment_configured": bool(self.settlement_environment),
             "settlement_security_review_configured": bool(self.settlement_security_review_id),
             "stripe_webhook_secret_configured": bool(self.stripe_webhook_secret),
@@ -283,6 +285,7 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         provider_contracts_required=_bool(source.get("FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED"), False),
         provider_contracts_verified=_bool(source.get("FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED"), False),
         external_provider_allowlist=_csv(source.get("FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST", "")),
+        provider_callback_ip_allowlist=_csv(source.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "")),
         settlement_environment=source.get("FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT", ""),
         settlement_security_review_id=source.get("FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID", ""),
         stripe_checkout_enabled=_bool(source.get("FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED"), False),

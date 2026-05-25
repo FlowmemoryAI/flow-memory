@@ -3,12 +3,15 @@ import time
 import threading
 import urllib.error
 import urllib.request
+from typing import Any
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
 from flow_memory.api.auth import api_key_hash
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
+from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.signatures import sign_payload
 
 
 def test_http_gateway_health_response():
@@ -177,6 +180,74 @@ def test_http_gateway_api_key_management_rotates_active_tenant_key() -> None:
     assert disable_response.status == 200
     assert disable_response.body["data"]["record"]["status"] == "disabled"
     assert gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": rotated_key}).status == 401
+
+
+def test_http_gateway_injects_provider_receipt_client_ip(monkeypatch: Any) -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("127.0.0.1",),
+        ),
+    )
+    key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_RECEIPT_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "receipt-provider",
+            "provider_name": "Receipt Provider",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_RECEIPT_SECRET",
+            },
+        }
+    )
+    job_id = str(
+        service.create_job(
+            {
+                "task_type": "inference",
+                "input_ref": "s3://flow-memory-inputs/job-http.json",
+                "model_or_runtime": "llama-runtime",
+                "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+                "budget_policy_id": "policy_default",
+                "route_id": "receipt-route",
+                "provider_id": "receipt-provider",
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+    receipt = {
+        "receipt_id": "receipt-http-ip-blocked",
+        "timestamp": "2099-01-01T00:00:00Z",
+        "job_id": job_id,
+        "provider_id": "receipt-provider",
+        "route_id": "receipt-route",
+        "status": "succeeded",
+        "actual_total_cost": 0.18,
+    }
+    reset_default_service(service)
+    try:
+        gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", require_scopes=True, enable_rate_limit=False))
+        response = gateway.handle(
+            "POST",
+            f"/compute/jobs/{job_id}/receipt",
+            {
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:execute",
+                "x-flow-memory-client-ip": "198.51.100.77",
+            },
+            json.dumps({"receipt": receipt, "signature": sign_payload(receipt, key).as_record()}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert response.status == 200
+    assert response.body["data"]["ok"] is False
+    assert response.body["data"]["error"]["error_code"] == "provider_receipt.ip_not_allowed"
+
 
 def test_dependency_free_http_server_handles_local_request():
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))

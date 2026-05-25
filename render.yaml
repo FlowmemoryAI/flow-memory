@@ -95,6 +95,8 @@ services:
         value: false
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST
         value: ""
+      - key: FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST
+        value: ""
       - key: FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED
         value: false
       - key: FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED

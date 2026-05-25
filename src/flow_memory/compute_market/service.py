@@ -1,6 +1,7 @@
 """Production-planning service layer for Flow Memory Compute Market."""
 from __future__ import annotations
 
+import ipaddress
 import json
 import hmac
 import os
@@ -927,6 +928,17 @@ class ComputeMarketService:
             )
             self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt_provider_mismatch",), provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_rejected_total", {"provider_id": provider_id, "route_id": route_id, "reason": "provider_receipt.provider_mismatch"})
+            return {"ok": False, "error": error.as_record()}
+        client_ip = str(payload.get("_flow_memory_client_ip", ""))
+        if not _provider_callback_ip_allowed(client_ip, self.config.provider_callback_ip_allowlist):
+            error = compute_error(
+                "provider_receipt.ip_not_allowed",
+                "Provider receipt callback source IP is not allowlisted.",
+                details={"provider_id": provider_id, "client_ip": client_ip, "allowlist_configured": bool(self.config.provider_callback_ip_allowlist)},
+                request_id=request_id,
+            )
+            self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt_ip_not_allowed",), provider_id=provider_id, route_id=route_id)
+            self.telemetry.increment("compute_provider_receipt_rejected_total", {"provider_id": provider_id, "route_id": route_id, "reason": "provider_receipt.ip_not_allowed"})
             return {"ok": False, "error": error.as_record()}
         verification = _verify_provider_receipt(self.store, job, payload, receipt)
         if not verification["ok"]:
@@ -2623,6 +2635,32 @@ def _provider_receipt_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     if isinstance(receipt, Mapping):
         return {str(key): value for key, value in receipt.items() if str(key) not in {"signature", "verification"}}
     return {str(key): value for key, value in payload.items() if str(key) not in {"signature", "verification"}}
+
+
+def _provider_callback_ip_allowed(client_ip: str, allowlist: tuple[str, ...]) -> bool:
+    if not allowlist:
+        return True
+    candidate_ip = client_ip.strip()
+    if not candidate_ip:
+        return False
+    try:
+        parsed_ip = ipaddress.ip_address(candidate_ip)
+    except ValueError:
+        return False
+    for item in allowlist:
+        allowed = item.strip()
+        if not allowed:
+            continue
+        try:
+            if "/" in allowed:
+                if parsed_ip in ipaddress.ip_network(allowed, strict=False):
+                    return True
+            elif parsed_ip == ipaddress.ip_address(allowed):
+                return True
+        except ValueError:
+            if candidate_ip == allowed:
+                return True
+    return False
 
 
 def _verify_provider_receipt(

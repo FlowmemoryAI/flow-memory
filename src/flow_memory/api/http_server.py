@@ -170,7 +170,8 @@ class HttpApiGateway:
                 rate_decision = self.limiter.check(context, now=int(time.time()))
                 if not rate_decision.ok and rate_decision.error is not None:
                     raise rate_decision.error
-            result = self.router.dispatch(context.method, context.path, payload)
+            router_payload = _inject_provider_callback_ip(context.method, context.path, payload, header_map)
+            result = self.router.dispatch(context.method, context.path, router_payload)
             self.audit_sink.record(_audit_event(context, True, 200, ""))
             return HttpApiResponse(
                 status=200,
@@ -228,7 +229,9 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
         def _handle(self, *, head_only: bool = False) -> None:
             length = int(self.headers.get("content-length", "0") or "0")
             body = self.rfile.read(length) if length else b""
-            response = gateway.handle(self.command, self.path, dict(self.headers.items()), body)
+            headers = dict(self.headers.items())
+            headers["x-flow-memory-client-ip"] = str(self.client_address[0])
+            response = gateway.handle(self.command, self.path, headers, body)
             payload = response.to_bytes()
             self.send_response(response.status)
             for key, value in response.headers.items():
@@ -257,6 +260,25 @@ def _query_payload(query: str) -> Mapping[str, Any]:
         return {}
     parsed = parse_qs(query, keep_blank_values=True)
     return {key: values[-1] if values else "" for key, values in parsed.items()}
+
+
+def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str]) -> Mapping[str, Any]:
+    if method.upper() != "POST" or not path.startswith("/compute/jobs/") or not path.endswith("/receipt"):
+        return payload
+    client_ip = _trusted_client_ip(headers)
+    if not client_ip:
+        return payload
+    return {**dict(payload), "_flow_memory_client_ip": client_ip}
+
+
+def _trusted_client_ip(headers: Mapping[str, str]) -> str:
+    direct = _header(headers, "x-flow-memory-client-ip")
+    if direct:
+        return direct
+    forwarded = _header(headers, "x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip()
+    return _header(headers, "x-real-ip")
 
 
 def _header(headers: Mapping[str, str], name: str) -> str:

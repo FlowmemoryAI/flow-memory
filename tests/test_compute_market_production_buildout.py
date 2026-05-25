@@ -462,6 +462,71 @@ def test_provider_receipt_callback_rejects_tampered_signature(monkeypatch: Any) 
     assert _metric_total(service, "compute_provider_receipt_rejected_total", {"provider_id": "receipt-provider", "reason": "provider_receipt.signature_invalid"}) == 1.0
 
 
+def test_provider_receipt_callback_enforces_ip_allowlist(monkeypatch: Any) -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("203.0.113.0/24",),
+        ),
+    )
+    key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_RECEIPT_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "receipt-provider",
+            "provider_name": "Receipt Provider",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_RECEIPT_SECRET",
+            },
+        }
+    )
+
+    blocked_job_id = str(service.create_job({**_job_payload(), "provider_id": "receipt-provider", "route_id": "receipt-route"})["job"]["job_id"])
+    allowed_job_id = str(service.create_job({**_job_payload(), "provider_id": "receipt-provider", "route_id": "receipt-route"})["job"]["job_id"])
+    service.dispatch_job(blocked_job_id, {})
+    service.dispatch_job(allowed_job_id, {})
+    blocked_receipt = {
+        "receipt_id": "receipt-ip-blocked",
+        "timestamp": "2099-01-01T00:00:00Z",
+        "job_id": blocked_job_id,
+        "provider_id": "receipt-provider",
+        "route_id": "receipt-route",
+        "status": "succeeded",
+        "actual_units": 2,
+        "actual_total_cost": 0.18,
+    }
+    allowed_receipt = {**blocked_receipt, "receipt_id": "receipt-ip-allowed", "job_id": allowed_job_id}
+
+    blocked = service.provider_job_receipt(
+        blocked_job_id,
+        {
+            "receipt": blocked_receipt,
+            "signature": sign_payload(blocked_receipt, key).as_record(),
+            "_flow_memory_client_ip": "198.51.100.10",
+        },
+    )
+    allowed = service.provider_job_receipt(
+        allowed_job_id,
+        {
+            "receipt": allowed_receipt,
+            "signature": sign_payload(allowed_receipt, key).as_record(),
+            "_flow_memory_client_ip": "203.0.113.42",
+        },
+    )
+
+    assert blocked["ok"] is False
+    assert blocked["error"]["error_code"] == "provider_receipt.ip_not_allowed"
+    assert service.get_job(blocked_job_id)["job"]["status"] == "running"
+    assert allowed["ok"] is True
+    assert allowed["job"]["status"] == "succeeded"
+    assert _metric_total(service, "compute_provider_receipt_rejected_total", {"reason": "provider_receipt.ip_not_allowed"}) == 1.0
+
+
 def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:
     service = _service()
     job_id = str(service.create_job(_job_payload())["job"]["job_id"])

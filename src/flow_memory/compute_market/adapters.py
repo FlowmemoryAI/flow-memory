@@ -24,6 +24,8 @@ from flow_memory.compute_market.models import (
 from flow_memory.compute_market.pricing import collect_quote, normalize_quote
 from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id, utc_now_iso
 from flow_memory.crypto.hashes import content_hash
+from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.signatures import sign_payload
 
 
 class ComputeProviderAdapter(Protocol):
@@ -209,6 +211,10 @@ class HTTPQuoteProvider:
     max_response_bytes: int = 65_536
     preserve_raw_quote: bool = True
     retry_policy: RetryPolicy = field(default_factory=RetryPolicy)
+    signing_key: LocalKeyPair | None = None
+    execution_signing_key: LocalKeyPair | None = None
+    signing_required: bool = False
+    execution_signing_required: bool = False
 
     def get_provider_metadata(self) -> ComputeProvider:
         return self.provider
@@ -252,7 +258,10 @@ class HTTPQuoteProvider:
         )
         if endpoint_error:
             return tuple(_quote_with_status(collect_quote(route, task_profile), QuoteStatus.PROVIDER_ERROR.value) for route in self.list_routes())
-        payload = json.dumps({"profile": task_profile.as_record(), "policy_hash": content_hash(policy.as_record())}, sort_keys=True).encode("utf-8")
+        if self.signing_required and self._signing_key(execution=False) is None:
+            return tuple(_quote_with_status(collect_quote(route, task_profile), QuoteStatus.PROVIDER_ERROR.value) for route in self.list_routes())
+        payload_record = {"profile": task_profile.as_record(), "policy_hash": content_hash(policy.as_record())}
+        payload = json.dumps(payload_record, sort_keys=True).encode("utf-8")
         attempts = max(1, self.retry_policy.max_retries + 1)
         last_status = QuoteStatus.PROVIDER_ERROR.value
         for attempt in range(attempts):
@@ -260,7 +269,7 @@ class HTTPQuoteProvider:
                 request = urllib.request.Request(
                     self.endpoint,
                     data=payload,
-                    headers=self._request_headers(),
+                    headers=self._request_headers(payload=payload_record),
                     method="POST",
                 )
                 opener = urllib.request.build_opener(_NoRedirectHandler())
@@ -309,7 +318,7 @@ class HTTPQuoteProvider:
             sanitized["raw_quote_hash"] = content_hash(raw_quote)
         return normalize_quote(ComputeQuote(**sanitized))
 
-    def _request_headers(self, *, execution: bool = False) -> dict[str, str]:
+    def _request_headers(self, *, execution: bool = False, payload: Mapping[str, Any] | None = None) -> dict[str, str]:
         headers = {"content-type": "application/json", "accept": "application/json"}
         header_name = self.execution_auth_header_name if execution and self.execution_auth_header_name else self.auth_header_name
         value_env = self.execution_auth_header_value_env if execution and self.execution_auth_header_value_env else self.auth_header_value_env
@@ -317,7 +326,20 @@ class HTTPQuoteProvider:
             value = os.environ.get(value_env, "")
             if value:
                 headers[header_name] = value
+        signing_key = self._signing_key(execution=execution)
+        if signing_key is not None and payload is not None:
+            headers.update(
+                signed_provider_request_headers(
+                    payload,
+                    provider_id=self.provider.provider_id,
+                    signing_key=signing_key,
+                    kind="execution" if execution else "quote",
+                )
+            )
         return headers
+
+    def _signing_key(self, *, execution: bool) -> LocalKeyPair | None:
+        return self.execution_signing_key if execution and self.execution_signing_key is not None else self.signing_key
 
     def simulate_execution(self, plan: Mapping[str, Any]) -> Mapping[str, Any]:
         return {"ok": True, "source": "http_provider", "dry_run_only": True, "plan_id": str(plan.get("decision_id", plan.get("job_id", "")))}
@@ -342,18 +364,22 @@ class HTTPQuoteProvider:
                 provider_id=self.provider.provider_id,
                 job_id=str(plan.get("job_id", "")),
             )
-        payload = json.dumps(
-            {
-                "job": _execution_job_contract(plan),
-                "provider_id": self.provider.provider_id,
-                "dry_run_only": True,
-                "funds_moved": False,
-                "broadcast_allowed": False,
-                "private_key_required": False,
-            },
-            sort_keys=True,
-            default=str,
-        ).encode("utf-8")
+        if self.execution_signing_required and self._signing_key(execution=True) is None:
+            return _execution_error(
+                "provider_execution.signing_key_missing",
+                "Provider execution requires outbound request signing, but no signing key is configured.",
+                provider_id=self.provider.provider_id,
+                job_id=str(plan.get("job_id", "")),
+            )
+        payload_record = {
+            "job": _execution_job_contract(plan),
+            "provider_id": self.provider.provider_id,
+            "dry_run_only": True,
+            "funds_moved": False,
+            "broadcast_allowed": False,
+            "private_key_required": False,
+        }
+        payload = json.dumps(payload_record, sort_keys=True, default=str).encode("utf-8")
         attempts = max(1, self.retry_policy.max_retries + 1)
         last_error = "provider_execution.provider_error"
         for attempt in range(attempts):
@@ -361,7 +387,7 @@ class HTTPQuoteProvider:
                 request = urllib.request.Request(
                     self.execution_endpoint,
                     data=payload,
-                    headers=self._request_headers(execution=True),
+                    headers=self._request_headers(execution=True, payload=payload_record),
                     method="POST",
                 )
                 opener = urllib.request.build_opener(_NoRedirectHandler())
@@ -429,6 +455,42 @@ class HTTPQuoteProvider:
     def get_rate_limits(self) -> Mapping[str, Any]:
         return self.provider.rate_limit_profile
 
+
+def signed_provider_request_headers(
+    payload: Mapping[str, Any],
+    *,
+    provider_id: str,
+    signing_key: LocalKeyPair,
+    kind: str,
+    timestamp: str = "",
+    nonce: str = "",
+) -> dict[str, str]:
+    issued_at = timestamp or str(int(time.time()))
+    payload_hash = content_hash(payload)
+    request_nonce = nonce or deterministic_id(
+        "provider_request_nonce",
+        {
+            "provider_id": provider_id,
+            "kind": kind,
+            "payload_hash": payload_hash,
+            "timestamp": issued_at,
+        },
+    )
+    signature_payload = {
+        "provider_id": provider_id,
+        "kind": kind,
+        "payload_hash": payload_hash,
+        "timestamp": issued_at,
+        "nonce": request_nonce,
+    }
+    envelope = sign_payload(signature_payload, signing_key).as_record()
+    return {
+        "x-flow-memory-provider-signature": json.dumps(envelope, sort_keys=True),
+        "x-flow-memory-provider-signature-payload": json.dumps(signature_payload, sort_keys=True),
+        "x-flow-memory-provider-signature-key-id": signing_key.key_id,
+        "x-flow-memory-provider-request-timestamp": issued_at,
+        "x-flow-memory-provider-request-nonce": request_nonce,
+    }
 
 @dataclass
 class QuoteCollector:
@@ -546,6 +608,16 @@ def build_external_provider_adapter(
         auth_header_value_env=str(_metadata_value(provider_record, "auth_header_value_env", "")),
         execution_auth_header_name=str(_metadata_value(provider_record, "execution_auth_header_name", _metadata_value(provider_record, "auth_header_name", ""))),
         execution_auth_header_value_env=str(_metadata_value(provider_record, "execution_auth_header_value_env", _metadata_value(provider_record, "auth_header_value_env", ""))),
+        signing_key=_local_signing_key(provider_record, execution=False),
+        execution_signing_key=_local_signing_key(provider_record, execution=True),
+        signing_required=_truthy(_metadata_value(provider_record, "outbound_signing_required", False)),
+        execution_signing_required=_truthy(
+            _metadata_value(
+                provider_record,
+                "execution_outbound_signing_required",
+                _metadata_value(provider_record, "outbound_signing_required", False),
+            )
+        ),
     )
 
 
@@ -635,6 +707,25 @@ def _metadata_value(record: Mapping[str, Any], key: str, default: object) -> obj
     if isinstance(metadata, Mapping) and key in metadata:
         return metadata[key]
     return record.get(key, default)
+
+
+def _local_signing_key(record: Mapping[str, Any], *, execution: bool) -> LocalKeyPair | None:
+    key_id_name = "execution_outbound_signing_key_id" if execution else "outbound_signing_key_id"
+    env_name_key = "execution_outbound_signing_key_env" if execution else "outbound_signing_key_env"
+    default_key_id = _metadata_value(record, "outbound_signing_key_id", "")
+    default_env_name = _metadata_value(record, "outbound_signing_key_env", "")
+    key_id = str(_metadata_value(record, key_id_name, default_key_id)).strip()
+    env_name = str(_metadata_value(record, env_name_key, default_env_name)).strip()
+    secret = os.environ.get(env_name, "") if env_name else ""
+    if not key_id or not secret:
+        return None
+    return LocalKeyPair(key_id=key_id, secret=secret)
+
+
+def _truthy(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _first(value: object, default: str) -> str:

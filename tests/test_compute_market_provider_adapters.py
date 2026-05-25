@@ -6,7 +6,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, cast
 
-from flow_memory.compute_market.adapters import HTTPQuoteProvider, RetryPolicy, build_external_provider_adapter
+from flow_memory.compute_market.adapters import HTTPQuoteProvider, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
 from flow_memory.compute_market.service import ComputeMarketService
@@ -14,9 +14,13 @@ from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.compute_market.planner import build_task_profile
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
+from flow_memory.crypto.hashes import content_hash
+from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.signatures import verify_payload
 
 _REQUEST_COUNTS: dict[str, int] = {}
 _CAPTURED_AUTH: list[str] = []
+_CAPTURED_SIGNATURE_HEADERS: list[dict[str, str]] = []
 
 
 def _quote(status_extra: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -54,6 +58,15 @@ class _QuoteHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802 - http.server API
         _REQUEST_COUNTS[self.path] = _REQUEST_COUNTS.get(self.path, 0) + 1
         _CAPTURED_AUTH.append(self.headers.get("x-provider-token", ""))
+        _CAPTURED_SIGNATURE_HEADERS.append(
+            {
+                "signature": self.headers.get("x-flow-memory-provider-signature", ""),
+                "signature_payload": self.headers.get("x-flow-memory-provider-signature-payload", ""),
+                "key_id": self.headers.get("x-flow-memory-provider-signature-key-id", ""),
+                "timestamp": self.headers.get("x-flow-memory-provider-request-timestamp", ""),
+                "nonce": self.headers.get("x-flow-memory-provider-request-nonce", ""),
+            }
+        )
         if self.path == "/invalid-json":
             self._send_bytes(b"not-json")
             return
@@ -96,6 +109,7 @@ class _QuoteHandler(BaseHTTPRequestHandler):
 def _server() -> tuple[ThreadingHTTPServer, str]:
     _REQUEST_COUNTS.clear()
     _CAPTURED_AUTH.clear()
+    _CAPTURED_SIGNATURE_HEADERS.clear()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _QuoteHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -103,7 +117,15 @@ def _server() -> tuple[ThreadingHTTPServer, str]:
     return server, f"http://{host}:{port}"
 
 
-def _provider(endpoint: str, *, allow_private: bool = True, max_bytes: int = 65_536, retries: int = 1, timeout_seconds: float = 2.0) -> HTTPQuoteProvider:
+def _provider(
+    endpoint: str,
+    *,
+    allow_private: bool = True,
+    max_bytes: int = 65_536,
+    retries: int = 1,
+    timeout_seconds: float = 2.0,
+    signing_key: LocalKeyPair | None = None,
+) -> HTTPQuoteProvider:
     providers = default_compute_providers()
     routes = default_compute_routes()
     provider = next(item for item in providers if item.provider_id == "market-token-provider")
@@ -119,6 +141,7 @@ def _provider(endpoint: str, *, allow_private: bool = True, max_bytes: int = 65_
         retry_policy=RetryPolicy(max_retries=retries, backoff_seconds=0.01),
         auth_header_name="x-provider-token",
         auth_header_value_env="FLOW_MEMORY_TEST_PROVIDER_TOKEN",
+        signing_key=signing_key,
     )
 
 
@@ -147,6 +170,51 @@ def test_http_provider_accepts_valid_quote_and_injects_secret_without_exposing_i
     assert _CAPTURED_AUTH == ["super-secret-token"]
     assert "super-secret-token" not in json.dumps(quotes[0].as_record())
 
+
+
+def test_http_provider_signs_outbound_quote_requests() -> None:
+    server, base = _server()
+    key = LocalKeyPair("flow-memory-provider-test", "shared-provider-secret")
+    profile = build_task_profile({"task": "signed quote"})
+    policy = ComputeMarketPolicy()
+    try:
+        quotes = _provider(f"{base}/valid", signing_key=key).quote(profile, policy)
+    finally:
+        server.shutdown()
+
+    captured = _CAPTURED_SIGNATURE_HEADERS[0]
+    signature_payload = json.loads(captured["signature_payload"])
+    envelope = json.loads(captured["signature"])
+    expected_payload = {"profile": profile.as_record(), "policy_hash": content_hash(policy.as_record())}
+
+    assert quotes[0].status == "valid"
+    assert captured["key_id"] == key.key_id
+    assert signature_payload["kind"] == "quote"
+    assert signature_payload["provider_id"] == "market-token-provider"
+    assert signature_payload["payload_hash"] == content_hash(expected_payload)
+    assert captured["timestamp"]
+    assert captured["nonce"]
+    assert verify_payload(signature_payload, envelope, key) is True
+
+
+def test_signed_provider_request_headers_are_payload_bound() -> None:
+    key = LocalKeyPair("provider-key", "provider-secret")
+    payload = {"job": {"job_id": "job-1"}, "dry_run_only": True}
+    headers = signed_provider_request_headers(
+        payload,
+        provider_id="provider-a",
+        signing_key=key,
+        kind="execution",
+        timestamp="1234567890",
+        nonce="nonce-1",
+    )
+    signature_payload = json.loads(headers["x-flow-memory-provider-signature-payload"])
+    envelope = json.loads(headers["x-flow-memory-provider-signature"])
+
+    assert signature_payload["payload_hash"] == content_hash(payload)
+    assert signature_payload["timestamp"] == "1234567890"
+    assert signature_payload["nonce"] == "nonce-1"
+    assert verify_payload(signature_payload, envelope, key) is True
 
 def test_http_provider_classifies_invalid_oversized_timeout_and_retry_paths() -> None:
     server, base = _server()

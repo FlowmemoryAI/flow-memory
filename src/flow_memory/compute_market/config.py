@@ -56,6 +56,13 @@ class ComputeMarketConfig:
     external_provider_allowlist: tuple[str, ...] = ()
     settlement_environment: str = ""
     settlement_security_review_id: str = ""
+    stripe_checkout_enabled: bool = False
+    stripe_secret_key: str = ""
+    stripe_checkout_success_url: str = ""
+    stripe_checkout_cancel_url: str = ""
+    stripe_checkout_timeout_ms: int = 5_000
+    stripe_api_base_url: str = "https://api.stripe.com"
+    stripe_checkout_product_name: str = "Flow Memory compute credits"
     stripe_webhook_secret: str = ""
 
     @property
@@ -122,6 +129,19 @@ class ComputeMarketConfig:
             errors.append("circuit_breaker_backend must be memory, redis, or none")
         if self.compute_market_mode == "production_planning" and self.stripe_webhook_secret and len(self.stripe_webhook_secret) < 16:
             errors.append("stripe_webhook_secret must be high entropy when configured")
+        if self.stripe_checkout_enabled:
+            if not self.stripe_secret_key:
+                errors.append("stripe_checkout_enabled requires stripe_secret_key")
+            if not self.stripe_webhook_secret:
+                errors.append("stripe_checkout_enabled requires stripe_webhook_secret")
+            if not self.stripe_checkout_success_url.startswith("https://"):
+                errors.append("stripe_checkout_enabled requires https stripe_checkout_success_url")
+            if not self.stripe_checkout_cancel_url.startswith("https://"):
+                errors.append("stripe_checkout_enabled requires https stripe_checkout_cancel_url")
+        if self.stripe_checkout_timeout_ms < 1_000:
+            errors.append("stripe_checkout_timeout_ms must be at least 1000")
+        if self.stripe_api_base_url != "https://api.stripe.com" and self.compute_market_mode != "test":
+            errors.append("stripe_api_base_url override is only allowed in test mode")
         return tuple(errors)
 
     def warnings(self) -> tuple[str, ...]:
@@ -184,6 +204,10 @@ class ComputeMarketConfig:
             "settlement_environment_configured": bool(self.settlement_environment),
             "settlement_security_review_configured": bool(self.settlement_security_review_id),
             "stripe_webhook_secret_configured": bool(self.stripe_webhook_secret),
+            "stripe_checkout_enabled": self.stripe_checkout_enabled,
+            "stripe_secret_key_configured": bool(self.stripe_secret_key),
+            "stripe_checkout_urls_configured": bool(self.stripe_checkout_success_url and self.stripe_checkout_cancel_url),
+            "stripe_checkout_timeout_ms": self.stripe_checkout_timeout_ms,
         }
 
 
@@ -240,6 +264,13 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         external_provider_allowlist=_csv(source.get("FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST", "")),
         settlement_environment=source.get("FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT", ""),
         settlement_security_review_id=source.get("FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID", ""),
+        stripe_checkout_enabled=_bool(source.get("FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED"), False),
+        stripe_secret_key=source.get("FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY", ""),
+        stripe_checkout_success_url=source.get("FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL", ""),
+        stripe_checkout_cancel_url=source.get("FLOW_MEMORY_BILLING_STRIPE_CANCEL_URL", ""),
+        stripe_checkout_timeout_ms=_int(source.get("FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_TIMEOUT_MS"), 5_000),
+        stripe_api_base_url=source.get("FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL", "https://api.stripe.com"),
+        stripe_checkout_product_name=source.get("FLOW_MEMORY_BILLING_STRIPE_PRODUCT_NAME", "Flow Memory compute credits"),
         stripe_webhook_secret=source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET", ""),
     )
 

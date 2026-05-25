@@ -1,8 +1,13 @@
 """Production-planning service layer for Flow Memory Compute Market."""
 from __future__ import annotations
 
+import json
 import hmac
+import urllib.error
+import urllib.parse
+import urllib.request
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, ROUND_HALF_UP
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping
@@ -1411,8 +1416,12 @@ class ComputeMarketService:
         currency = str(payload.get("currency", "USD")).upper()
         account = _billing_account(account_id, payload)
         self.store.put_record("billing_account", account_id, account, tenant_id=str(account.get("tenant_id", "")), workspace_id=str(account.get("workspace_id", "")), status="active", request_id=request_id)
+        payment_event_id = deterministic_id(
+            "payment_event",
+            {"account_id": account_id, "amount": amount, "currency": currency, "request_id": request_id},
+        )
         checkout = {
-            "payment_event_id": deterministic_id("payment_event", {"account_id": account_id, "amount": amount, "currency": currency, "request_id": request_id}),
+            "payment_event_id": payment_event_id,
             "account_id": account_id,
             "provider": str(payload.get("provider", "stripe")),
             "event_type": "checkout.requested",
@@ -1424,9 +1433,64 @@ class ComputeMarketService:
             "raw_event_hash": content_hash({"account_id": account_id, "amount": amount, "currency": currency, "request_id": request_id}),
             "created_at": utc_now_iso(),
         }
-        self.store.put_record("payment_event", str(checkout["payment_event_id"]), checkout, tenant_id=str(account.get("tenant_id", "")), workspace_id=str(account.get("workspace_id", "")), status=str(checkout["status"]), request_id=request_id, idempotency_key=str(payload.get("idempotency_key", "")))
-        self._audit("billing.checkout.requested", payload, request_id=request_id, result="requires_external_provider")
-        return {"ok": False, "checkout": checkout, "next_safe_actions": ("configure Stripe Checkout and webhook secret before accepting payments",)}
+        ok = False
+        audit_result = "requires_external_provider"
+        reason_codes: tuple[str, ...] = ("external_checkout_provider_missing",)
+        next_safe_actions: tuple[str, ...] = ("configure Stripe Checkout and webhook secret before accepting payments",)
+        if str(checkout["provider"]).lower() == "stripe" and self.config.stripe_checkout_enabled:
+            if not (self.config.stripe_secret_key and self.config.stripe_webhook_secret):
+                checkout["status"] = "requires_stripe_checkout_config"
+                checkout["reason_codes"] = ("stripe_checkout_config_missing",)
+                audit_result = "requires_stripe_checkout_config"
+                reason_codes = ("stripe_checkout_config_missing",)
+            else:
+                try:
+                    stripe_session = _create_stripe_checkout_session(
+                        self.config,
+                        checkout,
+                        payload,
+                        request_id=request_id,
+                        idempotency_key=str(payload.get("idempotency_key") or payment_event_id),
+                    )
+                except RuntimeError:
+                    checkout["status"] = "external_checkout_failed"
+                    checkout["reason_codes"] = ("stripe_checkout_failed",)
+                    audit_result = "external_checkout_failed"
+                    reason_codes = ("stripe_checkout_failed",)
+                    next_safe_actions = ("retry with Stripe health verified; do not credit balance until webhook verifies",)
+                else:
+                    checkout.update(
+                        {
+                            "status": "checkout_redirect_pending",
+                            "external_checkout_session_id": stripe_session["id"],
+                            "external_checkout_url": stripe_session["url"],
+                            "external_payment_provider": "stripe",
+                            "external_payment_recorded": True,
+                        }
+                    )
+                    ok = True
+                    audit_result = "checkout_redirect_pending"
+                    reason_codes = ()
+                    next_safe_actions = ("redirect user to external_checkout_url", "credit balance only after verified Stripe webhook")
+
+        self.store.put_record(
+            "payment_event",
+            payment_event_id,
+            checkout,
+            tenant_id=str(account.get("tenant_id", "")),
+            workspace_id=str(account.get("workspace_id", "")),
+            status=str(checkout["status"]),
+            request_id=request_id,
+            idempotency_key=str(payload.get("idempotency_key", "")),
+        )
+        self._audit(
+            "billing.checkout.requested",
+            {**dict(payload), "payment_event_id": payment_event_id, "checkout_status": checkout["status"]},
+            request_id=request_id,
+            result=audit_result,
+            reason_codes=reason_codes,
+        )
+        return {"ok": ok, "checkout": checkout, "next_safe_actions": next_safe_actions}
 
     def billing_webhook_stripe(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -2715,6 +2779,79 @@ def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
 
 def _stripe_event_posts_credit(raw_event: Mapping[str, Any]) -> bool:
     return str(raw_event.get("type", "")) in {"checkout.session.completed", "invoice.paid", "payment_intent.succeeded"}
+
+
+def _create_stripe_checkout_session(
+    config: ComputeMarketConfig,
+    checkout: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    *,
+    request_id: str,
+    idempotency_key: str,
+) -> Mapping[str, str]:
+    success_url = str(payload.get("success_url") or config.stripe_checkout_success_url).strip()
+    cancel_url = str(payload.get("cancel_url") or config.stripe_checkout_cancel_url).strip()
+    if not _is_https_url(success_url) or not _is_https_url(cancel_url):
+        raise RuntimeError("stripe checkout redirect URLs must be https")
+    amount_cents = _minor_currency_units(float(checkout.get("amount", 0.0)))
+    account_id = str(checkout.get("account_id", ""))
+    payment_event_id = str(checkout.get("payment_event_id", ""))
+    fields = {
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "client_reference_id": account_id,
+        "line_items[0][quantity]": "1",
+        "line_items[0][price_data][currency]": str(checkout.get("currency", "USD")).lower(),
+        "line_items[0][price_data][unit_amount]": str(amount_cents),
+        "line_items[0][price_data][product_data][name]": config.stripe_checkout_product_name,
+        "metadata[account_id]": account_id,
+        "metadata[request_id]": request_id,
+        "metadata[payment_event_id]": payment_event_id,
+    }
+    body = urllib.parse.urlencode(fields).encode("utf-8")
+    url = f"{config.stripe_api_base_url.rstrip('/')}/v1/checkout/sessions"
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "authorization": f"Bearer {config.stripe_secret_key}",
+            "content-type": "application/x-www-form-urlencoded",
+            "idempotency-key": idempotency_key,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=config.stripe_checkout_timeout_ms / 1000.0) as response:
+            raw = response.read(65_537)
+    except (OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+        raise RuntimeError("stripe checkout request failed") from exc
+    if len(raw) > 65_536:
+        raise RuntimeError("stripe checkout response too large")
+    try:
+        decoded = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("stripe checkout response was not valid JSON") from exc
+    if not isinstance(decoded, Mapping):
+        raise RuntimeError("stripe checkout response must be an object")
+    session_id = str(decoded.get("id", "")).strip()
+    session_url = str(decoded.get("url", "")).strip()
+    if not session_id or not _is_https_url(session_url):
+        raise RuntimeError("stripe checkout response missing hosted session")
+    return {"id": session_id, "url": session_url}
+
+
+def _minor_currency_units(amount: float) -> int:
+    cents = (Decimal(str(amount)) * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    value = int(cents)
+    if value <= 0:
+        raise RuntimeError("stripe checkout amount must be positive")
+    return value
+
+
+def _is_https_url(value: str) -> bool:
+    parsed = urllib.parse.urlparse(value)
+    return parsed.scheme == "https" and bool(parsed.netloc)
 
 
 def _apply_credit(

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 import hmac
 import threading
-from typing import cast
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs
+from typing import Any, cast
 
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
@@ -67,6 +70,71 @@ def _job_payload() -> dict[str, object]:
         "route_id": "route_live_gpu_1",
         "provider_id": "provider_live_gpu_1",
     }
+
+
+_STRIPE_CHECKOUT_REQUESTS: list[dict[str, object]] = []
+_STRIPE_CHECKOUT_STATUS = 200
+
+
+class _StripeCheckoutHandler(BaseHTTPRequestHandler):
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - inherited name
+        return
+
+    def do_POST(self) -> None:  # noqa: N802 - http.server API
+        length = int(self.headers.get("content-length", "0") or "0")
+        body = self.rfile.read(length).decode("utf-8")
+        _STRIPE_CHECKOUT_REQUESTS.append(
+            {
+                "path": self.path,
+                "authorization": self.headers.get("authorization", ""),
+                "idempotency_key": self.headers.get("idempotency-key", ""),
+                "params": parse_qs(body),
+            }
+        )
+        if self.path != "/v1/checkout/sessions":
+            self.send_response(404)
+            self.end_headers()
+            return
+        if _STRIPE_CHECKOUT_STATUS >= 400:
+            self._send_json({"error": {"message": "stripe unavailable"}}, status=_STRIPE_CHECKOUT_STATUS)
+            return
+        self._send_json(
+            {"id": "cs_test_flow_memory", "url": "https://checkout.stripe.test/session/cs_test_flow_memory"}
+        )
+
+    def _send_json(self, payload: dict[str, object], *, status: int = 200) -> None:
+        self.send_response(status)
+        self.send_header("content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(payload).encode("utf-8"))
+
+
+def _stripe_checkout_server(*, status: int = 200) -> tuple[ThreadingHTTPServer, str]:
+    global _STRIPE_CHECKOUT_STATUS
+    _STRIPE_CHECKOUT_STATUS = status
+    _STRIPE_CHECKOUT_REQUESTS.clear()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _StripeCheckoutHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    return server, f"http://{host}:{port}"
+
+
+def _stripe_checkout_service(base_url: str) -> ComputeMarketService:
+    return ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            stripe_checkout_enabled=True,
+            stripe_secret_key="sk_test_flow_memory_checkout",
+            stripe_webhook_secret="whsec_flow_memory_checkout",
+            stripe_checkout_success_url="https://flow-memory.example/billing/success",
+            stripe_checkout_cancel_url="https://flow-memory.example/billing/cancel",
+            stripe_api_base_url=base_url,
+        ),
+    )
 
 
 def test_provider_onboarding_verification_and_secret_reference_only() -> None:
@@ -458,6 +526,65 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert webhook["payment_event"]["verified"] is True
     assert webhook["credit_transaction"]["amount"] == 100.0
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
+
+
+def test_billing_checkout_creates_external_stripe_session_when_enabled() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-request-1",
+                "idempotency_key": "checkout-idempotency-1",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert checkout["ok"] is True
+    assert checkout["checkout"]["status"] == "checkout_redirect_pending"
+    assert checkout["checkout"]["external_checkout_session_id"] == "cs_test_flow_memory"
+    assert checkout["checkout"]["external_checkout_url"].startswith("https://checkout.stripe.test/")
+    assert checkout["checkout"]["funds_moved"] is False
+    assert checkout["checkout"]["dry_run_only"] is True
+    assert service.store.count_records("payment_event") == 1
+    assert _STRIPE_CHECKOUT_REQUESTS[0]["authorization"] == "Bearer sk_test_flow_memory_checkout"
+    assert _STRIPE_CHECKOUT_REQUESTS[0]["idempotency_key"] == "checkout-idempotency-1"
+    params = cast(dict[str, list[str]], _STRIPE_CHECKOUT_REQUESTS[0]["params"])
+    assert params["client_reference_id"] == ["acct_checkout"]
+    assert params["line_items[0][price_data][unit_amount]"] == ["1234"]
+    assert params["metadata[account_id]"] == ["acct_checkout"]
+
+
+def test_billing_checkout_fails_closed_when_stripe_api_fails() -> None:
+    server, base_url = _stripe_checkout_server(status=500)
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout({"account_id": "acct_failed", "amount": 10, "currency": "USD"})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert checkout["ok"] is False
+    assert checkout["checkout"]["status"] == "external_checkout_failed"
+    assert checkout["checkout"]["funds_moved"] is False
+    assert "external_checkout_url" not in checkout["checkout"]
+    event = service.store.get_record("payment_event", str(checkout["checkout"]["payment_event_id"]))
+    assert event is not None
+    assert event["status"] == "external_checkout_failed"
+
+
+def test_billing_checkout_requires_complete_stripe_configuration() -> None:
+    errors = ComputeMarketConfig(database_url=":memory:", stripe_checkout_enabled=True).validate()
+
+    assert "stripe_checkout_enabled requires stripe_secret_key" in errors
+    assert "stripe_checkout_enabled requires stripe_webhook_secret" in errors
+    assert "stripe_checkout_enabled requires https stripe_checkout_success_url" in errors
+    assert "stripe_checkout_enabled requires https stripe_checkout_cancel_url" in errors
 
 
 def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:

@@ -41,6 +41,7 @@ from flow_memory.api.compute_endpoints import (
     admin_storage_diagnostics,
     billing_balance,
     billing_checkout,
+    billing_refund,
     billing_usage,
     billing_webhook_stripe,
     compute_audit,
@@ -685,6 +686,10 @@ class LocalApiRouter:
     def _billing_usage(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_usage(payload)
 
+    def _billing_refund(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_refund(payload)
+
+
     def _admin_reconciliation(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return admin_reconciliation(payload)
 
@@ -913,6 +918,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/billing/webhooks/stripe", router._billing_webhook_stripe, "billing_webhook_stripe")
     router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")
     router.register("GET", "/billing/usage", router._billing_usage, "billing_usage")
+    router.register("POST", "/billing/refund", router._billing_refund, "billing_refund")
     router.register("GET", "/admin/reconciliation", router._admin_reconciliation, "admin_reconciliation")
     router.register("GET", "/admin/storage/diagnostics", router._admin_storage_diagnostics, "admin_storage_diagnostics")
     router.register("GET", "/admin/redis/diagnostics", router._admin_redis_diagnostics, "admin_redis_diagnostics")

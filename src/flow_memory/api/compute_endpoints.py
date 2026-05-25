@@ -310,6 +310,11 @@ def billing_usage(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]
     return default_service().billing_usage(payload or {})
 
 
+def billing_refund(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().billing_refund(payload)
+
+
+
 def compute_telemetry(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().telemetry_snapshot(payload or {})
 

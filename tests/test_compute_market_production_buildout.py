@@ -825,6 +825,60 @@ def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:
     assert service.billing_balance({"account_id": "acct_paid"})["balance"]["available_credits"] == 0.82
 
 
+def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation() -> None:
+    service = _service()
+    raw_event = {"id": "evt_credit_refund", "type": "checkout.session.completed", "amount": 1.0, "currency": "usd", "metadata": {"account_id": "acct_refund"}}
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_paid_compute_refund"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(job_id, {"account_id": "acct_refund", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
+    usage_charge_id = str(completed["usage_charge"]["usage_charge_id"])
+
+    assert service.billing_balance({"account_id": "acct_refund"})["balance"]["available_credits"] == 0.82
+    refund = service.billing_refund({"usage_charge_id": usage_charge_id, "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"})
+
+    assert refund["ok"] is True
+    assert refund["refund"]["status"] == "recorded_no_custody"
+    assert refund["refund"]["funds_moved"] is False
+    assert refund["refund"]["external_refund_created"] is False
+    assert refund["credit_transaction"]["transaction_type"] == "refund_credit"
+    assert refund["credit_transaction"]["funds_moved"] is False
+    assert service.billing_balance({"account_id": "acct_refund"})["balance"]["available_credits"] == 1.0
+
+    replay = service.billing_refund({"usage_charge_id": usage_charge_id, "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"})
+    assert replay["idempotent_replay"] is True
+    assert replay["refund"]["refund_id"] == refund["refund"]["refund_id"]
+    assert service.store.count_records("refund") == 1
+    assert service.reconciliation({})["reconciliation"]["refund_count"] == 1
+
+    try:
+        service.billing_refund({"usage_charge_id": usage_charge_id, "amount": 0.01, "reason": "excess_refund"})
+    except ValueError as exc:
+        assert "exceeds remaining" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("over-refund was accepted")
+
+
+def test_billing_refund_rejects_invalid_or_unowned_requests() -> None:
+    service = _service()
+
+    for payload, expected in (
+        ({"account_id": "acct_refund_invalid", "amount": 0}, "amount must be positive"),
+        ({"amount": 1}, "account_id or tenant_id is required"),
+        ({"account_id": "acct_refund_invalid", "usage_charge_id": "usage_missing", "amount": 1}, "Unknown usage charge"),
+    ):
+        try:
+            service.billing_refund(payload)
+        except ValueError as exc:
+            assert expected in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError(f"invalid refund payload was accepted: {payload}")
+
+
+
 def test_prepaid_credit_debit_insufficient_balance_does_not_overdraw() -> None:
     service = _service()
     raw_event = {"id": "evt_credit_tiny", "type": "checkout.session.completed", "amount": 0.1, "currency": "usd", "metadata": {"account_id": "acct_tiny"}}
@@ -852,6 +906,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/compute/jobs/job_1/heartbeat") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/release-claim") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
+        assert required_scopes_for("POST", "/billing/refund") == ("compute:billing",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
         assert required_scopes_for("GET", "/market/prices") == ("compute:read",)

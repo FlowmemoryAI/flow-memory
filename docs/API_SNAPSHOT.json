@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 139,
-  "manifest_hash": "76cad1f7902ce56eef81754e40c6b9e4b9eedb3be7df2fb3611b60ed3afc5854",
-  "openapi_hash": "5f49497aabf236e975fa20951c1ae8bcffe3a6d59bbd561d875aa51212a27a07",
+  "endpoint_count": 140,
+  "manifest_hash": "aac3843c954b0b9b4b2845c9e5f6d50c635b244c2043e1de8a3d7ad4223ef01d",
+  "openapi_hash": "224e7aa0d11686b9755c252e306ac028749c609cf35ed853761468930e468c2d",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -81,6 +81,7 @@
     "POST /auth/api-keys/{key_id}/disable",
     "POST /auth/api-keys/{key_id}/rotate",
     "POST /billing/checkout",
+    "POST /billing/refund",
     "POST /billing/webhooks/stripe",
     "POST /compute/alerts/{rule_name}/ack",
     "POST /compute/audit/checkpoint",
@@ -143,7 +144,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 131,
+  "path_count": 132,
   "paths": [
     "/admin/audit/export",
     "/admin/reconciliation",
@@ -164,6 +165,7 @@
     "/auth/api-keys/{key_id}/rotate",
     "/billing/balance",
     "/billing/checkout",
+    "/billing/refund",
     "/billing/usage",
     "/billing/webhooks/stripe",
     "/compute/alerts",

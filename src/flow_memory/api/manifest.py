@@ -155,6 +155,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/billing/webhooks/stripe", "billing_webhook_stripe", "Verify and store a Stripe webhook event envelope", request_fields=("raw_event", "stripe_signature"), response_fields=("ok", "payment_event")),
     EndpointSpec("GET", "/billing/balance", "billing_balance", "Get credit balance ledger state", response_fields=("ok", "balance")),
     EndpointSpec("GET", "/billing/usage", "billing_usage", "List usage charges", response_fields=("ok", "usage_charges")),
+    EndpointSpec("POST", "/billing/refund", "billing_refund", "Record a no-custody usage refund and prepaid-credit adjustment", request_fields=("usage_charge_id", "account_id", "amount", "currency", "reason"), response_fields=("ok", "refund", "credit_transaction")),
     EndpointSpec("GET", "/admin/reconciliation", "admin_reconciliation", "Run dry-run reconciliation count checks", response_fields=("ok", "reconciliation")),
     EndpointSpec("GET", "/admin/storage/diagnostics", "admin_storage_diagnostics", "Verify managed SQL migrations, required tables, indexes, advisory lock access, and audit chain state", response_fields=("ok", "storage", "migration_status", "migration_history", "schema_verification", "production_readiness", "audit_chain")),
     EndpointSpec("GET", "/admin/redis/diagnostics", "admin_redis_diagnostics", "Verify managed Redis limiter and circuit-breaker probes through the active production backend", response_fields=("ok", "rate_limiter", "circuit_breaker", "rate_limit_probe", "circuit_breaker_probe")),

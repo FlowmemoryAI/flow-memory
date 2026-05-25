@@ -218,6 +218,18 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
     checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": f"acct_public_buildout_{suffix}", "amount": 100, "currency": "USD"})
     checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id=acct_public_buildout_{suffix}", headers_billing)
+    checks["billing_refund"] = call_json(
+        "POST",
+        f"{base}/billing/refund",
+        headers_billing,
+        {
+            "account_id": f"acct_public_buildout_{suffix}",
+            "amount": 1,
+            "currency": "USD",
+            "reason": "public_validation_no_custody",
+            "idempotency_key": f"refund_public_buildout_{suffix}",
+        },
+    )
     checks["admin_reconciliation"] = call_json("GET", f"{base}/admin/reconciliation", headers_admin)
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
@@ -228,6 +240,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     plan = data(checks["plan"][1]).get("compute_plan", {})
     job = data(checks["job_create"][1]).get("job", {})
     checkout = data(checks["billing_checkout"][1]).get("checkout", {})
+    refund = data(checks["billing_refund"][1]).get("refund", {})
     storage_diag = data(checks["admin_storage_diagnostics"][1])
     redis_diag = data(checks["admin_redis_diagnostics"][1])
 
@@ -249,6 +262,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")
     require(checks["billing_balance"][0] == 200 and data(checks["billing_balance"][1]).get("balance", {}).get("account_id") == f"acct_public_buildout_{suffix}", "billing balance failed")
+    require(checks["billing_refund"][0] == 200 and refund.get("funds_moved") is False and refund.get("external_refund_created") is False and refund.get("status") == "recorded_no_custody", "billing refund safety failed")
     require(checks["admin_reconciliation"][0] == 200 and checks["admin_reconciliation"][1].get("ok") is True, "admin reconciliation failed")
     require(checks["admin_storage_diagnostics"][0] == 200 and storage_diag.get("ok") is True and storage_diag.get("production_readiness", {}).get("production_ready") is True, "admin storage diagnostics failed")
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")

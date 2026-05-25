@@ -1723,6 +1723,118 @@ class ComputeMarketService:
         charges = tuple(self.store.list_records("usage_charge", filters=filters, limit=int(payload.get("limit", 100) or 100)).records)
         return {"ok": True, "usage_charges": charges, "account_id": account_id}
 
+    def billing_refund(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        if idempotency_key:
+            existing = self.store.find_by_idempotency("refund", idempotency_key)
+            if existing is not None:
+                credit_transaction = _refund_credit_transaction(self.store, existing)
+                return {"ok": True, "refund": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
+
+        usage_charge_id = str(payload.get("usage_charge_id", "")).strip()
+        usage_charge = self.store.get_record("usage_charge", usage_charge_id) if usage_charge_id else None
+        if usage_charge_id and usage_charge is None:
+            raise ValueError(f"Unknown usage charge: {usage_charge_id}")
+
+        account_id = str(payload.get("account_id") or payload.get("tenant_id") or (usage_charge or {}).get("account_id", "")).strip()
+        if not account_id:
+            raise ValueError("account_id or tenant_id is required")
+        if usage_charge is not None:
+            usage_account_id = str(usage_charge.get("account_id", "")).strip()
+            if usage_account_id and usage_account_id != account_id:
+                raise ValueError("refund account_id does not match usage charge account_id")
+
+        amount_source = payload.get("amount", (usage_charge or {}).get("amount"))
+        amount = _positive_float(amount_source, "amount")
+        currency = str(payload.get("currency") or (usage_charge or {}).get("currency", "USD")).upper()
+        provider_id = str(payload.get("provider_id") or (usage_charge or {}).get("provider_id", ""))
+        route_id = str(payload.get("route_id") or (usage_charge or {}).get("route_id", ""))
+
+        if usage_charge is not None:
+            original_amount = _positive_float(usage_charge.get("amount"), "usage_charge.amount")
+            prior_refunds = self.store.list_records("refund", filters={"action": usage_charge_id}, limit=500).records
+            already_refunded = sum(float(refund.get("amount", 0.0) or 0.0) for refund in prior_refunds)
+            if already_refunded + amount > original_amount + 0.000001:
+                raise ValueError("refund amount exceeds remaining usage charge amount")
+
+        refund_id = str(
+            payload.get("refund_id")
+            or deterministic_id(
+                "refund",
+                {
+                    "account_id": account_id,
+                    "usage_charge_id": usage_charge_id,
+                    "amount": amount,
+                    "currency": currency,
+                    "source_event_id": str(payload.get("source_event_id", "")),
+                    "idempotency_key": idempotency_key,
+                    "reason": str(payload.get("reason", "")),
+                },
+            )
+        )
+        existing_refund = self.store.get_record("refund", refund_id)
+        if existing_refund is not None:
+            credit_transaction = _refund_credit_transaction(self.store, existing_refund)
+            return {"ok": True, "refund": existing_refund, "credit_transaction": credit_transaction, "idempotent_replay": True}
+
+        now = utc_now_iso()
+        refund = {
+            "refund_id": refund_id,
+            "usage_charge_id": usage_charge_id,
+            "account_id": account_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "amount": amount,
+            "currency": currency,
+            "reason": str(payload.get("reason", "")),
+            "source_event_id": str(payload.get("source_event_id", usage_charge_id)),
+            "status": "recorded_no_custody",
+            "dry_run_only": True,
+            "funds_moved": False,
+            "external_refund_created": False,
+            "created_at": now,
+            "updated_at": now,
+            "request_id": request_id,
+        }
+        self.store.put_record(
+            "refund",
+            refund_id,
+            refund,
+            tenant_id=account_id,
+            provider_id=provider_id,
+            route_id=route_id,
+            status=str(refund["status"]),
+            request_id=request_id,
+            idempotency_key=idempotency_key or refund_id,
+            action=usage_charge_id,
+        )
+        credit_transaction: Mapping[str, Any] = {}
+        if usage_charge is not None:
+            debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
+            debit = self.store.get_record("credit_transaction", debit_id)
+            if debit is not None and debit.get("status") == "posted":
+                credit_transaction = _apply_refund_credit(
+                    self.store,
+                    account_id,
+                    amount=amount,
+                    currency=currency,
+                    request_id=request_id,
+                    refund_id=refund_id,
+                    usage_charge_id=usage_charge_id,
+                )
+        self._audit(
+            "billing.refund.recorded",
+            payload,
+            request_id=request_id,
+            result=str(refund["status"]),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return {"ok": True, "refund": refund, "credit_transaction": credit_transaction, "idempotent_replay": False}
+
+
     def reconciliation(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
         run_id = deterministic_id("reconciliation", {"created_at": utc_now_iso(), "scope": payload})
@@ -3527,6 +3639,83 @@ def _debit_credit(
         store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
     store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status=str(transaction["status"]), request_id=request_id, idempotency_key=transaction_id)
     return transaction
+
+
+def _apply_refund_credit(
+    store: ComputeMarketStoreProtocol,
+    account_id: str,
+    *,
+    amount: float,
+    currency: str,
+    request_id: str,
+    refund_id: str,
+    usage_charge_id: str,
+) -> Mapping[str, Any]:
+    if not account_id or amount <= 0:
+        return {}
+    transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "refund_id": refund_id, "type": "refund_credit"})
+    existing = store.get_record("credit_transaction", transaction_id)
+    if existing is not None:
+        return existing
+    now = utc_now_iso()
+    current = store.get_record("credit_balance", account_id) or {
+        "account_id": account_id,
+        "available_credits": 0.0,
+        "reserved_credits": 0.0,
+        "currency": currency,
+        "created_at": now,
+    }
+    available = float(current.get("available_credits", 0.0) or 0.0) + amount
+    balance = {
+        **dict(current),
+        "account_id": account_id,
+        "available_credits": round(available, 6),
+        "reserved_credits": float(current.get("reserved_credits", 0.0) or 0.0),
+        "currency": currency,
+        "updated_at": now,
+    }
+    transaction = {
+        "credit_transaction_id": transaction_id,
+        "account_id": account_id,
+        "transaction_type": "refund_credit",
+        "amount": amount,
+        "currency": currency,
+        "refund_id": refund_id,
+        "usage_charge_id": usage_charge_id,
+        "status": "posted",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "request_id": request_id,
+    }
+    store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
+    store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status="posted", request_id=request_id, idempotency_key=transaction_id)
+    return transaction
+
+
+def _refund_credit_transaction(store: ComputeMarketStoreProtocol, refund: Mapping[str, Any]) -> Mapping[str, Any]:
+    account_id = str(refund.get("account_id", ""))
+    refund_id = str(refund.get("refund_id", ""))
+    usage_charge_id = str(refund.get("usage_charge_id", ""))
+    if not account_id or not refund_id or not usage_charge_id:
+        return {}
+    transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "refund_id": refund_id, "type": "refund_credit"})
+    existing = store.get_record("credit_transaction", transaction_id)
+    if existing is not None:
+        return existing
+    debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
+    debit = store.get_record("credit_transaction", debit_id)
+    if debit is None or debit.get("status") != "posted":
+        return {}
+    return _apply_refund_credit(
+        store,
+        account_id,
+        amount=_positive_float(refund.get("amount"), "refund.amount"),
+        currency=str(refund.get("currency", "USD")),
+        request_id=str(refund.get("request_id", "")),
+        refund_id=refund_id,
+        usage_charge_id=usage_charge_id,
+    )
 
 
 def _accrue_provider_payout(

@@ -80,6 +80,17 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             }
         if "/billing/balance" in url:
             return 200, {"ok": True, "data": {"balance": {"account_id": "acct_public_buildout_1234567890"}}}
+        if url.endswith("/billing/refund"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "refund": {
+                        "funds_moved": False,
+                        "external_refund_created": False,
+                        "status": "recorded_no_custody",
+                    }
+                },
+            }
         if url.endswith("/admin/storage/diagnostics"):
             return 200, {"ok": True, "data": {"ok": True, "production_readiness": {"production_ready": True}}}
         if url.endswith("/admin/redis/diagnostics"):
@@ -98,6 +109,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["job_receipt_wrong_scope"] == 403
     assert result["checks"]["job_receipt_unsigned"] == 200
     assert len(receipt_calls) == 2
+    refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
+    assert len(refund_calls) == 1
+    assert refund_calls[0][2] is not None and refund_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"
+    assert refund_calls[0][3] is not None
+    assert refund_calls[0][3]["amount"] == 1
     assert receipt_calls[0][2] is not None and receipt_calls[0][2]["x-flow-memory-scopes"] == "compute:read"
     assert receipt_calls[1][2] is not None and receipt_calls[1][2]["x-flow-memory-scopes"] == "compute:execute"
     assert receipt_calls[1][3] is not None

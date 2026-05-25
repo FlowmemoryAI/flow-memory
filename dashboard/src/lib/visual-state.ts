@@ -126,6 +126,12 @@ export type NeuralEmbodimentState = {
   neural_advisory_only: boolean;
   policy_authority: string;
   local_only: boolean;
+  no_external_model_calls?: boolean;
+  no_live_provider_calls?: boolean;
+  no_funds_moved?: boolean;
+  no_live_settlement?: boolean;
+  production_ml_claimed?: boolean;
+  loop_phases?: string[];
 };
 
 export type NeuralEmbodimentPayload = {

@@ -93,6 +93,7 @@ GET /launch/console/runs
 GET /launch/console/runs/{run_id}
 GET /launch/console/fixtures
 POST /launch/bundles/public-alpha
+POST /launch/finalize/public-alpha
 ```
 
 Example bundle request:
@@ -103,4 +104,12 @@ Example bundle request:
 }
 ```
 
-Console read endpoints require `launch:read` when scopes are enabled. The public-alpha demo bundle endpoint requires `launch:export`. These endpoints are local-only and return replay/run metadata, fixture references, release evidence summaries, demo commands, and GPU evidence status without external model calls, provider-network calls, real funds, private keys, broadcasts, or settlement execution.
+Example finalizer request:
+
+```json
+{
+  "out": "release_evidence/public_alpha_launch_finalizer.json"
+}
+```
+
+Console read endpoints require `launch:read` when scopes are enabled. The public-alpha demo bundle and finalizer endpoints require `launch:export`. These endpoints are local-only and return replay/run metadata, fixture references, release evidence summaries, demo commands, GPU evidence status, Mission Control Live 3D Mode readiness, final release decisions, and safety invariants without external model calls, provider-network calls, real funds, private keys, broadcasts, or settlement execution.

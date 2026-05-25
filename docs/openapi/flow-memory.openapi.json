@@ -1227,6 +1227,55 @@
         ]
       }
     },
+    "/launch/finalize/public-alpha": {
+      "post": {
+        "operationId": "launch_finalize_public_alpha",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "out": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "finalizer_path": {
+                      "type": "string"
+                    },
+                    "mission_control_live_3d": {
+                      "type": "string"
+                    },
+                    "release_decisions": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Finalize local public-alpha handoff evidence",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
     "/launch/runs": {
       "get": {
         "operationId": "launch_runs_list",

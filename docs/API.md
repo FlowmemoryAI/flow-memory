@@ -115,7 +115,7 @@ See `docs/API_AGENT_LAUNCH.md` for the local public-alpha launch endpoints. Thes
 The local API exposes read-only release metadata for public-alpha tooling:
 
 - `GET /release/evidence` returns the committed release evidence bundle index metadata and never exposes raw artifacts.
-- `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, and `public-alpha-launch`.
+- `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, `public-alpha-launch`, and `public-alpha-launch-finalizer`.
 
 When scope checks are enabled these endpoints require `release:read`.
 
@@ -151,5 +151,6 @@ These endpoints expose local supervisor metadata and heartbeat artifacts only. T
 - `GET /launch/console/runs/{run_id}`
 - `GET /launch/console/fixtures`
 - `POST /launch/bundles/public-alpha`
+- `POST /launch/finalize/public-alpha`
 
-Console read endpoints require `launch:read`; demo bundle export requires `launch:export` when scope checks are enabled. They expose local replay/run metadata and a compact public-alpha bundle with fixture references, docs references, commands, release evidence summary, GPU evidence status, and honest limitations.
+Console read endpoints require `launch:read`; demo bundle and finalizer exports require `launch:export` when scope checks are enabled. They expose local replay/run metadata, a compact public-alpha bundle with fixture references, docs references, commands, release evidence summary, GPU evidence status, Mission Control Live 3D Mode readiness, final release decisions, and honest limitations.

@@ -1,7 +1,7 @@
 {
-  "bundle_hash": "aff16876df49ec9584917fc5d7f9298d04ada1c4ac7187cec38536a4da6a7a9c",
+  "bundle_hash": "0c47045e3aa69e0666993bf6b589accc8669eb71e0ab7fdb6cf0f4ad9c92a534",
   "file_hashes": {
-    "api_snapshot.json": "f13b161b46296ef5fd06b5660a01e5431b8603bedfabbd0882bc791db2b6629b",
+    "api_snapshot.json": "cea1bcd802009e345ce7c07a956bf41e3ba3534ad12c9f5d49d3d3880a6d6369",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
@@ -11,14 +11,15 @@
     "live_agent_launchpad.json": "86f5e7d7aad1f29e5d506f27b7bb85f0fb4c7e8a28bf67ff6686a2013a002c42",
     "live_agent_operations.json": "6eb745ae52bee462121b8ba026b78f68dafed718cbe696da641520564f635803",
     "live_agent_supervisor.json": "cdcaad4f556dd098f6ccd1db283d12f79730f8ac358121e17d9cd570eea3caa2",
-    "mission_control_run_console.json": "f1bceaa665898038f60f7e40932641b1dcfff21501456786267b666f0342f38d",
+    "mission_control_live_3d.json": "56566b409be1209013b859a2056fa50f5a21414ee387a086e202ce701fe68ab8",
+    "mission_control_run_console.json": "e314415a02d76a6d4412a98a2711697cb8a271cce784c55f6c096334b0aa02bd",
     "neural_embodiment.json": "187d7621581eacc2658ee67c460dc32479ac0ddeeb347dce19399515af201f4f",
-    "neural_live_agents.json": "2b8f375a234559c8dfd9ae09fa74544434186a2a73bcc34d593522a59633e127",
+    "neural_live_agents.json": "2aacdb6c0770cbaa2fc519d7e3e0ca4483f9955393f3d0dff3ade10b2a8c7f06",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "8ae6b31f4c8f3018482278d54732aa9d474b5df6c8d4412e52c849c4200527ce",
+    "release_manifest.json": "ee2a4f1e7611a83305d99b79bb2bebf7471f5ec4a30fe728710cf9d5e41a9cbd",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "02833fc739b5c086556ef5782b78d7f8624866222c3c38ef5818e89a2c4c340f"
+    "visual_system.json": "49a4cd0bd3065a022902ae529867eefc49dada4eb159c62f4d90441c7dca12ca"
   },
   "files": [
     "api_snapshot.json",
@@ -31,6 +32,7 @@
     "live_agent_launchpad.json",
     "live_agent_operations.json",
     "live_agent_supervisor.json",
+    "mission_control_live_3d.json",
     "mission_control_run_console.json",
     "neural_embodiment.json",
     "neural_live_agents.json",

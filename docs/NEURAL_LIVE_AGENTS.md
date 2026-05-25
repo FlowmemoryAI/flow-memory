@@ -185,6 +185,7 @@ GET /launch/console/runs/{run_id}/embodiment
 ```
 
 The embodiment state exposes `agent_id`, `session_id`, backend, GPU evidence status, loop phase, confidence/risk scores, policy gate state, memory activations, learning ticks, action state, heartbeat state, and 3D-ready animation metadata.
+Mission Control Live 3D Mode reads the same projection as read-only local/replay telemetry. It renders the neural agent body, memory orbits, policy gate, heartbeat, confidence/risk, and GPU evidence status without launching agents, contacting providers, moving funds, executing settlement, or bypassing PolicyEngine/ApprovalGate.
 
 ## Safety posture
 
@@ -205,3 +206,4 @@ python -m flow_memory launch supervisor stop <run_id> --json
 
 The supervisor is bounded, local-only, inspectable, and policy-gated. Resume creates a continuation run from prior metadata rather than reviving a hidden process.
 Mission Control can display supervisor and launchpad runs through a local run selector/status card. The selector reads replay fixtures for live neural launch, operations, supervisor, and local-network runs.
+The public-alpha finalizer records Live 3D Mode readiness, neural embodiment readiness, launch evidence, demo bundle status, release decisions, and the invariant that the C:\tmp backup is not tracked.

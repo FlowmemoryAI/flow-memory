@@ -14,6 +14,7 @@ import { NetworkLegend } from "../../components/mission-control/NetworkLegend";
 import { ReplayControls } from "../../components/mission-control/ReplayControls";
 import { RunSelector } from "../../components/mission-control/RunSelector";
 import { NeuralEmbodimentPanel } from "../../components/mission-control/NeuralEmbodimentPanel";
+import { Live3DModePanel } from "../../components/mission-control/Live3DModePanel";
 import { AgentPanel } from "../../components/panels/AgentPanel";
 import { NeuralPanel } from "../../components/panels/NeuralPanel";
 import { EconomyPanel } from "../../components/panels/EconomyPanel";
@@ -55,6 +56,7 @@ export default function MissionControlPage() {
       <AgentDetailDrawer agent={state.agents[0]} state={state} />
       <NetworkLegend />
       <NeuralEmbodimentPanel payload={liveEmbodimentReplay as NeuralEmbodimentPayload} />
+      <Live3DModePanel state={state} payload={liveEmbodimentReplay as NeuralEmbodimentPayload} />
       <section className="mission-control-panels">
         <RuntimePanel state={state} />
         <AgentPanel state={state} />

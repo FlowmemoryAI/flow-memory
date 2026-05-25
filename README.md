@@ -42,6 +42,7 @@ python -m flow_memory launch runs replay <run_id> --json
 python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
 python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
+python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -60,12 +61,14 @@ python scripts/run_local_network.py --scenario all --emit-visual-events --json-o
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
 python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
+python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json
 cd dashboard
 npm run build
 npm test
 ```
 
 Mission Control is connected to local state/replay/API data, with mock fallback clearly labeled.
+Live 3D Mode renders the neural embodiment as read-only local/replay telemetry; it is not an agent launcher, provider connector, settlement console, or policy bypass.
 
 The project now combines:
 
@@ -89,6 +92,8 @@ The project now combines:
 - Mission Control run console for launchpad, operations, supervisor, and local-network replay fixture selection/status summaries
 - Public-alpha local demo bundle export with replay references, docs, commands, release evidence, GPU status, and honest limitations
 - Mission Control neural embodiment view for visible local neural runtime/session, loop phase, memory, learning, policy, supervisor heartbeat, and imported GPU evidence status
+- Mission Control Live 3D Mode for read-only CSS 3D/WebGL-ready local neural embodiment telemetry with policy/approval authority intact
+- Public Alpha Launch Finalizer evidence for local demo bundle, Live 3D mode, launch evidence, release decisions, and C:\\tmp backup exclusion checks
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
@@ -238,6 +243,8 @@ Mission Control run console and demo bundle:
 
 ```bash
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json
 ```
 
 The dashboard run selector can inspect Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Live Neural Embodiment, and Local Network Replay fixtures. The bundle is local-only and does not move funds, use private keys, broadcast transactions, or claim production ML certification.
+Mission Control Live 3D Mode reads the same visible embodiment fixture and keeps it read-only/local-only; the finalizer records Live 3D readiness, public-alpha launch evidence, release decisions, demo bundle status, and the invariant that the C:\tmp backup is not tracked.

@@ -66,6 +66,7 @@ Useful endpoints:
 - `GET /launch/console/runs/{run_id}`
 - `GET /launch/console/fixtures`
 - `POST /launch/bundles/public-alpha`
+- `POST /launch/finalize/public-alpha`
 - `GET /visual/embodiment/{run_id}`
 - `GET /launch/console/runs/{run_id}/embodiment`
 With local auth/scopes:
@@ -76,6 +77,7 @@ python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765 --api-key de
 
 Read visual endpoints with `x-flow-memory-scopes: visual:read`; run network scenarios with `x-flow-memory-scopes: network:run`.
 Launch console read endpoints require `x-flow-memory-scopes: launch:read`; public-alpha demo bundle export requires `x-flow-memory-scopes: launch:export`.
+Public-alpha finalizer export also requires `x-flow-memory-scopes: launch:export`.
 
 ## 4. Run dashboard checks
 
@@ -114,9 +116,11 @@ Build a compact bundle with local demo commands, fixture references, release evi
 
 ```bash
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json
 ```
 
 The bundle is local-only. It does not embed secrets, model weights, private keys, provider-network calls, settlement execution, or real-funds activity.
+The finalizer writes `release_evidence/public_alpha_launch_finalizer.json` with launch evidence, release decisions, Live 3D Mode readiness, neural embodiment readiness, demo-bundle status, and a check that C:\tmp backup paths are not tracked.
 
 ## Visual semantics
 
@@ -163,3 +167,23 @@ GET /launch/console/runs/{run_id}/embodiment
 ```
 
 The embodiment card shows the agent id, neural session id, backend, imported RunPod GPU evidence status, current loop phase, confidence/risk scores, policy gate state, memory activation count, learning ticks, action state, supervisor heartbeat, and replay artifact path. It is 3D-ready data rendered as a compact visual graph today; it does not claim AGI, sentience, unbounded autonomous operation, provider-network calls, settlement execution, or production-trained ML quality.
+
+## Live 3D Mode
+
+Mission Control Live 3D Mode is the read-only 3D operator view over the neural embodiment projection. It uses the `live-neural-embodiment` fixture or `/visual/embodiment/{run_id}` payload to render the local neural agent body, memory orbits, policy gate, heartbeat, confidence/risk, learning ticks, and imported GPU evidence status.
+
+It is CSS 3D/WebGL-ready telemetry today. It does not start a hidden process, launch an agent, contact model/provider networks, move funds, broadcast transactions, execute settlement, or override PolicyEngine/ApprovalGate.
+
+The dashboard component is:
+
+```text
+dashboard/src/components/mission-control/Live3DModePanel.tsx
+```
+
+Run finalizer evidence after refreshing the fixture:
+
+```bash
+python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json
+python scripts/verify_public_alpha_launch_finalizer.py
+python scripts/release_decision.py --target public-alpha-launch-finalizer
+```

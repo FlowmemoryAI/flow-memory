@@ -28,10 +28,10 @@ from flow_memory.launch_supervisor import (
     stop_supervisor_run,
     supervisor_status,
     supervisor_state_path,
-    heartbeat_path,
 )
 from flow_memory.visualization.run_console import build_public_alpha_demo_bundle
 from flow_memory.visualization.embodiment import build_neural_embodiment_fixture
+from flow_memory.release.launch_finalizer import finalize_public_alpha_launch
 
 
 def _json_default(value: Any) -> str:
@@ -169,6 +169,12 @@ def _launch(argv: list[str]) -> int:
     embodiment.add_argument("--out", default="dashboard/src/mock-data/live-neural-embodiment.json")
     embodiment.add_argument("--json", action="store_true")
 
+    finalize = sub.add_parser("finalize", description="Finalize local public-alpha launch handoff evidence")
+    finalize_sub = finalize.add_subparsers(dest="finalize_command", required=True)
+    public_alpha_finalizer = finalize_sub.add_parser("public-alpha")
+    public_alpha_finalizer.add_argument("--out", default="release_evidence/public_alpha_launch_finalizer.json")
+    public_alpha_finalizer.add_argument("--json", action="store_true")
+
     doctor = sub.add_parser("doctor", description="Check local launch/neural/Mission Control readiness")
     doctor.add_argument("--json", action="store_true")
 
@@ -250,6 +256,10 @@ def _launch(argv: list[str]) -> int:
             if args.visual_command == "embodiment":
                 payload = build_neural_embodiment_fixture(".", args.run, args.out)
                 return _print_launch_payload(payload, json_output=args.json, human=f"neural embodiment {payload.get('fixture_path', '')}")
+        if args.resource == "finalize":
+            if args.finalize_command == "public-alpha":
+                payload = finalize_public_alpha_launch(".", args.out)
+                return _print_launch_payload(payload, json_output=args.json, human=f"public-alpha finalizer {payload.get('finalizer_path', '')}")
         if args.resource == "doctor":
             payload = _launch_doctor()
             return _print_launch_payload(payload, json_output=args.json, human="launch doctor ok" if payload["ok"] else "launch doctor failed")
@@ -290,6 +300,8 @@ def _launch_doctor() -> Mapping[str, Any]:
     run_console_lib = Path("dashboard/src/lib/run-console.ts")
     run_selector_component = Path("dashboard/src/components/mission-control/RunSelector.tsx")
     public_alpha_bundle_default = Path("artifacts/launch/bundles/public-alpha-local-demo.json")
+    finalizer_default = Path("release_evidence/public_alpha_launch_finalizer.json")
+    live_3d_component = Path("dashboard/src/components/mission-control/Live3DModePanel.tsx")
     artifact_dir = root / "artifacts" / "launch" / "runs"
     heartbeat_dir = root / "artifacts" / "launch" / "supervisor" / "heartbeats"
     artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -312,6 +324,7 @@ def _launch_doctor() -> Mapping[str, Any]:
         "GET /launch/console/runs/{run_id}",
         "GET /launch/console/fixtures",
         "POST /launch/bundles/public-alpha",
+        "POST /launch/finalize/public-alpha",
     ))
     checks = {
         "tiny_torch": True,
@@ -334,6 +347,9 @@ def _launch_doctor() -> Mapping[str, Any]:
         "public_alpha_demo_bundle_command_available": True,
         "public_alpha_demo_bundle_directory_writable": public_alpha_bundle_default.parent.exists() or bool(public_alpha_bundle_default.parent.mkdir(parents=True, exist_ok=True) is None),
         "console_api_endpoints_registered": console_endpoint_ok,
+        "public_alpha_finalizer_command_available": True,
+        "public_alpha_finalizer_directory_writable": finalizer_default.parent.exists() or bool(finalizer_default.parent.mkdir(parents=True, exist_ok=True) is None),
+        "live_3d_mode_component_present": live_3d_component.exists(),
         "cli_commands_available": True,
         "no_external_call_mode": True,
     }

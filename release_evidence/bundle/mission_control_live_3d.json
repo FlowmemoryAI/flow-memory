@@ -1,0 +1,43 @@
+{
+  "component": "dashboard/src/components/mission-control/Live3DModePanel.tsx",
+  "component_safety_scan": {
+    "hits": [],
+    "missing": [],
+    "ok": true
+  },
+  "docs": {
+    "README.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
+    "docs/NEURAL_LIVE_AGENTS.md": true,
+    "docs/PUBLIC_ALPHA_READINESS.md": true
+  },
+  "docs_safety_scan": {
+    "hits": [],
+    "missing": [],
+    "ok": true
+  },
+  "fixture_path": "dashboard/src/mock-data/live-neural-embodiment.json",
+  "fixture_safety_scan": {
+    "hits": [],
+    "missing": [],
+    "ok": true
+  },
+  "mission_control_live_3d_data_ready": true,
+  "mission_control_live_3d_docs_ready": true,
+  "mission_control_live_3d_mode_available": true,
+  "mission_control_live_3d_no_overclaim_invariant": true,
+  "ok": true,
+  "page": "dashboard/src/app/mission-control/page.tsx",
+  "sample": {
+    "agent_id": "agent_a093fc05c99e8dc6",
+    "gpu_evidence_status": "verified",
+    "local_only": true,
+    "neural_advisory_only": true,
+    "phase": "completed",
+    "policy_gated": true,
+    "run_id": "live_agent_9b713fe0821659d3",
+    "session_id": "neural_session_a093fc05c99e8dc6",
+    "three_ready": true
+  },
+  "styles": "dashboard/src/styles/mission-control.css"
+}

@@ -70,8 +70,8 @@
   "public_alpha_demo_bundle_no_live_provider_calls": true,
   "public_alpha_demo_bundle_validated": true,
   "sample_bundle": {
-    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpd9_7ho84\\public-alpha-local-demo.json",
-    "command_count": 14,
+    "bundle_path": "D:\\CDriveRelief\\Temp\\tmp3yhv0gs4\\public-alpha-local-demo.json",
+    "command_count": 16,
     "fixture_count": 5,
     "gpu_evidence_status": "artifact_present_not_verified"
   }

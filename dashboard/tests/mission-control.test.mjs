@@ -13,6 +13,7 @@ const eventStream = readFileSync(new URL("../src/lib/event-stream.ts", import.me
 const runConsole = readFileSync(new URL("../src/lib/run-console.ts", import.meta.url), "utf8");
 const runSelector = readFileSync(new URL("../src/components/mission-control/RunSelector.tsx", import.meta.url), "utf8");
 const embodimentPanel = readFileSync(new URL("../src/components/mission-control/NeuralEmbodimentPanel.tsx", import.meta.url), "utf8");
+const live3DModePanel = readFileSync(new URL("../src/components/mission-control/Live3DModePanel.tsx", import.meta.url), "utf8");
 
 assert.match(page, /The Human Compute Network/);
 assert.match(canvas, /AgentNode3D/);
@@ -33,6 +34,10 @@ assert.match(runConsole, /eventCategoryCounts/);
 assert.match(runConsole, /Live Agent Supervisor/);
 assert.match(runSelector, /run-status-card/);
 assert.match(page, /NeuralEmbodimentPanel/);
+assert.match(page, /Live3DModePanel/);
+assert.match(live3DModePanel, /Mission Control Live 3D Mode/);
+assert.match(live3DModePanel, /data-live-3d-mode/);
+assert.match(live3DModePanel, /no_live_provider_calls/);
 assert.match(embodimentPanel, /Visible neural embodiment/);
 assert.match(config, /live-neural-embodiment/);
 assert.match(runConsole, /embodiment/);
@@ -42,6 +47,8 @@ assert.match(controls, /event filters/);
 assert.match(canvas, /PredictionArc/);
 assert.match(styles, /agent-node-requester/);
 assert.match(styles, /economy-slashing/);
+assert.match(styles, /live-3d-mode-panel/);
+assert.match(styles, /preserve-3d/);
 assert.match(styles, /100dvh/);
 assert.equal(replay.ok, true);
 assert.ok(replay.state.agents.length >= 4);

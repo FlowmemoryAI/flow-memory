@@ -84,6 +84,8 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
         blockers.append("mission_control_run_console_missing_or_failed")
     if dict(evidence.get("public_alpha_demo_bundle", {})).get("ok") is not True:
         blockers.append("public_alpha_demo_bundle_missing_or_failed")
+    if dict(evidence.get("mission_control_live_3d", {})).get("ok") is not True:
+        blockers.append("mission_control_live_3d_missing_or_failed")
     return LaunchEvidenceDecision(not blockers, tuple(blockers), evidence)
 
 
@@ -108,6 +110,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
         "live_agent_supervisor": _live_agent_supervisor_status(root),
         "mission_control_run_console": _mission_control_run_console_status(root),
         "public_alpha_demo_bundle": _public_alpha_demo_bundle_status(root),
+        "mission_control_live_3d": _mission_control_live_3d_status(root),
         "docs": {relative: (root / relative).exists() for relative in REQUIRED_DOCS},
         "dashboard_mock_snapshot": _dashboard_mock_snapshot(root),
         "known_limitations": (
@@ -219,6 +222,21 @@ def _mission_control_run_console_status(root: Path) -> Mapping[str, Any]:
         "selector": bool(evidence.get("mission_control_run_selector_available")),
         "status_card": bool(evidence.get("mission_control_run_status_card_available")),
         "fixtures": bool(evidence.get("mission_control_replay_fixture_selector_validated")),
+    }
+
+def _mission_control_live_3d_status(root: Path) -> Mapping[str, Any]:
+    try:
+        from flow_memory.release.live_3d_evidence import mission_control_live_3d_evidence
+
+        evidence = mission_control_live_3d_evidence(root)
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
+    return {
+        "ok": bool(evidence.get("ok")),
+        "component": bool(evidence.get("mission_control_live_3d_mode_available")),
+        "data_ready": bool(evidence.get("mission_control_live_3d_data_ready")),
+        "docs_ready": bool(evidence.get("mission_control_live_3d_docs_ready")),
+        "no_overclaim": bool(evidence.get("mission_control_live_3d_no_overclaim_invariant")),
     }
 
 

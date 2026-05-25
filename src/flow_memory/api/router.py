@@ -27,6 +27,7 @@ from flow_memory.launch_supervisor import (
 )
 from flow_memory.visualization.run_console import build_public_alpha_demo_bundle, get_run_console_run, list_run_console_runs, run_console_fixtures
 from flow_memory.visualization.embodiment import neural_embodiment_state
+
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -282,6 +283,10 @@ class LocalApiRouter:
     def _launch_bundle_public_alpha(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         out = str(payload.get("out", "artifacts/launch/bundles/public-alpha-local-demo.json") or "artifacts/launch/bundles/public-alpha-local-demo.json")
         return build_public_alpha_demo_bundle(".", out)
+    def _launch_finalize_public_alpha(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        out = str(payload.get("out", "release_evidence/public_alpha_launch_finalizer.json") or "release_evidence/public_alpha_launch_finalizer.json")
+        from flow_memory.release.launch_finalizer import finalize_public_alpha_launch
+        return finalize_public_alpha_launch(".", out)
     def _visual_embodiment(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return neural_embodiment_state(".", params["run_id"])
 
@@ -635,6 +640,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/launch/console/fixtures", router._launch_console_fixtures, "launch_console_fixtures")
     router.register("GET", "/launch/console/runs/{run_id}/embodiment", router._launch_console_run_embodiment, "launch_console_run_embodiment")
     router.register("POST", "/launch/bundles/public-alpha", router._launch_bundle_public_alpha, "launch_bundle_public_alpha")
+    router.register("POST", "/launch/finalize/public-alpha", router._launch_finalize_public_alpha, "launch_finalize_public_alpha")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

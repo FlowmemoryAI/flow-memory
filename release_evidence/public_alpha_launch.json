@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "70be9f310d8f92f03d945847058d83d830168af7",
-  "hash": "c00f5a7cc82cbca7f6ea5827ddc5457f037b74d55ebbc6afb63162fb09b92cf8",
+  "git_commit": "d38badbf746ffe256c76b66911d1258222587d07",
+  "hash": "0c42c1e49981fe372f849f8f0a79c0693767fef849980b8581f8ead8c727c228",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -86,6 +86,13 @@
     "hash": "6aa53e8006c22a5f67b33d561ef5952ebdbee2c4230ea2d9f9e35200b5ac5228",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
+  },
+  "mission_control_live_3d": {
+    "component": true,
+    "data_ready": true,
+    "docs_ready": true,
+    "no_overclaim": true,
+    "ok": true
   },
   "mission_control_run_console": {
     "fixtures": true,

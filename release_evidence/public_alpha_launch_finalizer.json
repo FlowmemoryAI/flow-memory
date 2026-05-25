@@ -1,0 +1,174 @@
+{
+  "blockers": [],
+  "commands": [
+    {
+      "command": "python scripts/test_public_alpha_launch.py",
+      "label": "Run public-alpha launch test"
+    },
+    {
+      "command": "python scripts/export_public_alpha_launch_evidence.py",
+      "label": "Export launch evidence"
+    },
+    {
+      "command": "python scripts/verify_public_alpha_launch_evidence.py",
+      "label": "Verify launch evidence"
+    },
+    {
+      "command": "python scripts/export_release_evidence.py --out release_evidence/bundle",
+      "label": "Export release evidence bundle"
+    },
+    {
+      "command": "python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json",
+      "label": "Refresh Live 3D embodiment fixture"
+    },
+    {
+      "command": "python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json",
+      "label": "Finalize public alpha"
+    },
+    {
+      "command": "python scripts/release_decision.py --target public-alpha-launch",
+      "label": "Check GPU-backed public-alpha launch decision"
+    },
+    {
+      "command": "cd dashboard && npm test && npm run build",
+      "label": "Run Mission Control dashboard checks"
+    }
+  ],
+  "ctmp_backup_tracked_paths": [],
+  "git": {
+    "branch": "main",
+    "commit": "d38badbf746ffe256c76b66911d1258222587d07",
+    "tracked_ctmp_backup_paths": []
+  },
+  "hash": "b7ae47c35e80a53b2c500f806f61a0bcd559101cb622355c3e6542fd524ebac5",
+  "invariants": {
+    "ctmp_backup_not_tracked": true,
+    "local_only": true,
+    "neural_advisory_only": true,
+    "no_broadcast": true,
+    "no_external_model_calls": true,
+    "no_funds_moved": true,
+    "no_live_provider_calls": true,
+    "no_live_settlement": true,
+    "no_private_keys": true,
+    "policy_engine_and_approval_gate_authoritative": true,
+    "read_only_operator_handoff": true
+  },
+  "launch_evidence": {
+    "blockers": [],
+    "ok": true,
+    "path": "release_evidence\\public_alpha_launch.json"
+  },
+  "mission_control_live_3d": {
+    "component": "dashboard/src/components/mission-control/Live3DModePanel.tsx",
+    "component_available": true,
+    "data_ready": true,
+    "docs_ready": true,
+    "fixture_path": "dashboard/src/mock-data/live-neural-embodiment.json",
+    "no_overclaim": true,
+    "ok": true,
+    "sample": {
+      "agent_id": "agent_a093fc05c99e8dc6",
+      "gpu_evidence_status": "verified",
+      "local_only": true,
+      "neural_advisory_only": true,
+      "phase": "completed",
+      "policy_gated": true,
+      "run_id": "live_agent_9b713fe0821659d3",
+      "session_id": "neural_session_a093fc05c99e8dc6",
+      "three_ready": true
+    }
+  },
+  "neural_embodiment": {
+    "dashboard_available": true,
+    "fixture_available": true,
+    "gpu_status_visible": true,
+    "learning_tick_visible": true,
+    "memory_activation_visible": true,
+    "no_overclaim": true,
+    "ok": true,
+    "policy_gate_visible": true,
+    "sample": {
+      "agent_id": "agent_a093fc05c99e8dc6",
+      "gpu_evidence_status": "verified",
+      "learning_tick_count": 3,
+      "memory_activation_count": 10,
+      "phase": "completed",
+      "run_id": "live_agent_9b713fe0821659d3",
+      "session_id": "neural_session_a093fc05c99e8dc6"
+    }
+  },
+  "ok": true,
+  "operator_handoff": "Mission Control Live 3D Mode + Public Alpha Launch Finalizer",
+  "project": "Flow Memory",
+  "public_alpha_demo_bundle": {
+    "bundle_hash": "3c92cee5e0cd644bcdee81e32c5daab455d2bd6bafca130c7c0aac6dbb5f3d17",
+    "fixture_count": 5,
+    "gpu_evidence_status": "verified",
+    "missing_invariants": [],
+    "ok": true,
+    "path": "artifacts\\launch\\bundles\\public-alpha-local-demo.json"
+  },
+  "release_decisions": {
+    "public-alpha-launch": {
+      "blockers": [],
+      "classification": "public_alpha_launch_candidate",
+      "gate_ok": true,
+      "ok": true,
+      "required_evidence": [
+        "release_gates",
+        "api_snapshot",
+        "storage_schema",
+        "base_dry_run",
+        "dependency_inventory",
+        "dependency_policy",
+        "clean_clone_validation",
+        "base_sepolia_artifacts",
+        "openapi_snapshot",
+        "gpu_evidence",
+        "rl_benchmarks",
+        "full_system_quick",
+        "launch_docs",
+        "payment_docs",
+        "learning_docs"
+      ],
+      "target": "public-alpha-launch"
+    },
+    "public-alpha-local-launch": {
+      "blockers": [],
+      "classification": "public_alpha_local_launch_candidate",
+      "gate_ok": true,
+      "ok": true,
+      "required_evidence": [
+        "release_gates",
+        "api_snapshot",
+        "storage_schema",
+        "base_dry_run",
+        "dependency_inventory",
+        "dependency_policy",
+        "clean_clone_validation",
+        "base_sepolia_artifacts",
+        "openapi_snapshot",
+        "full_system_quick",
+        "launch_scripts",
+        "local_network_visual_replay",
+        "mission_control_docs",
+        "compute_market",
+        "neural_live_agents",
+        "live_agent_launchpad",
+        "live_agent_operations",
+        "live_agent_supervisor",
+        "mission_control_run_console",
+        "neural_embodiment",
+        "public_alpha_launch_test",
+        "public_alpha_launch_evidence",
+        "api_server_help",
+        "payment_docs",
+        "no_secret_scan_hits"
+      ],
+      "target": "public-alpha-local-launch"
+    }
+  },
+  "release_target": "public-alpha-launch",
+  "schema_version": "flow-memory-public-alpha-launch-finalizer-v1"
+}

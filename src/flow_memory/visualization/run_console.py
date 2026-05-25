@@ -570,6 +570,8 @@ def _demo_commands() -> tuple[Mapping[str, Any], ...]:
         {"label": "Stop supervisor", "command": "python -m flow_memory launch supervisor stop <run_id> --json"},
         {"label": "Launch doctor", "command": "python -m flow_memory launch doctor --json"},
         {"label": "Build public-alpha local demo bundle", "command": "python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json"},
+        {"label": "Refresh Live 3D embodiment fixture", "command": "python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json"},
+        {"label": "Finalize public-alpha handoff", "command": "python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json"},
         {"label": "Dashboard checks", "command": "cd dashboard && npm test && npm run build"},
     )
 

@@ -164,7 +164,7 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (LAUNCH_READ_SCOPE,)
     if path_key.startswith("/visual/embodiment/"):
         return (VISUAL_READ_SCOPE,)
-    if path_key == "/launch/bundles/public-alpha":
+    if path_key in {"/launch/bundles/public-alpha", "/launch/finalize/public-alpha"}:
         return (LAUNCH_EXPORT_SCOPE,)
     if path_key == "/launch/runs" or path_key.startswith("/launch/runs/"):
         if normalized_method in READ_METHODS or path_key.endswith("/replay"):

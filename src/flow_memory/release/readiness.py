@@ -38,6 +38,12 @@ PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE = LOCAL_PUBLIC_ALPHA_EVIDENCE + (
     "payment_docs",
     "no_secret_scan_hits",
 )
+PUBLIC_ALPHA_LAUNCH_FINALIZER_EVIDENCE = tuple(dict.fromkeys(PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE + (
+    "public_alpha_launch_test",
+    "public_alpha_launch_evidence",
+    "mission_control_live_3d",
+    "public_alpha_launch_finalizer",
+)))
 
 
 @dataclass(frozen=True)
@@ -99,6 +105,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_local_launch_blockers(root_path, gates.ok)
         classification = "public_alpha_local_launch_candidate" if not blockers else "blocked_public_alpha_local_launch"
         evidence = PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE
+    elif target == "public-alpha-launch-finalizer":
+        blockers = _public_alpha_launch_finalizer_blockers(root_path, gates.ok)
+        classification = "public_alpha_launch_finalizer_candidate" if not blockers else "blocked_public_alpha_launch_finalizer"
+        evidence = PUBLIC_ALPHA_LAUNCH_FINALIZER_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -345,6 +355,30 @@ def _public_alpha_local_launch_blockers(root: Path, gate_ok: bool) -> tuple[str,
                 blockers.extend(f"public_alpha_launch_evidence_{blocker}" for blocker in decision.blockers)
         except Exception:
             blockers.append("public_alpha_launch_evidence_invalid")
+    return tuple(dict.fromkeys(blockers))
+
+def _public_alpha_launch_finalizer_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_public_alpha_local_launch_blockers(root, gate_ok))
+    blockers.extend(_public_alpha_launch_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.live_3d_evidence import mission_control_live_3d_evidence
+
+        if not mission_control_live_3d_evidence(root).get("ok"):
+            blockers.append("mission_control_live_3d_evidence_missing_or_invalid")
+    except Exception:
+        blockers.append("mission_control_live_3d_evidence_missing_or_invalid")
+    finalizer_path = root / "release_evidence" / "public_alpha_launch_finalizer.json"
+    if not finalizer_path.exists():
+        blockers.append("public_alpha_launch_finalizer_missing")
+    else:
+        try:
+            from flow_memory.release.launch_finalizer import verify_public_alpha_launch_finalizer
+
+            decision = verify_public_alpha_launch_finalizer(finalizer_path)
+            if not decision.ok:
+                blockers.extend(f"public_alpha_launch_finalizer_{blocker}" for blocker in decision.blockers)
+        except Exception:
+            blockers.append("public_alpha_launch_finalizer_invalid")
     return tuple(dict.fromkeys(blockers))
 
 

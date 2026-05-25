@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 93,
-    "manifest_hash": "8900b96e392ac8291acef4de3c3d573772bce4454287d23b79e3c6edff2f0677",
-    "openapi_hash": "d6b3bcdc4784ca42068aae5018bf1404d1379d849e213b48b1cf9d21f8618212",
+    "endpoint_count": 94,
+    "manifest_hash": "004c80337697c063d872c22af1da452a6db92168105d43cbabb3f03e2d19ba48",
+    "openapi_hash": "d9177da0020830b16c23a426092ca1baf0ff2de3ae2c584a252ea9a1c15bbe16",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -68,6 +68,7 @@
       "POST /launch/agent",
       "POST /launch/agent/from-flow",
       "POST /launch/bundles/public-alpha",
+      "POST /launch/finalize/public-alpha",
       "POST /launch/runs/{run_id}/export",
       "POST /launch/runs/{run_id}/replay",
       "POST /launch/runs/{run_id}/stop",
@@ -98,7 +99,7 @@
       "POST /verification/{contract_id}",
       "POST /visual/replay/start"
     ],
-    "path_count": 91,
+    "path_count": 92,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -135,6 +136,7 @@
       "/launch/console/runs",
       "/launch/console/runs/{run_id}",
       "/launch/console/runs/{run_id}/embodiment",
+      "/launch/finalize/public-alpha",
       "/launch/runs",
       "/launch/runs/{run_id}",
       "/launch/runs/{run_id}/export",
@@ -382,8 +384,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "70be9f3",
-  "manifest_hash": "36c34bafb3108e243954baf0bb41746851ffe50b7e9597443dad1373416b39b9",
+  "git_commit": "d38badb",
+  "manifest_hash": "b9c7e9cbd93a4faecfb7c54a1e900660746376790fedeac093bf74b88952efaa",
   "release_gates": {
     "ok": true,
     "results": [

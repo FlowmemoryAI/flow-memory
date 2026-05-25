@@ -91,6 +91,7 @@ export const visualFieldMappings: VisualFieldMapping[] = [
   { visual: "memory orbit", sourceField: "embodiment.memory_activation_count", meaning: "neural memory activations and memory records written" },
   { visual: "learning glow", sourceField: "embodiment.learning_tick_count", meaning: "local deterministic learning updates" },
   { visual: "GPU evidence badge", sourceField: "embodiment.gpu_evidence_status", meaning: "imported RunPod evidence status, not production ML certification" },
+  { visual: "Live 3D mode readiness", sourceField: "embodiment.visual.three_ready + graph.policy_gated", meaning: "read-only local/replay 3D telemetry readiness; PolicyEngine and ApprovalGate remain authoritative" },
 ];
 
 export function modeLabel(mode: MissionControlMode): string {

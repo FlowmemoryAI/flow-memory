@@ -252,7 +252,8 @@ class PostgresComputeMarketStore:
         try:
             with conn:
                 if self.statement_timeout_ms > 0:
-                    conn.execute("set local statement_timeout = %s", (self.statement_timeout_ms,))
+                    statement_timeout_ms = max(1, int(self.statement_timeout_ms))
+                    conn.execute(f"set local statement_timeout = {statement_timeout_ms}")
                 yield conn
         finally:
             conn.close()

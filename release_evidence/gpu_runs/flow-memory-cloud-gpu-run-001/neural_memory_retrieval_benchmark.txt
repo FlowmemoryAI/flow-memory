@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "top_k": [
+    {
+      "item": "'safety incident blocked unsafe tool'",
+      "score": 0.2182178902359924
+    },
+    {
+      "item": "'economic settlement succeeded'",
+      "score": 0.0
+    }
+  ]
+}

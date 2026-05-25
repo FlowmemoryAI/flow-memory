@@ -27,20 +27,20 @@
       "run_id": "flow-memory-cloud-gpu-run-001",
       "summary": {
         "benchmarks": {},
-        "cli_neural_backend": "",
-        "cli_neural_status": "",
-        "cuda_available": false,
-        "cuda_version": "",
-        "git_commit": "",
-        "gpu_name": "",
+        "cli_neural_backend": "tiny_torch",
+        "cli_neural_status": "available",
+        "cuda_available": true,
+        "cuda_version": "13.0",
+        "git_commit": "e035a6b6525784de00adb65b91ee1ceb6ab00092",
+        "gpu_name": "NVIDIA GeForce RTX 4090",
         "ok": true,
-        "pytest_summary": "",
-        "python_version": "",
-        "reason": "artifact not present: artifacts\\incoming\\flow-memory-cloud-gpu-run-001.tar.gz",
+        "pytest_summary": "339 passed, 3 skipped",
+        "python_version": "3.12.3",
+        "reason": "",
         "run_id": "flow-memory-cloud-gpu-run-001",
-        "skipped": true,
-        "source_artifact_sha256": "",
-        "torch_version": ""
+        "skipped": false,
+        "source_artifact_sha256": "c51b9c8b61f2d81f8d9cc0bf69e774aa5d7b839836b993b635baf3781208ec4c",
+        "torch_version": "2.12.0+cu130"
       }
     }
   ]

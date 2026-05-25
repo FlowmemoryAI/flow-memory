@@ -46,7 +46,7 @@
     "agent_id": "agent_d4a6f9aaf8a45b86",
     "backend": "tiny_torch",
     "checkpoint_metadata_path": "",
-    "gpu_evidence_status": "blocked_missing_artifact",
+    "gpu_evidence_status": "verified",
     "learning_steps": 2,
     "loop_ticks_completed": 2,
     "memory_records_written": 6,
@@ -61,7 +61,7 @@
     "predictions_generated": 2,
     "raw_model_weights_written": false,
     "release_gate_status": {
-      "gpu_gated": "blocked_missing_artifact",
+      "gpu_gated": "verified",
       "local_public_alpha": "not_evaluated"
     },
     "replay_artifact_path": "artifacts\\launch\\live_agent_95595210d3771e19.json",

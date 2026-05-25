@@ -50,10 +50,10 @@
       "sha256": "05293fb9f2b0a282cffecdf9a58e4c19914a6644cff5a1318dba3509a0e95bf6"
     },
     {
-      "bytes": 52438,
+      "bytes": 52434,
       "exists": true,
       "path": "dashboard/src/mock-data/local-network-replay.json",
-      "sha256": "c29164677d3435c7ae571440415475c5e91c117981a9f11f5ff6bce012646600"
+      "sha256": "f35663f0c07d331ca13ae5f200fe315a5ae4aa3afa7ada4d03e4efba6bc70910"
     },
     {
       "bytes": 6229,
@@ -72,11 +72,11 @@
   "replay": {
     "agent_count": 4,
     "blocker": "",
-    "bytes": 52438,
+    "bytes": 52434,
     "event_count": 41,
     "ok": true,
     "path": "dashboard\\src\\mock-data\\local-network-replay.json",
-    "sha256": "c29164677d3435c7ae571440415475c5e91c117981a9f11f5ff6bce012646600",
+    "sha256": "f35663f0c07d331ca13ae5f200fe315a5ae4aa3afa7ada4d03e4efba6bc70910",
     "task_count": 2
   },
   "schema_version": "visual.telemetry.v1"

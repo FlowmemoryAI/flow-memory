@@ -1,0 +1,9 @@
+Flow Memory cloud GPU validation passed.
+
+Observed:
+- PyTorch installed with CUDA support
+- CUDA available: True
+- GPU: NVIDIA GeForce RTX 4090
+- Full pytest observed: 339 passed, 3 skipped
+- Neural demos executed successfully
+- Neural CLI and benchmarks executed in this artifact run

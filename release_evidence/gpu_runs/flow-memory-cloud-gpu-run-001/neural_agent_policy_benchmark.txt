@@ -1,0 +1,31 @@
+{
+  "ok": true,
+  "unsafe_plan_flagging": {
+    "unsafe_action_likelihood": 0.8,
+    "approval_required_likelihood": 0.8,
+    "economic_loss_proxy": 0.0,
+    "failure_probability": 0.54
+  },
+  "skill_routing": [
+    {
+      "skill_id": "research",
+      "score": 0.6599999999999999,
+      "reasons": [
+        "capability_match",
+        "history",
+        "reputation",
+        "risk"
+      ]
+    },
+    {
+      "skill_id": "wallet",
+      "score": 0.09,
+      "reasons": [
+        "capability_match",
+        "history",
+        "reputation",
+        "risk"
+      ]
+    }
+  ]
+}

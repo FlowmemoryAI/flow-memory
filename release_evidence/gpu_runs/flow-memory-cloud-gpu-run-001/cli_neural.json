@@ -1,0 +1,237 @@
+{
+  "observation": {
+    "content": "Explore and report",
+    "modality": "text",
+    "source": "user",
+    "metadata": {},
+    "observed_at": "2026-05-23T17:48:56.892890+00:00"
+  },
+  "perception": {
+    "entities": [
+      {
+        "label": "Explore",
+        "confidence": 0.98,
+        "entity_id": "entity_255d0c2e0aad4ba79d65d96672efe377",
+        "attributes": {
+          "stream": "ventral",
+          "source_modality": "text"
+        }
+      }
+    ],
+    "motion_geometry": {
+      "trajectories": [
+        {
+          "source": "lexical_motion_prior",
+          "motion_cue": "explore",
+          "appearance_free": true,
+          "confidence": 0.55
+        }
+      ],
+      "affordances": [
+        "navigate",
+        "communicate"
+      ],
+      "spatial_relations": [],
+      "invariances": [
+        "temporal_consistency",
+        "optical_flow_invariance",
+        "depth_consistency",
+        "egomotion_compensation",
+        "appearance_suppression"
+      ],
+      "confidence": 0.48
+    },
+    "salience": {
+      "Explore": 0.98
+    },
+    "latent_state": {
+      "modality": "text",
+      "entity_count": 1,
+      "motion_confidence": 0.48,
+      "foveation": {
+        "mode": "text",
+        "center_tokens": [
+          "Explore",
+          "and",
+          "report"
+        ],
+        "periphery_token_count": 0,
+        "center_weight": 1.0,
+        "periphery_weight": 0.35
+      },
+      "stream_contract": "ventral_semantics+dorsal_motion_geometry"
+    },
+    "created_at": "2026-05-23T17:48:56.892956+00:00"
+  },
+  "prediction": {
+    "state": {
+      "predictor": "vjepa-compatible-null-predictor",
+      "modality": "text",
+      "expected_entities": [
+        "Explore"
+      ],
+      "expected_affordances": [
+        "navigate",
+        "communicate"
+      ],
+      "motion_geometry_confidence": 0.48,
+      "confidence": 0.552,
+      "horizon_steps": 1,
+      "free_energy_proxy": 0.4803,
+      "regularization": 0.05,
+      "objective": "minimize_prediction_error"
+    },
+    "horizon_steps": 1,
+    "confidence": 0.552,
+    "prediction_id": "prediction_cbf807ac52064c39b8e47fa6f107b971",
+    "created_at": "2026-05-23T17:48:56.892972+00:00"
+  },
+  "retrieved_memories": [
+    {
+      "kind": "observation",
+      "text": "Explore and report",
+      "payload": {
+        "modality": "text",
+        "source": "user"
+      },
+      "importance": 0.55,
+      "record_id": "memory_ff06bb0e4ee241cfa24eab696f2f7e5d",
+      "created_at": "2026-05-23T17:48:56.892978+00:00"
+    }
+  ],
+  "plan": {
+    "goal": "Explore and report",
+    "steps": [
+      {
+        "action": "observe_environment",
+        "args": {
+          "mode": "safe_local_simulation",
+          "entities": [
+            "Explore"
+          ],
+          "affordances": [
+            "navigate",
+            "communicate"
+          ]
+        },
+        "required_permission": "environment.observe",
+        "approval_required": false,
+        "economic_value": 0.0,
+        "step_id": "step_aa9665021bc841949f2d5ce828375976"
+      },
+      {
+        "action": "respond",
+        "args": {
+          "message": "Processed goal: Explore and report | Perceived entities: Explore | Available affordances: navigate, communicate | Prediction confidence: 0.55 | Retrieved memories: 1 relevant record(s) | Status: plan approved and executed in the local safety sandbox"
+        },
+        "required_permission": "respond",
+        "approval_required": false,
+        "economic_value": 0.0,
+        "step_id": "step_29d533c361804b6098b6b5399559299c"
+      }
+    ],
+    "plan_id": "plan_b192f98a45f84e398b76a6bb281cd924",
+    "metadata": {
+      "perception_summary": "entities=Explore; affordances=navigate, communicate",
+      "prediction_confidence": 0.552,
+      "memory_count": 1,
+      "economic_intent_detected": false
+    },
+    "created_at": "2026-05-23T17:48:56.893025+00:00"
+  },
+  "policy_decision": {
+    "approved": true,
+    "reasons": [],
+    "requires_human": false,
+    "risk_level": "low",
+    "decision_id": "decision_b36207c7eedd407bbb06c3d03d4d87d0",
+    "created_at": "2026-05-23T17:48:56.893034+00:00"
+  },
+  "action_result": {
+    "success": true,
+    "output": "Processed goal: Explore and report | Perceived entities: Explore | Available affordances: navigate, communicate | Prediction confidence: 0.55 | Retrieved memories: 1 relevant record(s) | Status: plan approved and executed in the local safety sandbox",
+    "step_results": [
+      {
+        "step_id": "step_aa9665021bc841949f2d5ce828375976",
+        "action": "observe_environment",
+        "success": true,
+        "output": {
+          "environment": "local_simulation",
+          "observations": [
+            "sandbox is active",
+            "tracked_entities=1",
+            "affordances=navigate,communicate"
+          ],
+          "risk": "low"
+        }
+      },
+      {
+        "step_id": "step_29d533c361804b6098b6b5399559299c",
+        "action": "respond",
+        "success": true
+      }
+    ],
+    "side_effects": [
+      {
+        "kind": "read_only_observation",
+        "tool": "observe_environment"
+      }
+    ],
+    "error": null,
+    "result_id": "result_60cabd17f453417190bfd91ba3a98ccc",
+    "created_at": "2026-05-23T17:48:56.893157+00:00"
+  },
+  "evaluation": {
+    "surprise_score": 0.448,
+    "metrics": {
+      "expected_success": 0.552,
+      "observed_success": 1.0,
+      "result_error": null
+    },
+    "evaluation_id": "evaluation_7ef3971f29de4d9ea6931955159b0225",
+    "created_at": "2026-05-23T17:48:56.893212+00:00"
+  },
+  "learned": {
+    "plan_id": "plan_b192f98a45f84e398b76a6bb281cd924",
+    "success": true,
+    "surprise_score": 0.448,
+    "requires_consolidation": false,
+    "step_count": 2
+  },
+  "economic_settlement": null,
+  "cycle_id": "cycle_e1f6862d861c4c06949129e95c2d81e5",
+  "created_at": "2026-05-23T17:48:56.893234+00:00",
+  "neural": {
+    "backend": "tiny_torch",
+    "status": "available",
+    "plan_scores": [
+      {
+        "plan_id": "cli_prompt",
+        "expected_success": 0.9249999999999999,
+        "expected_cost": 0.0,
+        "policy_risk": 0.1,
+        "economic_risk": 0.0,
+        "memory_similarity": 0.0,
+        "total_score": 0.8899999999999999
+      }
+    ],
+    "skill_scores": [],
+    "risk_scores": {
+      "unsafe_action_likelihood": 0.0,
+      "approval_required_likelihood": 0.0,
+      "economic_loss_proxy": 0.0,
+      "failure_probability": 0.1
+    },
+    "memory_retrieval_scores": [],
+    "evaluation_score": {
+      "output_quality": 0.39999999999999997,
+      "policy_compliance": 1.0,
+      "novelty_surprise": 0.0,
+      "memory_usefulness": 0.0,
+      "economic_value": 0.0,
+      "total_score": 0.27999999999999997,
+      "metadata": {}
+    },
+    "safety_authority": "policy_engine_and_approval_gate"
+  }
+}

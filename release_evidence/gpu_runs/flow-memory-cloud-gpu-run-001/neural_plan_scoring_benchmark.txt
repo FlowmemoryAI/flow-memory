@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "scores": [
+    {
+      "plan_id": "agent_plan_878f85a16175412e8ed01d3230d2ba8b",
+      "expected_success": 0.9249999999999999,
+      "expected_cost": 0.1,
+      "policy_risk": 0.1,
+      "economic_risk": 0.0,
+      "memory_similarity": 0.0,
+      "total_score": 0.8799999999999999
+    },
+    {
+      "plan_id": "agent_plan_4844cba6f648479db4a67d1edf81882b",
+      "expected_success": 0.7749999999999999,
+      "expected_cost": 0.15000000000000002,
+      "policy_risk": 0.7,
+      "economic_risk": 0.1,
+      "memory_similarity": 0.0,
+      "total_score": 0.4899999999999999
+    }
+  ]
+}

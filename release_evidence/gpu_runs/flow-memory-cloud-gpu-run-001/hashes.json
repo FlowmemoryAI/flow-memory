@@ -1,6 +1,15 @@
 {
   "hashes": {
-    "source_artifact.tar.gz": "missing"
+    "cli_neural.json": "3865de62f6d5c881295e260926cd136d1fd0b60a6374d8ded2a422a3fe0e044d",
+    "git_commit.txt": "7ddf4940be072a37717d9d60dab389d1cc74dd84ed718d2f05044da79398bcad",
+    "gpu_info.txt": "f104537e80e9197031314e9ed1c3416dfbeba167048568b454a9f6965a1542d4",
+    "neural_agent_policy_benchmark.txt": "a84d7cb5a4aa2b551e771a190a8c45a4735f619f98a9f4d747010ff94623ab35",
+    "neural_appearance_free_motion_benchmark.txt": "7e6ce4280c04cda173e27802d100bb49ef7ba387872076958498a957994fa595",
+    "neural_memory_retrieval_benchmark.txt": "37a68932e5b007ab47284bfe3490c8f37f8a2df9c29386e1ff6b024d5bc53ba4",
+    "neural_plan_scoring_benchmark.txt": "975d71dedbc92d352a4b336a3730edd2a7b6c27deb3be1da17089c39ebee9b74",
+    "neural_world_model_prediction_benchmark.txt": "ab493cb620c9a37daa939d8dfef7e790af2eada19efbedd77dae8f361c51102a",
+    "source_artifact.tar.gz": "c51b9c8b61f2d81f8d9cc0bf69e774aa5d7b839836b993b635baf3781208ec4c",
+    "validation_summary.txt": "83836fc03089b32e0229618d2e067da2edcfb86a81f76382c7695f29cdcd7168"
   },
   "skipped_members": []
 }

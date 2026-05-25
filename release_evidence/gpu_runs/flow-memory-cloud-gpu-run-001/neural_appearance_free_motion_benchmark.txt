@@ -1,0 +1,5 @@
+{
+  "ok": true,
+  "appearance_invariance_score": 1.0,
+  "samples": 4
+}

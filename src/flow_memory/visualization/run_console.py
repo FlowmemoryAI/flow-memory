@@ -48,6 +48,13 @@ FIXTURE_SPECS: tuple[Mapping[str, str], ...] = (
         "path": "dashboard/src/mock-data/local-network-replay.json",
         "run_kind": "local_network",
     },
+    {
+        "fixture_id": "live-neural-embodiment",
+        "label": "Live Neural Embodiment",
+        "description": "3D-ready neural runtime/session, loop phase, policy gate, memory, learning, heartbeat, and GPU evidence replay.",
+        "path": "dashboard/src/mock-data/live-neural-embodiment.json",
+        "run_kind": "embodiment",
+    },
 )
 
 CATEGORY_ALIASES: Mapping[str, str] = {
@@ -302,7 +309,8 @@ def _summary_from_fixture_payload(root: Path, spec: Mapping[str, str], payload: 
     summary = dict(payload.get("summary", {})) if isinstance(payload.get("summary", {}), Mapping) else {}
     run_record = dict(payload.get("run_record", {})) if isinstance(payload.get("run_record", {}), Mapping) else {}
     supervisor = dict(payload.get("supervisor", {})) if isinstance(payload.get("supervisor", {}), Mapping) else {}
-    source = supervisor or run_record or summary
+    embodiment = dict(payload.get("embodiment", {})) if isinstance(payload.get("embodiment", {}), Mapping) else {}
+    source = embodiment or supervisor or run_record or summary
     run_id = str(source.get("run_id", spec["fixture_id"]))
     agent_id = str(source.get("agent_id", summary.get("agent_id", _first_agent_id(state))))
     return _run_contract(
@@ -521,10 +529,18 @@ def _gate_status(root: Path) -> Mapping[str, Any]:
 
 
 def _gpu_evidence_status(root: Path) -> str:
+    evidence_path = root / "release_evidence" / "bundle" / "gpu_evidence.json"
+    evidence = _read_json(evidence_path)
+    for record in evidence.get("runs", ()):  # type: ignore[union-attr]
+        if not isinstance(record, Mapping) or record.get("ok") is not True:
+            continue
+        summary = dict(record.get("summary", {})) if isinstance(record.get("summary", {}), Mapping) else {}
+        if not summary.get("skipped") and (summary.get("cuda_available") is True or summary.get("cli_neural_status") == "available"):
+            return "verified"
     artifact = root / "artifacts" / "incoming" / "flow-memory-cloud-gpu-run-001.tar.gz"
-    if not artifact.exists():
-        return "blocked_missing_artifact"
-    return "artifact_present_not_verified"
+    if artifact.exists():
+        return "artifact_present_not_verified"
+    return "blocked_missing_artifact"
 
 
 def _warnings(root: Path, gpu_status: str) -> tuple[str, ...]:

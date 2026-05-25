@@ -31,6 +31,7 @@ from flow_memory.launch_supervisor import (
     heartbeat_path,
 )
 from flow_memory.visualization.run_console import build_public_alpha_demo_bundle
+from flow_memory.visualization.embodiment import build_neural_embodiment_fixture
 
 
 def _json_default(value: Any) -> str:
@@ -161,6 +162,13 @@ def _launch(argv: list[str]) -> int:
     public_alpha_bundle.add_argument("--out", default="artifacts/launch/bundles/public-alpha-local-demo.json")
     public_alpha_bundle.add_argument("--json", action="store_true")
 
+    visual = sub.add_parser("visual", description="Export Mission Control visual projections")
+    visual_sub = visual.add_subparsers(dest="visual_command", required=True)
+    embodiment = visual_sub.add_parser("embodiment")
+    embodiment.add_argument("--run", default="live-agent-supervisor")
+    embodiment.add_argument("--out", default="dashboard/src/mock-data/live-neural-embodiment.json")
+    embodiment.add_argument("--json", action="store_true")
+
     doctor = sub.add_parser("doctor", description="Check local launch/neural/Mission Control readiness")
     doctor.add_argument("--json", action="store_true")
 
@@ -238,6 +246,10 @@ def _launch(argv: list[str]) -> int:
             if args.bundle_command == "public-alpha":
                 payload = build_public_alpha_demo_bundle(".", args.out)
                 return _print_launch_payload(payload, json_output=args.json, human=f"demo bundle {payload.get('bundle_path', '')}")
+        if args.resource == "visual":
+            if args.visual_command == "embodiment":
+                payload = build_neural_embodiment_fixture(".", args.run, args.out)
+                return _print_launch_payload(payload, json_output=args.json, human=f"neural embodiment {payload.get('fixture_path', '')}")
         if args.resource == "doctor":
             payload = _launch_doctor()
             return _print_launch_payload(payload, json_output=args.json, human="launch doctor ok" if payload["ok"] else "launch doctor failed")

@@ -2,7 +2,7 @@
 
 Flow Memory supports **live local neural agents** as a public-alpha prototype. A live neural agent attaches an `AgentProfile` to a local neural runtime session, emits deterministic neural telemetry, and records advisory perception/prediction/plan/risk/learning metadata during the agent loop.
 
-This is not AGI, not production autonomy, not GPU proof, and not V-JEPA 2 or VideoMAE execution. Neural outputs advise only. `PolicyEngine` and `ApprovalGate` remain authoritative.
+This is not AGI, not unbounded autonomous operation, and not V-JEPA 2 or VideoMAE execution. Neural outputs advise only. `PolicyEngine` and `ApprovalGate` remain authoritative. The RunPod RTX 4090 validation artifact is imported and verified for GPU-gated release evidence, but that is not production ML certification.
 
 ## What runs today
 
@@ -30,7 +30,7 @@ This is not AGI, not production autonomy, not GPU proof, and not V-JEPA 2 or Vid
 - No external model/provider calls.
 - No automatic checkpoint downloads.
 - No raw checkpoint weights committed.
-- No GPU validation claim unless the RunPod evidence artifact has been imported and verified.
+- GPU validation evidence is available only through the imported and verified RunPod release artifact; it is release evidence, not production ML certification.
 - No V-JEPA 2 or VideoMAE live execution; those remain adapter seams.
 - No bypass of policy, approval, or safety gates.
 
@@ -77,7 +77,7 @@ Mission Control run console and demo bundle:
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
 ```
 
-The bundle references replay fixtures and run records instead of embedding large artifacts, and records that GPU-gated release targets remain blocked until a real RunPod artifact is verified.
+The bundle references replay fixtures and run records instead of embedding large artifacts, and records imported GPU evidence status honestly.
 
 ## API examples
 
@@ -168,6 +168,23 @@ The visual telemetry path emits neural state suitable for Mission Control:
 - `policy_gate_state`
 
 Replay and live dashboard modes can render this as a neural activity halo, policy gate state, confidence/risk panel, and learning tick count.
+
+## Mission Control neural embodiment
+
+Generate a visible neural embodiment replay for Mission Control:
+
+```bash
+python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
+```
+
+Read it from the local API:
+
+```text
+GET /visual/embodiment/{run_id}
+GET /launch/console/runs/{run_id}/embodiment
+```
+
+The embodiment state exposes `agent_id`, `session_id`, backend, GPU evidence status, loop phase, confidence/risk scores, policy gate state, memory activations, learning ticks, action state, heartbeat state, and 3D-ready animation metadata.
 
 ## Safety posture
 

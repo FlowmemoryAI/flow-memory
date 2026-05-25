@@ -55,6 +55,12 @@ export type VisualNeuralSignal = {
   agent_id: string;
   backend: string;
   status: string;
+  session_id?: string;
+  phase?: string;
+  policy_gate_state?: string;
+  action_state?: string;
+  learning_tick_count?: number;
+  memory_activation_count?: number;
   plan_score: number;
   risk_score: number;
   surprise_score: number;
@@ -63,6 +69,78 @@ export type VisualNeuralSignal = {
   prediction_confidence?: number;
   provenance?: VisualProvenance | string;
   source_event_id?: string;
+};
+
+export type NeuralEmbodimentGraphNode = {
+  id: string;
+  label: string;
+  kind: string;
+  status: string;
+  active: boolean;
+  source?: string;
+};
+
+export type NeuralEmbodimentGraphEdge = {
+  source: string;
+  target: string;
+  label: string;
+};
+
+export type NeuralEmbodimentState = {
+  schema_version: string;
+  agent_id: string;
+  session_id: string;
+  run_id: string;
+  supervisor_id?: string;
+  backend: string;
+  gpu_evidence_status: string;
+  current_loop_phase: string;
+  confidence_score: number;
+  risk_score: number;
+  policy_gate_state: string;
+  memory_activation_count: number;
+  learning_tick_count: number;
+  action_state: string;
+  heartbeat_state?: {
+    status?: string;
+    current_phase?: string;
+    ticks_completed?: number;
+    max_ticks?: number;
+    last_heartbeat_at?: string;
+    bounded?: boolean;
+  };
+  neural_runtime_status: string;
+  checkpoint_metadata_ref?: string;
+  replay_event_index: number;
+  replay_artifact_path?: string;
+  run_record_path?: string;
+  visual?: {
+    position?: [number, number, number];
+    animation_state?: string;
+    node_scale?: number;
+    risk_halo?: number;
+    neural_glow?: number;
+    memory_orbit_count?: number;
+    three_ready?: boolean;
+  };
+  neural_advisory_only: boolean;
+  policy_authority: string;
+  local_only: boolean;
+};
+
+export type NeuralEmbodimentPayload = {
+  ok: boolean;
+  schema_version: string;
+  embodiment: NeuralEmbodimentState;
+  graph: {
+    nodes: NeuralEmbodimentGraphNode[];
+    edges: NeuralEmbodimentGraphEdge[];
+    loop: string;
+    active_phase: string;
+    policy_gated: boolean;
+    neural_advisory_only: boolean;
+  };
+  warnings?: string[];
 };
 
 export type VisualComputeMarketSignal = {

@@ -2,7 +2,7 @@
 
 The Live Agent Launchpad is the fastest local path from a public-alpha checkout to a policy-gated neural-live Flow Memory agent. It creates an agent profile, starts a local neural runtime session, runs deterministic loop ticks, writes local memory/evidence metadata, emits Mission Control replay telemetry, and writes a replay artifact.
 
-This is local-only public-alpha infrastructure. It does not call external models or providers, move funds, broadcast transactions, load raw model weights, or claim GPU validation.
+This is local-only public-alpha infrastructure. It does not call external models or providers, move funds, broadcast transactions, load raw model weights, or claim production ML certification.
 
 ## Fastest local command
 
@@ -108,6 +108,7 @@ The replay includes:
 - memory record written
 - metadata-only checkpoint written
 - session completed/stopped
+- neural embodiment state generated for Mission Control
 
 
 ## Live Agent Operations
@@ -186,6 +187,20 @@ Mission Control supervisor fixture:
 dashboard/src/mock-data/live-agent-supervisor.json
 ```
 
+Neural embodiment fixture:
+
+```bash
+python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
+```
+
+The fixture is written to:
+
+```text
+dashboard/src/mock-data/live-neural-embodiment.json
+```
+
+It projects the existing supervisor/launch replay into a 3D-ready state with agent/session ids, loop phase, confidence/risk, policy gate, memory activations, learning ticks, heartbeat state, imported GPU evidence status, and animation metadata.
+
 API endpoints:
 
 ```text
@@ -227,6 +242,6 @@ The bundle references local replay fixtures, run records, docs, release evidence
 - Neural decisions are advisory and policy-gated.
 - `tiny_torch` deterministic local mode is the default smoke path.
 - Optional PyTorch support is used only when installed/configured.
-- GPU-gated release targets remain blocked until the real RunPod artifact is imported and verified.
+- RunPod RTX 4090 GPU evidence has been imported and verified for GPU-gated release checks; this is not production ML certification.
 - V-JEPA 2 and VideoMAE remain adapter seams.
 - Compute Market/payment paths are dry-run only; no real funds are moved.

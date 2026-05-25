@@ -101,7 +101,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
         "local_network": {"path": str(network_path.relative_to(root)), "ok": bool(network.get("ok")), "hash": _file_hash(network_path)},
         "public_alpha_launch_test": {"path": str(launch_report_path.relative_to(root)), "ok": bool(launch_report.get("ok")), "hash": _file_hash(launch_report_path)},
         "api_server_status": _api_server_help_status(root, launch_report),
-        "neural_evidence_status": "blocked_without_real_gpu_artifact" if _gpu_blocked(root) else "verified_or_not_required",
+        "neural_evidence_status": "blocked_without_real_gpu_artifact" if _gpu_blocked(root) else "verified_runpod_artifact",
         "rl_benchmark_summary": _read_json(root / "release_evidence" / "bundle" / "rl_benchmarks.json"),
         "live_agent_launchpad": _live_agent_launchpad_status(root),
         "live_agent_operations": _live_agent_operations_status(root),
@@ -115,7 +115,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
             "sandbox not hardened isolation",
             "real funds disabled by default",
             "neural/RL layers are advisory prototypes",
-            "GPU evidence requires real RunPod tarball",
+            "GPU evidence is imported release evidence, not production ML certification",
         ),
         "real_funds_used": False,
         "secret_scan": _secret_scan_status(root),
@@ -262,8 +262,15 @@ def _gpu_blocked(root: Path) -> bool:
     gpu_dir = root / "release_evidence" / "gpu_runs"
     if not gpu_dir.exists():
         return True
-    text = "\n".join(path.read_text(encoding="utf-8", errors="ignore") for path in gpu_dir.glob("*/summary.json"))
-    return "skipped" in text.lower() or "not present" in text.lower()
+    summaries = []
+    for path in gpu_dir.glob("*/summary.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, Mapping):
+            summaries.append(payload)
+    return not any(summary.get("ok") is True and summary.get("skipped") is not True for summary in summaries)
 
 
 def _dashboard_mock_snapshot(root: Path) -> Mapping[str, Any]:

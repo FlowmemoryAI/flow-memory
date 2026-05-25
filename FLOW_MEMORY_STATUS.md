@@ -121,7 +121,7 @@ This repo now includes Flow Arena, a dependency-free local RL environment layer 
 
 ## Launch evidence status
 
-The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` release target are implemented. Current local status is blocked because the actual RunPod tarball was not present at `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz`; the committed evidence record is an explicit skipped placeholder, not launch proof.
+The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` release target are implemented. Current local status includes imported and verified RunPod RTX 4090 evidence for run `flow-memory-cloud-gpu-run-001`; raw checkpoint/model artifacts are not committed.
 
 
 ## Neural/RL maturity table
@@ -134,8 +134,8 @@ The GPU evidence importer, verifier, summary path, and `neural-gpu-smoke` releas
 | RL Arena policies | functional prototype | random, heuristic, tabular Q; optional TorchPolicy skeleton |
 | RL API endpoints | public-alpha seam | local router/HTTP endpoints with `rl:*` scopes |
 | PufferLib backend | adapter seam | optional/lazy; no vendored Puffer code |
-| Neural GPU evidence | blocked until artifact import | real tarball required for `neural-gpu-smoke` |
-| public-alpha-neural release gate | implemented, currently blocked by GPU artifact | also requires RL benchmark evidence |
+| Neural GPU evidence | verified imported artifact | RunPod RTX 4090 evidence is imported for `flow-memory-cloud-gpu-run-001`; this is release evidence, not production ML certification |
+| public-alpha-neural release gate | implemented, GPU evidence available | also requires RL benchmark evidence and normal release gates |
 
 ## Full system launch-readiness additions
 
@@ -211,9 +211,9 @@ Flow Memory now exposes its own Compute Market surfaces instead of public Squire
 | Neural live API | implemented local seam | `/neural/live/sessions` lifecycle endpoints expose metadata-only session, step, learn, checkpoint, and stop paths with neural scopes. |
 | Neural live CLI | implemented local seam | `python -m flow_memory neural live ...` and `--neural-live` run local deterministic neural sessions. |
 | Mission Control neural live telemetry | implemented replay signal | Visual state includes session id, loop phase, confidence/risk, learning ticks, memory activations, action state, and policy gate state. |
-| GPU-backed neural launch | blocked until artifact import | `neural-gpu-smoke` and GPU-backed public-alpha gates still require the real RunPod tarball. |
+| GPU-backed neural launch | release-gated with imported evidence | `neural-gpu-smoke` and GPU-backed public-alpha gates require the imported RunPod evidence to remain verified. |
 
-Live neural agents are local, advisory, deterministic, and policy-gated. They do not make external provider calls, do not write model weights, and do not imply V-JEPA 2/VideoMAE or GPU validation.
+Live neural agents are local, advisory, deterministic, and policy-gated. They do not make external provider calls, do not write model weights, and do not imply V-JEPA 2/VideoMAE or production ML certification.
 
 ## Live Agent Launchpad status
 
@@ -290,4 +290,17 @@ This target is for local developer alpha only. It does not imply mainnet readine
 - Controls: start, status, show, heartbeat, pause, resume-as-continuation, stop.
 - Mission Control fixture: `dashboard/src/mock-data/live-agent-supervisor.json`.
 - Safety: local-only, finite by default, policy-gated, no external model/provider calls, no real funds.
-- GPU-gated neural releases: still blocked until the real RunPod artifact is imported and verified.
+- GPU-gated neural releases: use imported RunPod evidence and must remain evidence-gated.
+
+## Visible neural embodiment status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Embodiment contract | implemented local projection | `flow_memory.visualization.embodiment` projects launch/supervisor replay artifacts into agent/session/backend/GPU evidence/loop phase/confidence/risk/policy/memory/learning/heartbeat state. |
+| CLI export | implemented | `python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json`. |
+| API projection | implemented local seam | `GET /visual/embodiment/{run_id}` and `GET /launch/console/runs/{run_id}/embodiment` expose read-only local state with visual/launch scopes. |
+| Dashboard fixture | implemented | `dashboard/src/mock-data/live-neural-embodiment.json` is available for Mission Control replay/demo selection. |
+| Mission Control panel | implemented scaffold | The dashboard shows the visible neural agent card and loop graph for local/replay neural state. |
+| Release evidence | implemented | `neural_embodiment.json` validates fixture, dashboard, CLI/API, visible GPU status, visible policy gate, memory activation, learning tick, docs, and no-overclaim invariants. |
+
+The visible embodiment layer is a public-alpha visual/replay surface. It does not claim AGI, consciousness, unbounded autonomous operation, live settlement, live provider calls, or production ML certification.

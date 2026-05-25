@@ -818,3 +818,17 @@ Implemented the Mission Control Live Run Console + Public Alpha Demo Bundle slic
 - Updated launch, neural, Mission Control, readiness, START_HERE, API, and README docs.
 
 Safety posture remains unchanged: the bundle and console are local-only metadata/replay surfaces. They do not call external models/providers, move funds, use private keys, broadcast transactions, or claim GPU validation without imported RunPod evidence.
+
+## Visible neural embodiment update
+
+Implemented the Mission Control visible neural embodiment slice.
+
+- Added `flow_memory.visualization.embodiment` to project launch/supervisor replay artifacts into a dashboard-facing neural embodiment contract.
+- Added CLI export: `python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json`.
+- Added local API projections: `GET /visual/embodiment/{run_id}` and `GET /launch/console/runs/{run_id}/embodiment`.
+- Added stable dashboard fixture `dashboard/src/mock-data/live-neural-embodiment.json`.
+- Added Mission Control panel/card support for agent id, session id, backend, GPU evidence, loop phase, confidence/risk, policy gate, memory activations, learning ticks, heartbeat state, replay path, and 3D-ready animation metadata.
+- Added release evidence document `neural_embodiment.json` and local-public-alpha release decision coverage.
+- Updated Mission Control, neural-live, launchpad, readiness, README, and status docs.
+
+RunPod RTX 4090 evidence is imported and verified for GPU-gated release checks. This does not claim AGI, consciousness, unbounded autonomous operation, live settlement, live provider calls, or production ML certification.

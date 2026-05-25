@@ -24,6 +24,12 @@
         "has_state": true,
         "ok": true
       },
+      "dashboard/src/mock-data/live-neural-embodiment.json": {
+        "event_count": 36,
+        "exists": true,
+        "has_state": true,
+        "ok": true
+      },
       "dashboard/src/mock-data/local-network-replay.json": {
         "event_count": 41,
         "exists": true,
@@ -47,6 +53,7 @@
   "missing_endpoints": [],
   "mission_control_launch_fixture_validated": true,
   "mission_control_local_network_fixture_validated": true,
+  "mission_control_neural_embodiment_fixture_validated": true,
   "mission_control_operations_fixture_validated": true,
   "mission_control_replay_fixture_selector_validated": true,
   "mission_control_run_console_available": true,
@@ -63,9 +70,9 @@
   "public_alpha_demo_bundle_no_live_provider_calls": true,
   "public_alpha_demo_bundle_validated": true,
   "sample_bundle": {
-    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpj32qjxg2\\public-alpha-local-demo.json",
+    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpd9_7ho84\\public-alpha-local-demo.json",
     "command_count": 14,
-    "fixture_count": 4,
+    "fixture_count": 5,
     "gpu_evidence_status": "artifact_present_not_verified"
   }
 }

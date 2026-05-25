@@ -43,14 +43,14 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "f639dad22d08bb0550310196df1ba68c5d0944d1",
-  "hash": "f5c50f4bf2f3f8bbb3cbb35ae00f6548d644118a6668740d2eec132d9617c2c1",
+  "git_commit": "70be9f310d8f92f03d945847058d83d830168af7",
+  "hash": "c00f5a7cc82cbca7f6ea5827ddc5457f037b74d55ebbc6afb63162fb09b92cf8",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
     "real funds disabled by default",
     "neural/RL layers are advisory prototypes",
-    "GPU evidence requires real RunPod tarball"
+    "GPU evidence is imported release evidence, not production ML certification"
   ],
   "live_agent_launchpad": {
     "api": true,
@@ -83,7 +83,7 @@
     "visual_replay": true
   },
   "local_network": {
-    "hash": "f80e51c5f2da5f8e14876906228230d870f5c52d7c27509a4d2410b1875c6d78",
+    "hash": "6aa53e8006c22a5f67b33d561ef5952ebdbee2c4230ea2d9f9e35200b5ac5228",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },
@@ -93,7 +93,7 @@
     "selector": true,
     "status_card": true
   },
-  "neural_evidence_status": "blocked_without_real_gpu_artifact",
+  "neural_evidence_status": "verified_runpod_artifact",
   "public_alpha_demo_bundle": {
     "gpu_status_honest": true,
     "ok": true,

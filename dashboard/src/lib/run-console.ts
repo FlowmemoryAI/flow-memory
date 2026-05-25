@@ -1,6 +1,6 @@
 import type { ReplayEvent } from "./replay-controller";
 
-export type RunKind = "launchpad" | "operations" | "supervisor" | "local_network";
+export type RunKind = "launchpad" | "operations" | "supervisor" | "local_network" | "embodiment";
 
 export type RunConsoleFixture = {
   fixture_id: string;
@@ -59,6 +59,13 @@ export const runConsoleFixtures: RunConsoleFixture[] = [
     run_kind: "supervisor",
   },
   {
+    fixture_id: "live-neural-embodiment",
+    label: "Live Neural Embodiment",
+    description: "3D-ready neural runtime, loop phase, policy gate, memory, learning, heartbeat, and GPU evidence replay.",
+    path: "dashboard/src/mock-data/live-neural-embodiment.json",
+    run_kind: "embodiment",
+  },
+  {
     fixture_id: "local-network-replay",
     label: "Local Network Replay",
     description: "Requester, worker, verifier, auditor, economy, safety, memory, RL, and compute replay.",
@@ -94,7 +101,8 @@ export function summarizeRunFixture(fixture: RunConsoleFixture, payload: any): R
   const summary = payload?.summary ?? {};
   const runRecord = payload?.run_record ?? {};
   const supervisor = payload?.supervisor ?? {};
-  const source = Object.keys(supervisor).length ? supervisor : Object.keys(runRecord).length ? runRecord : summary;
+  const embodiment = payload?.embodiment ?? {};
+  const source = Object.keys(embodiment).length ? embodiment : Object.keys(supervisor).length ? supervisor : Object.keys(runRecord).length ? runRecord : summary;
   const state = payload?.state ?? {};
   const neural = Array.isArray(state.neural) ? state.neural : [];
   const latestNeural = neural.length ? neural[neural.length - 1] : {};
@@ -104,18 +112,18 @@ export function summarizeRunFixture(fixture: RunConsoleFixture, payload: any): R
     run_kind: fixture.run_kind,
     agent_id: source.agent_id ?? summary.agent_id ?? "",
     session_id: source.session_id ?? summary.session_id ?? latestNeural.session_id ?? "",
-    supervisor_id: supervisor.supervisor_id ?? "",
+    supervisor_id: source.supervisor_id ?? supervisor.supervisor_id ?? "",
     template: source.template ?? summary.template ?? "",
     backend: source.backend ?? summary.backend ?? latestNeural.backend ?? "tiny_torch",
     status: source.status ?? (payload?.ok ? "completed" : "missing"),
-    current_phase: supervisor.current_phase ?? latestNeural.phase ?? source.status ?? "observed",
-    ticks_requested: source.tick_count_requested ?? supervisor.max_ticks ?? summary.loop_ticks_completed ?? 0,
-    ticks_completed: source.tick_count_completed ?? supervisor.ticks_completed ?? summary.loop_ticks_completed ?? 0,
-    policy_gate_state: supervisor.policy_gate_state ?? latestNeural.policy_gate_state ?? "applied",
-    risk_score: Number(latestNeural.risk_score ?? 0),
-    confidence_score: Number(latestNeural.prediction_confidence ?? 0),
-    learning_steps: Number(summary.learning_steps ?? events.filter((event: ReplayEvent) => event.payload?.event === "neural_learning_step_completed").length),
-    memory_records_written: Number(source.memory_records_written ?? summary.memory_records_written ?? (Array.isArray(state.memory) ? state.memory.length : 0)),
+    current_phase: source.current_loop_phase ?? supervisor.current_phase ?? latestNeural.phase ?? source.status ?? "observed",
+    ticks_requested: source.tick_count_requested ?? supervisor.max_ticks ?? source.heartbeat_state?.max_ticks ?? summary.loop_ticks_completed ?? 0,
+    ticks_completed: source.tick_count_completed ?? supervisor.ticks_completed ?? source.heartbeat_state?.ticks_completed ?? summary.loop_ticks_completed ?? 0,
+    policy_gate_state: source.policy_gate_state ?? supervisor.policy_gate_state ?? latestNeural.policy_gate_state ?? "applied",
+    risk_score: Number(source.risk_score ?? latestNeural.risk_score ?? 0),
+    confidence_score: Number(source.confidence_score ?? latestNeural.prediction_confidence ?? 0),
+    learning_steps: Number(source.learning_tick_count ?? summary.learning_steps ?? events.filter((event: ReplayEvent) => event.payload?.event === "neural_learning_step_completed").length),
+    memory_records_written: Number(source.memory_activation_count ?? source.memory_records_written ?? summary.memory_records_written ?? (Array.isArray(state.memory) ? state.memory.length : 0)),
     visual_events_emitted: Number(source.visual_events_emitted ?? summary.visual_events_emitted ?? events.length),
     replay_artifact_path: source.replay_artifact_path ?? fixture.path,
     run_record_path: source.run_record_path ?? "",

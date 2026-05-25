@@ -13,7 +13,7 @@ export type MissionControlRunFixture = {
   label: string;
   description: string;
   path: string;
-  run_kind: "launchpad" | "operations" | "supervisor" | "local_network";
+  run_kind: "launchpad" | "operations" | "supervisor" | "local_network" | "embodiment";
 };
 
 export type VisualFieldMapping = {
@@ -33,10 +33,13 @@ export const missionControlEndpoints: MissionControlEndpoint[] = [
   { name: "run console", method: "GET", path: "/launch/console/runs", mode: "live", scope: "launch:read" },
   { name: "run console fixtures", method: "GET", path: "/launch/console/fixtures", mode: "live", scope: "launch:read" },
   { name: "public alpha demo bundle", method: "POST", path: "/launch/bundles/public-alpha", mode: "live", scope: "launch:export" },
+  { name: "neural embodiment", method: "GET", path: "/visual/embodiment/{run_id}", mode: "live", scope: "visual:read" },
+  { name: "run embodiment", method: "GET", path: "/launch/console/runs/{run_id}/embodiment", mode: "live", scope: "launch:read" },
   { name: "local replay", method: "GET", path: "dashboard/src/mock-data/local-network-replay.json", mode: "replay" },
   { name: "live neural agent launch replay", method: "GET", path: "dashboard/src/mock-data/live-neural-agent-launch.json", mode: "replay" },
   { name: "live agent operations replay", method: "GET", path: "dashboard/src/mock-data/live-agent-operations.json", mode: "replay" },
   { name: "live agent supervisor replay", method: "GET", path: "dashboard/src/mock-data/live-agent-supervisor.json", mode: "replay" },
+  { name: "live neural embodiment replay", method: "GET", path: "dashboard/src/mock-data/live-neural-embodiment.json", mode: "replay" },
 ];
 
 export const missionControlRunFixtures: MissionControlRunFixture[] = [
@@ -62,6 +65,13 @@ export const missionControlRunFixtures: MissionControlRunFixture[] = [
     run_kind: "supervisor",
   },
   {
+    fixture_id: "live-neural-embodiment",
+    label: "Live Neural Embodiment",
+    description: "3D-ready neural runtime/session, loop phase, policy gate, memory, learning, heartbeat, and GPU evidence replay.",
+    path: "dashboard/src/mock-data/live-neural-embodiment.json",
+    run_kind: "embodiment",
+  },
+  {
     fixture_id: "local-network-replay",
     label: "Local Network Replay",
     description: "Requester, worker, verifier, auditor, economy, safety, memory, RL, and compute replay.",
@@ -77,6 +87,10 @@ export const visualFieldMappings: VisualFieldMapping[] = [
   { visual: "gold edge", sourceField: "economy.amount + economy.status", meaning: "local simulated bid, escrow, settlement, dispute, or slashing event" },
   { visual: "blue memory flow", sourceField: "memory.importance", meaning: "memory write/retrieval/consolidation importance" },
   { visual: "RL pulse", sourceField: "rl.mean_reward + rl.safety_violation_rate", meaning: "Flow Arena training/evaluation result" },
+  { visual: "embodied phase", sourceField: "embodiment.current_loop_phase", meaning: "current local neural agent loop phase" },
+  { visual: "memory orbit", sourceField: "embodiment.memory_activation_count", meaning: "neural memory activations and memory records written" },
+  { visual: "learning glow", sourceField: "embodiment.learning_tick_count", meaning: "local deterministic learning updates" },
+  { visual: "GPU evidence badge", sourceField: "embodiment.gpu_evidence_status", meaning: "imported RunPod evidence status, not production ML certification" },
 ];
 
 export function modeLabel(mode: MissionControlMode): string {

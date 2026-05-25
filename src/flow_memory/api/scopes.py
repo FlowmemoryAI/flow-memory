@@ -162,6 +162,8 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (LAUNCH_CONTROL_SCOPE,)
     if path_key.startswith("/launch/console/"):
         return (LAUNCH_READ_SCOPE,)
+    if path_key.startswith("/visual/embodiment/"):
+        return (VISUAL_READ_SCOPE,)
     if path_key == "/launch/bundles/public-alpha":
         return (LAUNCH_EXPORT_SCOPE,)
     if path_key == "/launch/runs" or path_key.startswith("/launch/runs/"):

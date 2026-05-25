@@ -28,8 +28,8 @@ python scripts/release_decision.py --target public-alpha-local-launch
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
-| Compute Market | Local dry-run provider/route/quote/payment-intent/settlement simulation; no live settlement. |
-| Neural GPU public alpha | Blocked until real RunPod artifact is imported and verified. |
+| Compute Market | Local dry-run provider/route/quote/payment-intent/settlement simulation; no settlement execution. |
+| Neural GPU public alpha | Ready when `neural-gpu-smoke` and `public-alpha-neural` pass with imported RunPod evidence. |
 | Base/Web3 | Dry-run only. |
 | Mainnet | Not ready. |
 | Contracts | Unaudited. |
@@ -38,7 +38,7 @@ python scripts/release_decision.py --target public-alpha-local-launch
 
 ## GPU-gated release status
 
-The following targets must remain blocked when `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` has not been imported:
+The RunPod RTX 4090 artifact has been imported and verified in release evidence. GPU-gated targets may pass when the evidence bundle remains valid:
 
 ```bash
 python scripts/release_decision.py --target neural-gpu-smoke
@@ -46,7 +46,7 @@ python scripts/release_decision.py --target public-alpha-neural
 python scripts/release_decision.py --target public-alpha-launch
 ```
 
-Do not fake GPU evidence. Import the real artifact with `scripts/import_gpu_run_artifact.py` before claiming the GPU-gated launch state.
+Do not fake GPU evidence. If the release evidence directory is regenerated from a checkout without `artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz` or imported `release_evidence/gpu_runs/flow-memory-cloud-gpu-run-001`, GPU-gated launch state must be treated as blocked again.
 
 Do not claim production certification, audited contracts, mainnet readiness, hardened sandboxing, real-funds custody, or production ML performance.
 
@@ -54,7 +54,7 @@ Do not claim production certification, audited contracts, mainnet readiness, har
 
 Local public alpha includes a bounded Live Agent Supervisor for neural-live runs. It writes local supervisor state, heartbeat artifacts, run records, Mission Control replay telemetry, and exportable run bundles. It is finite by default, stoppable, inspectable, and policy-gated.
 
-GPU-gated neural release targets are still separate and require the real RunPod artifact to be imported and verified.
+GPU-gated neural release targets are separate from local public alpha and depend on the imported RunPod evidence remaining verified.
 
 ## Mission Control run console readiness
 
@@ -64,6 +64,7 @@ Local public alpha includes a Mission Control run selector/status card over thes
 - `live-agent-operations`
 - `live-agent-supervisor`
 - `local-network-replay`
+- `live-neural-embodiment`
 
 Generate the local public-alpha demo bundle:
 
@@ -72,3 +73,18 @@ python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/
 ```
 
 The bundle is reference-oriented and local-only. It must keep GPU status honest, neural outputs advisory, policy gates authoritative, and real-funds/provider behavior disabled.
+
+## Visible neural embodiment readiness
+
+Mission Control includes a neural embodiment fixture and local API projection:
+
+```bash
+python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
+```
+
+```text
+GET /visual/embodiment/{run_id}
+GET /launch/console/runs/{run_id}/embodiment
+```
+
+This shows the local neural runtime/session, loop phase, confidence/risk, policy gate, memory activations, learning ticks, supervisor heartbeat, replay artifact, and imported GPU evidence status. It remains a public-alpha visual/replay layer, not AGI, sentience, settlement execution, or production ML certification.

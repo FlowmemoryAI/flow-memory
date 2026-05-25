@@ -55,6 +55,8 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/launch/console/runs/{run_id}", "launch_console_run", "Inspect one Mission Control run console summary", response_fields=("run", "source")),
     EndpointSpec("GET", "/launch/console/fixtures", "launch_console_fixtures", "List Mission Control replay/demo fixtures", response_fields=("fixtures",)),
     EndpointSpec("POST", "/launch/bundles/public-alpha", "launch_bundle_public_alpha", "Build a local public-alpha demo bundle", request_fields=("out",), response_fields=("bundle_path", "mission_control_fixtures", "commands")),
+    EndpointSpec("GET", "/launch/console/runs/{run_id}/embodiment", "launch_console_run_embodiment", "Return the 3D-ready neural embodiment state for a Mission Control run", response_fields=("embodiment", "graph", "events")),
+    EndpointSpec("GET", "/visual/embodiment/{run_id}", "visual_embodiment", "Return the Mission Control neural embodiment projection for a run", response_fields=("embodiment", "graph", "events")),
     EndpointSpec("POST", "/marketplace/tasks", "marketplace_task_create", "Create a local marketplace task", request_fields=("title", "reward", "requester", "metadata")),
     EndpointSpec("POST", "/marketplace/bids", "marketplace_bid_create", "Create a local marketplace bid", request_fields=("task_id", "agent_did", "price")),
     EndpointSpec("POST", "/marketplace/settle", "marketplace_settle", "Settle a local marketplace task"),

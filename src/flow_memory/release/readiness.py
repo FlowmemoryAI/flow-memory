@@ -30,7 +30,7 @@ PUBLIC_ALPHA_EVIDENCE = (
 )
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
-LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "live_agent_launchpad", "live_agent_operations", "live_agent_supervisor", "mission_control_run_console")
+LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "live_agent_launchpad", "live_agent_operations", "live_agent_supervisor", "mission_control_run_console", "neural_embodiment")
 PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE = LOCAL_PUBLIC_ALPHA_EVIDENCE + (
     "public_alpha_launch_test",
     "public_alpha_launch_evidence",
@@ -299,6 +299,13 @@ def _local_public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
             blockers.append("mission_control_run_console_evidence_missing_or_invalid")
     except Exception:
         blockers.append("mission_control_run_console_evidence_missing_or_invalid")
+    try:
+        from flow_memory.release.neural_embodiment_evidence import neural_embodiment_evidence
+
+        if not neural_embodiment_evidence(root).get("ok"):
+            blockers.append("neural_embodiment_evidence_missing_or_invalid")
+    except Exception:
+        blockers.append("neural_embodiment_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_local_launch_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

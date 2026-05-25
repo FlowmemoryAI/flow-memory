@@ -66,6 +66,8 @@ Useful endpoints:
 - `GET /launch/console/runs/{run_id}`
 - `GET /launch/console/fixtures`
 - `POST /launch/bundles/public-alpha`
+- `GET /visual/embodiment/{run_id}`
+- `GET /launch/console/runs/{run_id}/embodiment`
 With local auth/scopes:
 
 ```bash
@@ -99,6 +101,7 @@ The dashboard includes a scoped run selector for these replay/demo fixtures:
 - **Live Neural Agent Launch** — `dashboard/src/mock-data/live-neural-agent-launch.json`
 - **Live Agent Operations** — `dashboard/src/mock-data/live-agent-operations.json`
 - **Live Agent Supervisor** — `dashboard/src/mock-data/live-agent-supervisor.json`
+- **Live Neural Embodiment** — `dashboard/src/mock-data/live-neural-embodiment.json`
 - **Local Network Replay** — `dashboard/src/mock-data/local-network-replay.json`
 
 The selected run status card shows run id, kind, agent id, backend, status, current phase, ticks, policy gate state, risk/confidence, memory writes, visual event count, GPU evidence status, replay artifact path, and run record path.
@@ -143,3 +146,20 @@ dashboard/src/mock-data/live-agent-supervisor.json
 ```
 
 Supervisor telemetry maps to the visual `supervisor` state collection and includes run id, supervisor id, agent id, backend, status, phase, tick count, last heartbeat, and policy gate state.
+
+## Neural embodiment view
+
+Generate the 3D-ready neural embodiment fixture from the current supervisor replay:
+
+```bash
+python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
+```
+
+Local API reads expose the same projection:
+
+```text
+GET /visual/embodiment/{run_id}
+GET /launch/console/runs/{run_id}/embodiment
+```
+
+The embodiment card shows the agent id, neural session id, backend, imported RunPod GPU evidence status, current loop phase, confidence/risk scores, policy gate state, memory activation count, learning ticks, action state, supervisor heartbeat, and replay artifact path. It is 3D-ready data rendered as a compact visual graph today; it does not claim AGI, sentience, unbounded autonomous operation, provider-network calls, settlement execution, or production-trained ML quality.

@@ -3,7 +3,8 @@ import replay from "../../mock-data/local-network-replay.json";
 import liveLaunchReplay from "../../mock-data/live-neural-agent-launch.json";
 import liveOperationsReplay from "../../mock-data/live-agent-operations.json";
 import liveSupervisorReplay from "../../mock-data/live-agent-supervisor.json";
-import type { VisualNetworkState } from "../../lib/visual-state";
+import liveEmbodimentReplay from "../../mock-data/live-neural-embodiment.json";
+import type { NeuralEmbodimentPayload, VisualNetworkState } from "../../lib/visual-state";
 import { summarizeVisualState } from "../../lib/visual-state";
 import { modeLabel, missionControlModes, missionControlEndpoints } from "../../lib/mission-control-config";
 import { modeStatus, modeSwitchOptions } from "../../lib/event-stream";
@@ -12,6 +13,7 @@ import { AgentDetailDrawer } from "../../components/mission-control/AgentDetailD
 import { NetworkLegend } from "../../components/mission-control/NetworkLegend";
 import { ReplayControls } from "../../components/mission-control/ReplayControls";
 import { RunSelector } from "../../components/mission-control/RunSelector";
+import { NeuralEmbodimentPanel } from "../../components/mission-control/NeuralEmbodimentPanel";
 import { AgentPanel } from "../../components/panels/AgentPanel";
 import { NeuralPanel } from "../../components/panels/NeuralPanel";
 import { EconomyPanel } from "../../components/panels/EconomyPanel";
@@ -46,11 +48,13 @@ export default function MissionControlPage() {
         "live-agent-operations": liveOperationsReplay,
         "live-agent-supervisor": liveSupervisorReplay,
         "local-network-replay": replay,
+        "live-neural-embodiment": liveEmbodimentReplay,
       }} />
       <MissionControlCanvas state={state} />
       <ReplayControls state={state} events={replay.events} />
       <AgentDetailDrawer agent={state.agents[0]} state={state} />
       <NetworkLegend />
+      <NeuralEmbodimentPanel payload={liveEmbodimentReplay as NeuralEmbodimentPayload} />
       <section className="mission-control-panels">
         <RuntimePanel state={state} />
         <AgentPanel state={state} />

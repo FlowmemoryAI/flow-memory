@@ -1184,6 +1184,49 @@
         ]
       }
     },
+    "/launch/console/runs/{run_id}/embodiment": {
+      "get": {
+        "operationId": "launch_console_run_embodiment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "embodiment": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "string"
+                    },
+                    "graph": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return the 3D-ready neural embodiment state for a Mission Control run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
     "/launch/runs": {
       "get": {
         "operationId": "launch_runs_list",
@@ -2918,6 +2961,49 @@
         "summary": "Submit completion and optional verification for a delegation",
         "tags": [
           "verification"
+        ]
+      }
+    },
+    "/visual/embodiment/{run_id}": {
+      "get": {
+        "operationId": "visual_embodiment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "embodiment": {
+                      "type": "string"
+                    },
+                    "events": {
+                      "type": "string"
+                    },
+                    "graph": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return the Mission Control neural embodiment projection for a run",
+        "tags": [
+          "visual"
         ]
       }
     },

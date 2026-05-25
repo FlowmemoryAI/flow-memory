@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 91,
-  "manifest_hash": "98546ae191ef670ebd62b447145c5edbc8c418a2c5e8b6c175c75f2d0072d79c",
-  "openapi_hash": "37bab20113759f17c8150bc86c833e5fa4c2add7b7085e804f7f5237f5b64ed2",
+  "endpoint_count": 93,
+  "manifest_hash": "8900b96e392ac8291acef4de3c3d573772bce4454287d23b79e3c6edff2f0677",
+  "openapi_hash": "d6b3bcdc4784ca42068aae5018bf1404d1379d849e213b48b1cf9d21f8618212",
   "operations": [
     "GET /agents",
     "GET /agents/{did}",
@@ -19,6 +19,7 @@
     "GET /launch/console/fixtures",
     "GET /launch/console/runs",
     "GET /launch/console/runs/{run_id}",
+    "GET /launch/console/runs/{run_id}/embodiment",
     "GET /launch/runs",
     "GET /launch/runs/{run_id}",
     "GET /launch/supervisor/runs/{run_id}",
@@ -43,6 +44,7 @@
     "GET /swarm/agents",
     "GET /verification/result",
     "GET /verification/{contract_id}",
+    "GET /visual/embodiment/{run_id}",
     "GET /visual/events",
     "GET /visual/replay/{run_id}",
     "GET /visual/schema",
@@ -95,7 +97,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 89,
+  "path_count": 91,
   "paths": [
     "/agents",
     "/agents/launch",
@@ -131,6 +133,7 @@
     "/launch/console/fixtures",
     "/launch/console/runs",
     "/launch/console/runs/{run_id}",
+    "/launch/console/runs/{run_id}/embodiment",
     "/launch/runs",
     "/launch/runs/{run_id}",
     "/launch/runs/{run_id}/export",
@@ -181,6 +184,7 @@
     "/verification/result",
     "/verification/submit",
     "/verification/{contract_id}",
+    "/visual/embodiment/{run_id}",
     "/visual/events",
     "/visual/replay/start",
     "/visual/replay/{run_id}",

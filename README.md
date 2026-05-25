@@ -41,6 +41,7 @@ python -m flow_memory launch runs list --json
 python -m flow_memory launch runs replay <run_id> --json
 python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
+python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -58,6 +59,7 @@ Mission Control visual path:
 python scripts/run_local_network.py --scenario all --emit-visual-events --json-out artifacts/network/local_network_report.json
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765
+python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
 cd dashboard
 npm run build
 npm test
@@ -86,10 +88,11 @@ The project now combines:
 - Bounded Live Agent Supervisor with heartbeat/status artifacts, continuation semantics, and Mission Control supervisor replay
 - Mission Control run console for launchpad, operations, supervisor, and local-network replay fixture selection/status summaries
 - Public-alpha local demo bundle export with replay references, docs, commands, release evidence, GPU status, and honest limitations
+- Mission Control neural embodiment view for visible local neural runtime/session, loop phase, memory, learning, policy, supervisor heartbeat, and imported GPU evidence status
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
-Flow Memory is production-shaped, not production-certified, not audited, and not mainnet-ready. It does not claim audited contracts, hardened sandboxing, production API authentication, safe real-funds custody, or trained ML model performance.
+Flow Memory is production-shaped, not production-certified, not an AGI/sentience claim, not audited, and not mainnet-ready. It does not claim audited contracts, hardened sandboxing, production API authentication, safe real-funds custody, provider settlement, or trained production ML model performance.
 
 ## Install
 
@@ -192,6 +195,7 @@ Observed during the public-alpha RC1 preflight build:
 - `docs/PRODUCTION_READINESS.md`
 - `BUILD_REPORT.md`
 - `FLOW_MEMORY_STATUS.md`
+- `docs/MISSION_CONTROL_QUICKSTART.md`
 
 ## Honest limitations
 
@@ -203,7 +207,7 @@ Observed during the public-alpha RC1 preflight build:
 - Sandbox hardening includes profiles, receipts, policy checks, and an optional Docker backend seam; default local sandboxing is not hardened isolation.
 - Protocol gateways are local/offline-safe seams, not production transports.
 - Dashboard is a typed mock API scaffold, not a live operator console.
-- Compute Market integration is local dry-run planning/routing only; it does not move funds, broadcast transactions, call live providers, or imply live settlement.
+- Compute Market integration is local dry-run planning/routing only; it does not move funds, broadcast transactions, call providers, or imply settlement execution.
 
 
 ## Neural Agent Layer v1
@@ -228,7 +232,7 @@ python -m flow_memory launch supervisor status --json
 python -m flow_memory launch supervisor heartbeat <run_id> --json
 ```
 
-The supervisor is local-only, bounded, inspectable, and policy-gated. GPU-gated release targets still require imported RunPod evidence.
+The supervisor is local-only, bounded, inspectable, and policy-gated. GPU-gated release targets use imported RunPod evidence and still require that evidence to remain verified.
 
 Mission Control run console and demo bundle:
 
@@ -236,4 +240,4 @@ Mission Control run console and demo bundle:
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
 ```
 
-The dashboard run selector can inspect Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, and Local Network Replay fixtures. The bundle is local-only and does not move funds, use private keys, broadcast transactions, or claim GPU validation without imported evidence.
+The dashboard run selector can inspect Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Live Neural Embodiment, and Local Network Replay fixtures. The bundle is local-only and does not move funds, use private keys, broadcast transactions, or claim production ML certification.

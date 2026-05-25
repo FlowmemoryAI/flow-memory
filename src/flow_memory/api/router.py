@@ -26,6 +26,7 @@ from flow_memory.launch_supervisor import (
     supervisor_status,
 )
 from flow_memory.visualization.run_console import build_public_alpha_demo_bundle, get_run_console_run, list_run_console_runs, run_console_fixtures
+from flow_memory.visualization.embodiment import neural_embodiment_state
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -271,6 +272,9 @@ class LocalApiRouter:
 
     def _launch_console_run(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return get_run_console_run(".", params["run_id"])
+    def _launch_console_run_embodiment(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_embodiment_state(".", params["run_id"])
+
 
     def _launch_console_fixtures(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return run_console_fixtures(".")
@@ -278,6 +282,9 @@ class LocalApiRouter:
     def _launch_bundle_public_alpha(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         out = str(payload.get("out", "artifacts/launch/bundles/public-alpha-local-demo.json") or "artifacts/launch/bundles/public-alpha-local-demo.json")
         return build_public_alpha_demo_bundle(".", out)
+    def _visual_embodiment(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return neural_embodiment_state(".", params["run_id"])
+
 
 
     def _marketplace_task_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -626,6 +633,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/launch/console/runs", router._launch_console_runs, "launch_console_runs")
     router.register("GET", "/launch/console/runs/{run_id}", router._launch_console_run, "launch_console_run")
     router.register("GET", "/launch/console/fixtures", router._launch_console_fixtures, "launch_console_fixtures")
+    router.register("GET", "/launch/console/runs/{run_id}/embodiment", router._launch_console_run_embodiment, "launch_console_run_embodiment")
     router.register("POST", "/launch/bundles/public-alpha", router._launch_bundle_public_alpha, "launch_bundle_public_alpha")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
@@ -673,6 +681,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/visual/schema", router._visual_schema, "visual_schema")
     router.register("GET", "/visual/replay/{run_id}", router._visual_replay, "visual_replay")
     router.register("POST", "/visual/replay/start", router._visual_replay_start, "visual_replay_start")
+    router.register("GET", "/visual/embodiment/{run_id}", router._visual_embodiment, "visual_embodiment")
     router.register("POST", "/compute/plan", router._compute_plan, "compute_plan")
     router.register("POST", "/compute/marketplace-plan", router._compute_marketplace_plan, "compute_marketplace_plan")
     router.register("POST", "/compute/quote", router._compute_quote, "compute_quote")

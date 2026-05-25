@@ -20,6 +20,7 @@ REQUIRED_FIXTURES = (
     "dashboard/src/mock-data/live-neural-agent-launch.json",
     "dashboard/src/mock-data/live-agent-operations.json",
     "dashboard/src/mock-data/live-agent-supervisor.json",
+    "dashboard/src/mock-data/live-neural-embodiment.json",
     "dashboard/src/mock-data/local-network-replay.json",
 )
 
@@ -78,6 +79,7 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
         "mission_control_supervisor_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/live-agent-supervisor.json", {}).get("ok") is True,
         "mission_control_operations_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/live-agent-operations.json", {}).get("ok") is True,
         "mission_control_launch_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/live-neural-agent-launch.json", {}).get("ok") is True,
+        "mission_control_neural_embodiment_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/live-neural-embodiment.json", {}).get("ok") is True,
         "mission_control_local_network_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/local-network-replay.json", {}).get("ok") is True,
         "public_alpha_demo_bundle_cli_available": _cli_has_bundle(cli_text),
         "public_alpha_demo_bundle_api_available": _api_available(missing_endpoints),

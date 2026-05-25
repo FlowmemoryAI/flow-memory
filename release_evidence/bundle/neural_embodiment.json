@@ -1,0 +1,44 @@
+{
+  "dashboard_component": "dashboard/src/components/mission-control/NeuralEmbodimentPanel.tsx",
+  "docs": {
+    "README.md": true,
+    "docs/LIVE_AGENT_LAUNCHPAD.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
+    "docs/NEURAL_LIVE_AGENTS.md": true,
+    "docs/PUBLIC_ALPHA_READINESS.md": true
+  },
+  "docs_safety_scan": {
+    "hits": [],
+    "ok": true
+  },
+  "fixture_path": "dashboard/src/mock-data/live-neural-embodiment.json",
+  "fixture_safety_scan": {
+    "hits": [],
+    "missing": [],
+    "ok": true
+  },
+  "fixture_valid": true,
+  "generated_fixture_valid": true,
+  "missing_endpoints": [],
+  "neural_embodiment_api_available": true,
+  "neural_embodiment_cli_available": true,
+  "neural_embodiment_contract_available": true,
+  "neural_embodiment_dashboard_available": true,
+  "neural_embodiment_gpu_status_visible": true,
+  "neural_embodiment_learning_tick_visible": true,
+  "neural_embodiment_memory_activation_visible": true,
+  "neural_embodiment_no_overclaim_invariant": true,
+  "neural_embodiment_policy_gate_visible": true,
+  "neural_embodiment_public_alpha_docs_updated": true,
+  "neural_embodiment_replay_fixture_available": true,
+  "ok": true,
+  "sample": {
+    "agent_id": "agent_a093fc05c99e8dc6",
+    "gpu_evidence_status": "verified",
+    "learning_tick_count": 3,
+    "memory_activation_count": 10,
+    "phase": "completed",
+    "run_id": "live_agent_9b713fe0821659d3",
+    "session_id": "neural_session_a093fc05c99e8dc6"
+  }
+}

@@ -75,7 +75,13 @@ class ComputeMarketService:
         self.telemetry = telemetry or ComputeMarketTelemetry()
         self.rate_limiter = rate_limiter or create_rate_limiter(self.config)
         self.circuit_breaker = circuit_breaker or create_circuit_breaker(self.config)
-        self.audit_exporter = audit_exporter or create_audit_exporter(self.config.audit_export_uri)
+        self.audit_exporter = audit_exporter or create_audit_exporter(
+            self.config.audit_export_uri,
+            s3_region=self.config.audit_export_s3_region,
+            s3_endpoint_url=self.config.audit_export_s3_endpoint_url,
+            object_lock_mode=self.config.audit_export_object_lock_mode,
+            retention_days=self.config.audit_export_retention_days,
+        )
         self.seed_defaults()
 
     def seed_defaults(self) -> None:
@@ -1693,13 +1699,24 @@ class ComputeMarketService:
         payload = payload or {}
         chain_id = str(payload.get("chain_id", "all") or "all")
         min_events = max(1, int(payload.get("min_events", payload.get("checkpoint_min_events", 1000)) or 1000))
+        interval_seconds = max(
+            1,
+            int(
+                payload.get(
+                    "interval_seconds",
+                    payload.get("checkpoint_interval_seconds", self.config.audit_checkpoint_interval_seconds),
+                )
+                or self.config.audit_checkpoint_interval_seconds
+            ),
+        )
         force = bool(payload.get("force", False))
         export = bool(payload.get("export", False))
         events = self._audit_events_for_chain(chain_id)
         last_checkpoint = self._last_audit_checkpoint(chain_id)
         last_sequence = int((last_checkpoint or {}).get("to_sequence", 0) or 0)
         pending_events = tuple(event for event in events if int(event.get("sequence_number", 0) or 0) > last_sequence)
-        due = force or len(pending_events) >= min_events
+        interval_due = _checkpoint_interval_due(last_checkpoint, interval_seconds)
+        due = force or len(pending_events) >= min_events or interval_due
         result: Mapping[str, Any] = {}
         if due:
             scheduled_payload = {**dict(payload), "chain_id": chain_id, "from_sequence": max(1, last_sequence + 1)}
@@ -1711,6 +1728,8 @@ class ComputeMarketService:
             "due": due,
             "chain_id": chain_id,
             "min_events": min_events,
+            "interval_seconds": interval_seconds,
+            "interval_due": interval_due,
             "pending_event_count": len(pending_events),
             "last_checkpoint": last_checkpoint or {},
             "scheduled_result": result,
@@ -1932,6 +1951,13 @@ class ComputeMarketService:
             or audit_exporter_status.get("configured") is False
         ):
             failures.append("audit_export_unavailable")
+        if (
+            self.config.audit_export_required
+            and isinstance(audit_exporter_status, Mapping)
+            and audit_exporter_status.get("exporter") == "s3_object_lock"
+            and not audit_exporter_status.get("immutable", False)
+        ):
+            failures.append("audit_immutable_retention_not_configured")
         if self.config.external_provider_quotes_enabled and not self.config.external_provider_allowlist:
             failures.append("external_provider_allowlist_missing")
         if self.config.external_provider_quotes_enabled and not health.get("circuit_breaker_active", False):
@@ -2215,12 +2241,26 @@ def reset_default_service(service: ComputeMarketService | None = None) -> None:
     _default_service = service
 
 
+def _checkpoint_interval_due(last_checkpoint: Mapping[str, Any] | None, interval_seconds: int) -> bool:
+    if not last_checkpoint:
+        return False
+    created_at = str(last_checkpoint.get("created_at", "")).strip()
+    if not created_at:
+        return False
+    try:
+        last_created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    elapsed = datetime.now(timezone.utc) - last_created.astimezone(timezone.utc)
+    return elapsed.total_seconds() >= max(1, interval_seconds)
+
 _READINESS_FAILURE_METRICS = {
     "database_unavailable": "postgres_unavailable_total",
     "rate_limiter_unavailable": "redis_unavailable_total",
     "circuit_breaker_unavailable": "redis_unavailable_total",
     "external_provider_allowlist_missing": "external_provider_allowlist_missing_total",
     "unsafe_live_settlement_config": "unexpected_live_settlement_config_total",
+    "audit_immutable_retention_not_configured": "audit_chain_verify_fail_total",
 }
 
 

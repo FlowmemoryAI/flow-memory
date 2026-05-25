@@ -246,6 +246,8 @@ class S3WormAuditExporter:
     object_lock_mode: str = "COMPLIANCE"
     retention_days: int = 365
     client: Any | None = None
+    region_name: str = ""
+    endpoint_url: str = ""
     _last_export_key: str = field(default="", init=False, repr=False)
 
     def export_events(
@@ -301,6 +303,7 @@ class S3WormAuditExporter:
                 _canonical_json({"type": "checkpoint", "checkpoint": checkpoint.as_record()}),
             ]
         ) + "\n"
+        self._assert_bucket_object_lock_enabled()
         client = self._client()
         client.put_object(
             Bucket=self.bucket,
@@ -331,6 +334,7 @@ class S3WormAuditExporter:
                 "retention_until": checkpoint.retention_until or _iso_timestamp(retention_until),
             }
         ) + "\n"
+        self._assert_bucket_object_lock_enabled()
         client = self._client()
         client.put_object(
             Bucket=self.bucket,
@@ -375,7 +379,9 @@ class S3WormAuditExporter:
             return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=type(exc).__name__, message=str(exc))
 
     def get_status(self) -> Mapping[str, object]:
-        configured = bool(self.bucket) and self._client_available()
+        client_available = self._client_available()
+        object_lock_enabled = self._bucket_object_lock_enabled() if client_available else False
+        configured = bool(self.bucket) and client_available and object_lock_enabled
         return {
             "configured": configured,
             "exporter": "s3_object_lock",
@@ -383,7 +389,10 @@ class S3WormAuditExporter:
             "prefix": self.prefix,
             "object_lock_mode": self.object_lock_mode,
             "retention_days": self.retention_days,
-            "immutable": True,
+            "region_configured": bool(self.region_name),
+            "endpoint_configured": bool(self.endpoint_url),
+            "object_lock_enabled": object_lock_enabled,
+            "immutable": configured and self.object_lock_mode in {"COMPLIANCE", "GOVERNANCE"} and self.retention_days >= 1,
         }
 
     def _key(self, suffix: str) -> str:
@@ -400,6 +409,25 @@ class S3WormAuditExporter:
             return False
         return True
 
+    def _bucket_object_lock_enabled(self) -> bool:
+        if not self.bucket:
+            return False
+        try:
+            client = self._client()
+            if not hasattr(client, "get_bucket_object_lock_configuration"):
+                return False
+            response = client.get_bucket_object_lock_configuration(Bucket=self.bucket)
+        except Exception:
+            return False
+        config = response.get("ObjectLockConfiguration") if isinstance(response, Mapping) else None
+        if not isinstance(config, Mapping):
+            return False
+        return str(config.get("ObjectLockEnabled", "")).lower() == "enabled"
+
+    def _assert_bucket_object_lock_enabled(self) -> None:
+        if not self._bucket_object_lock_enabled():
+            raise RuntimeError("S3 audit exporter requires bucket Object Lock to be enabled")
+
     def _client(self) -> Any:
         if not self.bucket:
             raise RuntimeError("S3 audit exporter requires a bucket")
@@ -409,11 +437,23 @@ class S3WormAuditExporter:
             import boto3
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("S3 audit export requires optional dependency: boto3") from exc
-        self.client = boto3.client("s3")
+        kwargs: dict[str, str] = {}
+        if self.region_name:
+            kwargs["region_name"] = self.region_name
+        if self.endpoint_url:
+            kwargs["endpoint_url"] = self.endpoint_url
+        self.client = boto3.client("s3", **kwargs)
         return self.client
 
 
-def create_audit_exporter(uri: str | Path | None) -> AuditExporterProtocol:
+def create_audit_exporter(
+    uri: str | Path | None,
+    *,
+    s3_region: str = "",
+    s3_endpoint_url: str = "",
+    object_lock_mode: str = "",
+    retention_days: int = 0,
+) -> AuditExporterProtocol:
     """Resolve a deployment audit-export URI to a concrete exporter.
 
     Bare paths and file:// URIs write local tamper-evident NDJSON exports.
@@ -437,13 +477,15 @@ def create_audit_exporter(uri: str | Path | None) -> AuditExporterProtocol:
         return LocalFileAuditExporter(Path(path))
     if parsed.scheme == "s3":
         query = parse_qs(parsed.query)
-        object_lock_mode = str(query.get("object_lock_mode", query.get("mode", ["COMPLIANCE"]))[0]).upper()
-        retention_days = _int_query_value(query.get("retention_days", query.get("retention", ["365"]))[0], default=365)
+        object_lock_mode_resolved = (object_lock_mode or str(query.get("object_lock_mode", query.get("mode", ["COMPLIANCE"]))[0])).upper()
+        retention_days_resolved = retention_days or _int_query_value(query.get("retention_days", query.get("retention", ["365"]))[0], default=365)
         return S3WormAuditExporter(
             bucket=parsed.netloc,
             prefix=parsed.path.lstrip("/"),
-            object_lock_mode=object_lock_mode,
-            retention_days=retention_days,
+            object_lock_mode=object_lock_mode_resolved,
+            retention_days=retention_days_resolved,
+            region_name=s3_region,
+            endpoint_url=s3_endpoint_url,
         )
     return NoopAuditExporter(f"unsupported_audit_export_uri:{parsed.scheme}")
 

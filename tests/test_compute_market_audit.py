@@ -36,6 +36,9 @@ class FakeS3Client:
     def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         return {"Body": self.objects[(Bucket, Key)]}
 
+    def get_bucket_object_lock_configuration(self, *, Bucket: str) -> dict[str, Any]:
+        return {"ObjectLockConfiguration": {"ObjectLockEnabled": "Enabled"}}
+
 
 def test_audit_event_hash_created_and_chain_verifies() -> None:
     service = _service()
@@ -210,7 +213,7 @@ def test_audit_exporter_factory_resolves_file_s3_and_empty(tmp_path: Any) -> Non
     assert isinstance(s3, S3WormAuditExporter)
     assert isinstance(empty, NoopAuditExporter)
     assert s3.get_status()["exporter"] == "s3_object_lock"
-    assert s3.get_status()["immutable"] is True
+    assert s3.get_status()["immutable"] is False
 
 
 def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_readback() -> None:
@@ -244,6 +247,49 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
 
 
 
+def test_s3_object_lock_exporter_fails_closed_without_bucket_object_lock() -> None:
+    class UnlockedS3Client(FakeS3Client):
+        def get_bucket_object_lock_configuration(self, *, Bucket: str) -> dict[str, Any]:
+            return {"ObjectLockConfiguration": {"ObjectLockEnabled": "Disabled"}}
+
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=UnlockedS3Client())
+    service = ComputeMarketService(store=ComputeMarketStore(":memory:"), config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"), audit_exporter=exporter)
+    service.plan({"task": "s3 object lock disabled", "request_id": "s3-unlocked"})
+
+    status = exporter.get_status()
+    assert status["configured"] is False
+    assert status["immutable"] is False
+
+    try:
+        service.audit_export({"chain_id": "all"})
+    except ValueError as exc:
+        assert "configured audit_export_uri" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("S3 service export accepted an unlocked bucket")
+    try:
+        exporter.export_events(service.store, chain_id="all")
+    except RuntimeError as exc:
+        assert "Object Lock" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("S3 exporter wrote without bucket Object Lock")
+
+
+def test_s3_exporter_factory_uses_first_class_region_endpoint_and_retention_config() -> None:
+    exporter = create_audit_exporter(
+        "s3://flow-memory-audit/compute-market?retention_days=7",
+        s3_region="us-east-1",
+        s3_endpoint_url="https://s3.us-east-1.amazonaws.com",
+        object_lock_mode="GOVERNANCE",
+        retention_days=90,
+    )
+
+    assert isinstance(exporter, S3WormAuditExporter)
+    assert exporter.region_name == "us-east-1"
+    assert exporter.endpoint_url == "https://s3.us-east-1.amazonaws.com"
+    assert exporter.object_lock_mode == "GOVERNANCE"
+    assert exporter.retention_days == 90
+
+
 def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> None:
     out = tmp_path / "scheduled.ndjson"
     service = ComputeMarketService(
@@ -267,6 +313,16 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
     assert admin_status["ok"] is True
     assert admin_status["immutable"] is False
     assert admin_status["latest_checkpoint"]["checkpoint_id"] == scheduled["scheduled_result"]["checkpoint_record"]["checkpoint_id"]
+    stale_checkpoint = dict(scheduled["scheduled_result"]["checkpoint_record"])
+    stale_checkpoint["created_at"] = "2000-01-01T00:00:00Z"
+    service.store.put_record(
+        "audit_checkpoint_manifest",
+        str(stale_checkpoint["checkpoint_id"]),
+        stale_checkpoint,
+    )
+    interval_scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100, "interval_seconds": 1})
+    assert interval_scheduled["interval_due"] is True
+    assert interval_scheduled["due"] is True
 
 
 def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None:

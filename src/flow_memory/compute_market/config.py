@@ -51,6 +51,11 @@ class ComputeMarketConfig:
     admin_mutations_enabled: bool = True
     audit_export_required: bool = False
     audit_export_uri: str = ""
+    audit_export_object_lock_mode: str = ""
+    audit_export_retention_days: int = 0
+    audit_export_s3_region: str = ""
+    audit_export_s3_endpoint_url: str = ""
+    audit_checkpoint_interval_seconds: int = 86_400
     provider_contracts_required: bool = False
     provider_contracts_verified: bool = False
     external_provider_allowlist: tuple[str, ...] = ()
@@ -129,6 +134,12 @@ class ComputeMarketConfig:
             errors.append("circuit_breaker_backend must be memory, redis, or none")
         if self.compute_market_mode == "production_planning" and self.stripe_webhook_secret and len(self.stripe_webhook_secret) < 16:
             errors.append("stripe_webhook_secret must be high entropy when configured")
+        if self.audit_export_object_lock_mode and self.audit_export_object_lock_mode.upper() not in {"COMPLIANCE", "GOVERNANCE"}:
+            errors.append("audit_export_object_lock_mode must be COMPLIANCE or GOVERNANCE")
+        if self.audit_export_retention_days < 0:
+            errors.append("audit_export_retention_days must be non-negative")
+        if self.audit_checkpoint_interval_seconds < 1:
+            errors.append("audit_checkpoint_interval_seconds must be positive")
         if self.stripe_checkout_enabled:
             if not self.stripe_secret_key:
                 errors.append("stripe_checkout_enabled requires stripe_secret_key")
@@ -198,6 +209,11 @@ class ComputeMarketConfig:
             "admin_mutations_enabled": self.admin_mutations_enabled,
             "audit_export_required": self.audit_export_required,
             "audit_export_configured": bool(self.audit_export_uri),
+            "audit_export_object_lock_mode_configured": bool(self.audit_export_object_lock_mode),
+            "audit_export_retention_days": self.audit_export_retention_days,
+            "audit_export_s3_region_configured": bool(self.audit_export_s3_region),
+            "audit_export_s3_endpoint_configured": bool(self.audit_export_s3_endpoint_url),
+            "audit_checkpoint_interval_seconds": self.audit_checkpoint_interval_seconds,
             "provider_contracts_required": self.provider_contracts_required,
             "provider_contracts_verified": self.provider_contracts_verified,
             "external_provider_allowlist_configured": bool(self.external_provider_allowlist),
@@ -259,6 +275,11 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         admin_mutations_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ADMIN_MUTATIONS_ENABLED"), True),
         audit_export_required=_bool(source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED"), False),
         audit_export_uri=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", ""),
+        audit_export_object_lock_mode=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", ""),
+        audit_export_retention_days=_int(source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS"), 0),
+        audit_export_s3_region=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", ""),
+        audit_export_s3_endpoint_url=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", ""),
+        audit_checkpoint_interval_seconds=_int(source.get("FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"), 86_400),
         provider_contracts_required=_bool(source.get("FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED"), False),
         provider_contracts_verified=_bool(source.get("FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED"), False),
         external_provider_allowlist=_csv(source.get("FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST", "")),

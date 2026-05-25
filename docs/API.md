@@ -80,6 +80,14 @@ With local preflight auth:
 python scripts/run_local_api_server.py --api-key dev-local-only --require-scopes
 ```
 
+Containerized Compute Market planning deployments can use:
+
+```bash
+docker compose --env-file .env.compute-market.live -f docker-compose.compute-market.yml up --build
+```
+
+This binds the dependency-free HTTP gateway with API-key and scope checks, PostgreSQL, and Redis. It still needs production TLS/ingress, identity-provider integration, tenant isolation, and monitoring before public exposure.
+
 ## Auth seams
 
 - `src/flow_memory/api/auth.py` implements local API-key checking seam.
@@ -92,7 +100,7 @@ python scripts/run_local_api_server.py --api-key dev-local-only --require-scopes
 
 ## Status
 
-The internal router, dependency-free HTTP server boundary, OpenAPI generation, signed request seam, API auth/scope/rate-limit checks, and API snapshot validation are tested. Production server deployment, replay protection, TLS termination, tenant isolation, and public networking remain future work.
+The internal router, dependency-free HTTP server boundary, OpenAPI generation, signed request seam, API auth/scope/rate-limit checks, API snapshot validation, and a containerized Compute Market planning profile are tested. Public production exposure still needs TLS termination, identity-provider integration, replay windows, tenant isolation, WAF/network policy, and production observability.
 
 
 ## Flow Arena RL + Neural Evidence RC update

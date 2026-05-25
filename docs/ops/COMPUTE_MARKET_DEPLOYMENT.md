@@ -52,6 +52,8 @@ FLOW_MEMORY_COMPUTE_ADMIN_MUTATIONS_ENABLED=true
 Do not commit real secrets. Provider credentials must be supplied through the deployment secret manager or environment variables and must never be logged.
 SQLite is acceptable for local development and single-node deployments only. Multi-node production deployments should use the PostgreSQL-compatible adapter with `flow-memory[postgres]`, managed backups, restore drills, and migration promotion gates. The default local dependency set uses raw `sqlite3`; PostgreSQL is an optional production extra.
 
+For the fastest safe container launch path, use `docker-compose.compute-market.yml` with `deployments/compute-market/live.env.example` as the environment template, then follow `docs/ops/COMPUTE_MARKET_LIVE_LAUNCH.md`.
+
 ## Multi-node production deployment
 
 For horizontally scaled production planning, use:

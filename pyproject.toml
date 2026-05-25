@@ -27,6 +27,7 @@ dev = ["pytest>=8.0", "ruff>=0.5", "mypy>=1.10"]
 ml = ["torch>=2.2", "numpy>=1.26"]
 memory = ["redis>=5.0", "qdrant-client>=1.9", "neo4j>=5.20"]
 postgres = ["psycopg[binary,pool]>=3.1"]
+compute-market-live = ["psycopg[binary,pool]>=3.1", "redis>=5.0"]
 web3 = ["web3>=6.20", "eth-account>=0.11"]
 langgraph = ["langgraph>=0.2"]
 all = [
@@ -38,6 +39,7 @@ all = [
 
 [project.scripts]
 flow-memory = "flow_memory.cli:main"
+flow-memory-api = "flow_memory.api.server_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

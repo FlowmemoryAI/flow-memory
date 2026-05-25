@@ -1,0 +1,85 @@
+services:
+  compute-market-api:
+    build:
+      context: .
+      args:
+        FLOW_MEMORY_EXTRAS: compute-market-live
+    command:
+      - flow-memory-api
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8765"
+      - --require-scopes
+    ports:
+      - "8765:8765"
+    environment:
+      FLOW_MEMORY_API_KEY: ${FLOW_MEMORY_API_KEY:?Set FLOW_MEMORY_API_KEY to a high-entropy API key}
+      FLOW_MEMORY_API_REQUIRE_SCOPES: "true"
+      FLOW_MEMORY_API_RATE_LIMIT: ${FLOW_MEMORY_API_RATE_LIMIT:-120}
+      FLOW_MEMORY_COMPUTE_MARKET_ENABLED: "true"
+      FLOW_MEMORY_COMPUTE_MARKET_MODE: production_planning
+      FLOW_MEMORY_COMPUTE_STORAGE_BACKEND: postgres
+      FLOW_MEMORY_COMPUTE_DATABASE_URL: ${FLOW_MEMORY_COMPUTE_DATABASE_URL:-postgresql://flow_memory:${FLOW_MEMORY_POSTGRES_PASSWORD:?Set FLOW_MEMORY_POSTGRES_PASSWORD}@postgres:5432/flow_memory}
+      FLOW_MEMORY_COMPUTE_POSTGRES_SSL_MODE: ${FLOW_MEMORY_COMPUTE_POSTGRES_SSL_MODE:-disable}
+      FLOW_MEMORY_COMPUTE_STORAGE_POOL_SIZE: ${FLOW_MEMORY_COMPUTE_STORAGE_POOL_SIZE:-4}
+      FLOW_MEMORY_COMPUTE_STORAGE_MAX_OVERFLOW: ${FLOW_MEMORY_COMPUTE_STORAGE_MAX_OVERFLOW:-4}
+      FLOW_MEMORY_COMPUTE_STORAGE_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_STORAGE_TIMEOUT_MS:-5000}
+      FLOW_MEMORY_COMPUTE_STORAGE_STATEMENT_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_STORAGE_STATEMENT_TIMEOUT_MS:-5000}
+      FLOW_MEMORY_COMPUTE_MIGRATIONS_ENABLED: "true"
+      FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN: "true"
+      FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION: "true"
+      FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND: redis
+      FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND: redis
+      FLOW_MEMORY_COMPUTE_REDIS_URL: ${FLOW_MEMORY_COMPUTE_REDIS_URL:-redis://redis:6379/0}
+      FLOW_MEMORY_COMPUTE_REDIS_PREFIX: ${FLOW_MEMORY_COMPUTE_REDIS_PREFIX:-flow-memory:compute-market}
+      FLOW_MEMORY_COMPUTE_RATE_LIMIT_ENABLED: "true"
+      FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED: "true"
+      FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED: "true"
+      FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_FAIL_CLOSED: "true"
+      FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED: "true"
+      FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED: "false"
+      FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED: "false"
+      FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED: "false"
+      FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED: "true"
+      FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED: "true"
+      FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI: /var/lib/flow-memory/audit/compute-market.ndjson
+      FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED: ${FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED:-false}
+      FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED: ${FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED:-false}
+      FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED: "false"
+      FLOW_MEMORY_COMPUTE_ECONOMIC_MEMORY_WRITES_ENABLED: "true"
+      FLOW_MEMORY_COMPUTE_ADMIN_MUTATIONS_ENABLED: "true"
+    volumes:
+      - compute_market_audit:/var/lib/flow-memory/audit
+
+  postgres:
+    profiles: ["local-infra"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: flow_memory
+      POSTGRES_USER: flow_memory
+      POSTGRES_PASSWORD: ${FLOW_MEMORY_POSTGRES_PASSWORD:?Set FLOW_MEMORY_POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flow_memory -d flow_memory"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - compute_market_postgres:/var/lib/postgresql/data
+
+  redis:
+    profiles: ["local-infra"]
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - compute_market_redis:/data
+
+volumes:
+  compute_market_postgres:
+  compute_market_redis:
+  compute_market_audit:

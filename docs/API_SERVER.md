@@ -51,18 +51,18 @@ PY
 
 ## Limitations
 
-- Not production-authenticated or internet-facing.
-- API-key and signed-request helpers are local seams only; there is no production authorization model, session handling, replay protection, tenant isolation, distributed rate limiting, TLS termination, WAF, or production observability.
-- Optional FastAPI support is an application seam, not a deployment architecture.
-- Endpoint presence does not imply that downstream blockchain, MCP/A2A, libp2p, Redis, Qdrant, Neo4j, or OPA integrations are implemented.
+- The dependency-free server is suitable for private production-planning smoke deployments only when bound behind TLS/ingress, network policy, API-key checks, and scope enforcement.
+- API-key and signed-request helpers are minimal seams; there is no full production authorization model, session handling, replay protection, tenant isolation, WAF, or production observability in the gateway itself.
+- Optional FastAPI support remains an application seam; the Compute Market live-planning container profile uses the dependency-free gateway.
+- Endpoint presence does not imply that downstream blockchain, MCP/A2A, libp2p, Qdrant, Neo4j, OPA, WORM storage, or live settlement integrations are implemented.
 
 ## Next implementation steps
 
 1. Add stable request/response schema objects per endpoint.
 2. Add request signing/replay windows at the HTTP boundary.
-3. Add TLS/reverse-proxy deployment profiles.
-4. Add production observability hooks and structured access logs.
-5. Document deployment profiles separately for local development, private lab use, and audited production use.
+3. Add hardened TLS/reverse-proxy deployment profiles around `docker-compose.compute-market.yml`.
+4. Add production observability exporters and structured access logs.
+5. Add identity-provider integration and replay windows before public internet exposure.
 
 
 ## Flow Arena RL + Neural Evidence RC update

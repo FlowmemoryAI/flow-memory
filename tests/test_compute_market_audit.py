@@ -15,6 +15,28 @@ def _service() -> ComputeMarketService:
     return ComputeMarketService(store=ComputeMarketStore(":memory:"), config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"))
 
 
+class FakeS3Client:
+    def __init__(self) -> None:
+        self.objects: dict[tuple[str, str], bytes] = {}
+        self.puts: list[dict[str, Any]] = []
+
+    def put_object(self, **kwargs: Any) -> dict[str, Any]:
+        bucket = str(kwargs["Bucket"])
+        key = str(kwargs["Key"])
+        body = kwargs.get("Body", b"")
+        self.objects[(bucket, key)] = body if isinstance(body, bytes) else str(body).encode("utf-8")
+        self.puts.append(dict(kwargs))
+        return {"ETag": "fake-etag"}
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        if (Bucket, Key) not in self.objects:
+            raise KeyError(Key)
+        return {"ContentLength": len(self.objects[(Bucket, Key)])}
+
+    def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        return {"Body": self.objects[(Bucket, Key)]}
+
+
 def test_audit_event_hash_created_and_chain_verifies() -> None:
     service = _service()
     service.plan({"task": "audit chain", "request_id": "audit-req"})
@@ -187,7 +209,38 @@ def test_audit_exporter_factory_resolves_file_s3_and_empty(tmp_path: Any) -> Non
     assert isinstance(file_uri, LocalFileAuditExporter)
     assert isinstance(s3, S3WormAuditExporter)
     assert isinstance(empty, NoopAuditExporter)
-    assert s3.get_status()["configured"] is False
+    assert s3.get_status()["exporter"] == "s3_object_lock"
+    assert s3.get_status()["immutable"] is True
+
+
+def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_readback() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", audit_export_required=True, audit_export_uri="s3://flow-memory-audit/compute-market"),
+        audit_exporter=exporter,
+    )
+    service.plan({"task": "s3 object lock export", "request_id": "s3-worm"})
+
+    exported = service.audit_export({"chain_id": "all"})
+    verified = exporter.verify_export()
+
+    assert exported["ok"] is True
+    assert exported["path"].startswith("s3://flow-memory-audit/compute-market/exports/")
+    assert exported["checkpoint"]["exported_to"] == "s3_object_lock"
+    assert exported["checkpoint"]["object_lock_mode"] == "COMPLIANCE"
+    assert exported["checkpoint"]["retention_until"]
+    assert verified.ok is True
+    assert len(client.puts) == 2
+    assert {put["ContentType"] for put in client.puts} == {"application/x-ndjson", "application/json"}
+    assert all(put["ObjectLockMode"] == "COMPLIANCE" for put in client.puts)
+    assert all(put["ObjectLockRetainUntilDate"] for put in client.puts)
+    export_body = next(client.objects[(str(put["Bucket"]), str(put["Key"]))] for put in client.puts if put["ContentType"] == "application/x-ndjson")
+    manifest = json.loads(export_body.decode("utf-8").splitlines()[0])
+    assert manifest["object_lock_mode"] == "COMPLIANCE"
+    assert manifest["storage_uri"] == exported["path"]
+    assert manifest["retention_until"]
 
 
 def test_audit_checkpoint_paginates_all_events() -> None:

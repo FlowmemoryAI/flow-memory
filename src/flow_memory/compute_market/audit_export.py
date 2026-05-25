@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from urllib.parse import unquote, urlparse
+from datetime import datetime, timedelta, timezone
+from dataclasses import dataclass, field
+from urllib.parse import parse_qs, unquote, urlparse
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
@@ -47,6 +48,9 @@ class AuditCheckpoint:
     export_uri: str
     export_status: str
     verification_status: str
+    object_lock_mode: str = ""
+    retention_until: str = ""
+    storage_uri: str = ""
 
     def as_record(self) -> dict[str, object]:
         return dict(self.__dict__)
@@ -227,17 +231,22 @@ class LocalFileAuditExporter:
         return {"configured": True, "exporter": "local_file", "path": str(self.path)}
 
 
-@dataclass(frozen=True)
+@dataclass
 class S3WormAuditExporter:
-    """Configuration scaffold for object-lock/WORM deployments.
+    """S3 Object Lock audit exporter.
 
-    This class intentionally does not perform cloud writes without a project-wide
-    object-storage dependency and credential model. Operators should bind a real
-    implementation behind AuditExporterProtocol.
+    The implementation is dependency-optional: production deployments install
+    boto3 and grant put/head/get permissions on an Object-Lock-enabled bucket;
+    tests inject a small client with the same methods. Writes always include
+    object-lock headers and fail closed if the client or bucket is unavailable.
     """
 
     bucket: str
     prefix: str
+    object_lock_mode: str = "COMPLIANCE"
+    retention_days: int = 365
+    client: Any | None = None
+    _last_export_key: str = field(default="", init=False, repr=False)
 
     def export_events(
         self,
@@ -247,29 +256,169 @@ class S3WormAuditExporter:
         from_sequence: int = 1,
         to_sequence: int = 0,
     ) -> AuditExportResult:
-        return NoopAuditExporter("s3_worm_exporter_requires_deployment_binding").export_events(
-            store,
+        events = _select_events(store, chain_id=chain_id, from_sequence=from_sequence, to_sequence=to_sequence)
+        _assert_no_exported_secrets(events)
+        object_id = content_hash(
+            {
+                "bucket": self.bucket,
+                "prefix": self.prefix,
+                "chain_id": chain_id,
+                "from_sequence": from_sequence,
+                "to_sequence": to_sequence,
+                "event_hashes": tuple(str(event.get("event_hash", "")) for event in events),
+            }
+        )[:32]
+        key = self._key(f"exports/{chain_id or 'all'}-{object_id}.ndjson")
+        export_uri = f"s3://{self.bucket}/{key}"
+        retention_until = _retention_until(self.retention_days)
+        checkpoint = build_checkpoint(
+            events,
             chain_id=chain_id,
             from_sequence=from_sequence,
             to_sequence=to_sequence,
+            export_uri=export_uri,
+            exported_to="s3_object_lock",
+            object_lock_mode=self.object_lock_mode,
+            retention_until=_iso_timestamp(retention_until),
         )
+        manifest = {
+            "type": "manifest",
+            "format": _EXPORT_FORMAT,
+            "created_at": checkpoint.created_at,
+            "chain_id": chain_id,
+            "event_count": len(events),
+            "checkpoint_hash": checkpoint.checkpoint_hash,
+            "storage_uri": export_uri,
+            "object_lock_mode": self.object_lock_mode,
+            "retention_until": checkpoint.retention_until,
+        }
+        manifest_hash = content_hash(manifest)
+        manifest = {**manifest, "manifest_hash": manifest_hash}
+        body = "\n".join(
+            [
+                _canonical_json(manifest),
+                *(_canonical_json({"type": "audit_event", "event": event}) for event in events),
+                _canonical_json({"type": "checkpoint", "checkpoint": checkpoint.as_record()}),
+            ]
+        ) + "\n"
+        client = self._client()
+        client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=body.encode("utf-8"),
+            ContentType="application/x-ndjson",
+            Metadata={
+                "manifest-hash": manifest_hash,
+                "checkpoint-id": checkpoint.checkpoint_id,
+                "audit-format": _EXPORT_FORMAT,
+            },
+            ObjectLockMode=self.object_lock_mode,
+            ObjectLockRetainUntilDate=retention_until,
+        )
+        if hasattr(client, "head_object"):
+            client.head_object(Bucket=self.bucket, Key=key)
+        self._last_export_key = key
+        return AuditExportResult(True, export_uri, checkpoint, manifest_hash, len(events))
 
     def write_checkpoint(self, checkpoint: AuditCheckpoint) -> Mapping[str, Any]:
-        return {"ok": False, "reason": "s3_worm_exporter_requires_deployment_binding", "checkpoint": checkpoint.as_record()}
+        retention_until = _retention_until(self.retention_days)
+        key = self._key(f"checkpoints/{checkpoint.checkpoint_id}.json")
+        body = _canonical_json(
+            {
+                **checkpoint.as_record(),
+                "storage_uri": f"s3://{self.bucket}/{key}",
+                "object_lock_mode": self.object_lock_mode,
+                "retention_until": checkpoint.retention_until or _iso_timestamp(retention_until),
+            }
+        ) + "\n"
+        client = self._client()
+        client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=body.encode("utf-8"),
+            ContentType="application/json",
+            Metadata={"checkpoint-id": checkpoint.checkpoint_id, "audit-format": _EXPORT_FORMAT},
+            ObjectLockMode=self.object_lock_mode,
+            ObjectLockRetainUntilDate=retention_until,
+        )
+        if hasattr(client, "head_object"):
+            client.head_object(Bucket=self.bucket, Key=key)
+        return {"ok": True, "path": f"s3://{self.bucket}/{key}", "checkpoint": checkpoint.as_record(), "object_lock_mode": self.object_lock_mode}
 
     def verify_export(self) -> AuditExportVerification:
-        return AuditExportVerification(False, f"s3://{self.bucket}/{self.prefix}", 0, error_code="not_bound", message="S3/WORM exporter requires deployment binding")
+        if not self._last_export_key:
+            return AuditExportVerification(False, f"s3://{self.bucket}/{self.prefix}", 0, error_code="missing_export_key", message="no export has been written by this exporter instance")
+        try:
+            response = self._client().get_object(Bucket=self.bucket, Key=self._last_export_key)
+            parsed = tuple(json.loads(line) for line in _object_body_text(response.get("Body")).splitlines() if line.strip())
+            manifest = parsed[0]
+            checkpoint_line = parsed[-1]
+            events = tuple(_event_from_line(item) for item in parsed[1:-1])
+            if str(manifest.get("format", "")) != _EXPORT_FORMAT:
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code="invalid_format", message="audit export format is invalid")
+            if any(event is None for event in events):
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code="invalid_event_line", message="audit export contains a malformed event line")
+            event_records = tuple(event for event in events if event is not None)
+            _assert_no_exported_secrets(event_records)
+            checkpoint_map = checkpoint_line.get("checkpoint") if isinstance(checkpoint_line, Mapping) else None
+            if not isinstance(checkpoint_map, Mapping):
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), error_code="missing_checkpoint", message="audit export is missing checkpoint")
+            expected = _checkpoint_hash(event_records, str(checkpoint_map.get("chain_id", "all")), str(checkpoint_map.get("export_uri", "")))
+            checkpoint_hash = str(checkpoint_map.get("checkpoint_hash", ""))
+            if checkpoint_hash != expected:
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash, "checkpoint_hash_mismatch", "checkpoint hash does not match exported events")
+            chain_error = _verify_exported_chain(event_records)
+            if chain_error:
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash, chain_error[0], chain_error[1])
+            return AuditExportVerification(True, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash)
+        except Exception as exc:
+            return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=type(exc).__name__, message=str(exc))
 
     def get_status(self) -> Mapping[str, object]:
-        return {"configured": False, "exporter": "s3_worm_ready", "bucket": self.bucket, "prefix": self.prefix}
+        configured = bool(self.bucket) and self._client_available()
+        return {
+            "configured": configured,
+            "exporter": "s3_object_lock",
+            "bucket": self.bucket,
+            "prefix": self.prefix,
+            "object_lock_mode": self.object_lock_mode,
+            "retention_days": self.retention_days,
+            "immutable": True,
+        }
+
+    def _key(self, suffix: str) -> str:
+        prefix = self.prefix.strip("/")
+        clean_suffix = suffix.strip("/")
+        return f"{prefix}/{clean_suffix}" if prefix else clean_suffix
+
+    def _client_available(self) -> bool:
+        if self.client is not None:
+            return True
+        try:
+            import boto3  # noqa: F401
+        except Exception:
+            return False
+        return True
+
+    def _client(self) -> Any:
+        if not self.bucket:
+            raise RuntimeError("S3 audit exporter requires a bucket")
+        if self.client is not None:
+            return self.client
+        try:
+            import boto3
+        except Exception as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError("S3 audit export requires optional dependency: boto3") from exc
+        self.client = boto3.client("s3")
+        return self.client
 
 
 def create_audit_exporter(uri: str | Path | None) -> AuditExporterProtocol:
     """Resolve a deployment audit-export URI to a concrete exporter.
 
     Bare paths and file:// URIs write local tamper-evident NDJSON exports.
-    s3:// URIs deliberately resolve to a fail-closed WORM scaffold until a
-    deployment binds cloud credentials and object-lock semantics.
+    s3:// URIs resolve to an optional boto3-backed Object Lock writer. The
+    writer fails closed when the S3 client or dependency is unavailable.
     """
 
     raw = str(uri or "").strip()
@@ -287,7 +436,15 @@ def create_audit_exporter(uri: str | Path | None) -> AuditExporterProtocol:
             path = raw
         return LocalFileAuditExporter(Path(path))
     if parsed.scheme == "s3":
-        return S3WormAuditExporter(bucket=parsed.netloc, prefix=parsed.path.lstrip("/"))
+        query = parse_qs(parsed.query)
+        object_lock_mode = str(query.get("object_lock_mode", query.get("mode", ["COMPLIANCE"]))[0]).upper()
+        retention_days = _int_query_value(query.get("retention_days", query.get("retention", ["365"]))[0], default=365)
+        return S3WormAuditExporter(
+            bucket=parsed.netloc,
+            prefix=parsed.path.lstrip("/"),
+            object_lock_mode=object_lock_mode,
+            retention_days=retention_days,
+        )
     return NoopAuditExporter(f"unsupported_audit_export_uri:{parsed.scheme}")
 
 
@@ -299,6 +456,8 @@ def build_checkpoint(
     to_sequence: int,
     export_uri: str,
     exported_to: str,
+    object_lock_mode: str = "",
+    retention_until: str = "",
 ) -> AuditCheckpoint:
     event_count = len(events)
     first_event = events[0] if events else {}
@@ -330,6 +489,9 @@ def build_checkpoint(
         export_uri=export_uri,
         export_status="exported" if event_count else "empty",
         verification_status="unverified",
+        object_lock_mode=object_lock_mode,
+        retention_until=retention_until,
+        storage_uri=export_uri,
     )
 
 
@@ -406,6 +568,32 @@ def _event_from_line(item: Mapping[str, Any]) -> Mapping[str, Any] | None:
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def _retention_until(retention_days: int) -> datetime:
+    days = max(1, int(retention_days))
+    return datetime.now(timezone.utc) + timedelta(days=days)
+
+
+def _iso_timestamp(value: datetime) -> str:
+    return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _int_query_value(value: object, *, default: int) -> int:
+    try:
+        return max(1, int(str(value)))
+    except (TypeError, ValueError):
+        return default
+
+
+def _object_body_text(body: object) -> str:
+    if body is None:
+        return ""
+    if hasattr(body, "read"):
+        body = body.read()
+    if isinstance(body, bytes):
+        return body.decode("utf-8", "replace")
+    return str(body)
 
 
 def _assert_no_exported_secrets(events: tuple[Mapping[str, Any], ...]) -> None:

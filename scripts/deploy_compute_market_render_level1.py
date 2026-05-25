@@ -322,6 +322,8 @@ def call_json(method: str, url: str, headers: dict[str, str] | None = None, body
             return exc.code, json.loads(text) if text.strip() else {}
         except Exception:
             return exc.code, {"raw": text}
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
+        return 0, {"raw": str(exc)}
 
 
 def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:

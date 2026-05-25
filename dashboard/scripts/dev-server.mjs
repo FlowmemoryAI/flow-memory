@@ -379,21 +379,21 @@ function renderInteractive3DHero(payload) {
   const stories = [
     {
       mode: 'swarm',
-      visual: 'Agent swarm',
-      title: 'Human work enters',
-      copy: 'Local run events gather as a living field before anything is committed.',
+      visual: 'Loose signals',
+      title: 'Work becomes signal',
+      copy: 'Every run event starts as a thin strand from human compute.',
     },
     {
       mode: 'contact',
-      visual: 'Contact mesh',
-      title: 'Proof resolves',
-      copy: 'GPU evidence and policy checks compress the swarm into a legible proof surface.',
+      visual: 'Neural braid',
+      title: 'Strands combine',
+      copy: 'Curved links pull together through the proof mesh like a living neural net.',
     },
     {
       mode: 'manim',
-      visual: 'Manim path',
-      title: 'Memory persists',
-      copy: 'The verified run becomes a geometric memory path operators can replay and trust.',
+      visual: 'Memory weave',
+      title: 'Memory takes shape',
+      copy: 'The braid resolves into a durable path that operators can replay and trust.',
     },
   ];
   const steps = stories.map((story, index) => `
@@ -406,12 +406,12 @@ function renderInteractive3DHero(payload) {
         </li>`).join('');
   return `
     <aside class="mission-3d-visualizer" aria-label="Interactive Flow Memory 3D visualization">
-      <div class="mission-3d-canvas-frame" data-3d-ready="pending" data-story-mode="swarm">
+      <div class="mission-3d-canvas-frame" data-3d-ready="pending" data-story-mode="swarm" data-neural-strands="true">
         <canvas id="mission-3d-canvas" aria-label="Interactive 3D memory field. Drag to rotate and scroll to zoom."></canvas>
         <div class="mission-3d-fallback">Loading visual story field</div>
         <div class="mission-3d-overlay">
-          <strong>Watch work become memory</strong>
-          <span>Drag to rotate · Scroll to zoom · Story cycles locally</span>
+          <strong>Neural strands become memory</strong>
+          <span>Drag to rotate · Scroll to zoom · strands combine locally</span>
         </div>
         <div class="mission-3d-status">
           <span>GPU evidence ${text(gpuStatus)}</span>
@@ -424,11 +424,12 @@ function renderInteractive3DHero(payload) {
         </div>
         <div class="mission-3d-callout mission-3d-callout-source">Human work traces</div>
         <div class="mission-3d-callout mission-3d-callout-proof">Proof mesh resolves</div>
+        <div class="mission-3d-callout mission-3d-callout-weave">Neural strands combine</div>
         <div class="mission-3d-callout mission-3d-callout-memory">Durable memory path</div>
       </div>
       <ol class="mission-story-steps" aria-label="Visualization story controls">${steps}
       </ol>
-      <p class="mission-3d-caption">A visual proof story: swarms enter, contact meshes resolve, and Manim-like traces become durable Flow Memory.</p>
+      <p class="mission-3d-caption">A neural strand story: signals enter as loose fibers, braid through the proof mesh, and resolve into durable Flow Memory.</p>
     </aside>`;
 }
 
@@ -578,6 +579,93 @@ import * as THREE from '/vendor/three.module.js';
   ring.rotation.x = Math.PI * 0.52;
   root.add(ring);
 
+  const strandGroup = new THREE.Group();
+  const strandPulses = [];
+  const strandLines = [];
+  const sourceColor = new THREE.Color(0x9d7040);
+  const coreColor = new THREE.Color(0x0052ff);
+  const memoryColor = new THREE.Color(0x131110);
+  const colorScratch = new THREE.Color();
+  const pulseGeometry = new THREE.SphereGeometry(0.045, 12, 12);
+  const pulseMaterial = new THREE.MeshBasicMaterial({ color: 0x0052ff, transparent: true, opacity: 0.86 });
+  const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0x131110, transparent: true, opacity: 0.58 });
+  const tubeMaterial = new THREE.MeshBasicMaterial({ color: 0x0052ff, transparent: true, opacity: 0.16, depthWrite: false });
+  const strandAnchors = [];
+
+  function addAnchorNode(position, scale) {
+    const node = new THREE.Mesh(new THREE.SphereGeometry(0.038 * scale, 10, 10), nodeMaterial.clone());
+    node.position.copy(position);
+    strandAnchors.push(node);
+    strandGroup.add(node);
+  }
+
+  function makeNeuralStrand(index) {
+    const lane = (index % 9) - 4;
+    const band = Math.floor(index / 3);
+    const startY = lane * 0.22 + Math.sin(index * 1.7) * 0.16;
+    const startZ = Math.cos(index * 1.13) * 1.16;
+    const endY = lane * -0.14 + Math.cos(index * 0.91) * 0.22;
+    const endZ = Math.sin(index * 1.37) * 1.06;
+    const midLift = Math.sin(index * 0.63) * 0.46;
+    const controlPoints = [
+      new THREE.Vector3(-3.45, startY, startZ),
+      new THREE.Vector3(-2.26, startY * 0.62 + 0.48, startZ * 0.74),
+      new THREE.Vector3(-0.86, midLift, Math.sin(index) * 0.58),
+      new THREE.Vector3(0.08, Math.sin(index * 1.31) * 0.22, Math.cos(index * 0.72) * 0.32),
+      new THREE.Vector3(1.34, endY * 0.48 - 0.36, endZ * 0.76),
+      new THREE.Vector3(3.22, endY, endZ),
+    ];
+    const curve = new THREE.CatmullRomCurve3(controlPoints, false, 'centripetal', 0.62);
+    const samples = curve.getPoints(118);
+    const geometry = new THREE.BufferGeometry().setFromPoints(samples);
+    const colors = new Float32Array(samples.length * 3);
+    for (let i = 0; i < samples.length; i += 1) {
+      const t = i / (samples.length - 1);
+      if (t < 0.5) colorScratch.lerpColors(sourceColor, coreColor, t * 2);
+      else colorScratch.lerpColors(coreColor, memoryColor, (t - 0.5) * 2);
+      colors[i * 3] = colorScratch.r;
+      colors[i * 3 + 1] = colorScratch.g;
+      colors[i * 3 + 2] = colorScratch.b;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const material = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.28 + (index % 4) * 0.035,
+      depthWrite: false,
+    });
+    const line = new THREE.Line(geometry, material);
+    line.userData.baseOpacity = material.opacity;
+    line.userData.phase = index * 0.37;
+    strandLines.push(line);
+    strandGroup.add(line);
+
+    if (index % 3 === 0) {
+      const tube = new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 72, 0.008 + band * 0.002, 5, false),
+        tubeMaterial.clone(),
+      );
+      tube.userData.baseOpacity = tube.material.opacity;
+      tube.userData.phase = index * 0.41;
+      strandLines.push(tube);
+      strandGroup.add(tube);
+    }
+
+    const pulse = new THREE.Mesh(pulseGeometry, pulseMaterial.clone());
+    pulse.userData.points = samples;
+    pulse.userData.speed = 0.085 + (index % 5) * 0.018;
+    pulse.userData.offset = (index * 0.071) % 1;
+    strandPulses.push(pulse);
+    strandGroup.add(pulse);
+
+    if (index % 2 === 0) addAnchorNode(controlPoints[0], 1);
+    if (index % 5 === 0) addAnchorNode(controlPoints[3], 1.35);
+    if (index % 3 === 0) addAnchorNode(controlPoints[5], 1.1);
+  }
+
+  for (let i = 0; i < 18; i += 1) makeNeuralStrand(i);
+  root.add(strandGroup);
+
   const storyGroup = new THREE.Group();
   const storyRail = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([
@@ -686,19 +774,19 @@ import * as THREE from '/vendor/three.module.js';
   const storyOrder = ['swarm', 'contact', 'manim'];
   const fallbackStory = {
     swarm: {
-      label: 'Agent swarm',
-      title: 'Human work enters',
-      copy: 'Local run events gather as a living field before anything is committed.',
+      label: 'Loose signals',
+      title: 'Work becomes signal',
+      copy: 'Every run event starts as a thin strand from human compute.',
     },
     contact: {
-      label: 'Contact mesh',
-      title: 'Proof resolves',
-      copy: 'GPU evidence and policy checks compress the swarm into a legible proof surface.',
+      label: 'Neural braid',
+      title: 'Strands combine',
+      copy: 'Curved links pull together through the proof mesh like a living neural net.',
     },
     manim: {
-      label: 'Manim path',
-      title: 'Memory persists',
-      copy: 'The verified run becomes a geometric memory path operators can replay and trust.',
+      label: 'Memory weave',
+      title: 'Memory takes shape',
+      copy: 'The braid resolves into a durable path that operators can replay and trust.',
     },
   };
   let activeMode = 'swarm';
@@ -824,6 +912,26 @@ import * as THREE from '/vendor/three.module.js';
 
     theorem.rotation.x = elapsed * 0.34;
     theorem.rotation.y = elapsed * 0.52;
+
+    const strandIntensity = activeMode === 'contact' ? 1.18 : activeMode === 'manim' ? 0.94 : 0.82;
+    strandGroup.rotation.z = Math.sin(elapsed * 0.22) * 0.035;
+    for (const item of strandLines) {
+      item.material.opacity = item.userData.baseOpacity * strandIntensity + Math.sin(elapsed * 1.6 + item.userData.phase) * 0.035;
+    }
+    for (let i = 0; i < strandPulses.length; i += 1) {
+      const pulse = strandPulses[i];
+      const points = pulse.userData.points;
+      const travel = (elapsed * pulse.userData.speed + pulse.userData.offset) % 1;
+      const pointIndex = Math.min(points.length - 1, Math.floor(travel * points.length));
+      pulse.position.copy(points[pointIndex]);
+      pulse.scale.setScalar(activeMode === 'contact' ? 1.22 : 0.92);
+      pulse.material.opacity = 0.34 + Math.sin(elapsed * 2.2 + i) * 0.12 + (activeMode === 'contact' ? 0.28 : 0.08);
+    }
+    for (let i = 0; i < strandAnchors.length; i += 1) {
+      const anchor = strandAnchors[i];
+      anchor.scale.setScalar(0.86 + Math.sin(elapsed * 1.8 + i * 0.31) * 0.14);
+      anchor.material.opacity = activeMode === 'swarm' ? 0.72 : 0.46;
+    }
 
     renderer.render(scene, camera);
     requestAnimationFrame(animate);

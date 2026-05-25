@@ -2286,6 +2286,11 @@ dd {
   top: 43%;
 }
 
+.mission-3d-callout-weave {
+  left: 43%;
+  top: 34%;
+}
+
 .mission-3d-callout-memory {
   right: 13%;
   bottom: 31%;
@@ -2293,6 +2298,7 @@ dd {
 
 .mission-3d-canvas-frame[data-story-mode="swarm"] .mission-3d-callout-source,
 .mission-3d-canvas-frame[data-story-mode="contact"] .mission-3d-callout-proof,
+.mission-3d-canvas-frame[data-story-mode="contact"] .mission-3d-callout-weave,
 .mission-3d-canvas-frame[data-story-mode="manim"] .mission-3d-callout-memory {
   opacity: 1;
   transform: translate3d(0, -3px, 0) scale(1);

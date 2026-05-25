@@ -96,6 +96,33 @@ class HttpApiGateway:
                 },
                 headers=_headers(request_id),
             )
+        if context.method in {"GET", "HEAD"} and context.path == "/":
+            return HttpApiResponse(
+                status=200,
+                body={
+                    "ok": True,
+                    "data": {
+                        "service": "Flow Memory Compute Market",
+                        "status": "public_level_1_api_live",
+                        "auth": "API key required for /compute/* endpoints",
+                        "safe_mode": {
+                            "dry_run_required": True,
+                            "live_settlement_enabled": False,
+                            "broadcast_enabled": False,
+                            "private_key_inputs_allowed": False,
+                            "funds_moved": False,
+                        },
+                        "endpoints": {
+                            "health": "/compute/health",
+                            "readiness": "/compute/readiness",
+                            "plan": "/compute/plan",
+                            "audit_verify": "/compute/audit/verify",
+                        },
+                    },
+                    "request_id": request_id,
+                },
+                headers=_headers(request_id),
+            )
         try:
             payload = self._parse_body(method, body)
             auth = authorize_request(

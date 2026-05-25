@@ -24,6 +24,10 @@ def test_http_gateway_api_key_auth_blocks_missing_key():
     healthz = gateway.handle("GET", "/healthz", {})
     assert healthz.status == 200
     assert healthz.body["data"]["endpoint"] == "healthz"
+    root = gateway.handle("GET", "/", {})
+    assert root.status == 200
+    assert root.body["data"]["service"] == "Flow Memory Compute Market"
+    assert root.body["data"]["auth"] == "API key required for /compute/* endpoints"
 
 
 def test_http_gateway_scope_enforcement():

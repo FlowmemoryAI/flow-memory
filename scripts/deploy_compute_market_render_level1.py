@@ -180,6 +180,14 @@ def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
     deploy = render_request(api_key, "POST", f"/services/{urllib.parse.quote(service_id)}/deploys", {"clearCache": "do_not_clear"})
     envelope = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
     deploy_id = str(envelope.get("id", ""))
+    if not deploy_id:
+        deploys = render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}/deploys?limit=5")
+        for item in deploys if isinstance(deploys, list) else []:
+            candidate = item.get("deploy", item) if isinstance(item, dict) else {}
+            candidate_id = str(candidate.get("id", ""))
+            if candidate_id:
+                deploy_id = candidate_id
+                break
     return wait_deploy_live(api_key, service_id, deploy_id)
 
 

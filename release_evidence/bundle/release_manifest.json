@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 75,
-    "manifest_hash": "2abb59fee2bbc645a6720a9b99a86217c83c939e44ca63fd5c2a1ddf3c5e0105",
-    "openapi_hash": "b6ecde95787ea7116ac5987d2c20935d246798d5179974f8006b93dc389ea2af",
+    "endpoint_count": 80,
+    "manifest_hash": "0d89f8a56edbb6b92fcfcfa357bed8bd1ad26056f288e6a61b9e8405ecf0a396",
+    "openapi_hash": "93ed07331f73c8bcf259a3d3f789e477e2884311879d67990a05db472332202f",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -17,6 +17,8 @@
       "GET /dashboard/snapshot",
       "GET /flowlang/examples",
       "GET /health",
+      "GET /launch/runs",
+      "GET /launch/runs/{run_id}",
       "GET /manifest",
       "GET /network/state",
       "GET /neural/backends",
@@ -57,6 +59,9 @@
       "POST /flowlang/validate",
       "POST /launch/agent",
       "POST /launch/agent/from-flow",
+      "POST /launch/runs/{run_id}/export",
+      "POST /launch/runs/{run_id}/replay",
+      "POST /launch/runs/{run_id}/stop",
       "POST /marketplace/assign",
       "POST /marketplace/bids",
       "POST /marketplace/dispute",
@@ -80,7 +85,7 @@
       "POST /verification/{contract_id}",
       "POST /visual/replay/start"
     ],
-    "path_count": 73,
+    "path_count": 78,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -112,6 +117,11 @@
       "/health",
       "/launch/agent",
       "/launch/agent/from-flow",
+      "/launch/runs",
+      "/launch/runs/{run_id}",
+      "/launch/runs/{run_id}/export",
+      "/launch/runs/{run_id}/replay",
+      "/launch/runs/{run_id}/stop",
       "/manifest",
       "/marketplace/assign",
       "/marketplace/bids",
@@ -346,8 +356,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "3b3122e",
-  "manifest_hash": "7c427a3a38e4f6003d95c12fa2a866273acd0f80c58ec87624d5c811f6ec6f5f",
+  "git_commit": "c998726",
+  "manifest_hash": "39b588856b04ad06888b2cdb1a029a4159a34dc60908dd4f46ee7033889d8902",
   "release_gates": {
     "ok": true,
     "results": [

@@ -67,6 +67,7 @@
     "replay_artifact_path": "artifacts\\launch\\live_agent_95595210d3771e19.json",
     "risks_scored": 2,
     "run_id": "live_agent_95595210d3771e19",
+    "run_record_path": "artifacts\\launch\\runs\\live_agent_95595210d3771e19.json",
     "safety_authority": "policy_engine_and_approval_gate",
     "session_id": "neural_session_d4a6f9aaf8a45b86",
     "template": "live-research",

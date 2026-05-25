@@ -29,6 +29,17 @@ python -m flow_memory launch agent --template mission-control-demo --neural tiny
 
 This replay focuses on a single live local neural agent and includes neural session creation, perception, prediction, plan/risk scoring, policy gate application, learning ticks, memory writes, metadata-only checkpointing, and session completion.
 
+## 2c. Generate or inspect Live Agent Operations replay
+
+```bash
+python -m flow_memory launch agent --template mission-control-demo --neural tiny_torch --ticks 3 --emit-visual --out dashboard/src/mock-data/live-agent-operations.json --json
+python -m flow_memory launch runs list --json
+python -m flow_memory launch runs replay <run_id> --json
+python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
+```
+
+The operations replay is backed by a local run record under `artifacts/launch/runs/`; it is not a background process manager or hosted telemetry service.
+
 ## 3. Run the local API server for live polling mode
 
 ```bash
@@ -46,6 +57,11 @@ Useful endpoints:
 - `POST /neural/live/sessions`
 - `POST /neural/live/sessions/{session_id}/step`
 
+- `GET /launch/runs`
+- `GET /launch/runs/{run_id}`
+- `POST /launch/runs/{run_id}/replay`
+- `POST /launch/runs/{run_id}/export`
+- `POST /launch/runs/{run_id}/stop`
 With local auth/scopes:
 
 ```bash

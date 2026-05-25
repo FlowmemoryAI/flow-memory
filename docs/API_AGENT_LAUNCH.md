@@ -39,3 +39,23 @@ POST /launch/agent
 The response includes the launch summary, replay events, visual state, memory record metadata, and local-only safety invariants.
 
 These endpoints are local/public-alpha seams, not production internet auth or hosted orchestration.
+
+## Live Agent Operations API
+
+After launching an agent, inspect local run records with:
+
+```http
+GET /launch/runs
+GET /launch/runs/{run_id}
+POST /launch/runs/{run_id}/replay
+POST /launch/runs/{run_id}/export
+POST /launch/runs/{run_id}/stop
+```
+
+Scopes when enabled:
+
+- `launch:read` for list/show/replay
+- `launch:export` for bundle export
+- `launch:run` for stop/no-op operations
+
+These endpoints read and write local JSON metadata only. They do not call external providers, move funds, or manage hidden background processes.

@@ -1,0 +1,28 @@
+# Live Agent Operations memory scout.
+# Reads local memory metadata only; no external model/provider calls.
+agent LiveOpsMemoryScout {
+  identity: "did:flow:example:live-ops-memory-scout"
+  goal: "retrieve relevant local memory records and explain what changed"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "memory"
+  capability: "neural_memory_retrieval"
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 3102
+    model_profile: "local-ops-memory-scout"
+    perception_streams: ["text", "memory"]
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

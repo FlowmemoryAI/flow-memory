@@ -40,6 +40,9 @@ Live neural agent Launchpad:
 ```bash
 python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json
 python -m flow_memory launch agent --flow examples/live_research_agent.flow --ticks 5 --emit-visual --json
+python -m flow_memory launch runs list --json
+python -m flow_memory launch runs show <run_id> --json
+python -m flow_memory launch runs replay <run_id> --json
 ```
 
 ## Local network + Mission Control replay

@@ -53,13 +53,13 @@
       "bytes": 52415,
       "exists": true,
       "path": "dashboard/src/mock-data/local-network-replay.json",
-      "sha256": "6925af79b76372f3fe12d8dd5e955522e93c83d642905e6304e01a986887beec"
+      "sha256": "e03e1bfe6a7a47a7dd77005855e0c0e35cede6b624a94b2c233fa07140d8e467"
     },
     {
-      "bytes": 3256,
+      "bytes": 4024,
       "exists": true,
       "path": "docs/MISSION_CONTROL_QUICKSTART.md",
-      "sha256": "2e0413ab3737bd63e9846fc8d03ff1d0ebc1a066f1df6f455d95b88b35cf9c74"
+      "sha256": "8dd529d5b66bdc35fb95fcc39164ee0fd840f01bf55763fcba17bb84985fac47"
     },
     {
       "bytes": 1185,
@@ -76,7 +76,7 @@
     "event_count": 41,
     "ok": true,
     "path": "dashboard\\src\\mock-data\\local-network-replay.json",
-    "sha256": "6925af79b76372f3fe12d8dd5e955522e93c83d642905e6304e01a986887beec",
+    "sha256": "e03e1bfe6a7a47a7dd77005855e0c0e35cede6b624a94b2c233fa07140d8e467",
     "task_count": 2
   },
   "schema_version": "visual.telemetry.v1"

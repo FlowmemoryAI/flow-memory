@@ -23,6 +23,7 @@ from flow_memory.ir.agent_adapter import agent_profile_from_ir
 from flow_memory.neural.live import NeuralRuntimeManager
 from flow_memory.visualization.events import VISUAL_SCHEMA_VERSION, VisualEvent
 from flow_memory.visualization.reducer import reduce_visual_events
+from flow_memory.launch_operations import upsert_run_from_launch_payload
 
 
 @dataclass(frozen=True)
@@ -198,6 +199,7 @@ def run_live_agent_launch(
     artifact_path: str | Path | None = None,
     write_artifact: bool = True,
     write_checkpoint: bool = True,
+    write_run_record: bool = True,
 ) -> Mapping[str, Any]:
     if ticks < 1:
         raise ValueError("ticks must be >= 1")
@@ -285,6 +287,7 @@ def run_live_agent_launch(
     artifact = Path(artifact_path) if artifact_path is not None else root_path / "artifacts" / "launch" / f"{run_id}.json"
     if not artifact.is_absolute():
         artifact = root_path / artifact
+    run_record_path = root_path / "artifacts" / "launch" / "runs" / f"{run_id}.json"
     summary = {
         "ok": True,
         "run_id": run_id,
@@ -299,6 +302,7 @@ def run_live_agent_launch(
         "visual_events_emitted": len(events),
         "replay_artifact_path": _rel(root_path, artifact),
         "checkpoint_metadata_path": checkpoint_metadata_path,
+        "run_record_path": _rel(root_path, run_record_path),
         "gpu_evidence_status": _gpu_evidence_status(root_path),
         "release_gate_status": {
             "local_public_alpha": "not_evaluated",
@@ -329,6 +333,12 @@ def run_live_agent_launch(
     if write_artifact:
         artifact.parent.mkdir(parents=True, exist_ok=True)
         artifact.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+    if write_run_record:
+        record = upsert_run_from_launch_payload(root_path, payload)
+        payload["run_record"] = dict(record)
+        payload["summary"] = {**dict(payload["summary"]), "run_record_path": record.get("run_record_path", "")}
+        if write_artifact:
+            artifact.write_text(json.dumps(payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
     return payload
 
 

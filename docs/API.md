@@ -122,3 +122,13 @@ When scope checks are enabled these endpoints require `release:read`.
 ## Dashboard snapshot endpoint
 
 `GET /dashboard/snapshot` returns typed mock snapshot metadata for the public-alpha dashboard scaffold, including neural/GPU evidence status, RL benchmark summaries, agent launch paths, local network scenarios, and simulated payment flows. It is mock data only and requires `dashboard:read` when scope checks are enabled.
+
+### Live Agent Operations
+
+- `GET /launch/runs`
+- `GET /launch/runs/{run_id}`
+- `POST /launch/runs/{run_id}/replay`
+- `POST /launch/runs/{run_id}/export`
+- `POST /launch/runs/{run_id}/stop`
+
+These operate on local launch run metadata and replay artifacts only.

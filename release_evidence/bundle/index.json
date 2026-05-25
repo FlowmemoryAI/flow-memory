@@ -1,20 +1,21 @@
 {
-  "bundle_hash": "b76f49362b9f1de81044a3362404c982a97a6465f4af9abe12adb93862de18ce",
+  "bundle_hash": "948ee830087c808bf4d72323a6de3fb6de00b774a57626750d4b7bb64bafcf3c",
   "file_hashes": {
-    "api_snapshot.json": "04ef0371d736f130abc2cb8275b1e048c2b1a1d22bc37a48e7bd039c6c3594d1",
+    "api_snapshot.json": "c9745d177284545c2d3be0f082640def491822eaa46eafef5f54c94abe3c7a9c",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
     "compute_market.json": "799bb0d700a871a91cdde619dc0d57d90c1d93e745d3e1b1d6c4ab6e1cf149fc",
     "dependency_inventory.json": "9819542e274c038b6ad5c1c07bfaff0806e2803f26c9a329f0d59d61360ffe83",
     "gpu_evidence.json": "55fb6c05277946061d0c912e89c602c05d0744a2dc4aa32953f8c15bafb26a71",
-    "live_agent_launchpad.json": "33817c73e9df6641f112106c278d9283e49c354d13f5cf82b3bb1a912dd9e8c9",
-    "neural_live_agents.json": "a23d24c10f2c995044463c276e06959a92b4f3f1a1ad9b79fcfc8d4e2c75b759",
+    "live_agent_launchpad.json": "cb94c011a95e622514cddafdee463ed2eeb616e5d42fc74d665498f7a5a26e08",
+    "live_agent_operations.json": "6eb745ae52bee462121b8ba026b78f68dafed718cbe696da641520564f635803",
+    "neural_live_agents.json": "916ac2e43a9a58800f2edf057f8ededc77a06e7eb36b086d21546c4767d23569",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "4b164fc5289b57d75995ad11123a0e8ef09afd2d1cfe93717f24dfcccee1b3f0",
+    "release_manifest.json": "4461f44c5e425619edc0101d858eaeeb2fa9654959c09322664afcb951cbe854",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "6289a6d2d574b23647eea34247a0baf4c05e78e2e36de968fcb4748e49341e64"
+    "visual_system.json": "158563e9102e899af0958e65416fb5b10420d55f6896ff3c0b0b0d8282028f3d"
   },
   "files": [
     "api_snapshot.json",
@@ -25,6 +26,7 @@
     "dependency_inventory.json",
     "gpu_evidence.json",
     "live_agent_launchpad.json",
+    "live_agent_operations.json",
     "neural_live_agents.json",
     "release_gates.json",
     "release_manifest.json",

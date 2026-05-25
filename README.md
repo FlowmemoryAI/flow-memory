@@ -37,6 +37,9 @@ python -m flow_memory --neural tiny_torch --neural-live --json "Explore and repo
 python -m flow_memory neural live step --backend tiny_torch --goal "Explore and report"
 python -m flow_memory launch agent --template live-research --neural tiny_torch --ticks 5 --emit-visual --json
 python -m flow_memory launch agent --flow examples/live_research_agent.flow --ticks 5 --emit-visual --json
+python -m flow_memory launch runs list --json
+python -m flow_memory launch runs replay <run_id> --json
+python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -78,6 +81,7 @@ The project now combines:
 - dashboard scaffold and CI workflows
 - Flow Memory Compute Market dry-run provider/route/quote/settlement simulation
 - Live Agent Launchpad for one-command local neural-live agent runs and Mission Control replay artifacts
+- Live Agent Operations registry for local run inspection, replay lookup, safe stop/no-op handling, and bundle export
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.

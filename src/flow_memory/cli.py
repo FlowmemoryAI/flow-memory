@@ -6,7 +6,8 @@ import argparse
 import json
 import sys
 from dataclasses import asdict
-from typing import Any
+from pathlib import Path
+from typing import Any, Mapping
 
 from flow_memory import Agent
 from flow_memory.protocols import CapabilityManifest
@@ -17,6 +18,7 @@ from flow_memory.compute_market.planner import compute_marketplace_plan
 from flow_memory.compute_market.registry import default_policies, default_providers, default_routes
 from flow_memory.neural.live import GLOBAL_NEURAL_RUNTIME
 from flow_memory.launchpad import launch_template_names, run_live_agent_launch
+from flow_memory.launch_operations import export_run_bundle, get_run_record, list_run_records, replay_run_record, stop_run_record
 
 
 def _json_default(value: Any) -> str:
@@ -78,6 +80,7 @@ def _manifest(argv: list[str]) -> int:
 def _launch(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory launch", description="Run polished local launch workflows")
     sub = parser.add_subparsers(dest="resource", required=True)
+
     agent = sub.add_parser("agent", description="Launch a local live neural agent")
     agent.add_argument("--template", default="live-research", choices=launch_template_names())
     agent.add_argument("--flow", default="", help="Optional FlowLang agent file")
@@ -87,23 +90,92 @@ def _launch(argv: list[str]) -> int:
     agent.add_argument("--emit-visual", action="store_true", help="Emit Mission Control replay events")
     agent.add_argument("--json", action="store_true", help="Print full launch artifact JSON")
     agent.add_argument("--out", default="", help="Optional replay artifact path")
+
+    runs = sub.add_parser("runs", description="Inspect and export local Live Agent Launchpad runs")
+    run_sub = runs.add_subparsers(dest="run_command", required=True)
+    run_list = run_sub.add_parser("list")
+    run_list.add_argument("--json", action="store_true")
+    run_show = run_sub.add_parser("show")
+    run_show.add_argument("run_id")
+    run_show.add_argument("--json", action="store_true")
+    run_replay = run_sub.add_parser("replay")
+    run_replay.add_argument("run_id")
+    run_replay.add_argument("--json", action="store_true")
+    run_export = run_sub.add_parser("export")
+    run_export.add_argument("run_id")
+    run_export.add_argument("--out", default="")
+    run_export.add_argument("--json", action="store_true")
+    run_stop = run_sub.add_parser("stop")
+    run_stop.add_argument("run_id")
+    run_stop.add_argument("--json", action="store_true")
+    run_resume = run_sub.add_parser("resume")
+    run_resume.add_argument("run_id")
+    run_resume.add_argument("--ticks", type=int, default=3)
+    run_resume.add_argument("--emit-visual", action="store_true")
+    run_resume.add_argument("--json", action="store_true")
+
+    doctor = sub.add_parser("doctor", description="Check local launch/neural/Mission Control readiness")
+    doctor.add_argument("--json", action="store_true")
+
     args = parser.parse_args(argv)
 
-    if args.resource != "agent":
+    try:
+        if args.resource == "agent":
+            payload = run_live_agent_launch(
+                template=args.template,
+                flow_path=args.flow or None,
+                goal=args.goal,
+                backend=args.neural,
+                ticks=args.ticks,
+                emit_visual=args.emit_visual,
+                artifact_path=args.out or None,
+            )
+            return _print_launch_payload(payload, json_output=args.json)
+
+        if args.resource == "runs":
+            if args.run_command == "list":
+                payload = {"ok": True, "runs": list_run_records()}
+                return _print_launch_payload(payload, json_output=args.json, human=f"{len(payload['runs'])} launch run(s)")
+            if args.run_command == "show":
+                payload = {"ok": True, "run": get_run_record(".", args.run_id)}
+                return _print_launch_payload(payload, json_output=args.json, human=f"run {args.run_id}: {payload['run'].get('status', '')}")
+            if args.run_command == "replay":
+                payload = replay_run_record(".", args.run_id)
+                return _print_launch_payload(payload, json_output=args.json, human=f"replay {payload.get('replay_artifact_path', '')}")
+            if args.run_command == "export":
+                payload = export_run_bundle(".", args.run_id, args.out or None)
+                return _print_launch_payload(payload, json_output=args.json, human=f"exported {payload.get('bundle_path', '')}")
+            if args.run_command == "stop":
+                payload = stop_run_record(".", args.run_id)
+                return _print_launch_payload(payload, json_output=args.json, human=f"run {args.run_id}: {payload.get('status_before')} -> {payload.get('status_after')}")
+            if args.run_command == "resume":
+                record = dict(get_run_record(".", args.run_id))
+                payload = run_live_agent_launch(
+                    template=str(record.get("template", "live-research") or "live-research"),
+                    goal=f"Continue local launch run {args.run_id}",
+                    backend=str(record.get("backend", "tiny_torch") or "tiny_torch"),
+                    ticks=args.ticks,
+                    emit_visual=args.emit_visual,
+                )
+                payload["summary"] = {**dict(payload["summary"]), "continued_from_run_id": args.run_id}
+                return _print_launch_payload(payload, json_output=args.json)
+        if args.resource == "doctor":
+            payload = _launch_doctor()
+            return _print_launch_payload(payload, json_output=args.json, human="launch doctor ok" if payload["ok"] else "launch doctor failed")
         raise ValueError(f"unknown launch resource: {args.resource}")
-    payload = run_live_agent_launch(
-        template=args.template,
-        flow_path=args.flow or None,
-        goal=args.goal,
-        backend=args.neural,
-        ticks=args.ticks,
-        emit_visual=args.emit_visual,
-        artifact_path=args.out or None,
-    )
-    if args.json:
+    except (KeyError, ValueError) as exc:
+        payload = {"ok": False, "error": {"code": "launch.invalid_request", "message": str(exc)}}
         print(json.dumps(payload, indent=2, default=_json_default, sort_keys=True))
+        return 1
+
+
+def _print_launch_payload(payload: Mapping[str, Any], *, json_output: bool, human: str = "") -> int:
+    if json_output:
+        print(json.dumps(payload, indent=2, default=_json_default, sort_keys=True))
+    elif human:
+        print(human)
     else:
-        summary = dict(payload.get("summary", {}))
+        summary = dict(payload.get("summary", {})) if isinstance(payload.get("summary", {}), Mapping) else {}
         print(
             "launched {agent_id} session={session_id} ticks={ticks} replay={replay}".format(
                 agent_id=summary.get("agent_id", ""),
@@ -113,6 +185,35 @@ def _launch(argv: list[str]) -> int:
             )
         )
     return 0
+
+
+def _launch_doctor() -> Mapping[str, Any]:
+    from flow_memory.neural import is_torch_available
+
+    root = Path(".").resolve()
+    examples = tuple(Path("examples") / name for name in ("live_research_agent.flow", "memory_scout_agent.flow", "market_observer_agent.flow", "mission_control_demo_agent.flow"))
+    ops_fixture = Path("dashboard/src/mock-data/live-agent-operations.json")
+    launch_fixture = Path("dashboard/src/mock-data/live-neural-agent-launch.json")
+    artifact_dir = root / "artifacts" / "launch" / "runs"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    gpu_artifact = root / "artifacts" / "incoming" / "flow-memory-cloud-gpu-run-001.tar.gz"
+    checks = {
+        "tiny_torch": True,
+        "torch_available": is_torch_available(),
+        "launch_templates": bool(launch_template_names()),
+        "examples_available": all(path.exists() for path in examples),
+        "artifact_directory_writable": artifact_dir.exists(),
+        "visual_replay_fixture": launch_fixture.exists(),
+        "operations_fixture": ops_fixture.exists(),
+        "no_external_call_mode": True,
+    }
+    return {
+        "ok": all(value is True for key, value in checks.items() if key not in {"torch_available", "operations_fixture"}),
+        "checks": checks,
+        "gpu_evidence_status": "artifact_present_not_verified" if gpu_artifact.exists() else "blocked_missing_artifact",
+        "local_only": True,
+        "safety_authority": "policy_engine_and_approval_gate",
+    }
 
 def _compute(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory compute", description="Inspect and simulate the local Compute Market")

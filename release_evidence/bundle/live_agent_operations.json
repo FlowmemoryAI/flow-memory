@@ -1,0 +1,74 @@
+{
+  "docs": {
+    "docs/LIVE_AGENT_LAUNCHPAD.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
+    "docs/NEURAL_LIVE_AGENTS.md": true
+  },
+  "docs_safety_scan": {
+    "hits": [],
+    "ok": true
+  },
+  "live_agent_operations_api_available": true,
+  "live_agent_operations_cli_available": true,
+  "live_agent_operations_dashboard_fixture_valid": {
+    "ok": true,
+    "path": "E:\\FlowMemory\\flow-memory\\dashboard\\src\\mock-data\\live-agent-operations.json",
+    "run_id": "live_agent_9b713fe0821659d3",
+    "visual_events": 25
+  },
+  "live_agent_operations_examples_available": {
+    "examples/live_ops_market_observer.flow": true,
+    "examples/live_ops_memory_scout.flow": true,
+    "examples/live_ops_research_agent.flow": true
+  },
+  "live_agent_operations_export_available": true,
+  "live_agent_operations_gpu_status_honest": true,
+  "live_agent_operations_no_external_calls": true,
+  "live_agent_operations_no_funds_moved": true,
+  "live_agent_operations_no_live_provider_calls": true,
+  "live_agent_operations_policy_gated": true,
+  "live_agent_operations_registry_available": true,
+  "live_agent_operations_replay_available": true,
+  "missing_endpoints": [],
+  "ok": true,
+  "sample_run": {
+    "bundle_ok": true,
+    "record_status": "completed",
+    "replay_artifact_path": "artifacts\\launch\\live_agent_95595210d3771e19.json",
+    "run_id": "live_agent_95595210d3771e19",
+    "stop_noop": true,
+    "summary": {
+      "actions_allowed": 2,
+      "actions_denied": 0,
+      "agent_id": "agent_d4a6f9aaf8a45b86",
+      "backend": "tiny_torch",
+      "checkpoint_metadata_path": "artifacts\\launch\\live_agent_95595210d3771e19.metadata.json",
+      "gpu_evidence_status": "blocked_missing_artifact",
+      "learning_steps": 2,
+      "loop_ticks_completed": 2,
+      "memory_records_written": 7,
+      "no_external_calls": true,
+      "no_funds_moved": true,
+      "no_live_provider_calls": true,
+      "no_private_keys": true,
+      "ok": true,
+      "perceptions_encoded": 2,
+      "plans_scored": 2,
+      "policy_mode": "supervised",
+      "predictions_generated": 2,
+      "raw_model_weights_written": false,
+      "release_gate_status": {
+        "gpu_gated": "blocked_missing_artifact",
+        "local_public_alpha": "not_evaluated"
+      },
+      "replay_artifact_path": "artifacts\\launch\\live_agent_95595210d3771e19.json",
+      "risks_scored": 2,
+      "run_id": "live_agent_95595210d3771e19",
+      "run_record_path": "artifacts/launch/runs/live_agent_95595210d3771e19.json",
+      "safety_authority": "policy_engine_and_approval_gate",
+      "session_id": "neural_session_d4a6f9aaf8a45b86",
+      "template": "live-research",
+      "visual_events_emitted": 18
+    }
+  }
+}

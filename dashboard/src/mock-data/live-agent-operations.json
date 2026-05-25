@@ -1,0 +1,3142 @@
+{
+  "agent": {
+    "agent_id": "agent_a093fc05c99e8dc6",
+    "allowed_skills": [],
+    "allowed_tools": [
+      "respond",
+      "observe_environment"
+    ],
+    "autonomy_mode": "supervised",
+    "capabilities": [
+      "local_reasoning",
+      "memory",
+      "neural_advisory",
+      "mission_control"
+    ],
+    "compute_config": {},
+    "constraints": [],
+    "created_at": "2026-05-25T06:01:43.521685+00:00",
+    "description": "",
+    "economy_config": {},
+    "goals": [
+      "emit a rich local Mission Control replay for a neural live agent"
+    ],
+    "identity": "did:flow:mission-control-demo:3fe0821659d3",
+    "memory_config": {
+      "episodic": true,
+      "procedural": true,
+      "semantic": true,
+      "working_capacity": 12
+    },
+    "metadata": {
+      "launch_template": "mission-control-demo",
+      "launchpad_run_id": "live_agent_9b713fe0821659d3",
+      "public_alpha": true
+    },
+    "name": "Flow Memory Mission Control Demo Agent",
+    "neural_config": {
+      "backend": "tiny_torch",
+      "enabled": true,
+      "learning_enabled": true,
+      "live_mode": true,
+      "memory_retrieval_enabled": true,
+      "model_profile": "local-mission-control-demo",
+      "perception_streams": [
+        "text",
+        "events",
+        "memory"
+      ],
+      "plan_scoring_enabled": true,
+      "policy_fallback": "allow_non_neural",
+      "risk_scoring_enabled": true,
+      "seed": 9001,
+      "session_id": "neural_session_a093fc05c99e8dc6",
+      "telemetry_enabled": true
+    },
+    "persona": "",
+    "reputation": 0.0,
+    "risk_budget": {
+      "max_escrow_exposure": 0.0,
+      "max_risk_level": "medium",
+      "max_slashing_exposure": 0.0,
+      "max_spend": 0.0
+    },
+    "rl_config": {}
+  },
+  "checkpoint_metadata": {
+    "agent_id": "agent_a093fc05c99e8dc6",
+    "checkpoint_bytes": 399,
+    "checkpoint_id": "neural_checkpoint_b68d13d4a50551d5",
+    "checkpoint_ref": "E:\\FlowMemory\\flow-memory\\artifacts\\launch\\live_agent_9b713fe0821659d3.metadata.json",
+    "checkpoint_written": true,
+    "learning_tick_count": 3,
+    "local_only": true,
+    "metadata_only": true,
+    "raw_weights_written": false,
+    "session_id": "neural_session_a093fc05c99e8dc6",
+    "step_count": 3
+  },
+  "events": [
+    {
+      "created_at": "2026-01-01T00:00:10+00:00",
+      "event_id": "visual_event_7b1029799ece9c82",
+      "event_type": "agent",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "capabilities": [
+          "local_reasoning",
+          "memory",
+          "neural_advisory",
+          "mission_control"
+        ],
+        "label": "Flow Memory Mission Control Demo Agent",
+        "reputation": 0.0,
+        "role": "live_neural_agent",
+        "status": "idle",
+        "template": "mission-control-demo"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:00:20+00:00",
+      "event_id": "visual_event_c274967525170a19",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "idle",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_session_created",
+        "phase": "idle",
+        "policy_gate_state": "pending_policy_gate",
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "unavailable"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:10+00:00",
+      "event_id": "visual_event_09a6be7b57a597bd",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_perception_encoded",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:20+00:00",
+      "event_id": "visual_event_4b61c8027aeba203",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_prediction_generated",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:30+00:00",
+      "event_id": "visual_event_f54c74ea60b9c823",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_plan_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:40+00:00",
+      "event_id": "visual_event_78203354f1ec7e98",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_risk_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:50+00:00",
+      "event_id": "visual_event_69a3a532cf73e225",
+      "event_type": "safety",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_3a7331ff7f692745",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "neural_policy_3a7331ff7f692745"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": "neural_policy_3a7331ff7f692745"
+    },
+    {
+      "created_at": "2026-01-01T00:01:00+00:00",
+      "event_id": "visual_event_c23e20ff28487b93",
+      "event_type": "memory",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.90849,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_3a7331ff7f692745",
+        "summary": "neural live tick 1 memory candidates: 1"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:30+00:00",
+      "event_id": "visual_event_cf108c7b98e18af7",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_learning_step_completed",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.342051,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.342051
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:10+00:00",
+      "event_id": "visual_event_46b1513f233fa91c",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_perception_encoded",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:20+00:00",
+      "event_id": "visual_event_59e689e182a0e5ed",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_prediction_generated",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:30+00:00",
+      "event_id": "visual_event_c00c4c113bbffdc2",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_plan_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:40+00:00",
+      "event_id": "visual_event_01e05752045a87f1",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_risk_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:50+00:00",
+      "event_id": "visual_event_d922b7f1968c15d7",
+      "event_type": "safety",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_5843848a3abe13b0",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "neural_policy_5843848a3abe13b0"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": "neural_policy_5843848a3abe13b0"
+    },
+    {
+      "created_at": "2026-01-01T00:02:00+00:00",
+      "event_id": "visual_event_18f384331bec76ee",
+      "event_type": "memory",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.628661,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_5843848a3abe13b0",
+        "summary": "neural live tick 2 memory candidates: 1"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:30+00:00",
+      "event_id": "visual_event_2b5a38dc825b5c05",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_learning_step_completed",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.838893,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.838893
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:10+00:00",
+      "event_id": "visual_event_06290458093fabad",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_perception_encoded",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:20+00:00",
+      "event_id": "visual_event_531b61012781c942",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_prediction_generated",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:30+00:00",
+      "event_id": "visual_event_967c01bf187c36fa",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_plan_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:40+00:00",
+      "event_id": "visual_event_a345771dc00c470b",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_risk_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:50+00:00",
+      "event_id": "visual_event_94a2e989e913c32f",
+      "event_type": "safety",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_a8a9478f49feaa14",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "neural_policy_a8a9478f49feaa14"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": "neural_policy_a8a9478f49feaa14"
+    },
+    {
+      "created_at": "2026-01-01T00:03:00+00:00",
+      "event_id": "visual_event_5b9314269577ee78",
+      "event_type": "memory",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.877353,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_a8a9478f49feaa14",
+        "summary": "neural live tick 3 memory candidates: 1"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:30+00:00",
+      "event_id": "visual_event_483dbd5d50d8c67a",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_learning_step_completed",
+        "external_model_calls": false,
+        "learning_tick_count": 3,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.047539,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.047539
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:04:10+00:00",
+      "event_id": "visual_event_b58a5e2b749c3a27",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_checkpoint_written",
+        "external_model_calls": false,
+        "learning_tick_count": 3,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "checkpoint",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.0,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "observed",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:04:20+00:00",
+      "event_id": "visual_event_2c374f881ebcbb19",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "completed",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_session_stopped",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "completed",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.0,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "stopped",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    }
+  ],
+  "generated_at": "2026-05-25T06:01:43.531249+00:00",
+  "memory_records": [
+    {
+      "kind": "neural_live_step",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "backend_available": false,
+        "context": {
+          "context_count": 0,
+          "goal": "emit a rich local Mission Control replay for a neural live agent",
+          "plan_id": "agent_plan_fba3ddf62c654ffe94026551f3077d25",
+          "risk_level": "low"
+        },
+        "external_model_calls": false,
+        "fallback_active": true,
+        "gpu_evidence_claimed": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "memory_candidates": [
+          {
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "memory_id": "neural_memory_c04cc8fcf4971abc",
+            "score": 0.670964,
+            "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+          }
+        ],
+        "model_profile": "local-mission-control-demo",
+        "ok": true,
+        "perception": {
+          "embedding_id": "neural_embedding_0da867aeaecc8d96",
+          "encoded": true,
+          "streams": [
+            "text",
+            "events",
+            "memory"
+          ]
+        },
+        "phase": "learning",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction": {
+          "confidence": 0.90849,
+          "prediction_id": "neural_prediction_b9741ec45c9321b6",
+          "world_model": "deterministic_metadata"
+        },
+        "prediction_confidence": 0.90849,
+        "recommended_action": "respond",
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "step_count": 1,
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      }
+    },
+    {
+      "kind": "agent_run",
+      "payload": {
+        "compute": {
+          "dry_run_only": true,
+          "enabled": false,
+          "status": "disabled"
+        },
+        "execution": {
+          "output": "emit a rich local Mission Control replay for a neural live agent",
+          "step_results": [
+            {
+              "output": "emit a rich local Mission Control replay for a neural live agent",
+              "success": true,
+              "tool": "respond"
+            }
+          ],
+          "success": true
+        },
+        "goal": "emit a rich local Mission Control replay for a neural live agent",
+        "neural": {
+          "backend": "tiny_torch",
+          "evaluation_score": {
+            "economic_value": 0.0,
+            "memory_usefulness": 0.0,
+            "metadata": {},
+            "novelty_surprise": 0.0,
+            "output_quality": 0.515,
+            "policy_compliance": 1.0,
+            "total_score": 0.30300000000000005
+          },
+          "live_session": {
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "backend_available": false,
+            "checkpoint_metadata": {},
+            "config": {
+              "backend": "tiny_torch",
+              "checkpoint_ref": "",
+              "enabled": true,
+              "inference_mode": "local_deterministic",
+              "learning_enabled": true,
+              "learning_rate": 0.01,
+              "live_mode": true,
+              "max_step_ms": 0,
+              "memory_retrieval_enabled": true,
+              "model_profile": "local-mission-control-demo",
+              "perception_streams": [
+                "text",
+                "events",
+                "memory"
+              ],
+              "plan_scoring_enabled": true,
+              "policy_fallback": "allow_non_neural",
+              "risk_scoring_enabled": true,
+              "seed": 9001,
+              "telemetry_enabled": true
+            },
+            "created_at": "2026-05-25T06:01:43.521685+00:00",
+            "device": "cpu",
+            "last_record": {
+              "action_state": "recommended",
+              "agent_id": "agent_a093fc05c99e8dc6",
+              "backend": "tiny_torch",
+              "backend_available": false,
+              "context": {
+                "context_count": 0,
+                "goal": "emit a rich local Mission Control replay for a neural live agent",
+                "plan_id": "agent_plan_fba3ddf62c654ffe94026551f3077d25",
+                "risk_level": "low"
+              },
+              "external_model_calls": false,
+              "fallback_active": true,
+              "gpu_evidence_claimed": false,
+              "learning_tick_count": 0,
+              "local_only": true,
+              "memory_activation_count": 1,
+              "memory_candidates": [
+                {
+                  "agent_id": "agent_a093fc05c99e8dc6",
+                  "memory_id": "neural_memory_c04cc8fcf4971abc",
+                  "score": 0.670964,
+                  "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+                }
+              ],
+              "model_profile": "local-mission-control-demo",
+              "ok": true,
+              "perception": {
+                "embedding_id": "neural_embedding_0da867aeaecc8d96",
+                "encoded": true,
+                "streams": [
+                  "text",
+                  "events",
+                  "memory"
+                ]
+              },
+              "phase": "learning",
+              "plan_score": 0.673359,
+              "policy_gate_state": "pending_policy_gate",
+              "prediction": {
+                "confidence": 0.90849,
+                "prediction_id": "neural_prediction_b9741ec45c9321b6",
+                "world_model": "deterministic_metadata"
+              },
+              "prediction_confidence": 0.90849,
+              "recommended_action": "respond",
+              "risk_score": 0.381679,
+              "safety_authority": "policy_engine_and_approval_gate",
+              "session_id": "neural_session_a093fc05c99e8dc6",
+              "status": "fallback_non_neural",
+              "step_count": 1,
+              "surprise_score": 0.09151,
+              "uncertainty": 0.09151
+            },
+            "learning_tick_count": 0,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "session_id": "neural_session_a093fc05c99e8dc6",
+            "status": "unavailable",
+            "step_count": 1,
+            "stopped": false,
+            "updated_at": "2026-05-25T06:01:43.523097+00:00"
+          },
+          "live_step": {
+            "action_state": "recommended",
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "backend": "tiny_torch",
+            "backend_available": false,
+            "context": {
+              "context_count": 0,
+              "goal": "emit a rich local Mission Control replay for a neural live agent",
+              "plan_id": "agent_plan_fba3ddf62c654ffe94026551f3077d25",
+              "risk_level": "low"
+            },
+            "external_model_calls": false,
+            "fallback_active": true,
+            "gpu_evidence_claimed": false,
+            "learning_tick_count": 0,
+            "local_only": true,
+            "memory_activation_count": 1,
+            "memory_candidates": [
+              {
+                "agent_id": "agent_a093fc05c99e8dc6",
+                "memory_id": "neural_memory_c04cc8fcf4971abc",
+                "score": 0.670964,
+                "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+              }
+            ],
+            "model_profile": "local-mission-control-demo",
+            "ok": true,
+            "perception": {
+              "embedding_id": "neural_embedding_0da867aeaecc8d96",
+              "encoded": true,
+              "streams": [
+                "text",
+                "events",
+                "memory"
+              ]
+            },
+            "phase": "learning",
+            "plan_score": 0.673359,
+            "policy_gate_state": "pending_policy_gate",
+            "prediction": {
+              "confidence": 0.90849,
+              "prediction_id": "neural_prediction_b9741ec45c9321b6",
+              "world_model": "deterministic_metadata"
+            },
+            "prediction_confidence": 0.90849,
+            "recommended_action": "respond",
+            "risk_score": 0.381679,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "session_id": "neural_session_a093fc05c99e8dc6",
+            "status": "fallback_non_neural",
+            "step_count": 1,
+            "surprise_score": 0.09151,
+            "uncertainty": 0.09151
+          },
+          "memory_retrieval_scores": [],
+          "plan_scores": [
+            {
+              "economic_risk": 0.0,
+              "expected_cost": 0.1,
+              "expected_success": 0.9249999999999999,
+              "memory_similarity": 0.0,
+              "plan_id": "agent_plan_fba3ddf62c654ffe94026551f3077d25",
+              "policy_risk": 0.1,
+              "total_score": 0.8799999999999999
+            }
+          ],
+          "reason": "neural backend unavailable; policy allowed non-neural fallback",
+          "risk_scores": {
+            "approval_required_likelihood": 0.0,
+            "economic_loss_proxy": 0.0,
+            "failure_probability": 0.1,
+            "unsafe_action_likelihood": 0.0
+          },
+          "safety_authority": "policy_engine_and_approval_gate",
+          "session_id": "neural_session_a093fc05c99e8dc6",
+          "skill_scores": [],
+          "status": "fallback_non_neural",
+          "telemetry_enabled": true
+        },
+        "plan": {
+          "economic_intent": false,
+          "economic_value": 0.0,
+          "goal": "emit a rich local Mission Control replay for a neural live agent",
+          "plan_id": "agent_plan_fba3ddf62c654ffe94026551f3077d25",
+          "risk_level": "low",
+          "rollback_strategy": "stop and preserve audit trail",
+          "steps": [
+            {
+              "action": "respond",
+              "economic_value": 0.0,
+              "expected_outputs": [
+                "response"
+              ],
+              "required_permissions": [
+                "respond"
+              ],
+              "required_skills": [],
+              "required_tools": [
+                "respond"
+              ],
+              "risk_level": "low",
+              "step_id": "plan_step_4fdcf1f07bbe497fafc09912ab13f4d9"
+            }
+          ],
+          "success_criteria": [
+            "produce auditable result"
+          ]
+        },
+        "rl": {
+          "enabled": false,
+          "safety_authority": "policy_engine_and_approval_gate"
+        },
+        "settlement": null
+      }
+    },
+    {
+      "kind": "neural_learning_update",
+      "payload": {
+        "after_metric": 0.342051,
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "before_metric": 0.34550652826533346,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "loss": 0.342051,
+        "ok": true,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "sample_id": "neural_sample_10b605affd4c6baa",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "step_count": 1
+      }
+    },
+    {
+      "kind": "neural_live_step",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "backend_available": false,
+        "context": {
+          "context_count": 3,
+          "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+          "plan_id": "agent_plan_f5f873639c484a26b155ef54941b41de",
+          "risk_level": "low"
+        },
+        "external_model_calls": false,
+        "fallback_active": true,
+        "gpu_evidence_claimed": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "memory_candidates": [
+          {
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "memory_id": "neural_memory_bceb2c9405c60b37",
+            "score": 0.752963,
+            "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+          }
+        ],
+        "model_profile": "local-mission-control-demo",
+        "ok": true,
+        "perception": {
+          "embedding_id": "neural_embedding_d88b3248cf171b63",
+          "encoded": true,
+          "streams": [
+            "text",
+            "events",
+            "memory"
+          ]
+        },
+        "phase": "learning",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction": {
+          "confidence": 0.628661,
+          "prediction_id": "neural_prediction_3b01eac7ed8ce0ce",
+          "world_model": "deterministic_metadata"
+        },
+        "prediction_confidence": 0.628661,
+        "recommended_action": "respond",
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "step_count": 2,
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      }
+    },
+    {
+      "kind": "agent_run",
+      "payload": {
+        "compute": {
+          "dry_run_only": true,
+          "enabled": false,
+          "status": "disabled"
+        },
+        "execution": {
+          "output": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+          "step_results": [
+            {
+              "output": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+              "success": true,
+              "tool": "respond"
+            }
+          ],
+          "success": true
+        },
+        "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+        "neural": {
+          "backend": "tiny_torch",
+          "evaluation_score": {
+            "economic_value": 0.0,
+            "memory_usefulness": 0.6,
+            "metadata": {},
+            "novelty_surprise": 0.0,
+            "output_quality": 0.5525,
+            "policy_compliance": 1.0,
+            "total_score": 0.4305
+          },
+          "live_session": {
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "backend_available": false,
+            "checkpoint_metadata": {},
+            "config": {
+              "backend": "tiny_torch",
+              "checkpoint_ref": "",
+              "enabled": true,
+              "inference_mode": "local_deterministic",
+              "learning_enabled": true,
+              "learning_rate": 0.01,
+              "live_mode": true,
+              "max_step_ms": 0,
+              "memory_retrieval_enabled": true,
+              "model_profile": "local-mission-control-demo",
+              "perception_streams": [
+                "text",
+                "events",
+                "memory"
+              ],
+              "plan_scoring_enabled": true,
+              "policy_fallback": "allow_non_neural",
+              "risk_scoring_enabled": true,
+              "seed": 9001,
+              "telemetry_enabled": true
+            },
+            "created_at": "2026-05-25T06:01:43.521685+00:00",
+            "device": "cpu",
+            "last_record": {
+              "action_state": "recommended",
+              "agent_id": "agent_a093fc05c99e8dc6",
+              "backend": "tiny_torch",
+              "backend_available": false,
+              "context": {
+                "context_count": 3,
+                "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+                "plan_id": "agent_plan_f5f873639c484a26b155ef54941b41de",
+                "risk_level": "low"
+              },
+              "external_model_calls": false,
+              "fallback_active": true,
+              "gpu_evidence_claimed": false,
+              "learning_tick_count": 1,
+              "local_only": true,
+              "memory_activation_count": 1,
+              "memory_candidates": [
+                {
+                  "agent_id": "agent_a093fc05c99e8dc6",
+                  "memory_id": "neural_memory_bceb2c9405c60b37",
+                  "score": 0.752963,
+                  "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+                }
+              ],
+              "model_profile": "local-mission-control-demo",
+              "ok": true,
+              "perception": {
+                "embedding_id": "neural_embedding_d88b3248cf171b63",
+                "encoded": true,
+                "streams": [
+                  "text",
+                  "events",
+                  "memory"
+                ]
+              },
+              "phase": "learning",
+              "plan_score": 0.789902,
+              "policy_gate_state": "pending_policy_gate",
+              "prediction": {
+                "confidence": 0.628661,
+                "prediction_id": "neural_prediction_3b01eac7ed8ce0ce",
+                "world_model": "deterministic_metadata"
+              },
+              "prediction_confidence": 0.628661,
+              "recommended_action": "respond",
+              "risk_score": 0.168274,
+              "safety_authority": "policy_engine_and_approval_gate",
+              "session_id": "neural_session_a093fc05c99e8dc6",
+              "status": "fallback_non_neural",
+              "step_count": 2,
+              "surprise_score": 0.371339,
+              "uncertainty": 0.371339
+            },
+            "learning_tick_count": 1,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "session_id": "neural_session_a093fc05c99e8dc6",
+            "status": "unavailable",
+            "step_count": 2,
+            "stopped": false,
+            "updated_at": "2026-05-25T06:01:43.524699+00:00"
+          },
+          "live_step": {
+            "action_state": "recommended",
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "backend": "tiny_torch",
+            "backend_available": false,
+            "context": {
+              "context_count": 3,
+              "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+              "plan_id": "agent_plan_f5f873639c484a26b155ef54941b41de",
+              "risk_level": "low"
+            },
+            "external_model_calls": false,
+            "fallback_active": true,
+            "gpu_evidence_claimed": false,
+            "learning_tick_count": 1,
+            "local_only": true,
+            "memory_activation_count": 1,
+            "memory_candidates": [
+              {
+                "agent_id": "agent_a093fc05c99e8dc6",
+                "memory_id": "neural_memory_bceb2c9405c60b37",
+                "score": 0.752963,
+                "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+              }
+            ],
+            "model_profile": "local-mission-control-demo",
+            "ok": true,
+            "perception": {
+              "embedding_id": "neural_embedding_d88b3248cf171b63",
+              "encoded": true,
+              "streams": [
+                "text",
+                "events",
+                "memory"
+              ]
+            },
+            "phase": "learning",
+            "plan_score": 0.789902,
+            "policy_gate_state": "pending_policy_gate",
+            "prediction": {
+              "confidence": 0.628661,
+              "prediction_id": "neural_prediction_3b01eac7ed8ce0ce",
+              "world_model": "deterministic_metadata"
+            },
+            "prediction_confidence": 0.628661,
+            "recommended_action": "respond",
+            "risk_score": 0.168274,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "session_id": "neural_session_a093fc05c99e8dc6",
+            "status": "fallback_non_neural",
+            "step_count": 2,
+            "surprise_score": 0.371339,
+            "uncertainty": 0.371339
+          },
+          "memory_retrieval_scores": [
+            {
+              "item": "{'kind': 'neural_live_step', 'payload': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}}",
+              "score": 0.6102039712525178
+            },
+            {
+              "item": "{'kind': 'agent_run', 'payload': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan': {'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'goal': 'emit a rich local Mission Control replay for a neural live agent', 'steps': ({'step_id': 'plan_step_4fdcf1f07bbe497fafc09912ab13f4d9', 'action': 'respond', 'required_tools': ('respond',), 'required_skills': (), 'required_permissions': ('respond',), 'risk_level': 'low', 'expected_outputs': ('response',), 'economic_value': 0.0},), 'risk_level': 'low', 'success_criteria': ('produce auditable result',), 'rollback_strategy': 'stop and preserve audit trail', 'economic_intent': False, 'economic_value': 0.0}, 'execution': {'success': True, 'output': 'emit a rich local Mission Control replay for a neural live agent', 'step_results': ({'success': True, 'tool': 'respond', 'output': 'emit a rich local Mission Control replay for a neural live agent'},)}, 'settlement': None, 'neural': {'backend': 'tiny_torch', 'status': 'fallback_non_neural', 'plan_scores': ({'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'expected_success': 0.9249999999999999, 'expected_cost': 0.1, 'policy_risk': 0.1, 'economic_risk': 0.0, 'memory_similarity': 0.0, 'total_score': 0.8799999999999999},), 'skill_scores': (), 'risk_scores': {'unsafe_action_likelihood': 0.0, 'approval_required_likelihood': 0.0, 'economic_loss_proxy': 0.0, 'failure_probability': 0.1}, 'memory_retrieval_scores': (), 'evaluation_score': {'output_quality': 0.515, 'policy_compliance': 1.0, 'novelty_surprise': 0.0, 'memory_usefulness': 0.0, 'economic_value': 0.0, 'total_score': 0.30300000000000005, 'metadata': {}}, 'safety_authority': 'policy_engine_and_approval_gate', 'reason': 'neural backend unavailable; policy allowed non-neural fallback', 'session_id': 'neural_session_a093fc05c99e8dc6', 'live_session': {'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'config': {'enabled': True, 'backend': 'tiny_torch', 'live_mode': True, 'learning_enabled': True, 'learning_rate': 0.01, 'seed': 9001, 'model_profile': 'local-mission-control-demo', 'checkpoint_ref': '', 'perception_streams': ('text', 'events', 'memory'), 'plan_scoring_enabled': True, 'risk_scoring_enabled': True, 'memory_retrieval_enabled': True, 'policy_fallback': 'allow_non_neural', 'max_step_ms': 0, 'telemetry_enabled': True, 'inference_mode': 'local_deterministic'}, 'status': 'unavailable', 'backend_available': False, 'device': 'cpu', 'created_at': '2026-05-25T06:01:43.521685+00:00', 'updated_at': '2026-05-25T06:01:43.523097+00:00', 'step_count': 1, 'learning_tick_count': 0, 'stopped': False, 'last_record': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}, 'checkpoint_metadata': {}, 'safety_authority': 'policy_engine_and_approval_gate'}, 'live_step': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}, 'telemetry_enabled': True}, 'rl': {'enabled': False, 'safety_authority': 'policy_engine_and_approval_gate'}, 'compute': {'enabled': False, 'status': 'disabled', 'dry_run_only': True}}}",
+              "score": 0.5993893700778574
+            },
+            {
+              "item": "{'kind': 'neural_learning_update', 'payload': {'ok': True, 'status': 'learned', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'before_metric': 0.34550652826533346, 'after_metric': 0.342051, 'loss': 0.342051, 'step_count': 1, 'learning_tick_count': 1, 'sample_id': 'neural_sample_10b605affd4c6baa', 'local_only': True, 'safety_authority': 'policy_engine_and_approval_gate'}}",
+              "score": 0.3161487387093396
+            }
+          ],
+          "plan_scores": [
+            {
+              "economic_risk": 0.0,
+              "expected_cost": 0.1,
+              "expected_success": 0.9249999999999999,
+              "memory_similarity": 0.6102039712525178,
+              "plan_id": "agent_plan_f5f873639c484a26b155ef54941b41de",
+              "policy_risk": 0.1,
+              "total_score": 1.0020407942505036
+            }
+          ],
+          "reason": "neural backend unavailable; policy allowed non-neural fallback",
+          "risk_scores": {
+            "approval_required_likelihood": 0.0,
+            "economic_loss_proxy": 0.0,
+            "failure_probability": 0.1,
+            "unsafe_action_likelihood": 0.0
+          },
+          "safety_authority": "policy_engine_and_approval_gate",
+          "session_id": "neural_session_a093fc05c99e8dc6",
+          "skill_scores": [],
+          "status": "fallback_non_neural",
+          "telemetry_enabled": true
+        },
+        "plan": {
+          "economic_intent": false,
+          "economic_value": 0.0,
+          "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 2)",
+          "plan_id": "agent_plan_f5f873639c484a26b155ef54941b41de",
+          "risk_level": "low",
+          "rollback_strategy": "stop and preserve audit trail",
+          "steps": [
+            {
+              "action": "respond",
+              "economic_value": 0.0,
+              "expected_outputs": [
+                "response"
+              ],
+              "required_permissions": [
+                "respond"
+              ],
+              "required_skills": [],
+              "required_tools": [
+                "respond"
+              ],
+              "risk_level": "low",
+              "step_id": "plan_step_1b681425dfc84acda624c4e859cce361"
+            }
+          ],
+          "success_criteria": [
+            "produce auditable result"
+          ]
+        },
+        "rl": {
+          "enabled": false,
+          "safety_authority": "policy_engine_and_approval_gate"
+        },
+        "settlement": null
+      }
+    },
+    {
+      "kind": "neural_learning_update",
+      "payload": {
+        "after_metric": 0.838893,
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "before_metric": 0.8473664786746363,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "loss": 0.838893,
+        "ok": true,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "sample_id": "neural_sample_2e5b51931e7bd570",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "step_count": 2
+      }
+    },
+    {
+      "kind": "neural_live_step",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "backend_available": false,
+        "context": {
+          "context_count": 5,
+          "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+          "plan_id": "agent_plan_bed5f129cce94d648ade83c14d2ba239",
+          "risk_level": "low"
+        },
+        "external_model_calls": false,
+        "fallback_active": true,
+        "gpu_evidence_claimed": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "memory_candidates": [
+          {
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "memory_id": "neural_memory_455fa1df48479bf8",
+            "score": 0.877854,
+            "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+          }
+        ],
+        "model_profile": "local-mission-control-demo",
+        "ok": true,
+        "perception": {
+          "embedding_id": "neural_embedding_75b25d9653443106",
+          "encoded": true,
+          "streams": [
+            "text",
+            "events",
+            "memory"
+          ]
+        },
+        "phase": "learning",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction": {
+          "confidence": 0.877353,
+          "prediction_id": "neural_prediction_bfb920cca9a991f4",
+          "world_model": "deterministic_metadata"
+        },
+        "prediction_confidence": 0.877353,
+        "recommended_action": "respond",
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "step_count": 3,
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      }
+    },
+    {
+      "kind": "agent_run",
+      "payload": {
+        "compute": {
+          "dry_run_only": true,
+          "enabled": false,
+          "status": "disabled"
+        },
+        "execution": {
+          "output": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+          "step_results": [
+            {
+              "output": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+              "success": true,
+              "tool": "respond"
+            }
+          ],
+          "success": true
+        },
+        "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+        "neural": {
+          "backend": "tiny_torch",
+          "evaluation_score": {
+            "economic_value": 0.0,
+            "memory_usefulness": 0.6,
+            "metadata": {},
+            "novelty_surprise": 0.0,
+            "output_quality": 0.5525,
+            "policy_compliance": 1.0,
+            "total_score": 0.4305
+          },
+          "live_session": {
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "backend_available": false,
+            "checkpoint_metadata": {},
+            "config": {
+              "backend": "tiny_torch",
+              "checkpoint_ref": "",
+              "enabled": true,
+              "inference_mode": "local_deterministic",
+              "learning_enabled": true,
+              "learning_rate": 0.01,
+              "live_mode": true,
+              "max_step_ms": 0,
+              "memory_retrieval_enabled": true,
+              "model_profile": "local-mission-control-demo",
+              "perception_streams": [
+                "text",
+                "events",
+                "memory"
+              ],
+              "plan_scoring_enabled": true,
+              "policy_fallback": "allow_non_neural",
+              "risk_scoring_enabled": true,
+              "seed": 9001,
+              "telemetry_enabled": true
+            },
+            "created_at": "2026-05-25T06:01:43.521685+00:00",
+            "device": "cpu",
+            "last_record": {
+              "action_state": "recommended",
+              "agent_id": "agent_a093fc05c99e8dc6",
+              "backend": "tiny_torch",
+              "backend_available": false,
+              "context": {
+                "context_count": 5,
+                "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+                "plan_id": "agent_plan_bed5f129cce94d648ade83c14d2ba239",
+                "risk_level": "low"
+              },
+              "external_model_calls": false,
+              "fallback_active": true,
+              "gpu_evidence_claimed": false,
+              "learning_tick_count": 2,
+              "local_only": true,
+              "memory_activation_count": 1,
+              "memory_candidates": [
+                {
+                  "agent_id": "agent_a093fc05c99e8dc6",
+                  "memory_id": "neural_memory_455fa1df48479bf8",
+                  "score": 0.877854,
+                  "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+                }
+              ],
+              "model_profile": "local-mission-control-demo",
+              "ok": true,
+              "perception": {
+                "embedding_id": "neural_embedding_75b25d9653443106",
+                "encoded": true,
+                "streams": [
+                  "text",
+                  "events",
+                  "memory"
+                ]
+              },
+              "phase": "learning",
+              "plan_score": 0.552584,
+              "policy_gate_state": "pending_policy_gate",
+              "prediction": {
+                "confidence": 0.877353,
+                "prediction_id": "neural_prediction_bfb920cca9a991f4",
+                "world_model": "deterministic_metadata"
+              },
+              "prediction_confidence": 0.877353,
+              "recommended_action": "respond",
+              "risk_score": 0.242753,
+              "safety_authority": "policy_engine_and_approval_gate",
+              "session_id": "neural_session_a093fc05c99e8dc6",
+              "status": "fallback_non_neural",
+              "step_count": 3,
+              "surprise_score": 0.122647,
+              "uncertainty": 0.122647
+            },
+            "learning_tick_count": 2,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "session_id": "neural_session_a093fc05c99e8dc6",
+            "status": "unavailable",
+            "step_count": 3,
+            "stopped": false,
+            "updated_at": "2026-05-25T06:01:43.528507+00:00"
+          },
+          "live_step": {
+            "action_state": "recommended",
+            "agent_id": "agent_a093fc05c99e8dc6",
+            "backend": "tiny_torch",
+            "backend_available": false,
+            "context": {
+              "context_count": 5,
+              "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+              "plan_id": "agent_plan_bed5f129cce94d648ade83c14d2ba239",
+              "risk_level": "low"
+            },
+            "external_model_calls": false,
+            "fallback_active": true,
+            "gpu_evidence_claimed": false,
+            "learning_tick_count": 2,
+            "local_only": true,
+            "memory_activation_count": 1,
+            "memory_candidates": [
+              {
+                "agent_id": "agent_a093fc05c99e8dc6",
+                "memory_id": "neural_memory_455fa1df48479bf8",
+                "score": 0.877854,
+                "summary": "local neural memory candidate for emit a rich local Mission Control replay for a n"
+              }
+            ],
+            "model_profile": "local-mission-control-demo",
+            "ok": true,
+            "perception": {
+              "embedding_id": "neural_embedding_75b25d9653443106",
+              "encoded": true,
+              "streams": [
+                "text",
+                "events",
+                "memory"
+              ]
+            },
+            "phase": "learning",
+            "plan_score": 0.552584,
+            "policy_gate_state": "pending_policy_gate",
+            "prediction": {
+              "confidence": 0.877353,
+              "prediction_id": "neural_prediction_bfb920cca9a991f4",
+              "world_model": "deterministic_metadata"
+            },
+            "prediction_confidence": 0.877353,
+            "recommended_action": "respond",
+            "risk_score": 0.242753,
+            "safety_authority": "policy_engine_and_approval_gate",
+            "session_id": "neural_session_a093fc05c99e8dc6",
+            "status": "fallback_non_neural",
+            "step_count": 3,
+            "surprise_score": 0.122647,
+            "uncertainty": 0.122647
+          },
+          "memory_retrieval_scores": [
+            {
+              "item": "{'kind': 'neural_live_step', 'payload': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 2, 'learning_tick_count': 1, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)', 'plan_id': 'agent_plan_f5f873639c484a26b155ef54941b41de', 'risk_level': 'low', 'context_count': 3}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_d88b3248cf171b63'}, 'prediction': {'prediction_id': 'neural_prediction_3b01eac7ed8ce0ce', 'confidence': 0.628661, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.789902, 'risk_score': 0.168274, 'memory_candidates': ({'memory_id': 'neural_memory_bceb2c9405c60b37', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.752963, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.628661, 'surprise_score': 0.371339, 'uncertainty': 0.371339, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}}",
+              "score": 0.615877210211012
+            },
+            {
+              "item": "{'kind': 'agent_run', 'payload': {'goal': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)', 'plan': {'plan_id': 'agent_plan_f5f873639c484a26b155ef54941b41de', 'goal': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)', 'steps': ({'step_id': 'plan_step_1b681425dfc84acda624c4e859cce361', 'action': 'respond', 'required_tools': ('respond',), 'required_skills': (), 'required_permissions': ('respond',), 'risk_level': 'low', 'expected_outputs': ('response',), 'economic_value': 0.0},), 'risk_level': 'low', 'success_criteria': ('produce auditable result',), 'rollback_strategy': 'stop and preserve audit trail', 'economic_intent': False, 'economic_value': 0.0}, 'execution': {'success': True, 'output': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)', 'step_results': ({'success': True, 'tool': 'respond', 'output': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)'},)}, 'settlement': None, 'neural': {'backend': 'tiny_torch', 'status': 'fallback_non_neural', 'plan_scores': ({'plan_id': 'agent_plan_f5f873639c484a26b155ef54941b41de', 'expected_success': 0.9249999999999999, 'expected_cost': 0.1, 'policy_risk': 0.1, 'economic_risk': 0.0, 'memory_similarity': 0.6102039712525178, 'total_score': 1.0020407942505036},), 'skill_scores': (), 'risk_scores': {'unsafe_action_likelihood': 0.0, 'approval_required_likelihood': 0.0, 'economic_loss_proxy': 0.0, 'failure_probability': 0.1}, 'memory_retrieval_scores': ({'item': \"{'kind': 'neural_live_step', 'payload': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}}\", 'score': 0.6102039712525178}, {'item': \"{'kind': 'agent_run', 'payload': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan': {'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'goal': 'emit a rich local Mission Control replay for a neural live agent', 'steps': ({'step_id': 'plan_step_4fdcf1f07bbe497fafc09912ab13f4d9', 'action': 'respond', 'required_tools': ('respond',), 'required_skills': (), 'required_permissions': ('respond',), 'risk_level': 'low', 'expected_outputs': ('response',), 'economic_value': 0.0},), 'risk_level': 'low', 'success_criteria': ('produce auditable result',), 'rollback_strategy': 'stop and preserve audit trail', 'economic_intent': False, 'economic_value': 0.0}, 'execution': {'success': True, 'output': 'emit a rich local Mission Control replay for a neural live agent', 'step_results': ({'success': True, 'tool': 'respond', 'output': 'emit a rich local Mission Control replay for a neural live agent'},)}, 'settlement': None, 'neural': {'backend': 'tiny_torch', 'status': 'fallback_non_neural', 'plan_scores': ({'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'expected_success': 0.9249999999999999, 'expected_cost': 0.1, 'policy_risk': 0.1, 'economic_risk': 0.0, 'memory_similarity': 0.0, 'total_score': 0.8799999999999999},), 'skill_scores': (), 'risk_scores': {'unsafe_action_likelihood': 0.0, 'approval_required_likelihood': 0.0, 'economic_loss_proxy': 0.0, 'failure_probability': 0.1}, 'memory_retrieval_scores': (), 'evaluation_score': {'output_quality': 0.515, 'policy_compliance': 1.0, 'novelty_surprise': 0.0, 'memory_usefulness': 0.0, 'economic_value': 0.0, 'total_score': 0.30300000000000005, 'metadata': {}}, 'safety_authority': 'policy_engine_and_approval_gate', 'reason': 'neural backend unavailable; policy allowed non-neural fallback', 'session_id': 'neural_session_a093fc05c99e8dc6', 'live_session': {'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'config': {'enabled': True, 'backend': 'tiny_torch', 'live_mode': True, 'learning_enabled': True, 'learning_rate': 0.01, 'seed': 9001, 'model_profile': 'local-mission-control-demo', 'checkpoint_ref': '', 'perception_streams': ('text', 'events', 'memory'), 'plan_scoring_enabled': True, 'risk_scoring_enabled': True, 'memory_retrieval_enabled': True, 'policy_fallback': 'allow_non_neural', 'max_step_ms': 0, 'telemetry_enabled': True, 'inference_mode': 'local_deterministic'}, 'status': 'unavailable', 'backend_available': False, 'device': 'cpu', 'created_at': '2026-05-25T06:01:43.521685+00:00', 'updated_at': '2026-05-25T06:01:43.523097+00:00', 'step_count': 1, 'learning_tick_count': 0, 'stopped': False, 'last_record': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}, 'checkpoint_metadata': {}, 'safety_authority': 'policy_engine_and_approval_gate'}, 'live_step': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}, 'telemetry_enabled': True}, 'rl': {'enabled': False, 'safety_authority': 'policy_engine_and_approval_gate'}, 'compute': {'enabled': False, 'status': 'disabled', 'dry_run_only': True}}}\", 'score': 0.5993893700778574}, {'item': \"{'kind': 'neural_learning_update', 'payload': {'ok': True, 'status': 'learned', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'before_metric': 0.34550652826533346, 'after_metric': 0.342051, 'loss': 0.342051, 'step_count': 1, 'learning_tick_count': 1, 'sample_id': 'neural_sample_10b605affd4c6baa', 'local_only': True, 'safety_authority': 'policy_engine_and_approval_gate'}}\", 'score': 0.3161487387093396}), 'evaluation_score': {'output_quality': 0.5525, 'policy_compliance': 1.0, 'novelty_surprise': 0.0, 'memory_usefulness': 0.6, 'economic_value': 0.0, 'total_score': 0.4305, 'metadata': {}}, 'safety_authority': 'policy_engine_and_approval_gate', 'reason': 'neural backend unavailable; policy allowed non-neural fallback', 'session_id': 'neural_session_a093fc05c99e8dc6', 'live_session': {'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'config': {'enabled': True, 'backend': 'tiny_torch', 'live_mode': True, 'learning_enabled': True, 'learning_rate': 0.01, 'seed': 9001, 'model_profile': 'local-mission-control-demo', 'checkpoint_ref': '', 'perception_streams': ('text', 'events', 'memory'), 'plan_scoring_enabled': True, 'risk_scoring_enabled': True, 'memory_retrieval_enabled': True, 'policy_fallback': 'allow_non_neural', 'max_step_ms': 0, 'telemetry_enabled': True, 'inference_mode': 'local_deterministic'}, 'status': 'unavailable', 'backend_available': False, 'device': 'cpu', 'created_at': '2026-05-25T06:01:43.521685+00:00', 'updated_at': '2026-05-25T06:01:43.524699+00:00', 'step_count': 2, 'learning_tick_count': 1, 'stopped': False, 'last_record': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 2, 'learning_tick_count': 1, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)', 'plan_id': 'agent_plan_f5f873639c484a26b155ef54941b41de', 'risk_level': 'low', 'context_count': 3}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_d88b3248cf171b63'}, 'prediction': {'prediction_id': 'neural_prediction_3b01eac7ed8ce0ce', 'confidence': 0.628661, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.789902, 'risk_score': 0.168274, 'memory_candidates': ({'memory_id': 'neural_memory_bceb2c9405c60b37', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.752963, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.628661, 'surprise_score': 0.371339, 'uncertainty': 0.371339, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}, 'checkpoint_metadata': {}, 'safety_authority': 'policy_engine_and_approval_gate'}, 'live_step': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 2, 'learning_tick_count': 1, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent (local tick 2)', 'plan_id': 'agent_plan_f5f873639c484a26b155ef54941b41de', 'risk_level': 'low', 'context_count': 3}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_d88b3248cf171b63'}, 'prediction': {'prediction_id': 'neural_prediction_3b01eac7ed8ce0ce', 'confidence': 0.628661, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.789902, 'risk_score': 0.168274, 'memory_candidates': ({'memory_id': 'neural_memory_bceb2c9405c60b37', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.752963, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.628661, 'surprise_score': 0.371339, 'uncertainty': 0.371339, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}, 'telemetry_enabled': True}, 'rl': {'enabled': False, 'safety_authority': 'policy_engine_and_approval_gate'}, 'compute': {'enabled': False, 'status': 'disabled', 'dry_run_only': True}}}",
+              "score": 0.6106210633312331
+            },
+            {
+              "item": "{'kind': 'neural_live_step', 'payload': {'ok': True, 'status': 'fallback_non_neural', 'phase': 'learning', 'session_id': 'neural_session_a093fc05c99e8dc6', 'agent_id': 'agent_a093fc05c99e8dc6', 'backend': 'tiny_torch', 'model_profile': 'local-mission-control-demo', 'step_count': 1, 'learning_tick_count': 0, 'context': {'goal': 'emit a rich local Mission Control replay for a neural live agent', 'plan_id': 'agent_plan_fba3ddf62c654ffe94026551f3077d25', 'risk_level': 'low', 'context_count': 0}, 'local_only': True, 'external_model_calls': False, 'gpu_evidence_claimed': False, 'backend_available': False, 'fallback_active': True, 'perception': {'encoded': True, 'streams': ('text', 'events', 'memory'), 'embedding_id': 'neural_embedding_0da867aeaecc8d96'}, 'prediction': {'prediction_id': 'neural_prediction_b9741ec45c9321b6', 'confidence': 0.90849, 'world_model': 'deterministic_metadata'}, 'plan_score': 0.673359, 'risk_score': 0.381679, 'memory_candidates': ({'memory_id': 'neural_memory_c04cc8fcf4971abc', 'agent_id': 'agent_a093fc05c99e8dc6', 'score': 0.670964, 'summary': 'local neural memory candidate for emit a rich local Mission Control replay for a n'},), 'memory_activation_count': 1, 'prediction_confidence': 0.90849, 'surprise_score': 0.09151, 'uncertainty': 0.09151, 'recommended_action': 'respond', 'action_state': 'recommended', 'policy_gate_state': 'pending_policy_gate', 'safety_authority': 'policy_engine_and_approval_gate'}}",
+              "score": 0.5986906887760551
+            }
+          ],
+          "plan_scores": [
+            {
+              "economic_risk": 0.0,
+              "expected_cost": 0.1,
+              "expected_success": 0.9249999999999999,
+              "memory_similarity": 0.615877210211012,
+              "plan_id": "agent_plan_bed5f129cce94d648ade83c14d2ba239",
+              "policy_risk": 0.1,
+              "total_score": 1.0031754420422023
+            }
+          ],
+          "reason": "neural backend unavailable; policy allowed non-neural fallback",
+          "risk_scores": {
+            "approval_required_likelihood": 0.0,
+            "economic_loss_proxy": 0.0,
+            "failure_probability": 0.1,
+            "unsafe_action_likelihood": 0.0
+          },
+          "safety_authority": "policy_engine_and_approval_gate",
+          "session_id": "neural_session_a093fc05c99e8dc6",
+          "skill_scores": [],
+          "status": "fallback_non_neural",
+          "telemetry_enabled": true
+        },
+        "plan": {
+          "economic_intent": false,
+          "economic_value": 0.0,
+          "goal": "emit a rich local Mission Control replay for a neural live agent (local tick 3)",
+          "plan_id": "agent_plan_bed5f129cce94d648ade83c14d2ba239",
+          "risk_level": "low",
+          "rollback_strategy": "stop and preserve audit trail",
+          "steps": [
+            {
+              "action": "respond",
+              "economic_value": 0.0,
+              "expected_outputs": [
+                "response"
+              ],
+              "required_permissions": [
+                "respond"
+              ],
+              "required_skills": [],
+              "required_tools": [
+                "respond"
+              ],
+              "risk_level": "low",
+              "step_id": "plan_step_f91f0875f41b4e7ab3e7469c9fc6e154"
+            }
+          ],
+          "success_criteria": [
+            "produce auditable result"
+          ]
+        },
+        "rl": {
+          "enabled": false,
+          "safety_authority": "policy_engine_and_approval_gate"
+        },
+        "settlement": null
+      }
+    },
+    {
+      "kind": "neural_learning_update",
+      "payload": {
+        "after_metric": 0.047539,
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "before_metric": 0.04801939268585204,
+        "learning_tick_count": 3,
+        "local_only": true,
+        "loss": 0.047539,
+        "ok": true,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "sample_id": "neural_sample_ae3d754b490c4740",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "step_count": 3
+      }
+    },
+    {
+      "kind": "neural_checkpoint_metadata",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "checkpoint_bytes": 399,
+        "checkpoint_id": "neural_checkpoint_b68d13d4a50551d5",
+        "checkpoint_ref": "E:\\FlowMemory\\flow-memory\\artifacts\\launch\\live_agent_9b713fe0821659d3.metadata.json",
+        "checkpoint_written": true,
+        "learning_tick_count": 3,
+        "local_only": true,
+        "metadata_only": true,
+        "raw_weights_written": false,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "step_count": 3
+      }
+    }
+  ],
+  "ok": true,
+  "provenance": "replay",
+  "run_record": {
+    "agent_id": "agent_a093fc05c99e8dc6",
+    "backend": "tiny_torch",
+    "checkpoint_metadata_path": "artifacts\\launch\\live_agent_9b713fe0821659d3.metadata.json",
+    "completed_at": "2026-05-25T06:01:43.531249+00:00",
+    "error_summary": "",
+    "flow_source": "",
+    "gpu_evidence_status": "blocked_missing_artifact",
+    "local_only": true,
+    "memory_records_written": 10,
+    "metadata": {},
+    "neural_live_enabled": true,
+    "no_external_calls": true,
+    "no_funds_moved": true,
+    "no_live_provider_calls": true,
+    "no_private_keys": true,
+    "policy_mode": "supervised",
+    "replay_artifact_path": "dashboard\\src\\mock-data\\live-agent-operations.json",
+    "run_id": "live_agent_9b713fe0821659d3",
+    "run_record_path": "artifacts\\launch\\runs\\live_agent_9b713fe0821659d3.json",
+    "safety_authority": "policy_engine_and_approval_gate",
+    "schema_version": "flow-memory-live-agent-run-v1",
+    "session_id": "neural_session_a093fc05c99e8dc6",
+    "started_at": "2026-05-25T06:01:43.531249+00:00",
+    "status": "completed",
+    "summary_artifact_path": "dashboard\\src\\mock-data\\live-agent-operations.json",
+    "template": "mission-control-demo",
+    "tick_count_completed": 3,
+    "tick_count_requested": 3,
+    "visual_events_emitted": 25
+  },
+  "schema_version": "visual.telemetry.v1",
+  "state": {
+    "agents": [
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "capabilities": [
+          "local_reasoning",
+          "memory",
+          "neural_advisory",
+          "mission_control"
+        ],
+        "label": "Flow Memory Mission Control Demo Agent",
+        "provenance": "replay",
+        "reputation": 0.0,
+        "role": "live_neural_agent",
+        "source_event_id": "visual_event_7b1029799ece9c82",
+        "status": "idle"
+      }
+    ],
+    "audit": [
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_7b1029799ece9c82",
+        "event_type": "agent",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_7b1029799ece9c82",
+        "summary": "agent observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_c274967525170a19",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_c274967525170a19",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_09a6be7b57a597bd",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_09a6be7b57a597bd",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_4b61c8027aeba203",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_4b61c8027aeba203",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_f54c74ea60b9c823",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_f54c74ea60b9c823",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_78203354f1ec7e98",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_78203354f1ec7e98",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_69a3a532cf73e225",
+        "event_type": "safety",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_69a3a532cf73e225",
+        "summary": "safety observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_c23e20ff28487b93",
+        "event_type": "memory",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_c23e20ff28487b93",
+        "summary": "memory observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_cf108c7b98e18af7",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_cf108c7b98e18af7",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_46b1513f233fa91c",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_46b1513f233fa91c",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_59e689e182a0e5ed",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_59e689e182a0e5ed",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_c00c4c113bbffdc2",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_c00c4c113bbffdc2",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_01e05752045a87f1",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_01e05752045a87f1",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_d922b7f1968c15d7",
+        "event_type": "safety",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_d922b7f1968c15d7",
+        "summary": "safety observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_18f384331bec76ee",
+        "event_type": "memory",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_18f384331bec76ee",
+        "summary": "memory observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_2b5a38dc825b5c05",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_2b5a38dc825b5c05",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_06290458093fabad",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_06290458093fabad",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_531b61012781c942",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_531b61012781c942",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_967c01bf187c36fa",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_967c01bf187c36fa",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_a345771dc00c470b",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_a345771dc00c470b",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_94a2e989e913c32f",
+        "event_type": "safety",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_94a2e989e913c32f",
+        "summary": "safety observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_5b9314269577ee78",
+        "event_type": "memory",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_5b9314269577ee78",
+        "summary": "memory observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_483dbd5d50d8c67a",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_483dbd5d50d8c67a",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_b58a5e2b749c3a27",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_b58a5e2b749c3a27",
+        "summary": "neural observed"
+      },
+      {
+        "actor_id": "agent_a093fc05c99e8dc6",
+        "audit_id": "visual_event_2c374f881ebcbb19",
+        "event_type": "neural",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_2c374f881ebcbb19",
+        "summary": "neural observed"
+      }
+    ],
+    "compute": [],
+    "economy": [],
+    "memory": [
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.90849,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_3a7331ff7f692745",
+        "provenance": "replay",
+        "source_event_id": "visual_event_c23e20ff28487b93",
+        "summary": "neural live tick 1 memory candidates: 1"
+      },
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.628661,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_5843848a3abe13b0",
+        "provenance": "replay",
+        "source_event_id": "visual_event_18f384331bec76ee",
+        "summary": "neural live tick 2 memory candidates: 1"
+      },
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.877353,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_a8a9478f49feaa14",
+        "provenance": "replay",
+        "source_event_id": "visual_event_5b9314269577ee78",
+        "summary": "neural live tick 3 memory candidates: 1"
+      }
+    ],
+    "neural": [
+      {
+        "action_state": "idle",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 0,
+        "memory_activation_count": 0,
+        "phase": "idle",
+        "plan_score": 0.0,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.0,
+        "provenance": "replay",
+        "risk_score": 0.0,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_c274967525170a19",
+        "source_event_id": "visual_event_c274967525170a19",
+        "status": "unavailable",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 0,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "provenance": "replay",
+        "risk_score": 0.381679,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_09a6be7b57a597bd",
+        "source_event_id": "visual_event_09a6be7b57a597bd",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 0,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "provenance": "replay",
+        "risk_score": 0.381679,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_4b61c8027aeba203",
+        "source_event_id": "visual_event_4b61c8027aeba203",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 0,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "provenance": "replay",
+        "risk_score": 0.381679,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_f54c74ea60b9c823",
+        "source_event_id": "visual_event_f54c74ea60b9c823",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 0,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "provenance": "replay",
+        "risk_score": 0.381679,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_78203354f1ec7e98",
+        "source_event_id": "visual_event_78203354f1ec7e98",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 1,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.342051,
+        "provenance": "replay",
+        "risk_score": 0.0,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_cf108c7b98e18af7",
+        "source_event_id": "visual_event_cf108c7b98e18af7",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.342051
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 1,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "provenance": "replay",
+        "risk_score": 0.168274,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_46b1513f233fa91c",
+        "source_event_id": "visual_event_46b1513f233fa91c",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 1,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "provenance": "replay",
+        "risk_score": 0.168274,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_59e689e182a0e5ed",
+        "source_event_id": "visual_event_59e689e182a0e5ed",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 1,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "provenance": "replay",
+        "risk_score": 0.168274,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_c00c4c113bbffdc2",
+        "source_event_id": "visual_event_c00c4c113bbffdc2",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 1,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "provenance": "replay",
+        "risk_score": 0.168274,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_01e05752045a87f1",
+        "source_event_id": "visual_event_01e05752045a87f1",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 2,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.838893,
+        "provenance": "replay",
+        "risk_score": 0.0,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_2b5a38dc825b5c05",
+        "source_event_id": "visual_event_2b5a38dc825b5c05",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.838893
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 2,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "provenance": "replay",
+        "risk_score": 0.242753,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_06290458093fabad",
+        "source_event_id": "visual_event_06290458093fabad",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 2,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "provenance": "replay",
+        "risk_score": 0.242753,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_531b61012781c942",
+        "source_event_id": "visual_event_531b61012781c942",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 2,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "provenance": "replay",
+        "risk_score": 0.242753,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_967c01bf187c36fa",
+        "source_event_id": "visual_event_967c01bf187c36fa",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 2,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "provenance": "replay",
+        "risk_score": 0.242753,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_a345771dc00c470b",
+        "source_event_id": "visual_event_a345771dc00c470b",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 3,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.047539,
+        "provenance": "replay",
+        "risk_score": 0.0,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_483dbd5d50d8c67a",
+        "source_event_id": "visual_event_483dbd5d50d8c67a",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.047539
+      },
+      {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 3,
+        "memory_activation_count": 0,
+        "phase": "checkpoint",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.0,
+        "provenance": "replay",
+        "risk_score": 0.0,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_b58a5e2b749c3a27",
+        "source_event_id": "visual_event_b58a5e2b749c3a27",
+        "status": "observed",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      },
+      {
+        "action_state": "completed",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "learning_tick_count": 0,
+        "memory_activation_count": 0,
+        "phase": "completed",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.0,
+        "provenance": "replay",
+        "risk_score": 0.0,
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "signal_id": "visual_event_2c374f881ebcbb19",
+        "source_event_id": "visual_event_2c374f881ebcbb19",
+        "status": "stopped",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      }
+    ],
+    "provenance": "replay",
+    "rl": [],
+    "runtime": {
+      "agents": 1,
+      "events": 25,
+      "ignored_regressions": [],
+      "status": "ok",
+      "tasks": 0,
+      "warnings": []
+    },
+    "safety": [
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_3a7331ff7f692745",
+        "provenance": "replay",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "visual_event_69a3a532cf73e225"
+      },
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_5843848a3abe13b0",
+        "provenance": "replay",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "visual_event_d922b7f1968c15d7"
+      },
+      {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_a8a9478f49feaa14",
+        "provenance": "replay",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "visual_event_94a2e989e913c32f"
+      }
+    ],
+    "schema_version": "visual.telemetry.v1",
+    "tasks": []
+  },
+  "summary": {
+    "actions_allowed": 3,
+    "actions_denied": 0,
+    "agent_id": "agent_a093fc05c99e8dc6",
+    "backend": "tiny_torch",
+    "checkpoint_metadata_path": "artifacts\\launch\\live_agent_9b713fe0821659d3.metadata.json",
+    "gpu_evidence_status": "blocked_missing_artifact",
+    "learning_steps": 3,
+    "loop_ticks_completed": 3,
+    "memory_records_written": 10,
+    "no_external_calls": true,
+    "no_funds_moved": true,
+    "no_live_provider_calls": true,
+    "no_private_keys": true,
+    "ok": true,
+    "perceptions_encoded": 3,
+    "plans_scored": 3,
+    "policy_mode": "supervised",
+    "predictions_generated": 3,
+    "raw_model_weights_written": false,
+    "release_gate_status": {
+      "gpu_gated": "blocked_missing_artifact",
+      "local_public_alpha": "not_evaluated"
+    },
+    "replay_artifact_path": "dashboard\\src\\mock-data\\live-agent-operations.json",
+    "risks_scored": 3,
+    "run_id": "live_agent_9b713fe0821659d3",
+    "run_record_path": "artifacts\\launch\\runs\\live_agent_9b713fe0821659d3.json",
+    "safety_authority": "policy_engine_and_approval_gate",
+    "session_id": "neural_session_a093fc05c99e8dc6",
+    "template": "mission-control-demo",
+    "visual_events_emitted": 25
+  },
+  "template": {
+    "allowed_skills": [],
+    "allowed_tools": [
+      "respond",
+      "observe_environment"
+    ],
+    "autonomy_mode": "supervised",
+    "capabilities": [
+      "local_reasoning",
+      "memory",
+      "neural_advisory",
+      "mission_control"
+    ],
+    "compute": {},
+    "description": "Rich replay demo showing neural, memory, policy, and local action phases for Mission Control.",
+    "goal": "emit a rich local Mission Control replay for a neural live agent",
+    "local_only": true,
+    "memory": {
+      "episodic": true,
+      "procedural": true,
+      "semantic": true,
+      "working_capacity": 12
+    },
+    "name": "mission-control-demo",
+    "neural": {
+      "backend": "tiny_torch",
+      "enabled": true,
+      "learning_enabled": true,
+      "live_mode": true,
+      "memory_retrieval_enabled": true,
+      "model_profile": "local-mission-control-demo",
+      "perception_streams": [
+        "text",
+        "events",
+        "memory"
+      ],
+      "plan_scoring_enabled": true,
+      "policy_fallback": "allow_non_neural",
+      "risk_scoring_enabled": true,
+      "seed": 9001,
+      "telemetry_enabled": true
+    },
+    "no_external_calls": true,
+    "risk_budget": {
+      "max_escrow_exposure": 0.0,
+      "max_risk_level": "medium",
+      "max_slashing_exposure": 0.0,
+      "max_spend": 0.0
+    }
+  },
+  "ticks": [
+    {
+      "accepted": true,
+      "memory_records_total": 3,
+      "neural_status": "fallback_non_neural",
+      "policy_allowed": true,
+      "requires_approval": false,
+      "tick": 1
+    },
+    {
+      "accepted": true,
+      "memory_records_total": 6,
+      "neural_status": "fallback_non_neural",
+      "policy_allowed": true,
+      "requires_approval": false,
+      "tick": 2
+    },
+    {
+      "accepted": true,
+      "memory_records_total": 9,
+      "neural_status": "fallback_non_neural",
+      "policy_allowed": true,
+      "requires_approval": false,
+      "tick": 3
+    }
+  ],
+  "visual_events": [
+    {
+      "created_at": "2026-01-01T00:00:10+00:00",
+      "event_id": "visual_event_7b1029799ece9c82",
+      "event_type": "agent",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "capabilities": [
+          "local_reasoning",
+          "memory",
+          "neural_advisory",
+          "mission_control"
+        ],
+        "label": "Flow Memory Mission Control Demo Agent",
+        "reputation": 0.0,
+        "role": "live_neural_agent",
+        "status": "idle",
+        "template": "mission-control-demo"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:00:20+00:00",
+      "event_id": "visual_event_c274967525170a19",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "idle",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_session_created",
+        "phase": "idle",
+        "policy_gate_state": "pending_policy_gate",
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "unavailable"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:10+00:00",
+      "event_id": "visual_event_09a6be7b57a597bd",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_perception_encoded",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:20+00:00",
+      "event_id": "visual_event_4b61c8027aeba203",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_prediction_generated",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:30+00:00",
+      "event_id": "visual_event_f54c74ea60b9c823",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_plan_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:40+00:00",
+      "event_id": "visual_event_78203354f1ec7e98",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_risk_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.673359,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.90849,
+        "risk_score": 0.381679,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.09151,
+        "uncertainty": 0.09151
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:50+00:00",
+      "event_id": "visual_event_69a3a532cf73e225",
+      "event_type": "safety",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_3a7331ff7f692745",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "neural_policy_3a7331ff7f692745"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": "neural_policy_3a7331ff7f692745"
+    },
+    {
+      "created_at": "2026-01-01T00:01:00+00:00",
+      "event_id": "visual_event_c23e20ff28487b93",
+      "event_type": "memory",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.90849,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_3a7331ff7f692745",
+        "summary": "neural live tick 1 memory candidates: 1"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:01:30+00:00",
+      "event_id": "visual_event_cf108c7b98e18af7",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_learning_step_completed",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.342051,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.342051
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:10+00:00",
+      "event_id": "visual_event_46b1513f233fa91c",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_perception_encoded",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:20+00:00",
+      "event_id": "visual_event_59e689e182a0e5ed",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_prediction_generated",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:30+00:00",
+      "event_id": "visual_event_c00c4c113bbffdc2",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_plan_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:40+00:00",
+      "event_id": "visual_event_01e05752045a87f1",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_risk_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 1,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.789902,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.628661,
+        "risk_score": 0.168274,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.371339,
+        "uncertainty": 0.371339
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:50+00:00",
+      "event_id": "visual_event_d922b7f1968c15d7",
+      "event_type": "safety",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_5843848a3abe13b0",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "neural_policy_5843848a3abe13b0"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": "neural_policy_5843848a3abe13b0"
+    },
+    {
+      "created_at": "2026-01-01T00:02:00+00:00",
+      "event_id": "visual_event_18f384331bec76ee",
+      "event_type": "memory",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.628661,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_5843848a3abe13b0",
+        "summary": "neural live tick 2 memory candidates: 1"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:02:30+00:00",
+      "event_id": "visual_event_2b5a38dc825b5c05",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_learning_step_completed",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.838893,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.838893
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:10+00:00",
+      "event_id": "visual_event_06290458093fabad",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_perception_encoded",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "perceiving",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:20+00:00",
+      "event_id": "visual_event_531b61012781c942",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_prediction_generated",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "predicting",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:30+00:00",
+      "event_id": "visual_event_967c01bf187c36fa",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_plan_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "reasoning",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:40+00:00",
+      "event_id": "visual_event_a345771dc00c470b",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_risk_scored",
+        "external_model_calls": false,
+        "learning_tick_count": 2,
+        "local_only": true,
+        "memory_activation_count": 1,
+        "phase": "risk_scoring",
+        "plan_score": 0.552584,
+        "policy_gate_state": "pending_policy_gate",
+        "prediction_confidence": 0.877353,
+        "risk_score": 0.242753,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "fallback_non_neural",
+        "surprise_score": 0.122647,
+        "uncertainty": 0.122647
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:50+00:00",
+      "event_id": "visual_event_94a2e989e913c32f",
+      "event_type": "safety",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "decision": "allowed",
+        "gate_id": "safety_gate_a8a9478f49feaa14",
+        "reason": "policy gate applied to neural advisory recommendation",
+        "requires_approval": false,
+        "risk_level": "low",
+        "source_event_id": "neural_policy_a8a9478f49feaa14"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": "neural_policy_a8a9478f49feaa14"
+    },
+    {
+      "created_at": "2026-01-01T00:03:00+00:00",
+      "event_id": "visual_event_5b9314269577ee78",
+      "event_type": "memory",
+      "payload": {
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "importance": 0.877353,
+        "kind": "neural_live_trace",
+        "memory_id": "memory_a8a9478f49feaa14",
+        "summary": "neural live tick 3 memory candidates: 1"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:03:30+00:00",
+      "event_id": "visual_event_483dbd5d50d8c67a",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_learning_step_completed",
+        "external_model_calls": false,
+        "learning_tick_count": 3,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "learning",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.047539,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "learned",
+        "surprise_score": 0.0,
+        "uncertainty": 0.047539
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:04:10+00:00",
+      "event_id": "visual_event_b58a5e2b749c3a27",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "recommended",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_checkpoint_written",
+        "external_model_calls": false,
+        "learning_tick_count": 3,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "checkpoint",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.0,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "observed",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-01-01T00:04:20+00:00",
+      "event_id": "visual_event_2c374f881ebcbb19",
+      "event_type": "neural",
+      "payload": {
+        "action_state": "completed",
+        "agent_id": "agent_a093fc05c99e8dc6",
+        "backend": "tiny_torch",
+        "event": "neural_session_stopped",
+        "external_model_calls": false,
+        "learning_tick_count": 0,
+        "local_only": true,
+        "memory_activation_count": 0,
+        "phase": "completed",
+        "plan_score": 0.0,
+        "policy_gate_state": "applied",
+        "prediction_confidence": 0.0,
+        "risk_score": 0.0,
+        "safety_authority": "policy_engine_and_approval_gate",
+        "session_id": "neural_session_a093fc05c99e8dc6",
+        "status": "stopped",
+        "surprise_score": 0.0,
+        "uncertainty": 0.0
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "agent_a093fc05c99e8dc6",
+      "source_event_id": ""
+    }
+  ]
+}

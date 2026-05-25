@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "3b3122ee8483964ef0c0b0ba8ef1ce910e694022",
-  "hash": "63940103fe9d7ee25767adcc3241aad61c06cb36919af3bf36ae884cb5611137",
+  "git_commit": "c9987269057d05a963444cc3ece5cfcc491066c0",
+  "hash": "3e4a99845d399591fd2bd66d0919bb6cd8d451b9e45b28cbb7c8d3fbb47869f3",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -64,14 +64,23 @@
       "mission-control-demo"
     ]
   },
+  "live_agent_operations": {
+    "api": true,
+    "cli": true,
+    "export": true,
+    "gpu_status_honest": true,
+    "ok": true,
+    "registry": true,
+    "replay": true
+  },
   "local_network": {
-    "hash": "8ba750f079bd34b6d24a772d28924cd3aa73a242f6b92fe23d9aeb729e1b46d6",
+    "hash": "bb5c98ed9fb498a8b962a2ad959e1f80b82739c77219d05aceaeef6a7f1d8869",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },
   "neural_evidence_status": "blocked_without_real_gpu_artifact",
   "public_alpha_launch_test": {
-    "hash": "05a205e334da4e3e57a7779803bf9486fe0313d23a8f783b78fb14f5abfa5d29",
+    "hash": "cb9edbcfcd0fb2c3223d76016afc4095647952604c3f82ee61493fb7fdac4d99",
     "ok": true,
     "path": "artifacts\\public_alpha_launch\\launch_report.json"
   },

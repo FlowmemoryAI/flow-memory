@@ -58,6 +58,18 @@ python -m flow_memory launch agent --template live-research --neural tiny_torch 
 ```
 
 This high-level workflow creates a local agent, starts or attaches a neural-live session, runs deterministic local loop ticks, writes memory and checkpoint metadata, and exports replay-ready Mission Control telemetry. It is the recommended public-alpha demo path for neural-live agents.
+
+Live Agent Operations adds a persistent local run registry around that workflow:
+
+```bash
+python -m flow_memory launch runs list --json
+python -m flow_memory launch runs show <run_id> --json
+python -m flow_memory launch runs replay <run_id> --json
+python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
+python -m flow_memory launch doctor --json
+```
+
+Run records live under `artifacts/launch/runs/` and are local JSON metadata only.
 ## API examples
 
 Create a live session:

@@ -783,3 +783,13 @@ Implemented the Live Agent Launchpad slice:
 - Added release evidence for launchpad availability, FlowLang examples, CLI/API support, policy gate behavior, memory writes, visual replay, no external calls, no funds moved, and honest GPU status.
 
 Safety posture remains unchanged: neural decisions are advisory, `PolicyEngine` and approval gates remain authoritative, Compute Market/payment activity is dry-run local simulation only, and GPU-gated release targets remain blocked without the real RunPod artifact.
+
+## Live Agent Operations update
+
+- Added local launch run registry under `artifacts/launch/runs/` for Live Agent Launchpad metadata.
+- Added CLI operations: `launch runs list/show/replay/export/stop/resume` and `launch doctor`.
+- Added API operations: `GET /launch/runs`, `GET /launch/runs/{run_id}`, `POST /launch/runs/{run_id}/replay`, `POST /launch/runs/{run_id}/export`, and `POST /launch/runs/{run_id}/stop`.
+- Added Mission Control operations replay fixture: `dashboard/src/mock-data/live-agent-operations.json`.
+- Added FlowLang operations examples: `examples/live_ops_research_agent.flow`, `examples/live_ops_memory_scout.flow`, and `examples/live_ops_market_observer.flow`.
+- Added release evidence for registry, CLI, API, replay, export, examples, policy-gated behavior, no-external-call invariants, and GPU evidence honesty.
+- GPU-gated release targets remain blocked until the real RunPod artifact is imported and verified.

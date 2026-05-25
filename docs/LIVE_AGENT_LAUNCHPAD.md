@@ -109,6 +109,45 @@ The replay includes:
 - metadata-only checkpoint written
 - session completed/stopped
 
+
+## Live Agent Operations
+
+Launchpad runs now create local run records under:
+
+```text
+artifacts/launch/runs/
+```
+
+Use these commands to inspect and export completed local runs:
+
+```bash
+python -m flow_memory launch runs list --json
+python -m flow_memory launch runs show <run_id> --json
+python -m flow_memory launch runs replay <run_id> --json
+python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles/<run_id>.json --json
+python -m flow_memory launch runs stop <run_id> --json
+python -m flow_memory launch doctor --json
+```
+
+`stop` is honest: completed runs return a completed/no-op result instead of pretending a background process is still alive. `resume` creates a new local continuation run from prior metadata:
+
+```bash
+python -m flow_memory launch runs resume <run_id> --ticks 3 --emit-visual --json
+```
+
+Additional FlowLang operations examples:
+
+```bash
+python -m flow_memory launch agent --flow examples/live_ops_research_agent.flow --ticks 5 --emit-visual --json
+python -m flow_memory launch agent --flow examples/live_ops_memory_scout.flow --ticks 5 --emit-visual --json
+python -m flow_memory launch agent --flow examples/live_ops_market_observer.flow --ticks 5 --emit-visual --json
+```
+
+A stable Mission Control operations fixture is available at:
+
+```text
+dashboard/src/mock-data/live-agent-operations.json
+```
 ## Safety and maturity
 
 - Local neural-live agents are available.

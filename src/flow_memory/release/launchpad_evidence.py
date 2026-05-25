@@ -32,7 +32,7 @@ def live_agent_launchpad_evidence(root: str | Path = ".") -> Mapping[str, Any]:
     root_path = Path(root).resolve()
     operations = {f"{endpoint.method} {endpoint.path}" for endpoint in API_ENDPOINTS}
     missing_endpoints = tuple(endpoint for endpoint in REQUIRED_LAUNCH_ENDPOINTS if endpoint not in operations)
-    launch = run_live_agent_launch(template="live-research", backend="tiny_torch", ticks=2, emit_visual=True, root=root_path, write_artifact=False, write_checkpoint=False)
+    launch = run_live_agent_launch(template="live-research", backend="tiny_torch", ticks=2, emit_visual=True, root=root_path, write_artifact=False, write_checkpoint=False, write_run_record=False)
     summary = dict(launch.get("summary", {}))
     state = dict(launch.get("state", {}))
     docs = {relative: (root_path / relative).exists() for relative in REQUIRED_DOCS}

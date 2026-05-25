@@ -1038,6 +1038,212 @@
         ]
       }
     },
+    "/launch/runs": {
+      "get": {
+        "operationId": "launch_runs_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "runs": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local Live Agent Launchpad run records",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/runs/{run_id}": {
+      "get": {
+        "operationId": "launch_run_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "run": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one local Live Agent Launchpad run record",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/runs/{run_id}/export": {
+      "post": {
+        "operationId": "launch_run_export",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "out": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "bundle_path": {
+                      "type": "string"
+                    },
+                    "record": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Export a lightweight local run bundle",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/runs/{run_id}/replay": {
+      "post": {
+        "operationId": "launch_run_replay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "replay_artifact_path": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return replay metadata for a local Live Agent Launchpad run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/runs/{run_id}/stop": {
+      "post": {
+        "operationId": "launch_run_stop",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "noop": {
+                      "type": "string"
+                    },
+                    "status_after": {
+                      "type": "string"
+                    },
+                    "status_before": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Stop or no-op a local Live Agent Launchpad run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
     "/manifest": {
       "get": {
         "operationId": "manifest",

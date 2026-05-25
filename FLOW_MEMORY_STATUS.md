@@ -227,6 +227,18 @@ Live neural agents are local, advisory, deterministic, and policy-gated. They do
 
 The Launchpad is local public-alpha UX for neural-live agents. It does not perform live settlement, external provider calls, raw checkpoint writes, or GPU-backed claims.
 
+## Live Agent Operations status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Run registry | implemented local metadata | Launchpad runs write JSON records under `artifacts/launch/runs/` with run id, agent/session ids, backend, status, tick counts, memory/visual counts, replay path, checkpoint metadata path, and GPU evidence status. |
+| Operations CLI | implemented | `python -m flow_memory launch runs list/show/replay/export/stop --json` inspects and exports local run records; completed-run stop is a safe no-op. |
+| Operations API | implemented local seam | `GET /launch/runs`, `GET /launch/runs/{run_id}`, and replay/export/stop POST endpoints operate on local JSON metadata with `launch:*` scopes. |
+| Mission Control operations replay | implemented | `dashboard/src/mock-data/live-agent-operations.json` is generated from a local neural-live launch and includes policy, memory, neural, learning, checkpoint, and completion events. |
+| Operations evidence | implemented | Release evidence validates registry, CLI, API, replay, export, examples, policy-gated behavior, no external calls, no funds, and honest GPU status. |
+
+Live Agent Operations is local public-alpha run bookkeeping, replay, and export. It does not manage hidden hosted processes or perform external provider calls.
+
 ## Mission Control V2 recovery/polish branch status
 
 Branch `work/mission-control-visual-v2` resumes Mission Control polish in an isolated worktree. Current V2 additions:

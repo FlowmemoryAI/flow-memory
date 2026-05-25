@@ -15,6 +15,7 @@ from flow_memory.flowlang import EXAMPLE_FLOWLANG, compile_flowlang, run_flowlan
 from flow_memory.agents.profile import AgentProfile
 from flow_memory.agents.runner import AgentRunner
 from flow_memory.launchpad import run_live_agent_launch
+from flow_memory.launch_operations import export_run_bundle, get_run_record, list_run_records, replay_run_record, stop_run_record
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -210,6 +211,22 @@ class LocalApiRouter:
             ticks=int(payload.get("ticks", 5) or 5),
             emit_visual=bool(payload.get("emit_visual", True)),
         )
+    def _launch_runs_list(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "runs": list_run_records()}
+
+    def _launch_run_get(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "run": get_run_record(".", params["run_id"])}
+
+    def _launch_run_replay(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return replay_run_record(".", params["run_id"])
+
+    def _launch_run_export(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        out = str(payload.get("out", "")).strip() or None
+        return export_run_bundle(".", params["run_id"], out)
+
+    def _launch_run_stop(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return stop_run_record(".", params["run_id"])
+
 
     def _marketplace_task_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         title = str(payload.get("title", "")).strip()
@@ -542,6 +559,11 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/agents/launch-neural", router._agents_launch_neural, "agents_launch_neural")
     router.register("POST", "/launch/agent", router._launch_agent, "launch_agent")
     router.register("POST", "/launch/agent/from-flow", router._launch_agent_from_flow, "launch_agent_from_flow")
+    router.register("GET", "/launch/runs", router._launch_runs_list, "launch_runs_list")
+    router.register("GET", "/launch/runs/{run_id}", router._launch_run_get, "launch_run_get")
+    router.register("POST", "/launch/runs/{run_id}/replay", router._launch_run_replay, "launch_run_replay")
+    router.register("POST", "/launch/runs/{run_id}/export", router._launch_run_export, "launch_run_export")
+    router.register("POST", "/launch/runs/{run_id}/stop", router._launch_run_stop, "launch_run_stop")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

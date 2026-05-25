@@ -2027,364 +2027,224 @@ dd {
   margin-bottom: clamp(34px, 5vw, 64px);
 }
 
-.mission-hero-editorial,
-.mission-hero-asymmetry {
-  grid-template-columns: minmax(0, 1.16fr) minmax(360px, 0.84fr);
+.mission-hero-simple-3d {
+  grid-template-columns: minmax(0, 0.96fr) minmax(420px, 1.04fr);
   min-height: min(760px, calc(100dvh - 148px));
-  align-items: stretch;
+  align-items: center;
+  gap: clamp(28px, 5vw, 70px);
+  margin-bottom: clamp(28px, 5vw, 58px);
 }
 
-.mission-hero-editorial .mission-hero-copy,
-.mission-hero-asymmetry .mission-hero-copy {
+.mission-hero-simple-3d .mission-hero-copy {
   min-height: auto;
   align-content: center;
-  gap: clamp(22px, 3vw, 34px);
-  padding: clamp(20px, 5vw, 68px) 0;
+  gap: clamp(18px, 2.6vw, 28px);
+  padding: clamp(16px, 4vw, 58px) 0;
 }
 
-.mission-hero-editorial h1,
-.mission-hero-asymmetry h1 {
-  max-width: min(100%, 980px);
+.mission-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.mission-hero-simple-3d h1 {
+  max-width: min(100%, 900px);
+  margin: 0;
   color: var(--ink);
-  font-size: clamp(3rem, 5vw, 5.5rem);
+  font-size: clamp(2.85rem, 4.35vw, 4.95rem);
+  font-weight: 500;
   line-height: 0.98;
   letter-spacing: -0.058em;
   text-shadow: none;
 }
 
-.mission-hero-asymmetry {
-  grid-template-columns: minmax(0, 1.06fr) minmax(360px, 0.94fr);
-}
-
-.mission-hero-asymmetry h1 {
-  max-width: min(100%, 1040px);
-}
-
-.mission-inline-image {
-  display: inline-block;
-  width: clamp(4.6rem, 8vw, 7.6rem);
-  height: 0.56em;
-  margin: 0 0.08em;
-  border: 1px solid rgba(255, 255, 255, 0.58);
-  border-radius: 999px;
-  background:
-    linear-gradient(rgba(19, 17, 16, 0.04), rgba(19, 17, 16, 0.18)),
-    url("https://picsum.photos/seed/flowmemory-inline-memory/600/240");
-  background-size: cover;
-  background-position: center;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.62),
-    0 18px 44px -26px rgba(0, 82, 255, 0.42);
-  filter: grayscale(0.78) contrast(1.18) saturate(0.82);
-  vertical-align: -0.04em;
-}
-
-.mission-hero-asymmetry .mission-media-stage {
-  transform: translate(18px, 28px);
-}
-
-.mission-hero-editorial .mission-hero-lede,
-.mission-hero-asymmetry .mission-hero-lede {
-  max-width: 62ch;
+.mission-hero-simple-3d .mission-hero-lede {
+  max-width: 52ch;
   color: var(--ink-soft);
-  font-size: clamp(1.08rem, 1.45vw, 1.28rem);
-  line-height: 1.52;
+  font-size: clamp(1.08rem, 1.34vw, 1.22rem);
+  line-height: 1.56;
   text-shadow: none;
+  opacity: 1;
 }
 
-.mission-hero-editorial .mission-button-ghost,
-.mission-hero-asymmetry .mission-button-ghost,
+.mission-hero-simple-3d .mission-button-ghost,
 .mission-button-light {
   border-color: rgba(22, 20, 16, 0.16);
   background: rgba(247, 244, 236, 0.54);
   color: var(--ink);
 }
 
-.mission-hero-editorial .mission-button-ghost:hover,
-.mission-hero-asymmetry .mission-button-ghost:hover,
+.mission-hero-simple-3d .mission-button-ghost:hover,
 .mission-button-light:hover {
   border-color: rgba(22, 20, 16, 0.30);
   background: rgba(247, 244, 236, 0.78);
 }
 
-.mission-media-stage {
+.mission-3d-visualizer {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.mission-3d-canvas-frame {
   position: relative;
-  min-height: 620px;
+  min-height: clamp(480px, 68dvh, 720px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.48);
-  border-radius: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.50);
+  border-radius: 38px;
   background:
-    linear-gradient(145deg, rgba(247, 244, 236, 0.72), rgba(247, 244, 236, 0.26)),
-    rgba(255, 255, 255, 0.18);
+    radial-gradient(circle at 50% 34%, rgba(0, 82, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 15% 88%, rgba(157, 112, 64, 0.18), transparent 30%),
+    linear-gradient(145deg, rgba(247, 244, 236, 0.76), rgba(247, 244, 236, 0.28));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.68),
-    0 34px 92px -42px rgba(22, 20, 16, 0.36),
-    0 18px 70px -36px rgba(0, 82, 255, 0.34);
+    inset 0 1px 0 rgba(255, 255, 255, 0.70),
+    inset 0 -1px 0 rgba(22, 20, 16, 0.05),
+    0 34px 96px -44px rgba(22, 20, 16, 0.40),
+    0 18px 70px -38px rgba(0, 82, 255, 0.42);
   backdrop-filter: saturate(220%) blur(32px);
   -webkit-backdrop-filter: saturate(220%) blur(32px);
 }
 
-.mission-media-stage::before {
+.mission-3d-canvas-frame::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, transparent 0%, rgba(244, 240, 229, 0.58) 66%, rgba(244, 240, 229, 0.88) 100%),
-    radial-gradient(circle at 54% 30%, rgba(0, 82, 255, 0.16), transparent 34%);
+    linear-gradient(90deg, rgba(22, 20, 16, 0.040) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(22, 20, 16, 0.030) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(circle at 50% 50%, rgba(19, 17, 16, 0.32), transparent 70%);
   pointer-events: none;
-  z-index: 1;
 }
 
-.mission-media-image {
+#mission-3d-canvas {
   position: absolute;
-  inset: 22px 22px 174px;
-  border-radius: 26px;
-  background:
-    linear-gradient(120deg, rgba(19, 17, 16, 0.10), rgba(0, 82, 255, 0.12)),
-    url("https://picsum.photos/seed/flowmemory-proof-network/1920/1080");
-  background-size: cover;
-  background-position: center;
-  filter: grayscale(0.84) contrast(1.18) saturate(0.78);
-  opacity: 0.88;
-  transform: scale(0.96) translateZ(0);
-  transform-origin: center;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
 }
 
-.mission-horizontal-accordion {
+#mission-3d-canvas:active {
+  cursor: grabbing;
+}
+
+.mission-3d-fallback {
   position: absolute;
-  left: 34px;
-  right: 34px;
-  bottom: 166px;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mission-3d-canvas-frame[data-3d-ready="true"] .mission-3d-fallback {
+  display: none;
+}
+
+.mission-3d-overlay,
+.mission-3d-status {
+  position: absolute;
   z-index: 2;
   display: flex;
   gap: 8px;
-  height: 118px;
-}
-
-.mission-horizontal-accordion article {
-  position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.40);
-  border-radius: 20px;
-  padding: 16px;
-  display: grid;
-  align-content: end;
-  background:
-    linear-gradient(180deg, rgba(19, 17, 16, 0.02), rgba(19, 17, 16, 0.44)),
-    rgba(247, 244, 236, 0.38);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.44),
-    0 18px 42px -28px rgba(22, 20, 16, 0.36);
-  transition:
-    flex-basis 520ms var(--ease-brand),
-    flex-grow 520ms var(--ease-brand),
-    transform 520ms var(--ease-brand),
-    background 520ms var(--ease-brand);
-}
-
-.mission-horizontal-accordion article::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background-image: url("https://picsum.photos/seed/verified-memory-receipt/800/600");
-  background-size: cover;
-  background-position: center;
-  filter: grayscale(1) contrast(1.24);
-  opacity: 0.34;
-  transform: scale(1.03);
-  transition: transform 700ms var(--ease-brand), opacity 520ms var(--ease-brand);
-}
-
-.mission-horizontal-accordion article:nth-child(2)::before {
-  background-image: url("https://picsum.photos/seed/human-compute-memory/800/600");
-}
-
-.mission-horizontal-accordion article:nth-child(3)::before {
-  background-image: url("https://picsum.photos/seed/proof-root-console/800/600");
-}
-
-.mission-horizontal-accordion article:hover,
-.mission-horizontal-accordion article:focus-within {
-  flex-grow: 1.8;
-  transform: translateY(-2px);
-}
-
-.mission-horizontal-accordion article:hover::before,
-.mission-horizontal-accordion article:focus-within::before {
-  opacity: 0.50;
-  transform: scale(1.09);
-}
-
-.mission-horizontal-accordion strong,
-.mission-horizontal-accordion span {
-  position: relative;
-  z-index: 1;
-}
-
-.mission-horizontal-accordion strong {
-  color: #ffffff;
-  font-size: 1.02rem;
-  letter-spacing: -0.025em;
-}
-
-.mission-horizontal-accordion span {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 0.82rem;
-}
-
-.mission-media-stage .mode-switcher {
-  left: 24px;
-  right: 24px;
-  bottom: 22px;
-  z-index: 3;
-  background: rgba(247, 244, 236, 0.74);
-}
-
-.mission-marquee {
-  width: min(1240px, 100%);
-  margin: 0 auto clamp(54px, 8vw, 104px);
-  overflow: hidden;
-  border-top: 1px solid rgba(22, 20, 16, 0.12);
-  border-bottom: 1px solid rgba(22, 20, 16, 0.12);
-  display: flex;
-  color: rgba(19, 17, 16, 0.82);
-  font-size: clamp(2.4rem, 5vw, 5.2rem);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.06em;
-  white-space: nowrap;
-}
-
-.mission-marquee div {
-  display: flex;
-  gap: clamp(28px, 5vw, 72px);
-  min-width: max-content;
-  padding: 22px clamp(28px, 5vw, 72px) 26px 0;
-  animation: mission-marquee 26s linear infinite;
-}
-
-.mission-marquee span {
-  display: inline-block;
-}
-
-.mission-proof-narrative,
-.mission-action-footer {
-  width: min(1240px, 100%);
-  margin: clamp(72px, 10vw, 140px) auto;
-}
-
-.mission-proof-narrative {
-  display: grid;
-  grid-template-columns: minmax(280px, 0.42fr) minmax(0, 0.58fr);
-  gap: clamp(32px, 5vw, 72px);
-  align-items: start;
-}
-
-.mission-proof-copy {
-  position: sticky;
-  top: 120px;
-  display: grid;
-  gap: 22px;
-}
-
-.mission-proof-copy h2,
-.mission-action-footer h2 {
-  margin: 0;
-  color: var(--ink);
-  font-size: clamp(2.4rem, 4.6vw, 5.1rem);
-  line-height: 0.98;
-  letter-spacing: -0.055em;
-  font-weight: 500;
-}
-
-.mission-proof-copy p,
-.mission-action-footer p {
-  margin: 0;
-  max-width: 62ch;
-  color: var(--ink-soft);
-  font-size: clamp(1.02rem, 1.3vw, 1.18rem);
-  line-height: 1.62;
-}
-
-.mission-scrub-word {
-  opacity: 0.16;
-  transition: opacity 120ms linear;
-}
-
-.mission-proof-bento {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-auto-rows: 152px;
-  grid-auto-flow: dense;
-  gap: 12px;
-}
-
-.mission-bento-card {
-  grid-column: span 3;
-  position: relative;
-  overflow: hidden;
-  display: grid;
-  align-content: end;
-  gap: 10px;
-  min-height: 0;
-  border: 1px solid rgba(255, 255, 255, 0.48);
-  border-radius: 28px;
-  padding: 22px;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.54), rgba(247, 244, 236, 0.25)),
-    rgba(255, 255, 255, 0.18);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.58),
-    0 24px 68px -42px rgba(22, 20, 16, 0.30);
-  transform: scale(0.96) translateZ(0);
-}
-
-.mission-bento-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(0, 82, 255, 0.14), transparent 28%),
-    linear-gradient(135deg, transparent, rgba(19, 17, 16, 0.06));
   pointer-events: none;
-  transition: transform 700ms var(--ease-brand), opacity 520ms var(--ease-brand);
 }
 
-.mission-bento-card:hover::before {
-  transform: scale(1.06);
+.mission-3d-overlay {
+  left: 22px;
+  top: 22px;
+  flex-direction: column;
+  max-width: min(360px, calc(100% - 44px));
 }
 
-.mission-bento-wide {
-  grid-column: span 6;
-  grid-row: span 2;
-}
-
-.mission-proof-bento .mission-bento-card:nth-child(2) {
-  grid-column: span 6;
-}
-
-.mission-bento-tall {
-  grid-column: span 3;
-}
-
-.mission-bento-card strong,
-.mission-bento-card span {
-  position: relative;
-  z-index: 1;
-}
-
-.mission-bento-card strong {
+.mission-3d-overlay strong {
   color: var(--ink);
-  font-size: clamp(1.3rem, 2.3vw, 2.15rem);
-  line-height: 1;
+  font-size: clamp(1.4rem, 2.6vw, 2.6rem);
+  font-weight: 500;
+  line-height: 0.98;
   letter-spacing: -0.05em;
 }
 
-.mission-bento-card span {
+.mission-3d-overlay span,
+.mission-3d-status span,
+.mission-3d-caption {
   color: var(--muted);
-  line-height: 1.44;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.mission-3d-status {
+  right: 18px;
+  bottom: 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.mission-3d-status span {
+  border: 1px solid rgba(22, 20, 16, 0.10);
+  border-radius: 999px;
+  background: rgba(247, 244, 236, 0.66);
+  padding: 7px 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.mission-3d-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mission-3d-controls button {
+  border: 1px solid rgba(22, 20, 16, 0.12);
+  border-radius: 999px;
+  background: rgba(247, 244, 236, 0.52);
+  color: var(--ink);
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 0.86rem;
+  transition:
+    transform 220ms var(--ease-brand),
+    background 220ms var(--ease-brand),
+    border-color 220ms var(--ease-brand);
+}
+
+.mission-3d-controls button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 82, 255, 0.28);
+  background: rgba(247, 244, 236, 0.78);
+}
+
+.mission-3d-controls button:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.mission-3d-controls button[data-active="true"] {
+  border-color: rgba(0, 82, 255, 0.54);
+  background: rgba(0, 82, 255, 0.10);
+  color: var(--ink);
+}
+
+.mission-3d-caption {
+  margin: 0;
+  max-width: 68ch;
+}
+
+.mission-scrub-word {
+  opacity: 0.18;
+  transition: opacity 120ms linear;
 }
 
 .mission-action-footer {
@@ -2469,79 +2329,45 @@ dd {
   text-transform: uppercase;
 }
 
-@keyframes mission-marquee {
-  to { transform: translateX(-100%); }
-}
-
 @media (max-width: 1080px) {
-  .mission-hero-editorial,
-  .mission-hero-asymmetry,
-  .mission-proof-narrative,
+  .mission-hero-simple-3d,
   .mission-action-footer {
     grid-template-columns: 1fr;
   }
 
-  .mission-media-stage {
-    min-height: 580px;
-  }
-
-  .mission-proof-copy {
-    position: static;
-  }
-
-  .mission-proof-bento {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-
-  .mission-bento-wide,
-  .mission-proof-bento .mission-bento-card:nth-child(2),
-  .mission-bento-tall,
-  .mission-bento-card {
-    grid-column: span 6;
-    grid-row: span 1;
+  .mission-3d-canvas-frame {
+    min-height: 560px;
   }
 }
 
 @media (max-width: 760px) {
-  .mission-hero-editorial h1,
-  .mission-hero-asymmetry h1 {
+  .mission-hero-simple-3d h1 {
     max-width: 10ch;
     font-size: clamp(3rem, 14vw, 4.4rem);
   }
 
-  .mission-media-stage {
-    min-height: 560px;
+  .mission-3d-canvas-frame {
+    min-height: 430px;
+    border-radius: 28px;
   }
 
-  .mission-media-image {
-    inset: 16px 16px 190px;
+  .mission-3d-overlay {
+    left: 16px;
+    top: 16px;
   }
 
-  .mission-horizontal-accordion {
-    left: 18px;
-    right: 18px;
-    bottom: 176px;
-    height: 112px;
+  .mission-3d-status {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    justify-content: flex-start;
   }
 
-  .mission-horizontal-accordion article {
-    padding: 12px;
+  .mission-3d-controls {
+    grid-template-columns: 1fr;
   }
 
-  .mission-proof-narrative,
   .mission-action-footer {
     margin: 54px auto;
-  }
-
-  .mission-proof-bento {
-    grid-auto-rows: auto;
-  }
-
-  .mission-bento-card {
-    min-height: 168px;
-  }
-
-  .mission-marquee {
-    margin-bottom: 54px;
   }
 }

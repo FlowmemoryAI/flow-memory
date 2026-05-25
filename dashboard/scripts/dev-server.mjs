@@ -10,9 +10,12 @@ const host = process.env.HOST || '127.0.0.1';
 const mockDataDir = path.join(root, 'src', 'mock-data');
 const stylePath = path.join(root, 'src', 'styles', 'mission-control.css');
 const gsapDistDir = path.join(root, 'node_modules', 'gsap', 'dist');
+const threeDistDir = path.join(root, 'node_modules', 'three', 'build');
 const vendorScripts = new Map([
   ['gsap.min.js', path.join(gsapDistDir, 'gsap.min.js')],
   ['ScrollTrigger.min.js', path.join(gsapDistDir, 'ScrollTrigger.min.js')],
+  ['three.module.js', path.join(threeDistDir, 'three.module.js')],
+  ['three.core.js', path.join(threeDistDir, 'three.core.js')],
 ]);
 
 const fixtureSpecs = [
@@ -369,50 +372,40 @@ function renderSafeLiveApiPanel() {
     </section>`;
 }
 
-function renderOperatorMarquee() {
-  const terms = ['Human compute', 'Device signal', 'Signed receipt', 'Memory capsule', 'Proof root', 'Verified recall'];
-  const row = terms.map((term) => `<span>${text(term)}</span>`).join('');
+function renderInteractive3DHero(payload) {
+  const embodiment = payload?.embodiment || {};
+  const gpuStatus = embodiment.gpu_evidence_status || 'verified';
+  const phase = embodiment.current_loop_phase || 'observed';
   return `
-    <section class="mission-marquee" aria-label="Flow Memory network primitives">
-      <div>${row}</div>
-      <div aria-hidden="true">${row}</div>
-    </section>`;
+    <aside class="mission-3d-visualizer" aria-label="Interactive Flow Memory 3D visualization">
+      <div class="mission-3d-canvas-frame" data-3d-ready="pending">
+        <canvas id="mission-3d-canvas" aria-label="Interactive 3D memory field. Drag to rotate and scroll to zoom."></canvas>
+        <div class="mission-3d-fallback">Loading interactive memory field</div>
+        <div class="mission-3d-overlay">
+          <strong>Interactive memory field</strong>
+          <span>Drag to rotate · Scroll to zoom · Local replay only</span>
+        </div>
+        <div class="mission-3d-status">
+          <span>GPU evidence ${text(gpuStatus)}</span>
+          <span>Phase ${text(phase)}</span>
+        </div>
+      </div>
+      <div class="mission-3d-controls" role="tablist" aria-label="3D visualization modes">
+        <button type="button" data-3d-mode="swarm" data-active="true">Agent swarm</button>
+        <button type="button" data-3d-mode="contact" data-active="false">Contact mesh</button>
+        <button type="button" data-3d-mode="manim" data-active="false">Manim path</button>
+      </div>
+      <p class="mission-3d-caption">A simple client-side scene for trying the visual language: Puffer-style swarms, contact-solver meshes, and Manim-like geometric traces.</p>
+    </aside>`;
 }
 
-function renderProofNarrative() {
-  return `
-    <section class="mission-proof-narrative" aria-label="Proof-carrying memory narrative">
-      <div class="mission-proof-copy">
-        <h2>Every run leaves an evidence trail the next agent can reuse.</h2>
-        <p class="mission-scrub-copy" data-motion="scrub-text">Replay events, neural heartbeat state, GPU validation, policy gates, memory activations, and release finalizer status resolve into a single operator view. Nothing in this dashboard starts agents or writes to unsafe control endpoints.</p>
-      </div>
-      <div class="mission-proof-bento" aria-label="Mission Control proof bento">
-        <article class="mission-bento-card mission-bento-wide" data-motion="image-scale">
-          <strong>Run selector</strong>
-          <span>Five checked-in fixtures, one verified path from local replay to public-alpha evidence.</span>
-        </article>
-        <article class="mission-bento-card" data-motion="image-scale">
-          <strong>Embodiment</strong>
-          <span>Policy-gated neural state stays visible without claiming autonomous authority.</span>
-        </article>
-        <article class="mission-bento-card" data-motion="image-scale">
-          <strong>Live 3D</strong>
-          <span>GPU evidence and local-only constraints are rendered as read-only operator context.</span>
-        </article>
-        <article class="mission-bento-card mission-bento-tall" data-motion="image-scale">
-          <strong>Finalizer</strong>
-          <span>Launch gates, demo bundle status, and C:\\tmp backup exclusion stay attached to the handoff.</span>
-        </article>
-      </div>
-    </section>`;
-}
 
 function renderActionFooter() {
   return `
     <section class="mission-action-footer" aria-label="Mission Control action">
       <div>
         <h2>Review the launch handoff with proof in view.</h2>
-        <p>The dashboard is intentionally read-only: replay/mock mode works offline, local API mode is optional, and unsafe write/control routes stay out of the frontend.</p>
+        <p data-motion="scrub-text">The dashboard is intentionally read-only: replay/mock mode works offline, local API mode is optional, and unsafe write/control routes stay out of the frontend.</p>
         <div class="mission-hero-actions">
           <a class="mission-button mission-button-primary" href="#runs">Inspect run evidence <span aria-hidden="true">→</span></a>
           <a class="mission-button mission-button-ghost mission-button-light" href="#finalizer">Review finalizer</a>
@@ -447,18 +440,17 @@ function renderMotionScript() {
       span.textContent = word + ' ';
       block.appendChild(span);
     }
-    const spans = block.querySelectorAll('.mission-scrub-word');
     gsap.fromTo(
-      spans,
-      { opacity: 0.12 },
+      block.querySelectorAll('.mission-scrub-word'),
+      { opacity: 0.18 },
       {
         opacity: 1,
-        stagger: 0.045,
+        stagger: 0.035,
         ease: 'none',
         scrollTrigger: {
           trigger: block,
-          start: 'top 78%',
-          end: 'bottom 38%',
+          start: 'top 82%',
+          end: 'bottom 42%',
           scrub: true,
         },
       },
@@ -468,7 +460,7 @@ function renderMotionScript() {
   gsap.utils.toArray('[data-motion="image-scale"]').forEach((element) => {
     gsap.fromTo(
       element,
-      { opacity: 0.28, scale: 0.82, y: 42 },
+      { opacity: 0.42, scale: 0.92, y: 28 },
       {
         opacity: 1,
         scale: 1,
@@ -476,41 +468,236 @@ function renderMotionScript() {
         ease: 'none',
         scrollTrigger: {
           trigger: element,
-          start: 'top 92%',
-          end: 'bottom 22%',
+          start: 'top 90%',
+          end: 'bottom 28%',
           scrub: true,
         },
       },
     );
   });
+})();
+</script>`;
+}
 
-  gsap.matchMedia().add('(min-width: 1081px)', () => {
-    ScrollTrigger.create({
-      trigger: '.mission-proof-narrative',
-      start: 'top 92px',
-      end: 'bottom 68%',
-      pin: '.mission-proof-copy',
-      pinSpacing: false,
-    });
+function renderThreeSceneScript() {
+  return `<script type="module">
+import * as THREE from '/vendor/three.module.js';
 
-    gsap.utils.toArray('.mission-bento-card').forEach((card, index) => {
-      gsap.fromTo(
-        card,
-        { y: 68 + index * 12, scale: 0.92 },
-        {
-          y: 0,
-          scale: 1,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: card,
-            start: 'top 92%',
-            end: 'top 44%',
-            scrub: true,
-          },
-        },
-      );
-    });
+(() => {
+  const canvas = document.getElementById('mission-3d-canvas');
+  const frame = document.querySelector('.mission-3d-canvas-frame');
+  if (!canvas || !frame) return;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0xf4f0e5, 9, 18);
+
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
+  camera.position.set(0, 1.1, 8.2);
+
+  const root = new THREE.Group();
+  scene.add(root);
+
+  scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+  const key = new THREE.DirectionalLight(0xffffff, 1.8);
+  key.position.set(4, 5, 7);
+  scene.add(key);
+
+  const coreMaterial = new THREE.MeshStandardMaterial({
+    color: 0x0052ff,
+    roughness: 0.38,
+    metalness: 0.12,
+    transparent: true,
+    opacity: 0.92,
   });
+  const darkMaterial = new THREE.MeshStandardMaterial({
+    color: 0x131110,
+    roughness: 0.55,
+    metalness: 0.08,
+  });
+  const warmMaterial = new THREE.MeshStandardMaterial({
+    color: 0x9d7040,
+    roughness: 0.5,
+    metalness: 0.1,
+  });
+  const translucentBlue = new THREE.MeshStandardMaterial({
+    color: 0x0052ff,
+    roughness: 0.42,
+    metalness: 0.08,
+    transparent: true,
+    opacity: 0.16,
+    wireframe: true,
+  });
+
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.58, 3), coreMaterial);
+  root.add(core);
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1.1, 0.012, 12, 140),
+    new THREE.MeshBasicMaterial({ color: 0x0052ff, transparent: true, opacity: 0.72 }),
+  );
+  ring.rotation.x = Math.PI * 0.52;
+  root.add(ring);
+
+  const swarmGroup = new THREE.Group();
+  const swarmCount = 220;
+  const swarmPositions = new Float32Array(swarmCount * 3);
+  const swarmSeeds = [];
+  for (let i = 0; i < swarmCount; i += 1) {
+    const lane = i % 5;
+    const t = i / swarmCount;
+    const angle = t * Math.PI * 7 + lane * 0.7;
+    const radius = 1.1 + lane * 0.28 + Math.sin(t * 12) * 0.18;
+    swarmPositions[i * 3] = Math.cos(angle) * radius;
+    swarmPositions[i * 3 + 1] = Math.sin(t * Math.PI * 5) * 0.72 + (lane - 2) * 0.05;
+    swarmPositions[i * 3 + 2] = Math.sin(angle) * radius + (t - 0.5) * 2.2;
+    swarmSeeds.push({ angle, radius, lane, t });
+  }
+  const swarmGeometry = new THREE.BufferGeometry();
+  swarmGeometry.setAttribute('position', new THREE.BufferAttribute(swarmPositions, 3));
+  const swarm = new THREE.Points(
+    swarmGeometry,
+    new THREE.PointsMaterial({ color: 0x0052ff, size: 0.075, sizeAttenuation: true, transparent: true, opacity: 0.86 }),
+  );
+  swarmGroup.add(swarm);
+  for (let i = 0; i < 6; i += 1) {
+    const star = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.12, 0),
+      i % 2 ? warmMaterial : coreMaterial,
+    );
+    star.position.set(Math.cos(i * 1.2) * 2.8, Math.sin(i * 1.7) * 1.1, Math.sin(i * 1.2) * 1.8);
+    swarmGroup.add(star);
+  }
+  root.add(swarmGroup);
+
+  const contactGroup = new THREE.Group();
+  const meshGeometry = new THREE.PlaneGeometry(5.6, 3.4, 38, 22);
+  meshGeometry.rotateX(-Math.PI * 0.58);
+  const meshSurface = new THREE.Mesh(meshGeometry, translucentBlue);
+  contactGroup.add(meshSurface);
+  const contactNodes = new THREE.Points(
+    meshGeometry,
+    new THREE.PointsMaterial({ color: 0x131110, size: 0.035, sizeAttenuation: true, transparent: true, opacity: 0.55 }),
+  );
+  contactGroup.add(contactNodes);
+  contactGroup.visible = false;
+  root.add(contactGroup);
+
+  const manimGroup = new THREE.Group();
+  const makeCurve = (offset, color) => {
+    const pts = [];
+    for (let i = 0; i < 420; i += 1) {
+      const t = i / 38;
+      pts.push(new THREE.Vector3(
+        Math.sin(t * 0.72 + offset) * (1.45 + 0.06 * t),
+        Math.cos(t * 0.47 + offset) * 0.9,
+        (i / 420 - 0.5) * 5.4 + Math.sin(t) * 0.28,
+      ));
+    }
+    return new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.78 }),
+    );
+  };
+  manimGroup.add(makeCurve(0, 0x0052ff));
+  manimGroup.add(makeCurve(1.8, 0x131110));
+  manimGroup.add(makeCurve(3.2, 0x9d7040));
+  const theorem = new THREE.Mesh(new THREE.TorusKnotGeometry(0.62, 0.018, 180, 8), coreMaterial);
+  theorem.position.set(0, 0.2, 0);
+  manimGroup.add(theorem);
+  manimGroup.visible = false;
+  root.add(manimGroup);
+
+  const groups = { swarm: swarmGroup, contact: contactGroup, manim: manimGroup };
+  let activeMode = 'swarm';
+  const buttons = Array.from(document.querySelectorAll('[data-3d-mode]'));
+  for (const button of buttons) {
+    button.addEventListener('click', () => {
+      activeMode = button.dataset["3dMode"] || 'swarm';
+      for (const [mode, group] of Object.entries(groups)) group.visible = mode === activeMode;
+      for (const item of buttons) item.dataset.active = String(item === button);
+    });
+  }
+
+  let targetX = -0.24;
+  let targetY = 0.32;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  let zoom = 8.2;
+
+  canvas.addEventListener('pointerdown', (event) => {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointercancel', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    targetY += (event.clientX - lastX) * 0.006;
+    targetX += (event.clientY - lastY) * 0.006;
+    targetX = Math.max(-1.1, Math.min(1.1, targetX));
+    lastX = event.clientX;
+    lastY = event.clientY;
+  });
+  canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoom = Math.max(5.6, Math.min(11.5, zoom + event.deltaY * 0.006));
+  }, { passive: false });
+
+  function resize() {
+    const rect = frame.getBoundingClientRect();
+    renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
+    camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function animate() {
+    const elapsed = performance.now() / 1000;
+    root.rotation.x += (targetX - root.rotation.x) * 0.05;
+    root.rotation.y += (targetY + elapsed * 0.06 - root.rotation.y) * 0.04;
+    camera.position.z += (zoom - camera.position.z) * 0.08;
+
+    core.rotation.x = elapsed * 0.38;
+    core.rotation.y = elapsed * 0.52;
+    ring.rotation.z = elapsed * 0.28;
+
+    const positions = swarmGeometry.attributes.position.array;
+    for (let i = 0; i < swarmCount; i += 1) {
+      const seed = swarmSeeds[i];
+      const wave = elapsed * (0.42 + seed.lane * 0.045);
+      const angle = seed.angle + wave;
+      positions[i * 3] = Math.cos(angle) * seed.radius;
+      positions[i * 3 + 1] = Math.sin(seed.t * Math.PI * 5 + wave) * 0.72 + (seed.lane - 2) * 0.05;
+      positions[i * 3 + 2] = Math.sin(angle) * seed.radius + (seed.t - 0.5) * 2.2;
+    }
+    swarmGeometry.attributes.position.needsUpdate = true;
+
+    const meshPositions = meshGeometry.attributes.position;
+    for (let i = 0; i < meshPositions.count; i += 1) {
+      const x = meshPositions.getX(i);
+      const y = meshPositions.getY(i);
+      meshPositions.setZ(i, Math.sin(x * 1.8 + elapsed) * 0.16 + Math.cos(y * 2.2 + elapsed * 0.8) * 0.12);
+    }
+    meshPositions.needsUpdate = true;
+    meshGeometry.computeVertexNormals();
+
+    theorem.rotation.x = elapsed * 0.34;
+    theorem.rotation.y = elapsed * 0.52;
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  frame.dataset["3dReady"] = 'true';
+  window.__flowMemory3DReady = true;
+  animate();
 })();
 </script>`;
 }
@@ -543,55 +730,34 @@ function renderMissionControlHtml(payloads, finalizer) {
       <a class="mission-status-pill" href="#finalizer">Public alpha ready</a>
     </header>
 
-    <section class="mission-control-hero mission-hero-asymmetry" aria-labelledby="mission-control-title">
+    <section class="mission-control-hero mission-hero-simple-3d" aria-labelledby="mission-control-title">
       <div class="mission-hero-copy">
-        <h1 id="mission-control-title">Verified work <span class="mission-inline-image" aria-hidden="true"></span> becomes living memory.</h1>
-        <p class="mission-hero-lede" data-motion="scrub-text">FlowMemory turns local agent runs, replay evidence, neural embodiment, and launch gates into a human-scale memory layer for AI systems.</p>
+        <p class="mission-kicker">FlowMemory / Human Compute Network</p>
+        <h1 id="mission-control-title">Human compute becomes memory.</h1>
+        <p class="mission-hero-lede">Run swarms, proof meshes, and geometric traces locally in the browser.</p>
         <div class="mission-hero-actions">
           <a class="mission-button mission-button-primary" href="#runs">Inspect runs <span aria-hidden="true">→</span></a>
-          <a class="mission-button mission-button-ghost" href="#live-3d">Open Live 3D</a>
+          <a class="mission-button mission-button-ghost" href="#live-3d">View evidence</a>
         </div>
       </div>
-
-      <aside class="mission-media-stage" aria-label="Mission Control editorial media">
-        <div class="mission-media-image" data-motion="image-scale" aria-hidden="true"></div>
-        <div class="mission-horizontal-accordion" aria-label="Mission Control view modes">
-          <article>
-            <strong>Receipt</strong>
-            <span>signed work signals</span>
-          </article>
-          <article>
-            <strong>Memory</strong>
-            <span>reusable context</span>
-          </article>
-          <article>
-            <strong>Proof</strong>
-            <span>launch evidence</span>
-          </article>
-        </div>
-        <div class="mode-switcher" aria-label="Mission Control mode switcher">
-          <strong>replay artifact</strong>
-          <small>Checked-in replay/mock fixtures load without API. Local API mode remains optional and read-only.</small>
-          <div><button type="button" data-active="false">mock</button><button type="button" data-active="true">replay</button><button type="button" data-active="false">live local API</button></div>
-        </div>
-      </aside>
+      ${renderInteractive3DHero(embodimentPayload)}
     </section>
 
     ${renderSafeLiveApiPanel()}
-    ${renderOperatorMarquee()}
     ${renderRunSelector(payloads)}
     <div class="mission-stack-grid">
       ${renderReplaySummary(payloads)}
       ${renderFinalizerStatus(finalizer)}
     </div>
-    ${renderProofNarrative()}
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
     ${renderActionFooter()}
   </main>
   <script src="/vendor/gsap.min.js"></script>
   <script src="/vendor/ScrollTrigger.min.js"></script>
+  <script type="module" src="/vendor/three.module.js"></script>
   ${renderMotionScript()}
+  ${renderThreeSceneScript()}
 </body>
 </html>`;
 }

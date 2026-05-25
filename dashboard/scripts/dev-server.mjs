@@ -58,22 +58,6 @@ const safeLiveReadEndpoints = [
   'GET /release/decision/public-alpha-launch-finalizer',
 ];
 
-const brandStages = [
-  ['human', 'owner'],
-  ['device', 'node'],
-  ['signal', 'action'],
-  ['receipt', 'verified'],
-  ['memory', 'state'],
-  ['proof', 'recall'],
-];
-
-function renderBrandStages() {
-  return brandStages.map(([name, meta], index) => `
-    <span class="brand-stage brand-stage-${index + 1}" style="--stage-index: ${index}">
-      <b>${text(name)}</b>
-      <small>${text(meta)}</small>
-    </span>`).join('');
-}
 
 function send(res, status, contentType, body) {
   res.writeHead(status, { 'content-type': contentType });
@@ -141,12 +125,6 @@ function eventCategoryCounts(events) {
   return counts;
 }
 
-function summarizeVisualState(state) {
-  const runtime = state?.runtime || {};
-  const agents = Array.isArray(state?.agents) ? state.agents : [];
-  const tasks = Array.isArray(state?.tasks) ? state.tasks : [];
-  return `${runtime.events || 0} events · ${agents.length} agents · ${tasks.length} tasks · ${state?.provenance || 'replay'}`;
-}
 
 function firstState(payloads) {
   return payloads['local-network-replay']?.state || {};
@@ -386,6 +364,114 @@ function renderSafeLiveApiPanel() {
     </section>`;
 }
 
+function renderOperatorMarquee() {
+  const terms = ['Human compute', 'Device signal', 'Signed receipt', 'Memory capsule', 'Proof root', 'Verified recall'];
+  const row = terms.map((term) => `<span>${text(term)}</span>`).join('');
+  return `
+    <section class="mission-marquee" aria-label="Flow Memory network primitives">
+      <div>${row}</div>
+      <div aria-hidden="true">${row}</div>
+    </section>`;
+}
+
+function renderProofNarrative() {
+  return `
+    <section class="mission-proof-narrative" aria-label="Proof-carrying memory narrative">
+      <div class="mission-proof-copy">
+        <h2>Every run leaves an evidence trail the next agent can reuse.</h2>
+        <p class="mission-scrub-copy" data-motion="scrub-text">Replay events, neural heartbeat state, GPU validation, policy gates, memory activations, and release finalizer status resolve into a single operator view. Nothing in this dashboard starts agents or writes to unsafe control endpoints.</p>
+      </div>
+      <div class="mission-proof-bento" aria-label="Mission Control proof bento">
+        <article class="mission-bento-card mission-bento-wide" data-motion="image-scale">
+          <strong>Run selector</strong>
+          <span>Five checked-in fixtures, one verified path from local replay to public-alpha evidence.</span>
+        </article>
+        <article class="mission-bento-card" data-motion="image-scale">
+          <strong>Embodiment</strong>
+          <span>Policy-gated neural state stays visible without claiming autonomous authority.</span>
+        </article>
+        <article class="mission-bento-card" data-motion="image-scale">
+          <strong>Live 3D</strong>
+          <span>GPU evidence and local-only constraints are rendered as read-only operator context.</span>
+        </article>
+        <article class="mission-bento-card mission-bento-tall" data-motion="image-scale">
+          <strong>Finalizer</strong>
+          <span>Launch gates, demo bundle status, and C:\\tmp backup exclusion stay attached to the handoff.</span>
+        </article>
+      </div>
+    </section>`;
+}
+
+function renderActionFooter() {
+  return `
+    <section class="mission-action-footer" aria-label="Mission Control action">
+      <div>
+        <h2>Review the launch handoff with proof in view.</h2>
+        <p>The dashboard is intentionally read-only: replay/mock mode works offline, local API mode is optional, and unsafe write/control routes stay out of the frontend.</p>
+        <div class="mission-hero-actions">
+          <a class="mission-button mission-button-primary" href="#runs">Inspect run evidence <span aria-hidden="true">→</span></a>
+          <a class="mission-button mission-button-ghost mission-button-light" href="#finalizer">Review finalizer</a>
+        </div>
+      </div>
+      <figure class="mission-operator-quote">
+        <div aria-hidden="true"><span></span><span></span><span></span></div>
+        <blockquote>Mission Control reads like an evidence room, not a cockpit toy: state, proof, and launch gates stay legible in one pass.</blockquote>
+        <figcaption>Public-alpha operator review</figcaption>
+      </figure>
+    </section>`;
+}
+
+function renderMotionScript() {
+  return `<script>
+(() => {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const scrubBlocks = Array.from(document.querySelectorAll('[data-motion="scrub-text"]'));
+  for (const block of scrubBlocks) {
+    const words = block.textContent.trim().split(/\\s+/);
+    block.textContent = '';
+    for (const word of words) {
+      const span = document.createElement('span');
+      span.className = 'mission-scrub-word';
+      span.textContent = word + ' ';
+      block.appendChild(span);
+    }
+  }
+
+  const animated = Array.from(document.querySelectorAll('[data-motion="image-scale"], .mission-scrub-word'));
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+  function update() {
+    const viewport = window.innerHeight || 1;
+    for (const element of animated) {
+      const rect = element.getBoundingClientRect();
+      const progress = clamp(1 - Math.abs((rect.top + rect.height * 0.5 - viewport * 0.52) / viewport), 0, 1);
+      if (element.classList.contains('mission-scrub-word')) {
+        element.style.opacity = String(0.16 + progress * 0.84);
+      } else {
+        element.style.opacity = String(0.52 + progress * 0.48);
+        element.style.transform = \`scale(\${0.94 + progress * 0.06}) translateY(\${(1 - progress) * 18}px)\`;
+      }
+    }
+  }
+
+  let ticking = false;
+  const requestUpdate = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      update();
+    });
+  };
+
+  window.addEventListener('scroll', requestUpdate, { passive: true });
+  window.addEventListener('resize', requestUpdate);
+  update();
+})();
+</script>`;
+}
+
 function renderMissionControlHtml(payloads, finalizer) {
   const state = firstState(payloads);
   const embodimentPayload = payloads['live-neural-embodiment'] || {};
@@ -414,32 +500,32 @@ function renderMissionControlHtml(payloads, finalizer) {
       <a class="mission-status-pill" href="#finalizer">Public alpha ready</a>
     </header>
 
-    <section class="mission-control-hero" aria-labelledby="mission-control-title">
+    <section class="mission-control-hero mission-hero-editorial" aria-labelledby="mission-control-title">
       <div class="mission-hero-copy">
-        <p class="eyebrow">
-          <span class="eyebrow-dot" aria-hidden="true"></span>
-          <span>FlowMemory / Human Compute Network</span>
-        </p>
-        <h1 id="mission-control-title">Mission Control for verified work memory.</h1>
-        <p class="mission-hero-lede">Operate replay fixtures, neural embodiment, and public-alpha launch evidence with the same warm glass system as flowmemory.ai.</p>
+        <h1 id="mission-control-title">Verified work becomes living memory.</h1>
+        <p class="mission-hero-lede" data-motion="scrub-text">FlowMemory turns local agent runs, replay evidence, neural embodiment, and launch gates into a human-scale memory layer for AI systems.</p>
         <div class="mission-hero-actions">
           <a class="mission-button mission-button-primary" href="#runs">Inspect runs <span aria-hidden="true">→</span></a>
           <a class="mission-button mission-button-ghost" href="#live-3d">Open Live 3D</a>
         </div>
-        <dl class="mission-hero-metrics" aria-label="Mission Control summary">
-          <div><dt>Mode</dt><dd>${text(state?.provenance || 'replay')}</dd></div>
-          <div><dt>State</dt><dd>${text(summarizeVisualState(state))}</dd></div>
-          <div><dt>GPU evidence</dt><dd>GPU evidence verified</dd></div>
-        </dl>
       </div>
 
-      <aside class="mission-orb-card" aria-label="Human compute to AI memory flow">
-        <div class="mission-orb-field" aria-hidden="true">
-          <span class="mission-orb mission-orb-a"></span>
-          <span class="mission-orb mission-orb-b"></span>
-          <span class="mission-orb mission-orb-c"></span>
+      <aside class="mission-media-stage" aria-label="Mission Control editorial media">
+        <div class="mission-media-image" data-motion="image-scale" aria-hidden="true"></div>
+        <div class="mission-horizontal-accordion" aria-label="Mission Control view modes">
+          <article>
+            <strong>Receipt</strong>
+            <span>signed work signals</span>
+          </article>
+          <article>
+            <strong>Memory</strong>
+            <span>reusable context</span>
+          </article>
+          <article>
+            <strong>Proof</strong>
+            <span>launch evidence</span>
+          </article>
         </div>
-        <div class="mission-flowline" aria-hidden="true">${renderBrandStages()}</div>
         <div class="mode-switcher" aria-label="Mission Control mode switcher">
           <strong>replay artifact</strong>
           <small>Checked-in replay/mock fixtures load without API. Local API mode remains optional and read-only.</small>
@@ -449,14 +535,18 @@ function renderMissionControlHtml(payloads, finalizer) {
     </section>
 
     ${renderSafeLiveApiPanel()}
+    ${renderOperatorMarquee()}
     ${renderRunSelector(payloads)}
     <div class="mission-stack-grid">
       ${renderReplaySummary(payloads)}
       ${renderFinalizerStatus(finalizer)}
     </div>
+    ${renderProofNarrative()}
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
+    ${renderActionFooter()}
   </main>
+  ${renderMotionScript()}
 </body>
 </html>`;
 }

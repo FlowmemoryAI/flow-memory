@@ -67,6 +67,43 @@ function Test-CommandAvailable {
     return $null -ne (Get-Command $Command -ErrorAction SilentlyContinue)
 }
 
+function ConvertTo-ProcessArgument {
+    param([Parameter(Mandatory = $true)] [AllowEmptyString()] [string]$Argument)
+
+    if ($Argument.Length -eq 0) { return '""' }
+    if ($Argument -notmatch '[\s"]') { return $Argument }
+
+    $builder = New-Object System.Text.StringBuilder
+    [void]$builder.Append('"')
+    $backslashes = 0
+    foreach ($char in $Argument.ToCharArray()) {
+        if ($char -eq '\') {
+            $backslashes += 1
+            continue
+        }
+        if ($char -eq '"') {
+            if ($backslashes -gt 0) { [void]$builder.Append(('\' * ($backslashes * 2))) }
+            [void]$builder.Append('\"')
+            $backslashes = 0
+            continue
+        }
+        if ($backslashes -gt 0) {
+            [void]$builder.Append(('\' * $backslashes))
+            $backslashes = 0
+        }
+        [void]$builder.Append($char)
+    }
+    if ($backslashes -gt 0) { [void]$builder.Append(('\' * ($backslashes * 2))) }
+    [void]$builder.Append('"')
+    return $builder.ToString()
+}
+
+function ConvertTo-ProcessArguments {
+    param([Parameter(Mandatory = $true)] [string[]]$ArgumentList)
+
+    return (($ArgumentList | ForEach-Object { ConvertTo-ProcessArgument -Argument ([string]$_) }) -join ' ')
+}
+
 function Invoke-ExternalQuiet {
     param(
         [Parameter(Mandatory = $true)] [string]$FilePath,
@@ -76,7 +113,7 @@ function Invoke-ExternalQuiet {
 
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $FilePath
-    foreach ($arg in $ArgumentList) { [void]$psi.ArgumentList.Add($arg) }
+    $psi.Arguments = ConvertTo-ProcessArguments -ArgumentList $ArgumentList
     $psi.WorkingDirectory = $WorkingDirectory
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true

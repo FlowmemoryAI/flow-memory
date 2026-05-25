@@ -350,6 +350,33 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_provider_reputation_tracks_sla_latency_breaches() -> None:
+    service = _service()
+    service.apply_market_provider(_provider_application())
+    service.verify_market_provider("provider_live_gpu_1", {})
+
+    job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 1500,
+            "currency": "USD",
+        },
+    )
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+
+    assert completed["job"]["provider_sla_max_latency_ms"] == 1000.0
+    assert completed["job"]["provider_sla_latency_breached"] is True
+    assert completed["event"]["details"]["provider_sla_latency_breached"] is True
+    assert reputation["sla_max_latency_ms"] == 1000.0
+    assert reputation["sla_latency_breach_count"] == 1
+    assert reputation["sla_breach_count"] == 1
+    assert reputation["latency_reliability"] == 0.0
+
+
 def test_signed_provider_receipt_callback_completes_job_and_blocks_replay(monkeypatch: Any) -> None:
     service = _service()
     key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")

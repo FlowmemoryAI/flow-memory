@@ -391,7 +391,7 @@ class ComputeMarketService:
         )
         provider = _provider_from_application(updated_application)
         self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status="active", request_id=request_id)
-        reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=(), fraud_signals=())
+        reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=(), fraud_signals=(), provider=provider)
         self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status="active", request_id=request_id)
         self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
@@ -462,7 +462,8 @@ class ComputeMarketService:
         quotes = tuple(self.store.list_records("compute_quote", filters={"provider_id": provider_id}, limit=500).records)
         health = tuple(self.store.list_records("provider_health_snapshot", filters={"provider_id": provider_id}, limit=100).records)
         fraud_signals = tuple(self.store.list_records("provider_fraud_signal", filters={"provider_id": provider_id}, limit=500).records)
-        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals)
+        provider = self.store.get_record("compute_provider", provider_id) or {}
+        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals, provider=provider if isinstance(provider, Mapping) else {})
         self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
         return {"ok": True, "reputation": reputation}
 
@@ -1111,6 +1112,9 @@ class ComputeMarketService:
         cost = _job_cost(payload)
         actual_units = _non_negative_float(payload.get("actual_units", payload.get("units", 0.0)), "actual_units")
         actual_latency_ms = _non_negative_float(payload.get("actual_latency_ms", payload.get("latency_ms", 0.0)), "actual_latency_ms")
+        provider = self.store.get_record("compute_provider", str(job.get("provider_id", ""))) or {}
+        sla_max_latency_ms = _provider_sla_max_latency_ms(provider if isinstance(provider, Mapping) else {})
+        sla_latency_breached = bool(sla_max_latency_ms and actual_latency_ms and actual_latency_ms > sla_max_latency_ms)
         previous_lease_expires_at = str(job.get("lease_expires_at", ""))
         job.update(
             {
@@ -1120,6 +1124,8 @@ class ComputeMarketService:
                 "actual_units": actual_units,
                 "actual_total_cost": cost,
                 "actual_latency_ms": actual_latency_ms,
+                "provider_sla_max_latency_ms": sla_max_latency_ms,
+                "provider_sla_latency_breached": sla_latency_breached,
                 "lifecycle": _append_lifecycle(job, "succeeded"),
                 "lease_expires_at": "",
             }
@@ -1214,6 +1220,8 @@ class ComputeMarketService:
                 "provider_payout_recorded": bool(provider_payout),
                 "actual_total_cost": cost,
                 "funds_moved": False,
+                "provider_sla_max_latency_ms": sla_max_latency_ms,
+                "provider_sla_latency_breached": sla_latency_breached,
                 "worker_id": worker_id,
             },
         )
@@ -2849,6 +2857,29 @@ def _fraud_signal_counts(fraud_signals: tuple[Mapping[str, Any], ...]) -> dict[s
     return counts
 
 
+def _safe_non_negative_float(value: object) -> float:
+    try:
+        amount = float(str(value if value not in (None, "") else 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+    return amount if amount > 0.0 else 0.0
+
+
+def _provider_sla_max_latency_ms(provider: Mapping[str, Any]) -> float:
+    metadata = provider.get("metadata", {})
+    sla: Mapping[str, Any] = {}
+    if isinstance(metadata, Mapping):
+        metadata_sla = metadata.get("sla", {})
+        if isinstance(metadata_sla, Mapping):
+            sla = metadata_sla
+    provider_sla = provider.get("sla", {})
+    if not sla and isinstance(provider_sla, Mapping):
+        sla = provider_sla
+    return _safe_non_negative_float(
+        sla.get("max_latency_ms", provider.get("sla_max_latency_ms", provider.get("average_latency_ms", 0.0)))
+    )
+
+
 def _provider_reputation(
     provider_id: str,
     *,
@@ -2856,19 +2887,41 @@ def _provider_reputation(
     quotes: tuple[Mapping[str, Any], ...],
     health: tuple[Mapping[str, Any], ...],
     fraud_signals: tuple[Mapping[str, Any], ...],
+    provider: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    completed = sum(1 for job in jobs if str(job.get("status", "")) == "succeeded")
+    completed_jobs = tuple(job for job in jobs if str(job.get("status", "")) == "succeeded")
+    completed = len(completed_jobs)
     failed = sum(1 for job in jobs if str(job.get("status", "")) == "failed")
     valid_quotes = sum(1 for quote in quotes if str(quote.get("status", "")) == "valid")
     stale_quotes = sum(1 for quote in quotes if quote.get("stale") is True or str(quote.get("status", "")) == "stale")
     total_jobs = max(1, completed + failed)
     total_quotes = max(1, len(quotes))
     uptime = sum(1 for item in health if str(item.get("status", "")) in {"healthy", "configured"}) / max(1, len(health))
+    sla_max_latency_ms = _provider_sla_max_latency_ms(provider or {})
+    latency_samples = tuple(_safe_non_negative_float(job.get("actual_latency_ms", 0.0)) for job in completed_jobs)
+    observed_latency_samples = tuple(value for value in latency_samples if value > 0.0)
+    latency_breaches = sum(
+        1
+        for job, latency_ms in zip(completed_jobs, latency_samples)
+        if job.get("provider_sla_latency_breached") is True
+        or (
+            "provider_sla_latency_breached" not in job
+            and sla_max_latency_ms > 0.0
+            and latency_ms > sla_max_latency_ms
+        )
+    )
+    latency_reliability = (
+        1.0
+        if not observed_latency_samples
+        else max(0.0, 1.0 - (latency_breaches / len(observed_latency_samples)))
+    )
+    sla_breach_count = failed + latency_breaches
     fraud_counts = _fraud_signal_counts(fraud_signals)
     fraud_signal_count = sum(fraud_counts.values())
     critical_fraud_signal_count = sum(1 for signal in fraud_signals if str(signal.get("severity", "")) == "critical")
     fraud_penalty = min(1.0, fraud_signal_count / total_quotes)
     stale_quote_rate = stale_quotes / total_quotes
+    sla_breach_penalty = min(1.0, sla_breach_count / total_jobs)
     score = max(
         0.0,
         min(
@@ -2876,8 +2929,10 @@ def _provider_reputation(
             (completed / total_jobs * 0.3)
             + (valid_quotes / total_quotes * 0.25)
             + (uptime * 0.25)
+            + (latency_reliability * 0.1)
             - (stale_quote_rate * 0.1)
-            - (fraud_penalty * 0.2),
+            - (fraud_penalty * 0.2)
+            - (sla_breach_penalty * 0.1),
         ),
     )
     manual_review_flags = tuple(
@@ -2894,13 +2949,15 @@ def _provider_reputation(
         "provider_id": provider_id,
         "quote_accuracy_score": round(valid_quotes / total_quotes, 4),
         "execution_success_rate": round(completed / total_jobs, 4),
-        "latency_reliability": 1.0,
+        "latency_reliability": round(latency_reliability, 4),
         "capacity_fulfillment_rate": 1.0,
         "refund_rate": 0.0,
         "dispute_rate": 0.0,
         "stale_quote_rate": round(stale_quote_rate, 4),
         "provider_uptime": round(uptime, 4),
-        "sla_breach_count": failed,
+        "sla_max_latency_ms": sla_max_latency_ms,
+        "sla_latency_breach_count": latency_breaches,
+        "sla_breach_count": sla_breach_count,
         "quote_replay_count": fraud_counts.get("quote_replay", 0),
         "stale_quote_submission_count": fraud_counts.get("stale_quote_submission", 0),
         "signature_failure_count": fraud_counts.get("signature_failure", 0),

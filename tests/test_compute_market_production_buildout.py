@@ -54,6 +54,18 @@ def _quote(total: float = 0.18) -> dict[str, object]:
     }
 
 
+def _job_payload() -> dict[str, object]:
+    return {
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/job-1.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "route_live_gpu_1",
+        "provider_id": "provider_live_gpu_1",
+    }
+
+
 def test_provider_onboarding_verification_and_secret_reference_only() -> None:
     service = _service()
 
@@ -194,22 +206,62 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     assert released["reservation"]["status"] == "released"
 
 
-def test_compute_job_lifecycle_is_dry_run_safe_and_audited() -> None:
+def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:
     service = _service()
-    created = service.create_job(
-        {
-            "task_type": "inference",
-            "input_ref": "s3://flow-memory-inputs/job-1.json",
-            "model_or_runtime": "llama-runtime",
-            "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
-            "budget_policy_id": "policy_default",
-            "route_id": "route_live_gpu_1",
-            "provider_id": "provider_live_gpu_1",
-        }
-    )
-    job_id = created["job"]["job_id"]
+    created = service.create_job(_job_payload())
+    job_id = str(created["job"]["job_id"])
     assert created["job"]["dry_run_only"] is True
     assert created["job"]["funds_moved"] is False
+
+    dispatched = service.dispatch_job(job_id, {})
+    assert dispatched["job"]["status"] == "running"
+    completed = service.complete_job(
+        job_id,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "artifact_ref": "s3://flow-memory-results/job-1.json",
+            "artifact_data": {"result": "ok"},
+        },
+    )
+
+    assert completed["job"]["status"] == "succeeded"
+    assert completed["artifact"]["artifact_ref"] == "s3://flow-memory-results/job-1.json"
+    assert completed["usage_charge"]["amount"] == 0.18
+    assert completed["usage_charge"]["funds_moved"] is False
+    assert service.job_artifacts(job_id)["artifacts"]
+    assert service.billing_usage({})["usage_charges"]
+    assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
+
+
+def test_compute_job_failure_and_invalid_transitions_are_rejected() -> None:
+    service = _service()
+    job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+
+    failed = service.fail_job(job_id, {"error_code": "provider_timeout", "reason": "timeout"})
+    assert failed["job"]["status"] == "failed"
+    assert failed["event"]["details"]["error_code"] == "provider_timeout"
+
+    try:
+        service.dispatch_job(job_id, {})
+    except ValueError as exc:
+        assert "cannot dispatch compute job" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("failed job was dispatched")
+
+    queued_job_id = str(service.create_job({**_job_payload(), "job_id": "job_complete_from_queued"})["job"]["job_id"])
+    try:
+        service.complete_job(queued_job_id, {"actual_total_cost": 0.1})
+    except ValueError as exc:
+        assert "cannot complete compute job" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("queued job completed without dispatch")
+
+
+def test_compute_job_retry_and_cancel_remain_dry_run_safe() -> None:
+    service = _service()
+    job_id = str(service.create_job(_job_payload())["job"]["job_id"])
 
     retried = service.retry_job(job_id, {})
     assert retried["job"]["attempt"] == 1
@@ -225,13 +277,14 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert checkout["checkout"]["funds_moved"] is False
     assert checkout["checkout"]["status"] == "requires_external_checkout_provider"
 
-    raw_event = {"id": "evt_1", "type": "checkout.session.completed", "amount_total": 10000}
-    secret = "whsec_test"
+    raw_event = {"id": "evt_1", "type": "checkout.session.completed", "amount_total": 10000, "currency": "usd", "metadata": {"account_id": "acct_1"}}
+    secret = "whsec_test_secret"
     signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
     webhook = service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
     assert webhook["ok"] is True
     assert webhook["payment_event"]["verified"] is True
-    assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 0.0
+    assert webhook["credit_transaction"]["amount"] == 100.0
+    assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
 
 
 def test_marketplace_api_routes_and_scopes() -> None:
@@ -239,6 +292,8 @@ def test_marketplace_api_routes_and_scopes() -> None:
     router = create_default_router()
     try:
         assert required_scopes_for("POST", "/compute/jobs") == ("compute:execute",)
+        assert required_scopes_for("POST", "/compute/jobs/job_1/dispatch") == ("compute:execute",)
+        assert required_scopes_for("POST", "/compute/jobs/job_1/complete") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
@@ -250,5 +305,13 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert verified["provider"]["verified"] is True
         fetched = router.dispatch("GET", "/market/providers/provider_live_gpu_1")
         assert fetched["provider"]["provider_id"] == "provider_live_gpu_1"
+        job = router.dispatch("POST", "/compute/jobs", _job_payload())
+        job_id = str(job["job"]["job_id"])
+        dispatched = router.dispatch("POST", f"/compute/jobs/{job_id}/dispatch", {})
+        completed = router.dispatch("POST", f"/compute/jobs/{job_id}/complete", {"actual_total_cost": 0.12})
+        telemetry = router.dispatch("GET", "/compute/telemetry")
+        assert dispatched["job"]["status"] == "running"
+        assert completed["job"]["status"] == "succeeded"
+        assert telemetry["summary"]["metric_sample_count"] >= 1
     finally:
         reset_default_service(None)

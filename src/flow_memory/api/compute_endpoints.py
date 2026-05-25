@@ -247,6 +247,18 @@ def compute_job_retry(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, A
     return default_service().retry_job(job_id, payload)
 
 
+def compute_job_dispatch(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().dispatch_job(job_id, payload)
+
+
+def compute_job_complete(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().complete_job(job_id, payload)
+
+
+def compute_job_fail(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().fail_job(job_id, payload)
+
+
 def billing_checkout(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().billing_checkout(payload)
 
@@ -261,6 +273,14 @@ def billing_balance(payload: Mapping[str, Any] | None = None) -> Mapping[str, An
 
 def billing_usage(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().billing_usage(payload or {})
+
+
+def compute_telemetry(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().telemetry_snapshot(payload or {})
+
+
+def compute_metrics(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().prometheus_metrics(payload or {})
 
 
 def admin_reconciliation(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:

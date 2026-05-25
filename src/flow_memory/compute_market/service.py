@@ -202,6 +202,7 @@ class ComputeMarketService:
             return result
         plan = result["compute_plan"]
         self.telemetry.increment("compute_settlement_simulated_total")
+        self.telemetry.increment("settlement_attempt_total")
         self._audit("compute.settlement.simulated", payload, request_id=str(plan.get("request_id", "")), result="simulated")
         return {
             "ok": bool(plan.get("ok")),
@@ -750,6 +751,217 @@ class ComputeMarketService:
         self.get_job(job_id)
         artifacts = tuple(artifact for artifact in self.store.list_records("compute_job_artifact", limit=500).records if str(artifact.get("job_id", "")) == job_id)
         return {"ok": True, "artifacts": artifacts}
+    def dispatch_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        _assert_job_status(job, ("queued",), "dispatch")
+        dispatched_at = utc_now_iso()
+        job.update(
+            {
+                "status": "running",
+                "dispatched_at": dispatched_at,
+                "started_at": dispatched_at,
+                "updated_at": dispatched_at,
+                "lifecycle": _append_lifecycle(job, "running"),
+                "provider_dispatch": "dry_run_provider_dispatch",
+            }
+        )
+        self.store.put_record(
+            "compute_job",
+            job_id,
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="running",
+            request_id=request_id,
+        )
+        event = _job_event(
+            job_id,
+            "job.started",
+            status="running",
+            request_id=request_id,
+            details={
+                "provider_dispatch": "dry_run_provider_dispatch",
+                "dry_run_only": True,
+                "external_provider_called": False,
+            },
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status="running",
+            request_id=request_id,
+        )
+        self.telemetry.increment("compute_job_started_total", {"task_type": str(job.get("task_type", ""))})
+        self._audit(
+            "compute.job.dispatched",
+            payload,
+            request_id=request_id,
+            result="running",
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+        )
+        return {"ok": True, "job": job, "event": event}
+
+    def complete_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        _assert_job_status(job, ("running",), "complete")
+        completed_at = utc_now_iso()
+        cost = _job_cost(payload)
+        actual_units = _non_negative_float(payload.get("actual_units", payload.get("units", 0.0)), "actual_units")
+        actual_latency_ms = _non_negative_float(payload.get("actual_latency_ms", payload.get("latency_ms", 0.0)), "actual_latency_ms")
+        job.update(
+            {
+                "status": "succeeded",
+                "completed_at": completed_at,
+                "updated_at": completed_at,
+                "actual_units": actual_units,
+                "actual_total_cost": cost,
+                "actual_latency_ms": actual_latency_ms,
+                "lifecycle": _append_lifecycle(job, "succeeded"),
+            }
+        )
+        self.store.put_record(
+            "compute_job",
+            job_id,
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="succeeded",
+            request_id=request_id,
+        )
+        artifact = _job_artifact(job, payload, request_id=request_id)
+        if artifact:
+            self.store.put_record(
+                "compute_job_artifact",
+                str(artifact["artifact_id"]),
+                artifact,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                task_type=str(job.get("task_type", "")),
+                status="available",
+                request_id=request_id,
+            )
+        usage_charge = _usage_charge(job, payload, request_id=request_id, amount=cost, units=actual_units)
+        if usage_charge:
+            self.store.put_record(
+                "usage_charge",
+                str(usage_charge["usage_charge_id"]),
+                usage_charge,
+                tenant_id=str(usage_charge.get("account_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                task_type=str(job.get("task_type", "")),
+                status=str(usage_charge["status"]),
+                request_id=request_id,
+                idempotency_key=str(usage_charge["usage_charge_id"]),
+            )
+            self._audit(
+                "billing.usage.charged",
+                payload,
+                request_id=request_id,
+                result=str(usage_charge["status"]),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            self.telemetry.increment("billing_debit_total", {"provider_id": str(job.get("provider_id", ""))}, value=float(usage_charge["amount"]))
+        event = _job_event(
+            job_id,
+            "job.completed",
+            status="succeeded",
+            request_id=request_id,
+            details={
+                "artifact_recorded": bool(artifact),
+                "usage_charge_recorded": bool(usage_charge),
+                "actual_total_cost": cost,
+                "funds_moved": False,
+            },
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status="succeeded",
+            request_id=request_id,
+        )
+        self.telemetry.increment("compute_job_completed_total", {"task_type": str(job.get("task_type", ""))})
+        if cost:
+            self.telemetry.observe("compute_actual_cost", cost, labels={"provider_id": str(job.get("provider_id", ""))})
+        self._audit(
+            "compute.job.completed",
+            payload,
+            request_id=request_id,
+            result="succeeded",
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+        )
+        return {"ok": True, "job": job, "event": event, "artifact": artifact, "usage_charge": usage_charge}
+
+    def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        _assert_job_status(job, ("queued", "running"), "fail")
+        failed_at = utc_now_iso()
+        error_code = str(payload.get("error_code", "provider_execution_failed"))
+        job.update(
+            {
+                "status": "failed",
+                "failed_at": failed_at,
+                "updated_at": failed_at,
+                "error_code": error_code,
+                "failure_reason": str(payload.get("reason", "")),
+                "lifecycle": _append_lifecycle(job, "failed"),
+            }
+        )
+        self.store.put_record(
+            "compute_job",
+            job_id,
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="failed",
+            request_id=request_id,
+        )
+        event = _job_event(
+            job_id,
+            "job.failed",
+            status="failed",
+            request_id=request_id,
+            details={"error_code": error_code, "reason": str(payload.get("reason", ""))},
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status="failed",
+            request_id=request_id,
+        )
+        self.telemetry.increment("compute_job_failed_total", {"task_type": str(job.get("task_type", "")), "error_code": error_code})
+        self._audit(
+            "compute.job.failed",
+            payload,
+            request_id=request_id,
+            result="failed",
+            reason_codes=(error_code,),
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+        )
+        return {"ok": True, "job": job, "event": event}
 
     def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
@@ -807,24 +1019,43 @@ class ComputeMarketService:
         raw_event = payload.get("raw_event", {})
         if not isinstance(raw_event, Mapping):
             raise ValueError("raw_event must be an object")
-        secret = str(payload.get("webhook_secret", ""))
+        secret = self.config.stripe_webhook_secret
+        if not secret and self.config.compute_market_mode == "test":
+            secret = str(payload.get("webhook_secret", ""))
         signature = str(payload.get("stripe_signature", ""))
-        verified = _verify_webhook_signature(raw_event, secret, signature)
+        verified = bool(secret) and _verify_webhook_signature(raw_event, secret, signature)
         event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
+        account_id = _stripe_account_id(raw_event, payload)
+        credit = _stripe_credit(raw_event)
         record = {
             "payment_event_id": event_id,
+            "account_id": account_id,
             "provider": "stripe",
             "event_type": str(raw_event.get("type", "")),
             "verified": verified,
             "status": "verified" if verified else "rejected_unverified",
             "raw_event_hash": content_hash(raw_event),
+            "amount": credit["amount"],
+            "currency": credit["currency"],
             "dry_run_only": True,
             "funds_moved": False,
+            "external_payment_recorded": verified,
             "created_at": utc_now_iso(),
         }
-        self.store.put_record("payment_event", event_id, record, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
+        self.store.put_record("payment_event", event_id, record, tenant_id=account_id, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
+        credit_record: Mapping[str, Any] = {}
+        if verified and account_id and credit["amount"] > 0 and _stripe_event_posts_credit(raw_event):
+            credit_record = _apply_credit(
+                self.store,
+                account_id,
+                amount=float(credit["amount"]),
+                currency=str(credit["currency"]),
+                request_id=request_id,
+                source_event_id=event_id,
+            )
+            self._audit("billing.credit.added", payload, request_id=request_id, result="credited")
         self._audit("billing.webhook.received", payload, request_id=request_id, result=str(record["status"]), reason_codes=() if verified else ("webhook_signature_invalid",))
-        return {"ok": verified, "payment_event": record}
+        return {"ok": verified, "payment_event": record, "credit_transaction": credit_record}
 
     def billing_balance(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         account_id = str(payload.get("account_id") or payload.get("tenant_id", ""))
@@ -909,6 +1140,8 @@ class ComputeMarketService:
         chain_id = str((payload or {}).get("chain_id", ""))
         result = self.store.verify_audit_chain(chain_id=chain_id).as_record()
         ok = bool(result["ok"])
+        if not ok:
+            self.telemetry.increment("audit_chain_verify_fail_total")
         self._audit(
             "compute.audit.verified",
             payload or {},
@@ -998,6 +1231,7 @@ class ComputeMarketService:
                 "provider_contracts_verified": self.config.provider_contracts_verified,
                 "external_provider_allowlist_configured": bool(self.config.external_provider_allowlist),
                 "audit_exporter_status": self.audit_exporter.get_status(),
+                "telemetry_status": self.telemetry.summary(),
             }
         )
         return health
@@ -1066,6 +1300,19 @@ class ComputeMarketService:
         health["production_safety_defaults"] = self.config.as_record()
         return health
 
+    def telemetry_snapshot(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        reset = str(payload.get("reset", "")).strip().lower() in {"1", "true", "yes", "on"}
+        return {"ok": True, "telemetry": self.telemetry.snapshot(reset=reset), "summary": self.telemetry.summary()}
+
+    def prometheus_metrics(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        _ = payload
+        return {
+            "ok": True,
+            "content_type": "text/plain; version=0.0.4",
+            "metrics": self.telemetry.prometheus_text(),
+        }
+
     def _rate_limit_response(
         self,
         payload: Mapping[str, Any],
@@ -1092,6 +1339,7 @@ class ComputeMarketService:
             self.rate_limiter.record_success(decision.key)
             return None
         self.rate_limiter.record_rejection(decision.key, "rate_limited")
+        self.telemetry.increment("compute_policy_denials_total", {"reason": "rate_limited", "endpoint": endpoint})
         self._audit(
             "compute.rate_limited",
             payload,
@@ -1117,6 +1365,9 @@ class ComputeMarketService:
         policy = dict(payload.get("policy", {})) if isinstance(payload.get("policy"), Mapping) else {}
         denied = tuple(dict.fromkeys((*_tuple(policy.get("denied_providers", ())), *open_providers)))
         policy["denied_providers"] = denied
+        for provider_id in open_providers:
+            self.telemetry.increment("provider_circuit_open_total", {"provider_id": provider_id})
+        self.telemetry.increment("compute_fallback_used_total", {"reason": "circuit_open"})
         self._audit(
             "compute.provider.circuit_open",
             payload,
@@ -1562,6 +1813,7 @@ def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, An
         "provider_id": provider_id,
         "status": "queued",
         "lifecycle": ("planned", "quoted", "approved", "reserved", "queued"),
+        "allowed_lifecycle": ("planned", "quoted", "approved", "reserved", "queued", "dispatched", "running", "succeeded", "failed", "cancelled", "expired", "settled", "reconciled"),
         "dry_run_only": True,
         "funds_moved": False,
         "broadcast_allowed": False,
@@ -1583,6 +1835,158 @@ def _job_event(job_id: str, event_type: str, *, status: str, request_id: str, de
         "created_at": utc_now_iso(),
         "request_id": request_id,
     }
+
+
+def _assert_job_status(job: Mapping[str, Any], allowed: tuple[str, ...], action: str) -> None:
+    status = str(job.get("status", ""))
+    if status not in allowed:
+        allowed_text = ", ".join(allowed)
+        raise ValueError(f"cannot {action} compute job from status {status}; expected one of: {allowed_text}")
+
+
+def _append_lifecycle(job: Mapping[str, Any], status: str) -> tuple[str, ...]:
+    lifecycle = tuple(str(item) for item in job.get("lifecycle", ()) if str(item))
+    if status in lifecycle:
+        return lifecycle
+    return (*lifecycle, status)
+
+
+def _job_cost(payload: Mapping[str, Any]) -> float:
+    cost_data = payload.get("cost_data", {})
+    if isinstance(cost_data, Mapping):
+        value = cost_data.get("actual_total_cost", cost_data.get("estimated_total_cost", payload.get("actual_total_cost", 0.0)))
+    else:
+        value = payload.get("actual_total_cost", 0.0)
+    return _non_negative_float(value, "actual_total_cost")
+
+
+def _job_artifact(job: Mapping[str, Any], payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
+    artifact = payload.get("artifact_data", payload.get("artifact", {}))
+    artifact_ref = str(payload.get("artifact_ref", ""))
+    if not artifact and not artifact_ref:
+        return {}
+    if artifact and not isinstance(artifact, Mapping):
+        raise ValueError("artifact_data must be an object")
+    now = utc_now_iso()
+    artifact_payload = dict(artifact) if isinstance(artifact, Mapping) else {}
+    artifact_id = str(payload.get("artifact_id") or deterministic_id("artifact", {"job_id": job.get("job_id", ""), "artifact_ref": artifact_ref, "artifact": artifact_payload}))
+    return {
+        "artifact_id": artifact_id,
+        "job_id": str(job.get("job_id", "")),
+        "provider_id": str(job.get("provider_id", "")),
+        "route_id": str(job.get("route_id", "")),
+        "artifact_ref": artifact_ref,
+        "artifact_type": str(payload.get("artifact_type", artifact_payload.get("artifact_type", "result"))),
+        "artifact_hash": content_hash({"artifact_ref": artifact_ref, "artifact": artifact_payload}),
+        "metadata": artifact_payload,
+        "status": "available",
+        "dry_run_only": True,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request_id: str, amount: float, units: float) -> dict[str, Any]:
+    if amount <= 0:
+        return {}
+    account_id = str(payload.get("account_id") or payload.get("tenant_id") or job.get("tenant_id", ""))
+    currency = str(payload.get("currency", payload.get("asset", "USD"))).upper()
+    now = utc_now_iso()
+    usage_charge_id = str(payload.get("usage_charge_id") or deterministic_id("usage_charge", {"job_id": job.get("job_id", ""), "amount": amount, "request_id": request_id}))
+    return {
+        "usage_charge_id": usage_charge_id,
+        "job_id": str(job.get("job_id", "")),
+        "account_id": account_id,
+        "provider_id": str(job.get("provider_id", "")),
+        "route_id": str(job.get("route_id", "")),
+        "task_type": str(job.get("task_type", "")),
+        "unit_type": str(payload.get("unit_type", "compute_unit")),
+        "units": units,
+        "amount": amount,
+        "currency": currency,
+        "status": "dry_run_recorded",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _stripe_account_id(raw_event: Mapping[str, Any], payload: Mapping[str, Any]) -> str:
+    metadata = raw_event.get("metadata", {})
+    if not isinstance(metadata, Mapping):
+        metadata = {}
+    return str(
+        payload.get("account_id")
+        or payload.get("tenant_id")
+        or metadata.get("account_id")
+        or metadata.get("tenant_id")
+        or raw_event.get("client_reference_id")
+        or raw_event.get("customer")
+        or ""
+    )
+
+
+def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
+    amount_source = raw_event.get("amount_total", raw_event.get("amount_paid", raw_event.get("amount", 0)))
+    amount = _non_negative_float(amount_source, "amount")
+    if amount >= 100 and float(int(amount)) == amount:
+        amount = amount / 100.0
+    return {"amount": amount, "currency": str(raw_event.get("currency", "USD")).upper()}
+
+
+def _stripe_event_posts_credit(raw_event: Mapping[str, Any]) -> bool:
+    return str(raw_event.get("type", "")) in {"checkout.session.completed", "invoice.paid", "payment_intent.succeeded"}
+
+
+def _apply_credit(
+    store: ComputeMarketStoreProtocol,
+    account_id: str,
+    *,
+    amount: float,
+    currency: str,
+    request_id: str,
+    source_event_id: str,
+) -> Mapping[str, Any]:
+    transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "source_event_id": source_event_id, "type": "credit"})
+    existing = store.get_record("credit_transaction", transaction_id)
+    if existing is not None:
+        return existing
+    now = utc_now_iso()
+    current = store.get_record("credit_balance", account_id) or {
+        "account_id": account_id,
+        "available_credits": 0.0,
+        "reserved_credits": 0.0,
+        "currency": currency,
+        "created_at": now,
+    }
+    available = float(current.get("available_credits", 0.0) or 0.0) + amount
+    balance = {
+        **dict(current),
+        "account_id": account_id,
+        "available_credits": round(available, 6),
+        "reserved_credits": float(current.get("reserved_credits", 0.0) or 0.0),
+        "currency": currency,
+        "updated_at": now,
+    }
+    transaction = {
+        "credit_transaction_id": transaction_id,
+        "account_id": account_id,
+        "transaction_type": "credit",
+        "amount": amount,
+        "currency": currency,
+        "source_event_id": source_event_id,
+        "status": "posted",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "request_id": request_id,
+    }
+    store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
+    store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status="posted", request_id=request_id, idempotency_key=transaction_id)
+    return transaction
 
 
 def _billing_account(account_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -1613,6 +2017,16 @@ def _positive_float(value: object, name: str) -> float:
         raise ValueError(f"{name} must be numeric") from None
     if amount <= 0:
         raise ValueError(f"{name} must be positive")
+    return amount
+
+
+def _non_negative_float(value: object, name: str) -> float:
+    try:
+        amount = float(str(value if value not in (None, "") else 0.0))
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be numeric") from None
+    if amount < 0:
+        raise ValueError(f"{name} must be non-negative")
     return amount
 
 

@@ -54,9 +54,13 @@ from flow_memory.api.compute_endpoints import (
     compute_job_artifacts,
     compute_job_cancel,
     compute_job_create,
+    compute_job_complete,
     compute_job_events,
     compute_job_retry,
+    compute_job_dispatch,
+    compute_job_fail,
     compute_marketplace_plan,
+    compute_metrics,
     compute_payment_plan,
     compute_plan,
     compute_policies,
@@ -72,6 +76,7 @@ from flow_memory.api.compute_endpoints import (
     compute_providers,
     compute_quote,
     compute_readiness,
+    compute_telemetry,
     compute_route,
     compute_route_create,
     compute_route_disable,
@@ -612,6 +617,15 @@ class LocalApiRouter:
     def _compute_job_retry(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_retry(params["job_id"], payload)
 
+    def _compute_job_dispatch(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_dispatch(params["job_id"], payload)
+
+    def _compute_job_complete(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_complete(params["job_id"], payload)
+
+    def _compute_job_fail(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_fail(params["job_id"], payload)
+
     def _billing_checkout(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_checkout(payload)
 
@@ -636,6 +650,12 @@ class LocalApiRouter:
 
     def _compute_readiness(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_readiness()
+
+    def _compute_telemetry(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_telemetry(payload)
+
+    def _compute_metrics(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_metrics(payload)
 
 
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -721,6 +741,9 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/compute/jobs/{job_id}/events", router._compute_job_events, "compute_job_events")
     router.register("GET", "/compute/jobs/{job_id}/artifacts", router._compute_job_artifacts, "compute_job_artifacts")
     router.register("POST", "/compute/jobs/{job_id}/retry", router._compute_job_retry, "compute_job_retry")
+    router.register("POST", "/compute/jobs/{job_id}/dispatch", router._compute_job_dispatch, "compute_job_dispatch")
+    router.register("POST", "/compute/jobs/{job_id}/complete", router._compute_job_complete, "compute_job_complete")
+    router.register("POST", "/compute/jobs/{job_id}/fail", router._compute_job_fail, "compute_job_fail")
     router.register("GET", "/compute/providers", router._compute_providers, "compute_providers")
     router.register("GET", "/compute/providers/{provider_id}", router._compute_provider, "compute_provider")
     router.register("POST", "/compute/providers", router._compute_provider_create, "compute_provider_create")
@@ -767,6 +790,8 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/compute/audit/{audit_event_id}", router._compute_audit_event, "compute_audit_event")
     router.register("GET", "/compute/health", router._compute_health, "compute_health")
     router.register("GET", "/compute/readiness", router._compute_readiness, "compute_readiness")
+    router.register("GET", "/compute/telemetry", router._compute_telemetry, "compute_telemetry")
+    router.register("GET", "/compute/metrics", router._compute_metrics, "compute_metrics")
     router.register("POST", "/billing/checkout", router._billing_checkout, "billing_checkout")
     router.register("POST", "/billing/webhooks/stripe", router._billing_webhook_stripe, "billing_webhook_stripe")
     router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")

@@ -150,8 +150,55 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     job_id = str(data(checks["job_create"][1]).get("job", {}).get("job_id", ""))
     checks["job_get"] = call_json("GET", f"{base}/compute/jobs/{job_id}", headers_read)
     checks["job_events"] = call_json("GET", f"{base}/compute/jobs/{job_id}/events", headers_read)
-    checks["job_retry"] = call_json("POST", f"{base}/compute/jobs/{job_id}/retry", headers_execute, {})
-    checks["job_cancel"] = call_json("POST", f"{base}/compute/jobs/{job_id}/cancel", headers_execute, {"reason": "public validation"})
+    checks["job_retry_create"] = call_json(
+        "POST",
+        f"{base}/compute/jobs",
+        headers_execute,
+        {
+            "task_type": "inference",
+            "input_ref": "s3://flow-memory-inputs/public-buildout-validation-retry.json",
+            "model_or_runtime": "llama-runtime",
+            "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+            "budget_policy_id": "policy_default",
+            "route_id": route_id,
+            "provider_id": provider_id,
+        },
+    )
+    retry_job_id = str(data(checks["job_retry_create"][1]).get("job", {}).get("job_id", ""))
+    checks["job_retry"] = call_json("POST", f"{base}/compute/jobs/{retry_job_id}/retry", headers_execute, {})
+    checks["job_cancel"] = call_json("POST", f"{base}/compute/jobs/{retry_job_id}/cancel", headers_execute, {"reason": "public validation"})
+    checks["job_dispatch"] = call_json("POST", f"{base}/compute/jobs/{job_id}/dispatch", headers_execute, {})
+    checks["job_complete"] = call_json(
+        "POST",
+        f"{base}/compute/jobs/{job_id}/complete",
+        headers_execute,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "artifact_ref": "s3://flow-memory-results/public-buildout-validation.json",
+            "artifact_data": {"result": "ok"},
+        },
+    )
+    checks["job_artifacts"] = call_json("GET", f"{base}/compute/jobs/{job_id}/artifacts", headers_read)
+    checks["job_fail_create"] = call_json(
+        "POST",
+        f"{base}/compute/jobs",
+        headers_execute,
+        {
+            "task_type": "inference",
+            "input_ref": "s3://flow-memory-inputs/public-buildout-validation-fail.json",
+            "model_or_runtime": "llama-runtime",
+            "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+            "budget_policy_id": "policy_default",
+            "route_id": route_id,
+            "provider_id": provider_id,
+        },
+    )
+    fail_job_id = str(data(checks["job_fail_create"][1]).get("job", {}).get("job_id", ""))
+    checks["job_fail"] = call_json("POST", f"{base}/compute/jobs/{fail_job_id}/fail", headers_execute, {"error_code": "public_validation_failure_path"})
+    checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
+    checks["metrics"] = call_json("GET", f"{base}/compute/metrics", headers_read)
     checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": f"acct_public_buildout_{suffix}", "amount": 100, "currency": "USD"})
     checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id=acct_public_buildout_{suffix}", headers_billing)
     checks["admin_reconciliation"] = call_json("GET", f"{base}/admin/reconciliation", headers_admin)
@@ -172,7 +219,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
-    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_retry", "job_cancel"):
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")

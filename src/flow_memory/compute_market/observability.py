@@ -112,6 +112,54 @@ class ComputeMarketTelemetry:
             "metric_names": _METRIC_NAMES,
             "span_names": _SPAN_NAMES,
         }
+    def snapshot(self, *, reset: bool = False) -> dict[str, object]:
+        record = self.as_record()
+        if reset:
+            self.reset()
+        return record
+
+    def reset(self) -> None:
+        self.metrics.clear()
+        self.logs.clear()
+        self.traces.clear()
+
+    def summary(self) -> dict[str, object]:
+        metric_totals: dict[str, float] = {}
+        for sample in self.metrics:
+            metric_totals[sample.name] = metric_totals.get(sample.name, 0.0) + sample.value
+        error_metric_total = sum(
+            value
+            for name, value in metric_totals.items()
+            if "fail" in name or "error" in name or "denial" in name
+        )
+        return {
+            "metric_sample_count": len(self.metrics),
+            "log_count": len(self.logs),
+            "trace_count": len(self.traces),
+            "metric_totals": metric_totals,
+            "error_metric_total": error_metric_total,
+        }
+
+    def prometheus_text(self) -> str:
+        lines: list[str] = []
+        emitted: set[str] = set()
+        for sample in self.metrics:
+            if sample.name not in emitted:
+                emitted.add(sample.name)
+                lines.append(f"# TYPE {sample.name} gauge")
+            lines.append(f"{sample.name}{_prometheus_labels(sample.labels)} {sample.value:g}")
+        return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _prometheus_labels(labels: Mapping[str, str]) -> str:
+    if not labels:
+        return ""
+    parts = tuple(f'{key}="{_prometheus_escape(value)}"' for key, value in sorted(labels.items()))
+    return "{" + ",".join(parts) + "}"
+
+
+def _prometheus_escape(value: object) -> str:
+    return str(value).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
 
 
 def metric_names() -> tuple[str, ...]:

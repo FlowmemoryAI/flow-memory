@@ -123,6 +123,9 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/compute/jobs/{job_id}/events", "compute_job_events", "List compute job events", response_fields=("ok", "events")),
     EndpointSpec("GET", "/compute/jobs/{job_id}/artifacts", "compute_job_artifacts", "List compute job artifacts", response_fields=("ok", "artifacts")),
     EndpointSpec("POST", "/compute/jobs/{job_id}/retry", "compute_job_retry", "Queue a compute job retry", response_fields=("ok", "job", "event")),
+    EndpointSpec("POST", "/compute/jobs/{job_id}/dispatch", "compute_job_dispatch", "Dispatch a queued dry-run compute job into running state", response_fields=("ok", "job", "event")),
+    EndpointSpec("POST", "/compute/jobs/{job_id}/complete", "compute_job_complete", "Complete a running dry-run compute job, record artifacts, and record usage", request_fields=("artifact_data", "artifact_ref", "actual_units", "actual_total_cost", "currency"), response_fields=("ok", "job", "event", "artifact", "usage_charge")),
+    EndpointSpec("POST", "/compute/jobs/{job_id}/fail", "compute_job_fail", "Fail a queued or running dry-run compute job with structured error details", request_fields=("error_code", "reason"), response_fields=("ok", "job", "event")),
     EndpointSpec("POST", "/market/providers/apply", "market_provider_apply", "Submit provider onboarding application with external secret references only", request_fields=("provider_id", "provider_name", "provider_type", "supported_unit_types", "supported_assets", "supported_networks", "quote_endpoint", "health_endpoint", "credentials", "sla"), response_fields=("ok", "provider_application", "credential_storage")),
     EndpointSpec("GET", "/market/providers/{provider_id}", "market_provider", "Get provider application, provider metadata, and reputation", response_fields=("ok", "provider_application", "provider", "reputation")),
     EndpointSpec("POST", "/market/providers/{provider_id}/verify", "market_provider_verify", "Verify a provider application for dry-run marketplace participation", response_fields=("ok", "provider_application", "provider", "reputation")),
@@ -143,6 +146,8 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/admin/reconciliation", "admin_reconciliation", "Run dry-run reconciliation count checks", response_fields=("ok", "reconciliation")),
     EndpointSpec("GET", "/compute/health", "compute_health", "Compute Market health check", response_fields=("ok", "compute_market_enabled", "database_reachable", "audit_log_writable")),
     EndpointSpec("GET", "/compute/readiness", "compute_readiness", "Compute Market production readiness check", response_fields=("ok", "migration_plan", "production_safety_defaults")),
+    EndpointSpec("GET", "/compute/telemetry", "compute_telemetry", "Return Compute Market telemetry samples and summary", response_fields=("ok", "telemetry", "summary")),
+    EndpointSpec("GET", "/compute/metrics", "compute_metrics", "Return Compute Market Prometheus-format metrics text", response_fields=("ok", "content_type", "metrics")),
 )
 
 

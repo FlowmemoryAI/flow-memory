@@ -53,6 +53,7 @@ class ComputeMarketConfig:
     external_provider_allowlist: tuple[str, ...] = ()
     settlement_environment: str = ""
     settlement_security_review_id: str = ""
+    stripe_webhook_secret: str = ""
 
     @property
     def storage_backend_effective(self) -> str:
@@ -110,6 +111,8 @@ class ComputeMarketConfig:
             errors.append("rate_limit_backend must be memory, redis, or none")
         if normalized_circuit_backend not in {"memory", "in_memory", "redis", "none"}:
             errors.append("circuit_breaker_backend must be memory, redis, or none")
+        if self.compute_market_mode == "production_planning" and self.stripe_webhook_secret and len(self.stripe_webhook_secret) < 16:
+            errors.append("stripe_webhook_secret must be high entropy when configured")
         return tuple(errors)
 
     def warnings(self) -> tuple[str, ...]:
@@ -168,6 +171,7 @@ class ComputeMarketConfig:
             "external_provider_allowlist_configured": bool(self.external_provider_allowlist),
             "settlement_environment_configured": bool(self.settlement_environment),
             "settlement_security_review_configured": bool(self.settlement_security_review_id),
+            "stripe_webhook_secret_configured": bool(self.stripe_webhook_secret),
         }
 
 
@@ -221,6 +225,7 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         external_provider_allowlist=_csv(source.get("FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST", "")),
         settlement_environment=source.get("FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT", ""),
         settlement_security_review_id=source.get("FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID", ""),
+        stripe_webhook_secret=source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET", ""),
     )
 
 

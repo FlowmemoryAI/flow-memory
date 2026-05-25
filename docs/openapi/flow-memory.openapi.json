@@ -1391,6 +1391,126 @@
         ]
       }
     },
+    "/compute/jobs/{job_id}/complete": {
+      "post": {
+        "operationId": "compute_job_complete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "actual_total_cost": {
+                    "type": "string"
+                  },
+                  "actual_units": {
+                    "type": "string"
+                  },
+                  "artifact_data": {
+                    "type": "string"
+                  },
+                  "artifact_ref": {
+                    "type": "string"
+                  },
+                  "currency": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "artifact": {
+                      "type": "string"
+                    },
+                    "event": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "usage_charge": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Complete a running dry-run compute job, record artifacts, and record usage",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/jobs/{job_id}/dispatch": {
+      "post": {
+        "operationId": "compute_job_dispatch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Dispatch a queued dry-run compute job into running state",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/jobs/{job_id}/events": {
       "get": {
         "operationId": "compute_job_events",
@@ -1426,6 +1546,68 @@
           }
         },
         "summary": "List compute job events",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/jobs/{job_id}/fail": {
+      "post": {
+        "operationId": "compute_job_fail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "error_code": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Fail a queued or running dry-run compute job with structured error details",
         "tags": [
           "compute"
         ]
@@ -1527,6 +1709,39 @@
           }
         },
         "summary": "Build a marketplace-only compute plan",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/metrics": {
+      "get": {
+        "operationId": "compute_metrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "content_type": {
+                      "type": "string"
+                    },
+                    "metrics": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Compute Market Prometheus-format metrics text",
         "tags": [
           "compute"
         ]
@@ -2591,6 +2806,39 @@
           }
         },
         "summary": "Simulate dry-run compute settlement",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/telemetry": {
+      "get": {
+        "operationId": "compute_telemetry",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "telemetry": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Compute Market telemetry samples and summary",
         "tags": [
           "compute"
         ]

@@ -32,6 +32,8 @@ DEPLOY_PATHS = (
     "src/flow_memory/api/router.py",
     "src/flow_memory/api/server_cli.py",
     "src/flow_memory/compute_market/audit_export.py",
+    "src/flow_memory/compute_market/config.py",
+    "src/flow_memory/compute_market/observability.py",
     "src/flow_memory/compute_market/provider_contracts.py",
     "src/flow_memory/compute_market/service.py",
     "scripts/deploy_compute_market_public_level1.ps1",

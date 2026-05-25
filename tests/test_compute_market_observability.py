@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
+
 from flow_memory.api.router import create_default_router
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry, MetricSample, TraceSpanRecord, metric_names, span_names
@@ -130,3 +134,44 @@ def test_compute_telemetry_and_metrics_routes_expose_service_samples() -> None:
         assert "compute_plan_requests_total" in metrics["metrics"]
     finally:
         reset_default_service(None)
+
+
+def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
+    dashboard_path = Path("deployments/compute-market/grafana-dashboard.json")
+    dashboard = json.loads(dashboard_path.read_text(encoding="utf-8"))
+    panels = dashboard["panels"]
+    expressions = "\n".join(
+        target["expr"]
+        for panel in panels
+        for target in panel.get("targets", ())
+        if isinstance(target, dict)
+    )
+
+    required_metrics = {
+        "compute_plan_requests_total",
+        "route_selected_total",
+        "policy_denied_total",
+        "compute_job_started_total",
+        "compute_job_completed_total",
+        "compute_job_failed_total",
+        "provider_quote_latency_ms",
+        "provider_quote_failure_total",
+        "provider_circuit_open_total",
+        "quote_stale_total",
+        "capacity_reserved_total",
+        "capacity_released_total",
+        "billing_debit_total",
+        "billing_payment_failed_total",
+        "billing_webhook_failures_total",
+        "audit_chain_verify_fail_total",
+        "settlement_attempt_total",
+        "unexpected_live_settlement_config_total",
+        "redis_unavailable_total",
+        "postgres_unavailable_total",
+        "external_provider_allowlist_missing_total",
+    }
+
+    assert dashboard["uid"] == "flow-memory-compute-market-prod"
+    assert len(panels) >= 8
+    for metric in required_metrics:
+        assert metric in expressions

@@ -195,8 +195,13 @@ class HTTPQuoteProvider:
     provider: ComputeProvider
     routes: tuple[ComputeRoute, ...]
     endpoint: str = ""
+    execution_endpoint: str = ""
+    execution_enabled: bool = False
+    execution_timeout_seconds: float = 10.0
     auth_header_name: str = ""
     auth_header_value_env: str = ""
+    execution_auth_header_name: str = ""
+    execution_auth_header_value_env: str = ""
     timeout_seconds: float = 2.0
     enabled: bool = False
     allowed_hosts: tuple[str, ...] = ()
@@ -304,26 +309,119 @@ class HTTPQuoteProvider:
             sanitized["raw_quote_hash"] = content_hash(raw_quote)
         return normalize_quote(ComputeQuote(**sanitized))
 
-    def _request_headers(self) -> dict[str, str]:
+    def _request_headers(self, *, execution: bool = False) -> dict[str, str]:
         headers = {"content-type": "application/json", "accept": "application/json"}
-        if self.auth_header_name and self.auth_header_value_env:
-            value = os.environ.get(self.auth_header_value_env, "")
+        header_name = self.execution_auth_header_name if execution and self.execution_auth_header_name else self.auth_header_name
+        value_env = self.execution_auth_header_value_env if execution and self.execution_auth_header_value_env else self.auth_header_value_env
+        if header_name and value_env:
+            value = os.environ.get(value_env, "")
             if value:
-                headers[self.auth_header_name] = value
+                headers[header_name] = value
         return headers
 
     def simulate_execution(self, plan: Mapping[str, Any]) -> Mapping[str, Any]:
-        return {"ok": True, "source": "http_provider", "dry_run_only": True, "plan_id": str(plan.get("decision_id", ""))}
+        return {"ok": True, "source": "http_provider", "dry_run_only": True, "plan_id": str(plan.get("decision_id", plan.get("job_id", "")))}
 
     def execute_plan(self, plan: Mapping[str, Any]) -> Mapping[str, Any]:
-        return {
-            "ok": False,
-            "error_code": "settlement_disallowed",
-            "message": "HTTP provider execution is disabled until all live-settlement gates pass",
+        if not self.execution_enabled or not self.execution_endpoint:
+            return _execution_error(
+                "provider_execution.disabled",
+                "HTTP provider execution is disabled unless explicitly configured.",
+                provider_id=self.provider.provider_id,
+                job_id=str(plan.get("job_id", "")),
+            )
+        endpoint_error = _validate_http_endpoint(
+            self.execution_endpoint,
+            allowed_hosts=self.allowed_hosts,
+            allow_private_networks=self.allow_private_networks,
+        )
+        if endpoint_error:
+            return _execution_error(
+                "provider_execution.endpoint_rejected",
+                endpoint_error,
+                provider_id=self.provider.provider_id,
+                job_id=str(plan.get("job_id", "")),
+            )
+        payload = json.dumps(
+            {
+                "job": _execution_job_contract(plan),
+                "provider_id": self.provider.provider_id,
+                "dry_run_only": True,
+                "funds_moved": False,
+                "broadcast_allowed": False,
+                "private_key_required": False,
+            },
+            sort_keys=True,
+            default=str,
+        ).encode("utf-8")
+        attempts = max(1, self.retry_policy.max_retries + 1)
+        last_error = "provider_execution.provider_error"
+        for attempt in range(attempts):
+            try:
+                request = urllib.request.Request(
+                    self.execution_endpoint,
+                    data=payload,
+                    headers=self._request_headers(execution=True),
+                    method="POST",
+                )
+                opener = urllib.request.build_opener(_NoRedirectHandler())
+                with opener.open(request, timeout=self.execution_timeout_seconds) as response:  # noqa: S310 - URL is validated by _validate_http_endpoint before use
+                    raw_bytes = response.read(self.max_response_bytes + 1)
+                if len(raw_bytes) > self.max_response_bytes:
+                    raise ValueError("provider execution response exceeds max_response_bytes")
+                raw = json.loads(raw_bytes.decode("utf-8"))
+                return self.normalize_execution_result(raw, plan)
+            except TimeoutError:
+                last_error = "provider_execution.timeout"
+            except urllib.error.HTTPError as exc:
+                last_error = "provider_execution.invalid_response" if 300 <= exc.code < 400 else "provider_execution.provider_error"
+            except (urllib.error.URLError, json.JSONDecodeError, UnicodeDecodeError, ValueError):
+                last_error = "provider_execution.invalid_response" if attempt == attempts - 1 else "provider_execution.provider_error"
+            if attempt + 1 < attempts:
+                time.sleep(self.retry_policy.backoff_seconds)
+        return _execution_error(last_error, "Provider execution request failed.", provider_id=self.provider.provider_id, job_id=str(plan.get("job_id", "")))
+
+    def normalize_execution_result(self, raw_result: object, plan: Mapping[str, Any]) -> Mapping[str, Any]:
+        result = _extract_execution_result(raw_result)
+        job_id = str(plan.get("job_id", ""))
+        result_job_id = str(result.get("job_id", job_id))
+        result_provider_id = str(result.get("provider_id", self.provider.provider_id))
+        if result_job_id != job_id:
+            return _execution_error("provider_execution.job_mismatch", "Provider execution response job_id does not match the requested job.", provider_id=self.provider.provider_id, job_id=job_id)
+        if result_provider_id != self.provider.provider_id:
+            return _execution_error("provider_execution.provider_mismatch", "Provider execution response provider_id does not match the configured provider.", provider_id=self.provider.provider_id, job_id=job_id)
+        status = str(result.get("status", "accepted")).strip().lower()
+        if status not in {"accepted", "queued", "dispatched", "running", "succeeded", "failed"}:
+            return _execution_error("provider_execution.invalid_status", "Provider execution response has an invalid status.", provider_id=self.provider.provider_id, job_id=job_id)
+        artifact_ref = str(result.get("artifact_ref", ""))
+        artifact_error = _validate_artifact_ref(artifact_ref, allowed_hosts=self.allowed_hosts, allow_private_networks=self.allow_private_networks)
+        if artifact_error:
+            return _execution_error("provider_execution.artifact_ref_rejected", artifact_error, provider_id=self.provider.provider_id, job_id=job_id)
+        artifact_data = result.get("artifact_data", result.get("artifact", {}))
+        if artifact_data and not isinstance(artifact_data, Mapping):
+            return _execution_error("provider_execution.invalid_artifact", "artifact_data must be an object when present.", provider_id=self.provider.provider_id, job_id=job_id)
+        normalized = {
+            "ok": status != "failed",
+            "job_id": job_id,
+            "provider_id": self.provider.provider_id,
+            "provider_job_id": str(result.get("provider_job_id", result.get("execution_id", ""))),
+            "status": status,
+            "artifact_ref": artifact_ref,
+            "artifact_data": dict(artifact_data) if isinstance(artifact_data, Mapping) else {},
+            "actual_units": _optional_non_negative(result.get("actual_units", result.get("units", 0.0))),
+            "actual_total_cost": _optional_non_negative(result.get("actual_total_cost", result.get("cost", 0.0))),
+            "actual_latency_ms": _optional_non_negative(result.get("actual_latency_ms", result.get("latency_ms", 0.0))),
+            "error_code": str(result.get("error_code", "")),
+            "message": str(result.get("message", "")),
+            "source": "external_provider_execution",
+            "external_provider_called": True,
             "dry_run_only": True,
             "funds_moved": False,
             "broadcast_allowed": False,
+            "private_key_required": False,
+            "raw_result_hash": content_hash(result),
         }
+        return normalized
 
     def get_reliability_snapshot(self) -> Mapping[str, Any]:
         return {"provider_id": self.provider.provider_id, "reliability_score": self.provider.reliability_score}
@@ -428,6 +526,7 @@ def build_external_provider_adapter(
 ) -> HTTPQuoteProvider:
     provider = _provider_from_record(provider_record)
     endpoint = _quote_endpoint(provider_record)
+    execution_endpoint = _execution_endpoint(provider_record)
     route_records = routes or (_synthetic_route_record(provider_record),)
     route_objects = tuple(_route_from_record(route, provider) for route in route_records)
     timeout_ms = int(getattr(config, "external_provider_quote_timeout_ms", getattr(config, "provider_timeout_ms", 5_000)) or 5_000)
@@ -435,13 +534,18 @@ def build_external_provider_adapter(
         provider,
         route_objects,
         endpoint=endpoint,
+        execution_endpoint=execution_endpoint,
+        execution_enabled=bool(getattr(config, "external_provider_execution_enabled", False)),
         enabled=bool(getattr(config, "external_provider_quotes_enabled", False)),
         allowed_hosts=tuple(str(item) for item in getattr(config, "external_provider_allowlist", ()) if str(item)),
         allow_private_networks=str(getattr(config, "compute_market_mode", "")) == "test",
         max_response_bytes=65_536,
         timeout_seconds=max(1.0, timeout_ms / 1000.0),
+        execution_timeout_seconds=max(1.0, int(getattr(config, "external_provider_execution_timeout_ms", timeout_ms) or timeout_ms) / 1000.0),
         auth_header_name=str(_metadata_value(provider_record, "auth_header_name", "")),
         auth_header_value_env=str(_metadata_value(provider_record, "auth_header_value_env", "")),
+        execution_auth_header_name=str(_metadata_value(provider_record, "execution_auth_header_name", _metadata_value(provider_record, "auth_header_name", ""))),
+        execution_auth_header_value_env=str(_metadata_value(provider_record, "execution_auth_header_value_env", _metadata_value(provider_record, "auth_header_value_env", ""))),
     )
 
 
@@ -507,6 +611,10 @@ def _quote_endpoint(record: Mapping[str, Any]) -> str:
     return str(record.get("quote_endpoint") or _metadata_value(record, "quote_endpoint", ""))
 
 
+def _execution_endpoint(record: Mapping[str, Any]) -> str:
+    return str(record.get("execution_endpoint") or _metadata_value(record, "execution_endpoint", ""))
+
+
 def _synthetic_route_record(provider_record: Mapping[str, Any]) -> Mapping[str, Any]:
     provider_id = str(provider_record.get("provider_id", "external_provider"))
     return {
@@ -550,6 +658,15 @@ def _optional_float(value: object) -> float | None:
     return float(value)
 
 
+def _optional_non_negative(value: object) -> float:
+    if value in (None, ""):
+        return 0.0
+    amount = float(value)
+    if amount < 0:
+        raise ValueError("execution numeric values must be non-negative")
+    return amount
+
+
 class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req: urllib.request.Request, fp: Any, code: int, msg: str, headers: Mapping[str, str], newurl: str) -> None:  # type: ignore[override]
         return None
@@ -570,6 +687,17 @@ def _validate_http_endpoint(endpoint: str, *, allowed_hosts: tuple[str, ...], al
     if parsed.username or parsed.password:
         return "userinfo_disallowed"
     return ""
+
+
+def _validate_artifact_ref(artifact_ref: str, *, allowed_hosts: tuple[str, ...], allow_private_networks: bool) -> str:
+    if not artifact_ref:
+        return ""
+    parsed = urlparse(artifact_ref)
+    if parsed.scheme in {"", "s3", "gs", "az", "filecoin", "ipfs"}:
+        return ""
+    if parsed.scheme in {"http", "https"}:
+        return _validate_http_endpoint(artifact_ref, allowed_hosts=allowed_hosts, allow_private_networks=allow_private_networks)
+    return "unsupported_artifact_ref_scheme"
 
 
 def _is_private_or_local_host(host: str) -> bool:
@@ -606,6 +734,50 @@ def _extract_quotes(raw: object) -> tuple[Mapping[str, Any], ...]:
     if isinstance(raw, (list, tuple)):
         return tuple(item for item in raw if isinstance(item, Mapping))
     raise ValueError("provider response must contain a quote or quotes array")
+
+
+def _extract_execution_result(raw: object) -> Mapping[str, Any]:
+    if not isinstance(raw, Mapping):
+        raise ValueError("provider execution response must be an object")
+    result = raw.get("execution", raw.get("result", raw))
+    if not isinstance(result, Mapping):
+        raise ValueError("provider execution response must contain an execution object")
+    return result
+
+
+def _execution_job_contract(job: Mapping[str, Any]) -> Mapping[str, Any]:
+    resource_request = job.get("resource_request", {})
+    return {
+        "job_id": str(job.get("job_id", "")),
+        "task_type": str(job.get("task_type", "")),
+        "input_ref": str(job.get("input_ref", "")),
+        "model_or_runtime": str(job.get("model_or_runtime", "")),
+        "resource_request": dict(resource_request) if isinstance(resource_request, Mapping) else {},
+        "budget_policy_id": str(job.get("budget_policy_id", "")),
+        "route_id": str(job.get("route_id", "")),
+        "provider_id": str(job.get("provider_id", "")),
+        "dry_run_only": True,
+        "funds_moved": False,
+        "broadcast_allowed": False,
+        "private_key_required": False,
+    }
+
+
+def _execution_error(error_code: str, message: str, *, provider_id: str, job_id: str) -> Mapping[str, Any]:
+    return {
+        "ok": False,
+        "job_id": job_id,
+        "provider_id": provider_id,
+        "status": "failed",
+        "error_code": error_code,
+        "message": message,
+        "source": "external_provider_execution",
+        "external_provider_called": False,
+        "dry_run_only": True,
+        "funds_moved": False,
+        "broadcast_allowed": False,
+        "private_key_required": False,
+    }
 
 
 def _expired(expires_at: str) -> bool:

@@ -829,12 +829,57 @@ class ComputeMarketService:
         self.get_job(job_id)
         artifacts = tuple(artifact for artifact in self.store.list_records("compute_job_artifact", limit=500).records if str(artifact.get("job_id", "")) == job_id)
         return {"ok": True, "artifacts": artifacts}
+
+    def _dispatch_external_provider_execution(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> Mapping[str, Any]:
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        if not self.config.external_provider_execution_enabled:
+            return {"required": False, "ok": True, "external_provider_called": False}
+        if not self.config.external_provider_allowlist:
+            error = compute_error(
+                "provider_execution.allowlist_missing",
+                "External provider execution requires FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST.",
+                details={"provider_id": provider_id, "route_id": route_id},
+                request_id=request_id,
+            )
+            self._audit("compute.job.external_execution_allowlist_missing", payload, request_id=request_id, result="rejected", reason_codes=("external_provider_allowlist_missing",), provider_id=provider_id, route_id=route_id)
+            return {"required": True, "ok": False, "error": error.as_record(), "external_provider_called": False}
+        circuit = self.circuit_breaker.allow_request(provider_id, route_id=route_id, adapter_type="external_execution")
+        if not circuit.ok:
+            self.telemetry.increment("provider_circuit_open_total", {"provider_id": provider_id})
+            error = compute_error("provider.circuit_open", "Provider execution circuit is open.", details=circuit.as_record(), request_id=request_id)
+            self._audit("compute.job.external_execution_circuit_open", payload, request_id=request_id, result="rejected", reason_codes=("circuit_open",), provider_id=provider_id, route_id=route_id)
+            return {"required": True, "ok": False, "error": error.as_record(), "external_provider_called": False}
+        provider = self.store.get_record("compute_provider", provider_id)
+        if provider is None:
+            raise KeyError(f"Unknown compute provider: {provider_id}")
+        routes = tuple(self.store.list_records("compute_route", filters={"provider_id": provider_id}, limit=100).records)
+        adapter = build_external_provider_adapter(provider, routes, self.config)
+        result = dict(adapter.execute_plan({**dict(job), "request_id": request_id, "worker_id": str(payload.get("worker_id", ""))}))
+        if result.get("ok") is True:
+            self.circuit_breaker.record_success(provider_id, route_id=route_id, adapter_type="external_execution")
+            self._audit("compute.job.external_execution_requested", payload, request_id=request_id, result=str(result.get("status", "accepted")), provider_id=provider_id, route_id=route_id)
+            return {"required": True, **result}
+        error_code = str(result.get("error_code", "provider_execution.failed"))
+        self.circuit_breaker.record_failure(provider_id, route_id=route_id, adapter_type="external_execution", error_class=error_code)
+        self._audit("compute.job.external_execution_failed", payload, request_id=request_id, result="rejected", reason_codes=(error_code,), provider_id=provider_id, route_id=route_id)
+        error = compute_error(error_code, str(result.get("message", "Provider execution request failed.")), details={"provider_id": provider_id, "route_id": route_id}, request_id=request_id)
+        return {"required": True, "ok": False, "error": error.as_record(), "execution": result, "external_provider_called": bool(result.get("external_provider_called", False))}
     def dispatch_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id)["job"])
         _assert_job_status(job, ("queued", "dispatched"), "dispatch")
         worker_id = _assert_claim_owner(job, payload, "dispatch")
+        execution = self._dispatch_external_provider_execution(job, payload, request_id=request_id)
+        if execution.get("required") is True and execution.get("ok") is not True:
+            return {"ok": False, "job": job, "event": {}, "execution": execution.get("execution", {}), "error": execution.get("error", {})}
         dispatched_at = utc_now_iso()
         details: dict[str, Any] = {
             "provider_dispatch": "dry_run_provider_dispatch",
@@ -843,6 +888,18 @@ class ComputeMarketService:
         }
         if worker_id:
             details["worker_id"] = worker_id
+        if execution.get("external_provider_called") is True:
+            details.update(
+                {
+                    "provider_dispatch": "external_provider_execution",
+                    "external_provider_called": True,
+                    "provider_execution": {
+                        key: value
+                        for key, value in dict(execution).items()
+                        if key not in {"required", "ok"}
+                    },
+                }
+            )
         job.update(
             {
                 "status": "running",
@@ -850,11 +907,13 @@ class ComputeMarketService:
                 "started_at": dispatched_at,
                 "updated_at": dispatched_at,
                 "lifecycle": _append_lifecycle(job, "running"),
-                "provider_dispatch": "dry_run_provider_dispatch",
+                "provider_dispatch": "external_provider_execution" if execution.get("external_provider_called") is True else "dry_run_provider_dispatch",
             }
         )
         if worker_id:
             job["started_by_worker_id"] = worker_id
+        if execution.get("external_provider_called") is True:
+            job["provider_execution"] = details["provider_execution"]
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2131,6 +2190,7 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
     provider_type = str(payload.get("provider_type", "")).strip()
     quote_endpoint = str(payload.get("quote_endpoint", "")).strip()
     health_endpoint = str(payload.get("health_endpoint", "")).strip()
+    execution_endpoint = str(payload.get("execution_endpoint", "")).strip()
     supported_unit_types = _tuple(payload.get("supported_unit_types", ()))
     supported_assets = _tuple(payload.get("supported_assets", ()))
     supported_networks = _tuple(payload.get("supported_networks", ()))
@@ -2151,6 +2211,8 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
         raise ValueError(f"provider application missing required fields: {', '.join(missing)}")
     if not quote_endpoint.startswith("https://") or not health_endpoint.startswith("https://"):
         raise ValueError("provider quote_endpoint and health_endpoint must be https:// URLs")
+    if execution_endpoint and not execution_endpoint.startswith("https://"):
+        raise ValueError("provider execution_endpoint must be an https:// URL")
     now = utc_now_iso()
     return {
         "application_id": str(payload.get("application_id") or deterministic_id("provider_application", {"provider_id": provider_id, "request_id": request_id})),
@@ -2164,6 +2226,7 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
         "supported_networks": supported_networks,
         "quote_endpoint": quote_endpoint,
         "health_endpoint": health_endpoint,
+        "execution_endpoint": execution_endpoint,
         "public_key": str(payload.get("public_key", "")),
         "sla": dict(payload.get("sla", {})) if isinstance(payload.get("sla"), Mapping) else {},
         "configured_by": str(payload.get("configured_by", "provider-admin")),
@@ -2197,6 +2260,7 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
     metadata = {
         "quote_endpoint": str(application.get("quote_endpoint", "")),
         "health_endpoint": str(application.get("health_endpoint", "")),
+        "execution_endpoint": str(application.get("execution_endpoint", "")),
         "sla": dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {},
     }
     if public_key:

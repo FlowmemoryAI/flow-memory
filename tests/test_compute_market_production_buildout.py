@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hmac
+import threading
+from typing import cast
 
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
@@ -8,6 +10,7 @@ from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.hashes import content_hash
+from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server
 from flow_memory.crypto.asymmetric import LocalTestSigner
 
 
@@ -262,6 +265,112 @@ def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:
     assert completed["job"]["completed_by_worker_id"] == "worker_1"
     event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
     assert {"job.claimed", "job.heartbeat", "job.started", "job.completed"}.issubset(event_types)
+
+
+def test_compute_worker_dispatch_calls_provider_execution_adapter() -> None:
+    server = create_provider_sandbox_server("127.0.0.1", 0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/execute"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_allowlist=("127.0.0.1",),
+            external_provider_execution_enabled=True,
+            external_provider_execution_timeout_ms=1_000,
+        ),
+    )
+    service.store.put_record(
+        "compute_provider",
+        "sandbox-provider",
+        {
+            "provider_id": "sandbox-provider",
+            "provider_name": "Sandbox Provider",
+            "provider_type": "gpu",
+            "market_type": "marketplace",
+            "network": "offchain",
+            "payment_asset": "USDC",
+            "status": "active",
+            "supported_unit_types": ("gpu_minute",),
+            "supported_assets": ("USDC",),
+            "supported_networks": ("offchain",),
+            "metadata": {"execution_endpoint": endpoint},
+        },
+        provider_id="sandbox-provider",
+        status="active",
+    )
+    try:
+        job_id = str(
+            service.create_job(
+                {
+                    **_job_payload(),
+                    "provider_id": "sandbox-provider",
+                    "route_id": "sandbox-gpu-route",
+                    "job_id": "job_provider_execution",
+                }
+            )["job"]["job_id"]
+        )
+        service.claim_job({"worker_id": "worker_1", "job_id": job_id})
+        dispatched = service.dispatch_job(job_id, {"worker_id": "worker_1"})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert dispatched["ok"] is True
+    assert dispatched["job"]["status"] == "running"
+    assert dispatched["job"]["provider_dispatch"] == "external_provider_execution"
+    assert dispatched["event"]["details"]["external_provider_called"] is True
+    assert dispatched["event"]["details"]["provider_execution"]["status"] == "running"
+    assert dispatched["event"]["details"]["provider_execution"]["funds_moved"] is False
+    assert dispatched["event"]["details"]["provider_execution"]["broadcast_allowed"] is False
+
+
+def test_provider_execution_fails_closed_when_configured_without_endpoint() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_allowlist=("127.0.0.1",),
+            external_provider_execution_enabled=True,
+        ),
+    )
+    service.store.put_record(
+        "compute_provider",
+        "provider_without_execution",
+        {
+            "provider_id": "provider_without_execution",
+            "provider_name": "Provider Without Execution",
+            "provider_type": "gpu",
+            "market_type": "marketplace",
+            "status": "active",
+            "metadata": {},
+        },
+        provider_id="provider_without_execution",
+        status="active",
+    )
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "provider_id": "provider_without_execution",
+                "route_id": "route_without_execution",
+                "job_id": "job_missing_execution_endpoint",
+            }
+        )["job"]["job_id"]
+    )
+    service.claim_job({"worker_id": "worker_1", "job_id": job_id})
+
+    result = service.dispatch_job(job_id, {"worker_id": "worker_1"})
+
+    assert result["ok"] is False
+    assert result["error"]["error_code"] == "provider_execution.disabled"
+    assert service.get_job(job_id)["job"]["status"] == "dispatched"
 
 
 def test_compute_worker_release_and_expired_lease_reclaim() -> None:

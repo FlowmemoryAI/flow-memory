@@ -43,6 +43,30 @@ def sandbox_quote(payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
+def sandbox_execute(payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    request = payload or {}
+    job = request.get("job", {}) if isinstance(request.get("job"), Mapping) else {}
+    job_id = str(job.get("job_id") or deterministic_id("sandbox_job", job))
+    execution_id = deterministic_id("sandbox_execution", {"job_id": job_id, "provider_id": "sandbox-provider"})
+    return {
+        "execution_id": execution_id,
+        "provider_job_id": execution_id,
+        "job_id": job_id,
+        "provider_id": "sandbox-provider",
+        "status": "running",
+        "artifact_ref": "",
+        "artifact_data": {},
+        "actual_units": 0.0,
+        "actual_total_cost": 0.0,
+        "actual_latency_ms": 0.0,
+        "dry_run_only": True,
+        "funds_moved": False,
+        "broadcast_allowed": False,
+        "private_key_required": False,
+        "accepted_at": utc_now_iso(),
+    }
+
+
 def sandbox_health() -> dict[str, Any]:
     return {
         "ok": True,
@@ -72,7 +96,7 @@ def create_provider_sandbox_server(host: str = "127.0.0.1", port: int = 0) -> Th
             self.end_headers()
 
         def do_POST(self) -> None:  # noqa: N802 - stdlib API
-            if self.path != "/quote":
+            if self.path not in {"/quote", "/execute"}:
                 self.send_response(404)
                 self.end_headers()
                 return
@@ -84,6 +108,9 @@ def create_provider_sandbox_server(host: str = "127.0.0.1", port: int = 0) -> Th
                 payload = {}
             if not isinstance(payload, Mapping):
                 payload = {}
+            if self.path == "/execute":
+                self._send({"ok": True, "execution": sandbox_execute(payload)})
+                return
             self._send({"ok": True, "quote": sandbox_quote(payload)})
 
         def _send(self, payload: Mapping[str, Any]) -> None:

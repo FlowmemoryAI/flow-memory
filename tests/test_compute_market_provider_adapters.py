@@ -10,7 +10,7 @@ from flow_memory.compute_market.adapters import HTTPQuoteProvider, RetryPolicy, 
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
 from flow_memory.compute_market.service import ComputeMarketService
-from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_quote
+from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_execute, sandbox_quote
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.compute_market.planner import build_task_profile
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
@@ -280,3 +280,54 @@ def test_provider_sandbox_quote_contract_and_http_adapter() -> None:
     assert quotes[0].provider_id == "sandbox-provider"
     assert quotes[0].route_id == "sandbox-gpu-route"
     assert quotes[0].status == "valid"
+
+
+def test_provider_sandbox_execution_adapter_dispatches_without_settlement() -> None:
+    expected = sandbox_execute({"job": {"job_id": "job_sandbox_exec"}})
+    server = create_provider_sandbox_server("127.0.0.1", 0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/execute"
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_allowlist=("127.0.0.1",),
+        external_provider_execution_enabled=True,
+        external_provider_execution_timeout_ms=1_000,
+    )
+    provider_record = {
+        "provider_id": "sandbox-provider",
+        "provider_name": "Sandbox Provider",
+        "provider_type": "gpu",
+        "status": "active",
+        "supported_unit_types": ("gpu_minute",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("offchain",),
+        "execution_endpoint": endpoint,
+    }
+    try:
+        adapter = build_external_provider_adapter(provider_record, (), config)
+        result = adapter.execute_plan(
+            {
+                "job_id": "job_sandbox_exec",
+                "task_type": "inference",
+                "input_ref": "s3://flow-memory-inputs/job.json",
+                "model_or_runtime": "sandbox-runtime",
+                "resource_request": {"gpu_type": "H100"},
+                "budget_policy_id": "policy_default",
+                "route_id": "sandbox-gpu-route",
+                "provider_id": "sandbox-provider",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert expected["dry_run_only"] is True
+    assert result["ok"] is True
+    assert result["external_provider_called"] is True
+    assert result["status"] == "running"
+    assert result["funds_moved"] is False
+    assert result["broadcast_allowed"] is False
+    assert result["private_key_required"] is False

@@ -4,6 +4,12 @@ import { dashboardHtml, createMissionControlDevServer } from "../scripts/dev-ser
 const html = dashboardHtml();
 
 assert.match(html, /Mission Control Run Selector/);
+assert.match(html, /FlowMemory \/ Human Compute Network/);
+assert.match(html, /Mission Control for verified work memory/);
+assert.match(html, /mission-brand-nav/);
+assert.match(html, /mission-orb-card/);
+assert.match(html, /mission-proof-strip/);
+assert.match(html, /Human compute to AI memory flow/);
 assert.match(html, /Live Neural Agent Launch/);
 assert.match(html, /Live Agent Operations/);
 assert.match(html, /Live Agent Supervisor/);

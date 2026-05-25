@@ -57,6 +57,23 @@ const safeLiveReadEndpoints = [
   'GET /release/decision/public-alpha-launch-finalizer',
 ];
 
+const brandStages = [
+  ['human', 'owner'],
+  ['device', 'node'],
+  ['signal', 'action'],
+  ['receipt', 'verified'],
+  ['memory', 'state'],
+  ['proof', 'recall'],
+];
+
+function renderBrandStages() {
+  return brandStages.map(([name, meta], index) => `
+    <span class="brand-stage brand-stage-${index + 1}" style="--stage-index: ${index}">
+      <b>${text(name)}</b>
+      <small>${text(meta)}</small>
+    </span>`).join('');
+}
+
 function send(res, status, contentType, body) {
   res.writeHead(status, { 'content-type': contentType });
   res.end(body);
@@ -204,22 +221,24 @@ function renderRunSelector(payloads) {
   const fields = runStatusFields(selectedSummary).map(([label, value]) => `<div><dt>${text(label)}</dt><dd>${text(value)}</dd></div>`).join('');
   const categories = Object.entries(selectedSummary.event_category_counts).map(([category, count]) => `<span>${text(category)}: ${text(count)}</span>`).join('');
   return `
-    <section class="run-console" aria-label="Mission Control run selector">
-      <header>
-        <span>Local run console</span>
+    <section id="runs" class="run-console mission-surface mission-surface-wide" aria-label="Mission Control run selector">
+      <header class="surface-header">
+        <span>Run selector</span>
         <strong>Mission Control Run Selector</strong>
-        <small>Replay/mock mode is active by default; local API polling is optional.</small>
+        <small>Replay fixtures convert verified agent work into reusable operator context.</small>
       </header>
-      <div class="run-selector-grid" role="listbox" aria-label="Replay fixture selector">${buttons}</div>
-      <article class="run-status-card" aria-label="Selected run status">
-        <header><span>${text(selected.label)}</span><strong>${text(selectedSummary.status)}</strong></header>
-        <dl>${fields}</dl>
-        <div class="event-category-counts" aria-label="Replay event category counts">${categories}</div>
-        <footer>
-          <span>Replay artifact: ${text(selectedSummary.replay_artifact_path)}</span>
-          <span>Run record: ${text(selectedSummary.run_record_path || 'fixture only')}</span>
-        </footer>
-      </article>
+      <div class="run-console-layout">
+        <div class="run-selector-grid" role="listbox" aria-label="Replay fixture selector">${buttons}</div>
+        <article class="run-status-card" aria-label="Selected run status">
+          <header><span>${text(selected.label)}</span><strong>${text(selectedSummary.status)}</strong></header>
+          <dl>${fields}</dl>
+          <div class="event-category-counts" aria-label="Replay event category counts">${categories}</div>
+          <footer>
+            <span>Replay artifact: ${text(selectedSummary.replay_artifact_path)}</span>
+            <span>Run record: ${text(selectedSummary.run_record_path || 'fixture only')}</span>
+          </footer>
+        </article>
+      </div>
     </section>`;
 }
 
@@ -234,10 +253,14 @@ function renderReplaySummary(payloads) {
       <small>${text(event.source_event_id || event.event_id || '')}</small>
     </li>`).join('');
   return `
-    <section class="replay-controls" aria-label="Mission Control replay controls">
-      <header><span>Replay controller</span><strong>${text(events.length)} replay events loaded</strong></header>
+    <section id="replay" class="replay-controls mission-surface" aria-label="Mission Control replay controls">
+      <header class="surface-header">
+        <span>Local Network Replay</span>
+        <strong>${text(events.length)} replay events loaded</strong>
+        <small>Scrub through requester, worker, verifier, auditor, economy, safety, memory, and neural events.</small>
+      </header>
       <div class="replay-buttons"><button type="button">Play</button><button type="button">Pause</button><button type="button">Reset</button><button type="button">Step forward</button><button type="button">Step backward</button></div>
-      <div class="replay-progress"><span style="--replay-progress: ${progress}"></span></div>
+      <div class="replay-progress" aria-label="Replay progress"><span style="--replay-progress: ${progress}"></span></div>
       <div class="event-filters"><label>neural</label><label>policy</label><label>memory</label><label>compute/economy</label><label>audit/safety</label></div>
       <ol class="event-timeline">${latest}</ol>
     </section>`;
@@ -268,7 +291,7 @@ function renderEmbodimentPanel(payload) {
       <span>${text(node.label)}</span><small>${text(node.status)}</small>
     </div>`).join('') : '';
   return `
-    <section class="neural-embodiment-panel" aria-label="Neural embodiment state">
+    <section id="embodiment" class="neural-embodiment-panel mission-surface mission-surface-wide" aria-label="Neural embodiment state">
       <header><span>Visible neural embodiment</span><strong>${text(embodiment.current_loop_phase)}</strong></header>
       <div class="embodiment-hero" data-phase="${text(embodiment.current_loop_phase)}" data-gpu="${text(embodiment.gpu_evidence_status)}">
         <div class="embodiment-avatar" style="--confidence: ${Number(embodiment.confidence_score || 0)}; --risk: ${Number(embodiment.risk_score || 0)}"><i></i><b>${text(embodiment.current_loop_phase)}</b></div>
@@ -295,7 +318,7 @@ function renderLive3DPanel(payload, state) {
       ${text(node.label)}<small>${text(node.status)}</small>
     </span>`).join('') : '';
   return `
-    <section class="live-3d-mode-panel" aria-label="Mission Control Live 3D Mode" data-live-3d-mode="${ready ? 'ready' : 'blocked'}" data-source="${text(state?.provenance || 'replay')}" data-gpu="${text(embodiment.gpu_evidence_status)}">
+    <section id="live-3d" class="live-3d-mode-panel mission-surface mission-surface-wide" aria-label="Mission Control Live 3D Mode" data-live-3d-mode="${ready ? 'ready' : 'blocked'}" data-source="${text(state?.provenance || 'replay')}" data-gpu="${text(embodiment.gpu_evidence_status)}">
       <header>
         <div><span>Mission Control Live 3D Mode</span><strong>${ready ? '3D telemetry ready' : '3D telemetry blocked'}</strong></div>
         <small>${text(state?.provenance || 'replay')} · ${text(embodiment.backend)} · GPU evidence ${text(embodiment.gpu_evidence_status)}</small>
@@ -332,9 +355,13 @@ function renderFinalizerStatus(finalizer) {
   const local = finalizer?.release_decisions?.['public-alpha-local-launch'] || {};
   const ctmp = finalizer?.invariants?.ctmp_backup_not_tracked === true;
   return `
-    <section class="panel public-alpha-finalizer" aria-label="Public Alpha Finalizer Status">
-      <header><span>Public-alpha finalizer status</span><strong>${finalizer?.ok ? 'ready' : 'pending'}</strong></header>
-      <p>Evidence-only handoff for Mission Control Live 3D Mode, public-alpha launch evidence, release decisions, demo bundle status, and C:\\tmp backup exclusion.</p>
+    <section id="finalizer" class="panel public-alpha-finalizer mission-surface" aria-label="Public Alpha Finalizer Status">
+      <header class="surface-header">
+        <span>Public-alpha finalizer status</span>
+        <strong>${finalizer?.ok ? 'ready' : 'pending'}</strong>
+        <small>Evidence-only launch gate for the branded operator console.</small>
+      </header>
+      <p>Mission Control Live 3D Mode, GPU evidence, release decisions, demo bundle status, and C:\\tmp backup exclusion are checked before handoff.</p>
       <dl>
         <div><dt>Finalizer</dt><dd>${finalizer?.ok ? 'ok' : 'missing'}</dd></div>
         <div><dt>Hash</dt><dd>${text(finalizer?.hash || 'not generated')}</dd></div>
@@ -349,10 +376,12 @@ function renderFinalizerStatus(finalizer) {
 function renderSafeLiveApiPanel() {
   const endpoints = safeLiveReadEndpoints.map((endpoint) => `<span>${text(endpoint)}</span>`).join('');
   return `
-    <section class="mission-control-endpoints" aria-label="Optional local API read mode">
-      <strong>Replay/mock mode works without API</strong>
-      <span>Optional local API mode uses read-only polling.</span>
-      ${endpoints}
+    <section class="mission-control-endpoints mission-proof-strip" aria-label="Optional local API read mode">
+      <div>
+        <strong>Replay/mock mode works without API</strong>
+        <small>Optional local API mode is read-only from this dashboard.</small>
+      </div>
+      <div class="safe-endpoint-list">${endpoints}</div>
     </section>`;
 }
 
@@ -366,32 +395,64 @@ function renderMissionControlHtml(payloads, finalizer) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Flow Memory Mission Control</title>
-  <style>${css}
-    .mission-control-page { gap: 0; }
-    .run-console header, .public-alpha-finalizer header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 12px; }
-    .public-alpha-finalizer { max-width: 1440px; margin: 0 auto 20px; }
-    .public-alpha-finalizer p { color: var(--subtle); }
-    .mission-control-endpoints span { border: 1px solid rgba(238,246,251,0.10); border-radius: 999px; padding: 6px 9px; }
-  </style>
+  <style>${css}</style>
 </head>
 <body>
   <main class="mission-control-page" data-mode="${text(state?.provenance || 'replay')}">
-    <header class="mission-control-hero">
-      <div>
-        <p>The Human Compute Network</p>
-        <h1>Flow Memory Mission Control</h1>
-        <span>${text(summarizeVisualState(state))}</span>
-      </div>
-      <aside class="mode-switcher" aria-label="Mission Control mode switcher">
-        <strong>replay artifact</strong>
-        <small>Local replay/mock mode is loaded from checked-in fixtures. Local API mode is optional and read-only from this dev server.</small>
-        <div><button type="button" data-active="false">mock</button><button type="button" data-active="true">replay</button><button type="button" data-active="false">live local API</button></div>
-      </aside>
+    <header class="mission-brand-nav" aria-label="Flow Memory Mission Control navigation">
+      <a class="mission-brand" href="/mission-control" aria-label="Flow Memory Mission Control home">
+        <span class="mission-brand-orb" aria-hidden="true"></span>
+        <span>FlowMemory</span>
+      </a>
+      <nav aria-label="Mission Control sections">
+        <a href="#runs">Runs</a>
+        <a href="#replay">Replay</a>
+        <a href="#embodiment">Embodiment</a>
+        <a href="#live-3d">Live 3D</a>
+      </nav>
+      <a class="mission-status-pill" href="#finalizer">Public alpha ready</a>
     </header>
+
+    <section class="mission-control-hero" aria-labelledby="mission-control-title">
+      <div class="mission-hero-copy">
+        <p class="eyebrow">
+          <span class="eyebrow-dot" aria-hidden="true"></span>
+          <span>FlowMemory / Human Compute Network</span>
+        </p>
+        <h1 id="mission-control-title">Mission Control for verified work memory.</h1>
+        <p class="mission-hero-lede">Operate replay fixtures, neural embodiment, and public-alpha launch evidence with the same warm glass system as flowmemory.ai.</p>
+        <div class="mission-hero-actions">
+          <a class="mission-button mission-button-primary" href="#runs">Inspect runs <span aria-hidden="true">→</span></a>
+          <a class="mission-button mission-button-ghost" href="#live-3d">Open Live 3D</a>
+        </div>
+        <dl class="mission-hero-metrics" aria-label="Mission Control summary">
+          <div><dt>Mode</dt><dd>${text(state?.provenance || 'replay')}</dd></div>
+          <div><dt>State</dt><dd>${text(summarizeVisualState(state))}</dd></div>
+          <div><dt>GPU evidence</dt><dd>GPU evidence verified</dd></div>
+        </dl>
+      </div>
+
+      <aside class="mission-orb-card" aria-label="Human compute to AI memory flow">
+        <div class="mission-orb-field" aria-hidden="true">
+          <span class="mission-orb mission-orb-a"></span>
+          <span class="mission-orb mission-orb-b"></span>
+          <span class="mission-orb mission-orb-c"></span>
+        </div>
+        <div class="mission-flowline" aria-hidden="true">${renderBrandStages()}</div>
+        <div class="mode-switcher" aria-label="Mission Control mode switcher">
+          <strong>replay artifact</strong>
+          <small>Checked-in replay/mock fixtures load without API. Local API mode remains optional and read-only.</small>
+          <div><button type="button" data-active="false">mock</button><button type="button" data-active="true">replay</button><button type="button" data-active="false">live local API</button></div>
+        </div>
+      </aside>
+    </section>
+
     ${renderSafeLiveApiPanel()}
     ${renderRunSelector(payloads)}
-    ${renderReplaySummary(payloads)}
-    ${renderFinalizerStatus(finalizer)}
+    <div class="mission-stack-grid">
+      ${renderReplaySummary(payloads)}
+      ${renderFinalizerStatus(finalizer)}
+    </div>
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
   </main>

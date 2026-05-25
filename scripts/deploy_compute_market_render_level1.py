@@ -160,6 +160,28 @@ def wait_available(api_key: str, path: str, resource_id: str, label: str) -> dic
     emit("failed_deployment", 32, resource=label, resource_status="timeout_waiting_available")
     raise AssertionError("unreachable")
 
+def wait_deploy_live(api_key: str, service_id: str, deploy_id: str) -> dict[str, Any]:
+    if not deploy_id:
+        emit("failed_deployment", 35, reason="render_deploy_id_missing")
+    for _ in range(120):
+        deploy = render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}/deploys/{urllib.parse.quote(deploy_id)}")
+        envelope = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
+        status = str(envelope.get("status", "")).lower()
+        if status == "live":
+            return envelope
+        if status in {"build_failed", "update_failed", "canceled", "deactivated"}:
+            emit("failed_deployment", 36, deploy_id=deploy_id, deploy_status=status)
+        time.sleep(10)
+    emit("failed_deployment", 37, deploy_id=deploy_id, deploy_status="timeout_waiting_live")
+    raise AssertionError("unreachable")
+
+
+def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
+    deploy = render_request(api_key, "POST", f"/services/{urllib.parse.quote(service_id)}/deploys", {"clearCache": "do_not_clear"})
+    envelope = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
+    deploy_id = str(envelope.get("id", ""))
+    return wait_deploy_live(api_key, service_id, deploy_id)
+
 
 def ensure_postgres(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
     existing = find_named(api_key, "/postgres", "postgres", owner_id, POSTGRES_NAME)
@@ -283,7 +305,6 @@ def ensure_service(
     if existing is not None:
         service_id = str(existing["id"])
         render_request(api_key, "PUT", f"/services/{urllib.parse.quote(service_id)}/env-vars", env_vars)
-        render_request(api_key, "POST", f"/services/{urllib.parse.quote(service_id)}/deploys", {"clearCache": "do_not_clear"})
         return render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}")
     body = {
         "type": "web_service",
@@ -441,7 +462,7 @@ def main() -> int:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
         env_vars = build_env_vars(api_key_value, str(pg_conn["internalConnectionString"]), str(kv_conn["internalConnectionString"]), url)
         render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
-        render_request(args.api_key, "POST", f"/services/{urllib.parse.quote(str(service['id']))}/deploys", {"clearCache": "do_not_clear"})
+        trigger_service_deploy(args.api_key, str(service["id"]))
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
             last_smoke = smoke_public(url, api_key_value)

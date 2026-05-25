@@ -41,6 +41,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "quote_replay_guard",
     "quote_drift_observation",
     "provider_fraud_signal",
+    "provider_receipt_replay_guard",
     "compute_job",
     "compute_job_event",
     "compute_job_artifact",

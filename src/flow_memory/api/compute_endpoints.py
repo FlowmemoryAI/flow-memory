@@ -274,6 +274,10 @@ def compute_job_complete(job_id: str, payload: Mapping[str, Any]) -> Mapping[str
     return default_service().complete_job(job_id, payload)
 
 
+def compute_job_receipt(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().provider_job_receipt(job_id, payload)
+
+
 def compute_job_fail(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().fail_job(job_id, payload)
 

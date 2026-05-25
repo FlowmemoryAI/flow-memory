@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 138,
-  "manifest_hash": "ae13ec9af100f379560ab202b63cccbbe26b961cef3fbc4451876b165f1caa28",
-  "openapi_hash": "2b64f030af42c4ad5463df6801ad475db5cde912e27c03a8dce50c2c3c19fb1c",
+  "endpoint_count": 139,
+  "manifest_hash": "76cad1f7902ce56eef81754e40c6b9e4b9eedb3be7df2fb3611b60ed3afc5854",
+  "openapi_hash": "5f49497aabf236e975fa20951c1ae8bcffe3a6d59bbd561d875aa51212a27a07",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -97,6 +97,7 @@
     "POST /compute/jobs/{job_id}/dispatch",
     "POST /compute/jobs/{job_id}/fail",
     "POST /compute/jobs/{job_id}/heartbeat",
+    "POST /compute/jobs/{job_id}/receipt",
     "POST /compute/jobs/{job_id}/release-claim",
     "POST /compute/jobs/{job_id}/retry",
     "POST /compute/marketplace-plan",
@@ -142,7 +143,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 130,
+  "path_count": 131,
   "paths": [
     "/admin/audit/export",
     "/admin/reconciliation",
@@ -196,6 +197,7 @@
     "/compute/jobs/{job_id}/events",
     "/compute/jobs/{job_id}/fail",
     "/compute/jobs/{job_id}/heartbeat",
+    "/compute/jobs/{job_id}/receipt",
     "/compute/jobs/{job_id}/release-claim",
     "/compute/jobs/{job_id}/retry",
     "/compute/marketplace-plan",

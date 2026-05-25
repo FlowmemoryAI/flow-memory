@@ -70,6 +70,7 @@ from flow_memory.api.compute_endpoints import (
     compute_job_create,
     compute_job_complete,
     compute_job_events,
+    compute_job_receipt,
     compute_job_retry,
     compute_job_dispatch,
     compute_job_fail,
@@ -654,6 +655,9 @@ class LocalApiRouter:
     def _compute_job_complete(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_complete(params["job_id"], payload)
 
+    def _compute_job_receipt(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_receipt(params["job_id"], payload)
+
     def _compute_job_fail(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_fail(params["job_id"], payload)
 
@@ -846,6 +850,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/compute/jobs/{job_id}/retry", router._compute_job_retry, "compute_job_retry")
     router.register("POST", "/compute/jobs/{job_id}/dispatch", router._compute_job_dispatch, "compute_job_dispatch")
     router.register("POST", "/compute/jobs/{job_id}/complete", router._compute_job_complete, "compute_job_complete")
+    router.register("POST", "/compute/jobs/{job_id}/receipt", router._compute_job_receipt, "compute_job_receipt")
     router.register("POST", "/compute/jobs/{job_id}/fail", router._compute_job_fail, "compute_job_fail")
     router.register("POST", "/compute/jobs/claim", router._compute_job_claim, "compute_job_claim")
     router.register("POST", "/compute/jobs/{job_id}/heartbeat", router._compute_job_heartbeat, "compute_job_heartbeat")

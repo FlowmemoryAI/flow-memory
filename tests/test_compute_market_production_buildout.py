@@ -15,6 +15,8 @@ from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server
 from flow_memory.crypto.asymmetric import LocalTestSigner
+from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.signatures import sign_payload
 
 
 def _service() -> ComputeMarketService:
@@ -332,6 +334,87 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert service.job_artifacts(job_id)["artifacts"]
     assert service.billing_usage({})["usage_charges"]
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
+
+
+def test_signed_provider_receipt_callback_completes_job_and_blocks_replay(monkeypatch: Any) -> None:
+    service = _service()
+    key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_RECEIPT_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "receipt-provider",
+            "provider_name": "Receipt Provider",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_RECEIPT_SECRET",
+            },
+        }
+    )
+    job_id = str(service.create_job({**_job_payload(), "provider_id": "receipt-provider", "route_id": "receipt-route"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+
+    receipt = {
+        "receipt_id": "receipt-001",
+        "timestamp": "2099-01-01T00:00:00Z",
+        "job_id": job_id,
+        "provider_id": "receipt-provider",
+        "route_id": "receipt-route",
+        "status": "succeeded",
+        "actual_units": 2,
+        "actual_total_cost": 0.18,
+        "actual_latency_ms": 1200,
+        "artifact_data": {"result": "ok"},
+        "funds_moved": False,
+    }
+    payload = {"receipt": receipt, "signature": sign_payload(receipt, key).as_record(), "request_id": "receipt-request-1"}
+
+    accepted = service.provider_job_receipt(job_id, payload)
+    replayed = service.provider_job_receipt(job_id, payload)
+
+    assert accepted["ok"] is True
+    assert accepted["job"]["status"] == "succeeded"
+    assert accepted["completion"]["artifact"]["metadata"] == {"result": "ok"}
+    assert accepted["verification"]["receipt_id"] == "receipt-001"
+    assert service.store.count_records("provider_receipt_replay_guard") == 1
+    assert replayed["ok"] is False
+    assert replayed["error"]["error_code"] == "provider_receipt.replay_detected"
+
+
+def test_provider_receipt_callback_rejects_tampered_signature(monkeypatch: Any) -> None:
+    service = _service()
+    key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_RECEIPT_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "receipt-provider",
+            "provider_name": "Receipt Provider",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_RECEIPT_SECRET",
+            },
+        }
+    )
+    job_id = str(service.create_job({**_job_payload(), "provider_id": "receipt-provider", "route_id": "receipt-route"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    receipt = {
+        "receipt_id": "receipt-002",
+        "timestamp": "2099-01-01T00:00:00Z",
+        "job_id": job_id,
+        "provider_id": "receipt-provider",
+        "route_id": "receipt-route",
+        "status": "succeeded",
+        "actual_total_cost": 0.18,
+    }
+    signature = sign_payload(receipt, key).as_record()
+    tampered = {**receipt, "actual_total_cost": 99.0}
+
+    rejected = service.provider_job_receipt(job_id, {"receipt": tampered, "signature": signature})
+
+    assert rejected["ok"] is False
+    assert rejected["error"]["error_code"] == "provider_receipt.signature_invalid"
+    assert service.get_job(job_id)["job"]["status"] == "running"
 
 
 def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:

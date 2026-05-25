@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import hmac
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -32,6 +33,8 @@ from flow_memory.compute_market.registry import default_compute_providers, defau
 from flow_memory.compute_market.storage import deterministic_id, migration_plan, schema_hash, utc_now_iso
 from flow_memory.compute_market.storage_backends import ComputeMarketStoreProtocol, create_compute_market_store
 from flow_memory.crypto.hashes import content_hash
+from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.signatures import verify_payload
 from flow_memory.core.types import new_id
 
 _UNSAFE_KEYS = frozenset(
@@ -896,6 +899,72 @@ class ComputeMarketService:
         self.get_job(job_id)
         artifacts = tuple(artifact for artifact in self.store.list_records("compute_job_artifact", limit=500).records if str(artifact.get("job_id", "")) == job_id)
         return {"ok": True, "artifacts": artifacts}
+
+    def provider_job_receipt(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        receipt = _provider_receipt_payload(payload)
+        provider_id = str(receipt.get("provider_id", payload.get("provider_id", job.get("provider_id", ""))))
+        route_id = str(job.get("route_id", receipt.get("route_id", "")))
+        if str(receipt.get("job_id", "")) != job_id:
+            error = compute_error(
+                "provider_receipt.job_mismatch",
+                "Provider receipt job_id does not match the requested job.",
+                details={"job_id": job_id, "receipt_job_id": str(receipt.get("job_id", ""))},
+                request_id=request_id,
+            )
+            self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt_job_mismatch",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record()}
+        if provider_id != str(job.get("provider_id", "")):
+            error = compute_error(
+                "provider_receipt.provider_mismatch",
+                "Provider receipt provider_id does not match the compute job provider.",
+                details={"job_id": job_id, "provider_id": str(job.get("provider_id", "")), "receipt_provider_id": provider_id},
+                request_id=request_id,
+            )
+            self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_receipt_provider_mismatch",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record()}
+        verification = _verify_provider_receipt(self.store, job, payload, receipt)
+        if not verification["ok"]:
+            reason = str(verification["error"].get("error_code", "provider_receipt.invalid"))
+            error = compute_error(reason, str(verification["error"].get("message", "Provider receipt verification failed.")), details=verification["error"], request_id=request_id)
+            self._audit("compute.job.provider_receipt_rejected", payload, request_id=request_id, result="rejected", reason_codes=(reason,), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record(), "verification": verification}
+        receipt_id = str(verification["receipt_id"])
+        receipt_hash = str(verification["receipt_hash"])
+        self.store.put_record(
+            "provider_receipt_replay_guard",
+            receipt_id,
+            {
+                "receipt_id": receipt_id,
+                "receipt_hash": receipt_hash,
+                "job_id": job_id,
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "created_at": utc_now_iso(),
+                "request_id": request_id,
+            },
+            provider_id=provider_id,
+            route_id=route_id,
+            request_id=request_id,
+        )
+        status = str(receipt.get("status", "")).strip().lower()
+        self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status or "accepted", provider_id=provider_id, route_id=route_id)
+        completion_payload = {**dict(receipt), "request_id": request_id}
+        if status in {"succeeded", "success", "completed", "complete"}:
+            completed = self.complete_job(job_id, completion_payload)
+            return {"ok": True, "receipt": receipt, "verification": verification, "completion": completed, "job": completed["job"]}
+        if status in {"failed", "failure", "error"}:
+            failed = self.fail_job(job_id, completion_payload)
+            return {"ok": True, "receipt": receipt, "verification": verification, "failure": failed, "job": failed["job"]}
+        error = compute_error(
+            "provider_receipt.unsupported_status",
+            "Provider receipt status must be succeeded or failed.",
+            details={"status": status, "job_id": job_id},
+            request_id=request_id,
+        )
+        return {"ok": False, "error": error.as_record(), "verification": verification}
 
     def _dispatch_external_provider_execution(
         self,
@@ -2531,6 +2600,104 @@ def _provider_public_key(payload: Mapping[str, Any], provider_id: str, service: 
     if application.get("public_key"):
         return str(application["public_key"])
     return ""
+
+
+def _provider_receipt_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
+    receipt = payload.get("receipt", {})
+    if isinstance(receipt, Mapping):
+        return {str(key): value for key, value in receipt.items() if str(key) not in {"signature", "verification"}}
+    return {str(key): value for key, value in payload.items() if str(key) not in {"signature", "verification"}}
+
+
+def _verify_provider_receipt(
+    store: ComputeMarketStoreProtocol,
+    job: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    receipt: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    provider_id = str(job.get("provider_id", ""))
+    provider = store.get_record("compute_provider", provider_id) or {}
+    key = _provider_callback_signing_key(provider)
+    if key is None:
+        return {
+            "ok": False,
+            "error": {
+                "error_code": "provider_receipt.signing_key_missing",
+                "message": "Provider receipt callbacks require a configured callback signing key reference.",
+                "provider_id": provider_id,
+            },
+        }
+    signature = payload.get("signature", payload.get("verification", receipt.get("signature", receipt.get("verification", {}))))
+    if not isinstance(signature, Mapping):
+        return {
+            "ok": False,
+            "error": {
+                "error_code": "provider_receipt.signature_missing",
+                "message": "Provider receipt callback signature is required.",
+                "provider_id": provider_id,
+            },
+        }
+    receipt_id = str(receipt.get("receipt_id") or receipt.get("nonce") or "").strip()
+    timestamp = str(receipt.get("timestamp") or receipt.get("created_at") or "").strip()
+    if not receipt_id or not timestamp:
+        return {
+            "ok": False,
+            "error": {
+                "error_code": "provider_receipt.replay_fields_missing",
+                "message": "Provider receipt callbacks require receipt_id or nonce plus timestamp.",
+                "provider_id": provider_id,
+            },
+        }
+    receipt_hash = content_hash(receipt)
+    replay_guard = store.get_record("provider_receipt_replay_guard", receipt_id)
+    if replay_guard is not None:
+        return {
+            "ok": False,
+            "receipt_id": receipt_id,
+            "receipt_hash": receipt_hash,
+            "error": {
+                "error_code": "provider_receipt.replay_detected",
+                "message": "Provider receipt callback replay detected.",
+                "provider_id": provider_id,
+                "receipt_id": receipt_id,
+            },
+        }
+    if not verify_payload(receipt, signature, key):
+        return {
+            "ok": False,
+            "receipt_id": receipt_id,
+            "receipt_hash": receipt_hash,
+            "error": {
+                "error_code": "provider_receipt.signature_invalid",
+                "message": "Provider receipt callback signature is invalid.",
+                "provider_id": provider_id,
+                "receipt_id": receipt_id,
+            },
+        }
+    return {"ok": True, "receipt_id": receipt_id, "receipt_hash": receipt_hash, "key_id": key.key_id}
+
+
+def _provider_callback_signing_key(provider: Mapping[str, Any]) -> LocalKeyPair | None:
+    metadata = provider.get("metadata", {})
+    metadata_map = metadata if isinstance(metadata, Mapping) else {}
+    key_id = str(
+        provider.get("callback_signing_key_id")
+        or metadata_map.get("callback_signing_key_id")
+        or provider.get("outbound_signing_key_id")
+        or metadata_map.get("outbound_signing_key_id")
+        or ""
+    ).strip()
+    env_name = str(
+        provider.get("callback_signing_key_env")
+        or metadata_map.get("callback_signing_key_env")
+        or provider.get("outbound_signing_key_env")
+        or metadata_map.get("outbound_signing_key_env")
+        or ""
+    ).strip()
+    secret = os.environ.get(env_name, "") if env_name else ""
+    if not key_id or not secret:
+        return None
+    return LocalKeyPair(key_id=key_id, secret=secret)
 
 
 def _record_provider_fraud_signal(

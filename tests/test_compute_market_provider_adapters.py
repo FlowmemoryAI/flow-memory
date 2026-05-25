@@ -10,7 +10,7 @@ from flow_memory.compute_market.adapters import HTTPQuoteProvider, RetryPolicy, 
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
 from flow_memory.compute_market.service import ComputeMarketService
-from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_execute, sandbox_quote
+from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_execute, sandbox_quote, verify_provider_sandbox_request
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.compute_market.planner import build_task_profile
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
@@ -348,6 +348,68 @@ def test_provider_sandbox_quote_contract_and_http_adapter() -> None:
     assert quotes[0].provider_id == "sandbox-provider"
     assert quotes[0].route_id == "sandbox-gpu-route"
     assert quotes[0].status == "valid"
+
+
+def test_provider_sandbox_rejects_unsigned_requests_when_signing_key_configured(monkeypatch: Any) -> None:
+    key = LocalKeyPair("sandbox-provider-signing", "sandbox-provider-shared-secret")
+    server = create_provider_sandbox_server("127.0.0.1", 0, signing_key=key)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/quote"
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_quotes_enabled=True,
+        external_provider_allowlist=("127.0.0.1",),
+    )
+    provider_record = {
+        "provider_id": "sandbox-provider",
+        "provider_name": "Sandbox Provider",
+        "provider_type": "gpu",
+        "status": "active",
+        "supported_unit_types": ("gpu_minute",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("offchain",),
+        "quote_endpoint": endpoint,
+    }
+    signed_provider_record = {
+        **provider_record,
+        "metadata": {
+            "outbound_signing_key_id": key.key_id,
+            "outbound_signing_key_env": "FLOW_MEMORY_SANDBOX_PROVIDER_SIGNING_SECRET",
+        },
+    }
+    monkeypatch.setenv("FLOW_MEMORY_SANDBOX_PROVIDER_SIGNING_SECRET", key.secret)
+    try:
+        unsigned_adapter = build_external_provider_adapter(provider_record, (), config)
+        signed_adapter = build_external_provider_adapter(signed_provider_record, (), config)
+        unsigned_quotes = unsigned_adapter.quote(build_task_profile({"task": "unsigned sandbox"}), ComputeMarketPolicy())
+        signed_quotes = signed_adapter.quote(build_task_profile({"task": "signed sandbox"}), ComputeMarketPolicy())
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert all(quote.status == "provider_error" for quote in unsigned_quotes)
+    assert signed_quotes[0].status == "valid"
+    assert signed_quotes[0].provider_id == "sandbox-provider"
+
+
+def test_provider_sandbox_signature_verifier_is_payload_bound() -> None:
+    key = LocalKeyPair("sandbox-provider-signing", "sandbox-provider-shared-secret")
+    payload = {"profile": {"task_hash": "task-1"}, "policy_hash": "policy-1"}
+    headers = signed_provider_request_headers(
+        payload,
+        provider_id="sandbox-provider",
+        signing_key=key,
+        kind="quote",
+        timestamp="1234567890",
+        nonce="nonce-1",
+    )
+
+    assert verify_provider_sandbox_request(headers, payload, signing_key=key, kind="quote") is True
+    assert verify_provider_sandbox_request(headers, {**payload, "policy_hash": "tampered"}, signing_key=key, kind="quote") is False
+    assert verify_provider_sandbox_request(headers, payload, signing_key=key, kind="execution") is False
 
 
 def test_provider_sandbox_execution_adapter_dispatches_without_settlement() -> None:

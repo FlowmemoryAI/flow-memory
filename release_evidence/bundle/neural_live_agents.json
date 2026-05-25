@@ -19,21 +19,21 @@
         {
           "agent_id": "release-neural-agent",
           "memory_id": "neural_memory_5724aab7c71c4bba",
-          "score": 0.85808,
+          "score": 0.68034,
           "summary": "local neural memory candidate for release neural live smoke"
         }
       ],
       "ok": true,
-      "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07"
+      "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf"
     },
     "perception": {
       "agent_id": "release-neural-agent",
-      "embedding_id": "neural_embedding_a516a099b99f4363",
+      "embedding_id": "neural_embedding_127b56188e741758",
       "encoded": true,
       "external_model_calls": false,
       "local_only": true,
       "ok": true,
-      "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+      "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
       "streams": [
         "text",
         "events",
@@ -49,7 +49,7 @@
       "plan_score": 0.845945,
       "recommended_action": "respond",
       "safety_authority": "policy_engine_and_approval_gate",
-      "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07"
+      "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf"
     },
     "prediction": {
       "agent_id": "release-neural-agent",
@@ -57,8 +57,8 @@
       "external_model_calls": false,
       "local_only": true,
       "ok": true,
-      "prediction_id": "neural_prediction_8aaaa1b11e221f63",
-      "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+      "prediction_id": "neural_prediction_88d259925a2a3e7f",
+      "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
       "surprise_score": 0.35613,
       "world_model": "deterministic_metadata"
     },
@@ -70,23 +70,23 @@
       "ok": true,
       "risk_score": 0.131888,
       "safety_authority": "policy_engine_and_approval_gate",
-      "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07"
+      "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf"
     }
   },
   "learning_loop_validated": true,
   "loaded_checkpoint_metadata": {
     "checkpoint": {
       "agent_id": "release-neural-agent",
-      "checkpoint_id": "neural_checkpoint_4f56c737ef97dcf8",
-      "checkpoint_ref": "D:\\CDriveRelief\\Temp\\tmp_0tt_00t\\release-neural-live.metadata.json",
+      "checkpoint_id": "neural_checkpoint_d211bb828bf339f4",
+      "checkpoint_ref": "D:\\CDriveRelief\\Temp\\tmporauvttf\\release-neural-live.metadata.json",
       "learning_tick_count": 1,
       "local_only": true,
       "metadata_only": true,
       "raw_weights_written": false,
-      "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+      "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
       "step_count": 1
     },
-    "checkpoint_ref": "D:\\CDriveRelief\\Temp\\tmp_0tt_00t\\release-neural-live.metadata.json",
+    "checkpoint_ref": "D:\\CDriveRelief\\Temp\\tmporauvttf\\release-neural-live.metadata.json",
     "local_only": true,
     "metadata_only": true,
     "ok": true,
@@ -105,26 +105,26 @@
   "runtime_interface_validated": true,
   "sample_checkpoint": {
     "agent_id": "release-neural-agent",
-    "checkpoint_id": "neural_checkpoint_677bbb0b8f19e050",
-    "checkpoint_ref": "artifacts/neural/live/neural_session_dc1c4ccf6920495fadd05a55b63b1c07.metadata.json",
+    "checkpoint_id": "neural_checkpoint_dc36572f1666542d",
+    "checkpoint_ref": "artifacts/neural/live/neural_session_1d7edd13421f4de8844a024cc14951bf.metadata.json",
     "learning_tick_count": 1,
     "local_only": true,
     "metadata_only": true,
     "raw_weights_written": false,
-    "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+    "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
     "step_count": 1
   },
   "sample_learning": {
-    "after_metric": 0.509212,
+    "after_metric": 0.555658,
     "agent_id": "release-neural-agent",
-    "before_metric": 0.5143558705052182,
+    "before_metric": 0.5612705186172262,
     "learning_tick_count": 1,
     "local_only": true,
-    "loss": 0.509212,
+    "loss": 0.555658,
     "ok": true,
     "safety_authority": "policy_engine_and_approval_gate",
-    "sample_id": "neural_sample_b23b3230c6c4d5f8",
-    "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+    "sample_id": "neural_sample_a82a6504c69f6e12",
+    "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
     "status": "learned",
     "step_count": 1
   },
@@ -147,14 +147,14 @@
       {
         "agent_id": "release-neural-agent",
         "memory_id": "neural_memory_5724aab7c71c4bba",
-        "score": 0.85808,
+        "score": 0.68034,
         "summary": "local neural memory candidate for release neural live smoke"
       }
     ],
     "model_profile": "local-small",
     "ok": true,
     "perception": {
-      "embedding_id": "neural_embedding_a7f7d1c5ecdca8bc",
+      "embedding_id": "neural_embedding_b6a85694d4a3f1dd",
       "encoded": true,
       "streams": [
         "text",
@@ -167,14 +167,14 @@
     "policy_gate_state": "pending_policy_gate",
     "prediction": {
       "confidence": 0.585216,
-      "prediction_id": "neural_prediction_97bd73053f812c97",
+      "prediction_id": "neural_prediction_02e6d8dc21b755f1",
       "world_model": "deterministic_metadata"
     },
     "prediction_confidence": 0.585216,
     "recommended_action": "respond",
     "risk_score": 0.34904,
     "safety_authority": "policy_engine_and_approval_gate",
-    "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+    "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
     "status": "fallback_non_neural",
     "step_count": 1,
     "surprise_score": 0.414784,
@@ -183,14 +183,14 @@
   "saved_checkpoint_metadata": {
     "agent_id": "release-neural-agent",
     "checkpoint_bytes": 394,
-    "checkpoint_id": "neural_checkpoint_4f56c737ef97dcf8",
-    "checkpoint_ref": "D:\\CDriveRelief\\Temp\\tmp_0tt_00t\\release-neural-live.metadata.json",
+    "checkpoint_id": "neural_checkpoint_d211bb828bf339f4",
+    "checkpoint_ref": "D:\\CDriveRelief\\Temp\\tmporauvttf\\release-neural-live.metadata.json",
     "checkpoint_written": true,
     "learning_tick_count": 1,
     "local_only": true,
     "metadata_only": true,
     "raw_weights_written": false,
-    "session_id": "neural_session_dc1c4ccf6920495fadd05a55b63b1c07",
+    "session_id": "neural_session_1d7edd13421f4de8844a024cc14951bf",
     "step_count": 1
   },
   "tests_present": [

@@ -793,3 +793,15 @@ Safety posture remains unchanged: neural decisions are advisory, `PolicyEngine` 
 - Added FlowLang operations examples: `examples/live_ops_research_agent.flow`, `examples/live_ops_memory_scout.flow`, and `examples/live_ops_market_observer.flow`.
 - Added release evidence for registry, CLI, API, replay, export, examples, policy-gated behavior, no-external-call invariants, and GPU evidence honesty.
 - GPU-gated release targets remain blocked until the real RunPod artifact is imported and verified.
+
+## Live Agent Supervisor update
+
+Implemented bounded local supervisor support for neural-live launchpad runs.
+
+- Added supervisor state and heartbeat artifacts.
+- Added CLI/API supervisor start/status/show/heartbeat/pause/resume/stop controls.
+- Added Mission Control supervisor replay fixture.
+- Added supervisor FlowLang examples.
+- Added release evidence fields for supervisor availability, CLI/API coverage, heartbeat validation, pause/resume/stop validation, policy gating, local-only invariants, and GPU-status honesty.
+
+Validation for this slice is recorded in the final run output.

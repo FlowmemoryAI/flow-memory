@@ -15,6 +15,7 @@ from flow_memory.visualization.state import (
     VisualComputeMarketSignal,
     VisualRLEpisode,
     VisualRuntimeHealth,
+    VisualSupervisorSignal,
     VisualSafetyGate,
     VisualTaskNode,
 )
@@ -77,6 +78,7 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
     economy: dict[str, VisualEconomyEdge] = {}
     neural: dict[str, VisualNeuralSignal] = {}
     compute: dict[str, VisualComputeMarketSignal] = {}
+    supervisor: dict[str, VisualSupervisorSignal] = {}
     rl: dict[str, VisualRLEpisode] = {}
     safety: dict[str, VisualSafetyGate] = {}
     audit: list[VisualAuditTrailItem] = []
@@ -173,6 +175,26 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
                 provenance=event_provenance,
                 source_event_id=event_id,
             )
+        elif event_type == "supervisor":
+            signal_id = str(payload.get("signal_id") or event_id)
+            supervisor[signal_id] = VisualSupervisorSignal(
+                signal_id=signal_id,
+                supervisor_id=str(payload.get("supervisor_id", "")),
+                run_id=str(payload.get("run_id", "")),
+                parent_run_id=str(payload.get("parent_run_id", "")),
+                agent_id=str(payload.get("agent_id", "")),
+                session_id=str(payload.get("session_id", "")),
+                backend=str(payload.get("backend", "tiny_torch")),
+                status=str(payload.get("status", "observed")),
+                current_phase=str(payload.get("current_phase", "")),
+                ticks_completed=int(payload.get("ticks_completed", payload.get("tick", 0)) or 0),
+                max_ticks=int(payload.get("max_ticks", 0) or 0),
+                policy_gate_state=str(payload.get("policy_gate_state", "")),
+                last_heartbeat_at=str(payload.get("last_heartbeat_at", "")),
+                bounded=bool(payload.get("bounded", True)),
+                provenance=event_provenance,
+                source_event_id=event_id,
+            )
         elif event_type == "rl":
             episode_id = str(payload.get("episode_id") or event_id)
             rl[episode_id] = VisualRLEpisode(
@@ -209,6 +231,7 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
         economy=tuple(economy.values()),
         neural=tuple(neural.values()),
         compute=tuple(compute.values()),
+        supervisor=tuple(supervisor.values()),
         rl=tuple(rl.values()),
         safety=tuple(safety.values()),
         audit=tuple(audit),

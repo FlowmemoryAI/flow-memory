@@ -78,6 +78,8 @@ def verify_launch_evidence(path: str | Path = "release_evidence/public_alpha_lau
         blockers.append("live_agent_launchpad_missing_or_failed")
     if dict(evidence.get("live_agent_operations", {})).get("ok") is not True:
         blockers.append("live_agent_operations_missing_or_failed")
+    if dict(evidence.get("live_agent_supervisor", {})).get("ok") is not True:
+        blockers.append("live_agent_supervisor_missing_or_failed")
     return LaunchEvidenceDecision(not blockers, tuple(blockers), evidence)
 
 
@@ -99,6 +101,7 @@ def _collect(root: Path) -> Mapping[str, Any]:
         "rl_benchmark_summary": _read_json(root / "release_evidence" / "bundle" / "rl_benchmarks.json"),
         "live_agent_launchpad": _live_agent_launchpad_status(root),
         "live_agent_operations": _live_agent_operations_status(root),
+        "live_agent_supervisor": _live_agent_supervisor_status(root),
         "docs": {relative: (root / relative).exists() for relative in REQUIRED_DOCS},
         "dashboard_mock_snapshot": _dashboard_mock_snapshot(root),
         "known_limitations": (
@@ -179,6 +182,23 @@ def _live_agent_operations_status(root: Path) -> Mapping[str, Any]:
         "replay": bool(evidence.get("live_agent_operations_replay_available")),
         "export": bool(evidence.get("live_agent_operations_export_available")),
         "gpu_status_honest": bool(evidence.get("live_agent_operations_gpu_status_honest")),
+    }
+
+def _live_agent_supervisor_status(root: Path) -> Mapping[str, Any]:
+    try:
+        from flow_memory.release.launch_supervisor_evidence import live_agent_supervisor_evidence
+
+        evidence = live_agent_supervisor_evidence(root)
+    except Exception as exc:
+        return {"ok": False, "error": type(exc).__name__}
+    return {
+        "ok": bool(evidence.get("ok")),
+        "cli": bool(evidence.get("live_agent_supervisor_cli_available")),
+        "api": bool(evidence.get("live_agent_supervisor_api_available")),
+        "heartbeat": bool(evidence.get("live_agent_supervisor_heartbeat_validated")),
+        "pause_resume": bool(evidence.get("live_agent_supervisor_pause_resume_validated")),
+        "visual_replay": bool(dict(evidence.get("live_agent_supervisor_visual_replay_validated", {})).get("ok")),
+        "gpu_status_honest": bool(evidence.get("live_agent_supervisor_gpu_status_honest")),
     }
 
 

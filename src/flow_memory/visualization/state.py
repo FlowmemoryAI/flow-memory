@@ -114,6 +114,29 @@ class VisualComputeMarketSignal:
     def as_record(self) -> dict[str, Any]:
         return _record(self)
 
+
+@dataclass(frozen=True)
+class VisualSupervisorSignal:
+    signal_id: str
+    supervisor_id: str
+    run_id: str
+    agent_id: str
+    session_id: str
+    backend: str
+    status: str
+    current_phase: str = ""
+    ticks_completed: int = 0
+    max_ticks: int = 0
+    policy_gate_state: str = ""
+    last_heartbeat_at: str = ""
+    parent_run_id: str = ""
+    bounded: bool = True
+    provenance: str = "live"
+    source_event_id: str = ""
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
 @dataclass(frozen=True)
 class VisualRLEpisode:
     episode_id: str
@@ -180,6 +203,7 @@ class VisualNetworkState:
     economy: tuple[VisualEconomyEdge, ...] = ()
     neural: tuple[VisualNeuralSignal, ...] = ()
     compute: tuple[VisualComputeMarketSignal, ...] = ()
+    supervisor: tuple[VisualSupervisorSignal, ...] = ()
     rl: tuple[VisualRLEpisode, ...] = ()
     safety: tuple[VisualSafetyGate, ...] = ()
     audit: tuple[VisualAuditTrailItem, ...] = ()
@@ -199,6 +223,7 @@ class VisualNetworkState:
             "neural": tuple(item.as_record() for item in self.neural),
             "rl": tuple(item.as_record() for item in self.rl),
             "compute": tuple(item.as_record() for item in self.compute),
+            "supervisor": tuple(item.as_record() for item in self.supervisor),
             "safety": tuple(item.as_record() for item in self.safety),
             "audit": tuple(item.as_record() for item in self.audit),
         }

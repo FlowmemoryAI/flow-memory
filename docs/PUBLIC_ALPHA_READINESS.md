@@ -47,3 +47,9 @@ python scripts/release_decision.py --target public-alpha-launch
 Do not fake GPU evidence. Import the real artifact with `scripts/import_gpu_run_artifact.py` before claiming the GPU-gated launch state.
 
 Do not claim production certification, audited contracts, mainnet readiness, hardened sandboxing, real-funds custody, or production ML performance.
+
+## Live Agent Supervisor readiness
+
+Local public alpha includes a bounded Live Agent Supervisor for neural-live runs. It writes local supervisor state, heartbeat artifacts, run records, Mission Control replay telemetry, and exportable run bundles. It is finite by default, stoppable, inspectable, and policy-gated.
+
+GPU-gated neural release targets are still separate and require the real RunPod artifact to be imported and verified.

@@ -148,6 +148,57 @@ A stable Mission Control operations fixture is available at:
 ```text
 dashboard/src/mock-data/live-agent-operations.json
 ```
+
+## Live Agent Supervisor
+
+Use the bounded supervisor when you want a local run with heartbeat/status artifacts and honest pause/resume/stop controls:
+
+```bash
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 10 --tick-interval-ms 250 --emit-visual --json
+python -m flow_memory launch supervisor status --json
+python -m flow_memory launch supervisor show <run_id> --json
+python -m flow_memory launch supervisor heartbeat <run_id> --json
+python -m flow_memory launch supervisor pause <run_id> --json
+python -m flow_memory launch supervisor resume <run_id> --ticks 5 --emit-visual --json
+python -m flow_memory launch supervisor stop <run_id> --json
+```
+
+Supervisor state is stored locally:
+
+```text
+artifacts/launch/supervisor/supervisor_state.json
+artifacts/launch/supervisor/heartbeats/<run_id>.json
+```
+
+Resume creates a continuation run from prior metadata. It does not claim to revive an old process if no process is alive. Supervisor runs are finite by default, local-only, and policy-gated.
+
+Supervisor FlowLang examples:
+
+```bash
+python -m flow_memory launch agent --flow examples/supervised_live_research_agent.flow --ticks 5 --emit-visual --json
+python -m flow_memory launch agent --flow examples/supervised_memory_scout_agent.flow --ticks 5 --emit-visual --json
+python -m flow_memory launch agent --flow examples/supervised_market_observer_agent.flow --ticks 5 --emit-visual --json
+```
+
+Mission Control supervisor fixture:
+
+```text
+dashboard/src/mock-data/live-agent-supervisor.json
+```
+
+API endpoints:
+
+```text
+POST /launch/supervisor/start
+GET /launch/supervisor/status
+GET /launch/supervisor/runs/{run_id}
+GET /launch/supervisor/runs/{run_id}/heartbeat
+POST /launch/supervisor/runs/{run_id}/pause
+POST /launch/supervisor/runs/{run_id}/resume
+POST /launch/supervisor/runs/{run_id}/stop
+```
+
+When API scopes are enabled, supervisor read paths require `launch:read`, start/resume require `launch:run`, and pause/stop require `launch:control`.
 ## Safety and maturity
 
 - Local neural-live agents are available.

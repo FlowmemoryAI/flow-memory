@@ -1,0 +1,40 @@
+# Live Agent Supervisor market observer.
+# Simulates Flow Memory Compute Market routing only; no provider call or settlement.
+agent SupervisedMarketObserverAgent {
+  identity: "did:flow:example:supervised-market-observer"
+  goal: "simulate a local compute route and explain dry-run budget behavior"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "local_reasoning"
+  capability: "compute_market"
+  capability: "neural_advisory"
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 5103
+    model_profile: "local-supervised-market"
+    perception_streams: ["text", "events", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  compute {
+    enabled: true
+    max_total_cost: 0.01
+    max_quote: 0.01
+    strategy: "cheapest_eligible"
+    dry_run_required: true
+    payment_rail: "local_credits"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

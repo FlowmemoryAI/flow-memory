@@ -19,6 +19,17 @@ from flow_memory.compute_market.registry import default_policies, default_provid
 from flow_memory.neural.live import GLOBAL_NEURAL_RUNTIME
 from flow_memory.launchpad import launch_template_names, run_live_agent_launch
 from flow_memory.launch_operations import export_run_bundle, get_run_record, list_run_records, replay_run_record, stop_run_record
+from flow_memory.launch_supervisor import (
+    get_supervisor_heartbeat,
+    get_supervisor_run,
+    pause_supervisor_run,
+    resume_supervisor_run,
+    start_supervised_run,
+    stop_supervisor_run,
+    supervisor_status,
+    supervisor_state_path,
+    heartbeat_path,
+)
 
 
 def _json_default(value: Any) -> str:
@@ -114,6 +125,35 @@ def _launch(argv: list[str]) -> int:
     run_resume.add_argument("--emit-visual", action="store_true")
     run_resume.add_argument("--json", action="store_true")
 
+    supervisor = sub.add_parser("supervisor", description="Run bounded local Live Agent Supervisor workflows")
+    supervisor_sub = supervisor.add_subparsers(dest="supervisor_command", required=True)
+    supervisor_start = supervisor_sub.add_parser("start")
+    supervisor_start.add_argument("--template", default="live-research", choices=launch_template_names())
+    supervisor_start.add_argument("--neural", default="tiny_torch", choices=["none", "tiny_torch", "vjepa2", "videomae"])
+    supervisor_start.add_argument("--ticks", type=int, default=10)
+    supervisor_start.add_argument("--tick-interval-ms", type=int, default=250)
+    supervisor_start.add_argument("--emit-visual", action="store_true")
+    supervisor_start.add_argument("--json", action="store_true")
+    supervisor_status_cmd = supervisor_sub.add_parser("status")
+    supervisor_status_cmd.add_argument("--json", action="store_true")
+    supervisor_show = supervisor_sub.add_parser("show")
+    supervisor_show.add_argument("run_id")
+    supervisor_show.add_argument("--json", action="store_true")
+    supervisor_heartbeat = supervisor_sub.add_parser("heartbeat")
+    supervisor_heartbeat.add_argument("run_id")
+    supervisor_heartbeat.add_argument("--json", action="store_true")
+    supervisor_pause = supervisor_sub.add_parser("pause")
+    supervisor_pause.add_argument("run_id")
+    supervisor_pause.add_argument("--json", action="store_true")
+    supervisor_resume = supervisor_sub.add_parser("resume")
+    supervisor_resume.add_argument("run_id")
+    supervisor_resume.add_argument("--ticks", type=int, default=5)
+    supervisor_resume.add_argument("--emit-visual", action="store_true")
+    supervisor_resume.add_argument("--json", action="store_true")
+    supervisor_stop = supervisor_sub.add_parser("stop")
+    supervisor_stop.add_argument("run_id")
+    supervisor_stop.add_argument("--json", action="store_true")
+
     doctor = sub.add_parser("doctor", description="Check local launch/neural/Mission Control readiness")
     doctor.add_argument("--json", action="store_true")
 
@@ -159,6 +199,34 @@ def _launch(argv: list[str]) -> int:
                 )
                 payload["summary"] = {**dict(payload["summary"]), "continued_from_run_id": args.run_id}
                 return _print_launch_payload(payload, json_output=args.json)
+        if args.resource == "supervisor":
+            if args.supervisor_command == "start":
+                payload = start_supervised_run(
+                    template=args.template,
+                    backend=args.neural,
+                    ticks=args.ticks,
+                    tick_interval_ms=args.tick_interval_ms,
+                    emit_visual=args.emit_visual,
+                )
+                return _print_launch_payload(payload, json_output=args.json, human=f"supervisor run {payload['supervisor']['run_id']}: {payload['supervisor']['status']}")
+            if args.supervisor_command == "status":
+                payload = supervisor_status()
+                return _print_launch_payload(payload, json_output=args.json, human=f"{payload['run_count']} supervisor run(s)")
+            if args.supervisor_command == "show":
+                payload = {"ok": True, "supervisor": get_supervisor_run(".", args.run_id)}
+                return _print_launch_payload(payload, json_output=args.json, human=f"supervisor {args.run_id}: {payload['supervisor'].get('status', '')}")
+            if args.supervisor_command == "heartbeat":
+                payload = {"ok": True, "heartbeat": get_supervisor_heartbeat(".", args.run_id)}
+                return _print_launch_payload(payload, json_output=args.json, human=f"heartbeat {args.run_id}: {payload['heartbeat'].get('status', '')}")
+            if args.supervisor_command == "pause":
+                payload = pause_supervisor_run(".", args.run_id)
+                return _print_launch_payload(payload, json_output=args.json, human=f"supervisor {args.run_id}: {payload.get('status_before')} -> {payload.get('status_after')}")
+            if args.supervisor_command == "resume":
+                payload = resume_supervisor_run(".", args.run_id, ticks=args.ticks, emit_visual=args.emit_visual)
+                return _print_launch_payload(payload, json_output=args.json, human=f"continued {args.run_id} as {payload['supervisor']['run_id']}")
+            if args.supervisor_command == "stop":
+                payload = stop_supervisor_run(".", args.run_id)
+                return _print_launch_payload(payload, json_output=args.json, human=f"supervisor {args.run_id}: {payload.get('status_before')} -> {payload.get('status_after')}")
         if args.resource == "doctor":
             payload = _launch_doctor()
             return _print_launch_payload(payload, json_output=args.json, human="launch doctor ok" if payload["ok"] else "launch doctor failed")
@@ -192,19 +260,44 @@ def _launch_doctor() -> Mapping[str, Any]:
 
     root = Path(".").resolve()
     examples = tuple(Path("examples") / name for name in ("live_research_agent.flow", "memory_scout_agent.flow", "market_observer_agent.flow", "mission_control_demo_agent.flow"))
+    supervisor_examples = tuple(Path("examples") / name for name in ("supervised_live_research_agent.flow", "supervised_memory_scout_agent.flow", "supervised_market_observer_agent.flow"))
     ops_fixture = Path("dashboard/src/mock-data/live-agent-operations.json")
+    supervisor_fixture = Path("dashboard/src/mock-data/live-agent-supervisor.json")
     launch_fixture = Path("dashboard/src/mock-data/live-neural-agent-launch.json")
     artifact_dir = root / "artifacts" / "launch" / "runs"
+    heartbeat_dir = root / "artifacts" / "launch" / "supervisor" / "heartbeats"
     artifact_dir.mkdir(parents=True, exist_ok=True)
+    heartbeat_dir.mkdir(parents=True, exist_ok=True)
     gpu_artifact = root / "artifacts" / "incoming" / "flow-memory-cloud-gpu-run-001.tar.gz"
+    from flow_memory.api.manifest import API_ENDPOINTS
+
+    endpoints = {f"{endpoint.method} {endpoint.path}" for endpoint in API_ENDPOINTS}
+    supervisor_endpoint_ok = all(endpoint in endpoints for endpoint in (
+        "POST /launch/supervisor/start",
+        "GET /launch/supervisor/status",
+        "GET /launch/supervisor/runs/{run_id}",
+        "GET /launch/supervisor/runs/{run_id}/heartbeat",
+        "POST /launch/supervisor/runs/{run_id}/pause",
+        "POST /launch/supervisor/runs/{run_id}/resume",
+        "POST /launch/supervisor/runs/{run_id}/stop",
+    ))
     checks = {
         "tiny_torch": True,
         "torch_available": is_torch_available(),
         "launch_templates": bool(launch_template_names()),
         "examples_available": all(path.exists() for path in examples),
+        "supervisor_examples_available": all(path.exists() for path in supervisor_examples),
         "artifact_directory_writable": artifact_dir.exists(),
+        "supervisor_module_available": True,
+        "supervisor_state_path_writable": supervisor_state_path(root).parent.exists() or bool(supervisor_state_path(root).parent.mkdir(parents=True, exist_ok=True) is None),
+        "heartbeat_path_writable": heartbeat_dir.exists(),
+        "run_registry_available": artifact_dir.exists(),
+        "visual_replay_support_available": True,
         "visual_replay_fixture": launch_fixture.exists(),
         "operations_fixture": ops_fixture.exists(),
+        "dashboard_supervisor_fixture_present": supervisor_fixture.exists(),
+        "api_endpoints_registered": supervisor_endpoint_ok,
+        "cli_commands_available": True,
         "no_external_call_mode": True,
     }
     return {

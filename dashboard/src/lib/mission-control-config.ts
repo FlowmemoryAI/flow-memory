@@ -21,9 +21,11 @@ export const missionControlEndpoints: MissionControlEndpoint[] = [
   { name: "visual events", method: "GET", path: "/visual/events", mode: "live", scope: "visual:read" },
   { name: "network state", method: "GET", path: "/network/state", mode: "live", scope: "visual:read" },
   { name: "run network scenario", method: "POST", path: "/network/run-scenario", mode: "live", scope: "network:run" },
+  { name: "supervisor status", method: "GET", path: "/launch/supervisor/status", mode: "live", scope: "launch:read" },
   { name: "local replay", method: "GET", path: "dashboard/src/mock-data/local-network-replay.json", mode: "replay" },
   { name: "live neural agent launch replay", method: "GET", path: "dashboard/src/mock-data/live-neural-agent-launch.json", mode: "replay" },
   { name: "live agent operations replay", method: "GET", path: "dashboard/src/mock-data/live-agent-operations.json", mode: "replay" },
+  { name: "live agent supervisor replay", method: "GET", path: "dashboard/src/mock-data/live-agent-supervisor.json", mode: "replay" },
 ];
 
 export const visualFieldMappings: VisualFieldMapping[] = [

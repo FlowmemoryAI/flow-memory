@@ -1,8 +1,8 @@
 {
   "api": {
-    "endpoint_count": 80,
-    "manifest_hash": "0d89f8a56edbb6b92fcfcfa357bed8bd1ad26056f288e6a61b9e8405ecf0a396",
-    "openapi_hash": "93ed07331f73c8bcf259a3d3f789e477e2884311879d67990a05db472332202f",
+    "endpoint_count": 87,
+    "manifest_hash": "34a382277df4601a0bfd7a1d45f7803b05130669324ced01d7904e532e766df8",
+    "openapi_hash": "77ea8b236fec934eac19ad54f8e07ce051b1e15fae3e4dfbc5263517b9ebff67",
     "operations": [
       "GET /agents",
       "GET /agents/{did}",
@@ -19,6 +19,9 @@
       "GET /health",
       "GET /launch/runs",
       "GET /launch/runs/{run_id}",
+      "GET /launch/supervisor/runs/{run_id}",
+      "GET /launch/supervisor/runs/{run_id}/heartbeat",
+      "GET /launch/supervisor/status",
       "GET /manifest",
       "GET /network/state",
       "GET /neural/backends",
@@ -62,6 +65,10 @@
       "POST /launch/runs/{run_id}/export",
       "POST /launch/runs/{run_id}/replay",
       "POST /launch/runs/{run_id}/stop",
+      "POST /launch/supervisor/runs/{run_id}/pause",
+      "POST /launch/supervisor/runs/{run_id}/resume",
+      "POST /launch/supervisor/runs/{run_id}/stop",
+      "POST /launch/supervisor/start",
       "POST /marketplace/assign",
       "POST /marketplace/bids",
       "POST /marketplace/dispute",
@@ -85,7 +92,7 @@
       "POST /verification/{contract_id}",
       "POST /visual/replay/start"
     ],
-    "path_count": 78,
+    "path_count": 85,
     "paths": [
       "/agents",
       "/agents/launch",
@@ -122,6 +129,13 @@
       "/launch/runs/{run_id}/export",
       "/launch/runs/{run_id}/replay",
       "/launch/runs/{run_id}/stop",
+      "/launch/supervisor/runs/{run_id}",
+      "/launch/supervisor/runs/{run_id}/heartbeat",
+      "/launch/supervisor/runs/{run_id}/pause",
+      "/launch/supervisor/runs/{run_id}/resume",
+      "/launch/supervisor/runs/{run_id}/stop",
+      "/launch/supervisor/start",
+      "/launch/supervisor/status",
       "/manifest",
       "/marketplace/assign",
       "/marketplace/bids",
@@ -356,8 +370,8 @@
   },
   "format": "flow-memory-release-manifest-v1",
   "git_branch": "main",
-  "git_commit": "c998726",
-  "manifest_hash": "39b588856b04ad06888b2cdb1a029a4159a34dc60908dd4f46ee7033889d8902",
+  "git_commit": "99806d7",
+  "manifest_hash": "c9e936ac0ee5303a6ca4d1092256d7974492d2f43ce0409ed68c98bcdc18ceb4",
   "release_gates": {
     "ok": true,
     "results": [

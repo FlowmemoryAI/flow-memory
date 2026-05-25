@@ -132,3 +132,15 @@ When scope checks are enabled these endpoints require `release:read`.
 - `POST /launch/runs/{run_id}/stop`
 
 These operate on local launch run metadata and replay artifacts only.
+
+## Live Agent Supervisor endpoints
+
+- `POST /launch/supervisor/start`
+- `GET /launch/supervisor/status`
+- `GET /launch/supervisor/runs/{run_id}`
+- `GET /launch/supervisor/runs/{run_id}/heartbeat`
+- `POST /launch/supervisor/runs/{run_id}/pause`
+- `POST /launch/supervisor/runs/{run_id}/resume`
+- `POST /launch/supervisor/runs/{run_id}/stop`
+
+These endpoints expose local supervisor metadata and heartbeat artifacts only. They remain bounded, local-only, and policy-gated.

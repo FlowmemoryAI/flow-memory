@@ -163,3 +163,18 @@ Replay and live dashboard modes can render this as a neural activity halo, polic
 ## Safety posture
 
 A neural live recommendation cannot execute actions. The agent runner passes neural metadata to the planner/evaluator path, then applies the existing policy and approval gates. If the runtime is unavailable and policy is `fail_closed`, the agent cycle blocks rather than silently acting.
+
+## Bounded supervisor
+
+The Live Agent Supervisor adds finite local run supervision around neural-live agents:
+
+```bash
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 10 --tick-interval-ms 250 --emit-visual --json
+python -m flow_memory launch supervisor status --json
+python -m flow_memory launch supervisor heartbeat <run_id> --json
+python -m flow_memory launch supervisor pause <run_id> --json
+python -m flow_memory launch supervisor resume <run_id> --ticks 5 --emit-visual --json
+python -m flow_memory launch supervisor stop <run_id> --json
+```
+
+The supervisor is bounded, local-only, inspectable, and policy-gated. Resume creates a continuation run from prior metadata rather than reviving a hidden process.

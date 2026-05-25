@@ -43,8 +43,8 @@
     "ok": true,
     "path": "artifacts\\full_system\\quick_report.json"
   },
-  "git_commit": "c9987269057d05a963444cc3ece5cfcc491066c0",
-  "hash": "3e4a99845d399591fd2bd66d0919bb6cd8d451b9e45b28cbb7c8d3fbb47869f3",
+  "git_commit": "99806d764571bbd775df1a2852cd60270eb6a17f",
+  "hash": "c4e2203866b7a07dac8bdbb078f827e3b9a1df6316760698afe0f70abd2f3432",
   "known_limitations": [
     "contracts unaudited",
     "sandbox not hardened isolation",
@@ -73,8 +73,17 @@
     "registry": true,
     "replay": true
   },
+  "live_agent_supervisor": {
+    "api": true,
+    "cli": true,
+    "gpu_status_honest": true,
+    "heartbeat": true,
+    "ok": true,
+    "pause_resume": true,
+    "visual_replay": true
+  },
   "local_network": {
-    "hash": "bb5c98ed9fb498a8b962a2ad959e1f80b82739c77219d05aceaeef6a7f1d8869",
+    "hash": "d9c53bc00b8ae7432316a38ba0e81fb0b830bde70244dfa3e670224fe4af4688",
     "ok": true,
     "path": "artifacts\\network\\local_network_report.json"
   },

@@ -1,0 +1,31 @@
+# Live Agent Supervisor research workflow.
+# Bounded local run: tiny_torch neural-live telemetry, supervised policy, no GPU claim.
+agent SupervisedLiveResearchAgent {
+  identity: "did:flow:example:supervised-live-research"
+  goal: "run a bounded supervised local research loop and emit Mission Control replay"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "local_reasoning"
+  capability: "neural_advisory"
+  capability: "mission_control"
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 5101
+    model_profile: "local-supervised-research"
+    perception_streams: ["text", "events", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "bundle_hash": "948ee830087c808bf4d72323a6de3fb6de00b774a57626750d4b7bb64bafcf3c",
+  "bundle_hash": "4a5961e91c1e88bccee4db82b9a5b44a49657644710d171949c715c98453ddfd",
   "file_hashes": {
-    "api_snapshot.json": "c9745d177284545c2d3be0f082640def491822eaa46eafef5f54c94abe3c7a9c",
+    "api_snapshot.json": "797c7b33edbef710bb7a02befa9ca821aae318b04d7aaf966d0a9de72fbed47d",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
@@ -10,12 +10,13 @@
     "gpu_evidence.json": "55fb6c05277946061d0c912e89c602c05d0744a2dc4aa32953f8c15bafb26a71",
     "live_agent_launchpad.json": "cb94c011a95e622514cddafdee463ed2eeb616e5d42fc74d665498f7a5a26e08",
     "live_agent_operations.json": "6eb745ae52bee462121b8ba026b78f68dafed718cbe696da641520564f635803",
-    "neural_live_agents.json": "916ac2e43a9a58800f2edf057f8ededc77a06e7eb36b086d21546c4767d23569",
+    "live_agent_supervisor.json": "cdcaad4f556dd098f6ccd1db283d12f79730f8ac358121e17d9cd570eea3caa2",
+    "neural_live_agents.json": "25ef06f7311bfcd50feb413dd9961a09ecdfdada259a1537bf6916a4f62248e9",
     "release_gates.json": "218cc98fb0a1b1ff6d4f7b2b037b9b8a93c2f5ef1fdd645809eb080c15062dfc",
-    "release_manifest.json": "4461f44c5e425619edc0101d858eaeeb2fa9654959c09322664afcb951cbe854",
+    "release_manifest.json": "c7a90108c238dcb24f2d13fa4ecb48d1e26777bc8d4f9170ac508a75898ee7ac",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "158563e9102e899af0958e65416fb5b10420d55f6896ff3c0b0b0d8282028f3d"
+    "visual_system.json": "7deaa6c86be4c81eaa8f3c5e505c6af40a7ccf7ad7dc41114ef6d304526e5835"
   },
   "files": [
     "api_snapshot.json",
@@ -27,6 +28,7 @@
     "gpu_evidence.json",
     "live_agent_launchpad.json",
     "live_agent_operations.json",
+    "live_agent_supervisor.json",
     "neural_live_agents.json",
     "release_gates.json",
     "release_manifest.json",

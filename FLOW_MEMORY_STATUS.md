@@ -268,3 +268,12 @@ python scripts/release_decision.py --target public-alpha-local-launch
 ```
 
 This target is for local developer alpha only. It does not imply mainnet readiness, audited contracts, hardened sandboxing, production ML, or live funds. GPU-gated release targets remain blocked until a real RunPod validation artifact is imported and verified.
+
+## Live Agent Supervisor status
+
+- Bounded local supervisor: implemented.
+- Supervisor artifacts: `artifacts/launch/supervisor/supervisor_state.json` and `artifacts/launch/supervisor/heartbeats/<run_id>.json`.
+- Controls: start, status, show, heartbeat, pause, resume-as-continuation, stop.
+- Mission Control fixture: `dashboard/src/mock-data/live-agent-supervisor.json`.
+- Safety: local-only, finite by default, policy-gated, no external model/provider calls, no real funds.
+- GPU-gated neural releases: still blocked until the real RunPod artifact is imported and verified.

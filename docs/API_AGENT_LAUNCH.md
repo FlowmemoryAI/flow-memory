@@ -59,3 +59,29 @@ Scopes when enabled:
 - `launch:run` for stop/no-op operations
 
 These endpoints read and write local JSON metadata only. They do not call external providers, move funds, or manage hidden background processes.
+
+## Live Agent Supervisor API
+
+```http
+POST /launch/supervisor/start
+GET /launch/supervisor/status
+GET /launch/supervisor/runs/{run_id}
+GET /launch/supervisor/runs/{run_id}/heartbeat
+POST /launch/supervisor/runs/{run_id}/pause
+POST /launch/supervisor/runs/{run_id}/resume
+POST /launch/supervisor/runs/{run_id}/stop
+```
+
+Example request:
+
+```json
+{
+  "template": "live-research",
+  "ticks": 5,
+  "tick_interval_ms": 10,
+  "neural": {"backend": "tiny_torch"},
+  "emit_visual": true
+}
+```
+
+Supervisor endpoints are local-only and bounded. Scope requirements: `launch:read` for status/show/heartbeat, `launch:run` for start/resume, and `launch:control` for pause/stop.

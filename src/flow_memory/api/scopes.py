@@ -24,6 +24,7 @@ AGENT_LAUNCH_SCOPE = "agents:launch"
 LAUNCH_READ_SCOPE = "launch:read"
 LAUNCH_RUN_SCOPE = "launch:run"
 LAUNCH_EXPORT_SCOPE = "launch:export"
+LAUNCH_CONTROL_SCOPE = "launch:control"
 NETWORK_RUN_SCOPE = "network:run"
 RELEASE_READ_SCOPE = "release:read"
 DASHBOARD_READ_SCOPE = "dashboard:read"
@@ -48,6 +49,7 @@ KNOWN_SCOPES = frozenset({
     LAUNCH_READ_SCOPE,
     LAUNCH_RUN_SCOPE,
     LAUNCH_EXPORT_SCOPE,
+    LAUNCH_CONTROL_SCOPE,
     NETWORK_RUN_SCOPE,
     RELEASE_READ_SCOPE,
     DASHBOARD_READ_SCOPE,
@@ -150,6 +152,14 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (NEURAL_READ_SCOPE,)
     if path_key in {"/agents/launch", "/agents/launch-flowlang", "/agents/launch-neural", "/launch/agent", "/launch/agent/from-flow"}:
         return (AGENT_LAUNCH_SCOPE,)
+    if path_key == "/launch/supervisor/start":
+        return (LAUNCH_RUN_SCOPE,)
+    if path_key == "/launch/supervisor/status" or (path_key.startswith("/launch/supervisor/runs/") and normalized_method in READ_METHODS):
+        return (LAUNCH_READ_SCOPE,)
+    if path_key.startswith("/launch/supervisor/runs/") and path_key.endswith("/resume"):
+        return (LAUNCH_RUN_SCOPE,)
+    if path_key.startswith("/launch/supervisor/runs/") and (path_key.endswith("/pause") or path_key.endswith("/stop")):
+        return (LAUNCH_CONTROL_SCOPE,)
     if path_key == "/launch/runs" or path_key.startswith("/launch/runs/"):
         if normalized_method in READ_METHODS or path_key.endswith("/replay"):
             return (LAUNCH_READ_SCOPE,)

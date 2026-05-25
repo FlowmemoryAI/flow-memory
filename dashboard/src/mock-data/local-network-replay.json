@@ -281,14 +281,14 @@
         "learning_tick_count": 0,
         "memory_activation_count": 1,
         "phase": "learning",
-        "plan_score": 0.616109,
+        "plan_score": 0.701281,
         "policy_gate_state": "pending_policy_gate",
-        "prediction_confidence": 0.785636,
-        "risk_score": 0.123531,
-        "session_id": "neural_session_2dcfb55c3c4645938f554f1dc5da540a",
+        "prediction_confidence": 0.766366,
+        "risk_score": 0.398628,
+        "session_id": "neural_session_01556c16c2814d00bcfed138437fa4d4",
         "status": "fallback_non_neural",
-        "surprise_score": 0.214364,
-        "uncertainty": 0.214364
+        "surprise_score": 0.233634,
+        "uncertainty": 0.233634
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
@@ -309,11 +309,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "selected",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -330,11 +330,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "quoted",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -351,11 +351,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "selected",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -372,11 +372,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "simulated",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -393,11 +393,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "dry_run_planned",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -414,11 +414,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "simulated",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -435,11 +435,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "written",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_eeea0ac82b834739946335de119786a6",
+      "source": "agent_plan_c887b87ae02041f09440646530ad6260",
       "source_event_id": ""
     },
     {
@@ -1004,7 +1004,7 @@
         "summary": "neural observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0016",
         "event_type": "compute",
         "ok": true,
@@ -1013,7 +1013,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0017",
         "event_type": "compute",
         "ok": true,
@@ -1022,7 +1022,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0018",
         "event_type": "compute",
         "ok": true,
@@ -1031,7 +1031,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0019",
         "event_type": "compute",
         "ok": true,
@@ -1040,7 +1040,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0020",
         "event_type": "compute",
         "ok": true,
@@ -1049,7 +1049,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0021",
         "event_type": "compute",
         "ok": true,
@@ -1058,7 +1058,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_eeea0ac82b834739946335de119786a6",
+        "actor_id": "agent_plan_c887b87ae02041f09440646530ad6260",
         "audit_id": "visual_event_0022",
         "event_type": "compute",
         "ok": true,
@@ -1252,7 +1252,7 @@
         "signal_id": "visual_event_0016",
         "source_event_id": "visual_event_0016",
         "status": "selected",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1267,7 +1267,7 @@
         "signal_id": "visual_event_0017",
         "source_event_id": "visual_event_0017",
         "status": "quoted",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1282,7 +1282,7 @@
         "signal_id": "visual_event_0018",
         "source_event_id": "visual_event_0018",
         "status": "selected",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1297,7 +1297,7 @@
         "signal_id": "visual_event_0019",
         "source_event_id": "visual_event_0019",
         "status": "simulated",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1312,7 +1312,7 @@
         "signal_id": "visual_event_0020",
         "source_event_id": "visual_event_0020",
         "status": "dry_run_planned",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1327,7 +1327,7 @@
         "signal_id": "visual_event_0021",
         "source_event_id": "visual_event_0021",
         "status": "simulated",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1342,7 +1342,7 @@
         "signal_id": "visual_event_0022",
         "source_event_id": "visual_event_0022",
         "status": "written",
-        "task_id": "agent_plan_eeea0ac82b834739946335de119786a6"
+        "task_id": "agent_plan_c887b87ae02041f09440646530ad6260"
       }
     ],
     "economy": [
@@ -1583,17 +1583,17 @@
         "learning_tick_count": 0,
         "memory_activation_count": 1,
         "phase": "learning",
-        "plan_score": 0.616109,
+        "plan_score": 0.701281,
         "policy_gate_state": "pending_policy_gate",
-        "prediction_confidence": 0.785636,
+        "prediction_confidence": 0.766366,
         "provenance": "live",
-        "risk_score": 0.123531,
-        "session_id": "neural_session_2dcfb55c3c4645938f554f1dc5da540a",
+        "risk_score": 0.398628,
+        "session_id": "neural_session_01556c16c2814d00bcfed138437fa4d4",
         "signal_id": "visual_event_0015",
         "source_event_id": "visual_event_0015",
         "status": "fallback_non_neural",
-        "surprise_score": 0.214364,
-        "uncertainty": 0.214364
+        "surprise_score": 0.233634,
+        "uncertainty": 0.233634
       }
     ],
     "provenance": "replay",
@@ -1661,6 +1661,7 @@
       }
     ],
     "schema_version": "visual.telemetry.v1",
+    "supervisor": [],
     "tasks": [
       {
         "ignored_regressions": [],

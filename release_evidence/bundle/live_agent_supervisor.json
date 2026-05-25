@@ -1,0 +1,44 @@
+{
+  "docs": {
+    "docs/LIVE_AGENT_LAUNCHPAD.md": true,
+    "docs/MISSION_CONTROL_QUICKSTART.md": true,
+    "docs/NEURAL_LIVE_AGENTS.md": true,
+    "docs/PUBLIC_ALPHA_READINESS.md": true
+  },
+  "docs_safety_scan": {
+    "hits": [],
+    "ok": true
+  },
+  "live_agent_supervisor_api_available": true,
+  "live_agent_supervisor_available": true,
+  "live_agent_supervisor_cli_available": true,
+  "live_agent_supervisor_examples_available": {
+    "examples/supervised_live_research_agent.flow": true,
+    "examples/supervised_market_observer_agent.flow": true,
+    "examples/supervised_memory_scout_agent.flow": true
+  },
+  "live_agent_supervisor_gpu_status_honest": true,
+  "live_agent_supervisor_heartbeat_validated": true,
+  "live_agent_supervisor_no_external_calls": true,
+  "live_agent_supervisor_no_funds_moved": true,
+  "live_agent_supervisor_no_live_provider_calls": true,
+  "live_agent_supervisor_pause_resume_validated": true,
+  "live_agent_supervisor_policy_gated": true,
+  "live_agent_supervisor_public_alpha_docs_updated": true,
+  "live_agent_supervisor_stop_validated": true,
+  "live_agent_supervisor_visual_replay_validated": {
+    "heartbeat_events": 11,
+    "ok": true,
+    "path": "E:\\FlowMemory\\flow-memory\\dashboard\\src\\mock-data\\live-agent-supervisor.json",
+    "run_id": "live_agent_9b713fe0821659d3"
+  },
+  "missing_endpoints": [],
+  "ok": true,
+  "sample_run": {
+    "heartbeat_events": 8,
+    "resumed_run_id": "live_agent_1795d957c542b6e6",
+    "run_id": "live_agent_95595210d3771e19",
+    "status": "completed",
+    "ticks_completed": 2
+  }
+}

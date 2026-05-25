@@ -16,6 +16,15 @@ from flow_memory.agents.profile import AgentProfile
 from flow_memory.agents.runner import AgentRunner
 from flow_memory.launchpad import run_live_agent_launch
 from flow_memory.launch_operations import export_run_bundle, get_run_record, list_run_records, replay_run_record, stop_run_record
+from flow_memory.launch_supervisor import (
+    get_supervisor_heartbeat,
+    get_supervisor_run,
+    pause_supervisor_run,
+    resume_supervisor_run,
+    start_supervised_run,
+    stop_supervisor_run,
+    supervisor_status,
+)
 from flow_memory.api.neural_endpoints import (
     neural_backends,
     neural_benchmarks,
@@ -226,6 +235,35 @@ class LocalApiRouter:
 
     def _launch_run_stop(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return stop_run_record(".", params["run_id"])
+
+    def _launch_supervisor_start(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        neural = dict(payload.get("neural", {})) if isinstance(payload.get("neural", {}), Mapping) else {}
+        return start_supervised_run(
+            template=str(payload.get("template", "live-research")),
+            backend=str(neural.get("backend", payload.get("backend", "tiny_torch"))),
+            ticks=int(payload.get("ticks", 10) or 10),
+            tick_interval_ms=int(payload.get("tick_interval_ms", 250) or 250),
+            emit_visual=bool(payload.get("emit_visual", True)),
+            goal=str(payload.get("goal", "")),
+        )
+
+    def _launch_supervisor_status(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return supervisor_status(".")
+
+    def _launch_supervisor_get(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "supervisor": get_supervisor_run(".", params["run_id"])}
+
+    def _launch_supervisor_heartbeat(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "heartbeat": get_supervisor_heartbeat(".", params["run_id"])}
+
+    def _launch_supervisor_pause(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return pause_supervisor_run(".", params["run_id"])
+
+    def _launch_supervisor_resume(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return resume_supervisor_run(".", params["run_id"], ticks=int(payload.get("ticks", 5) or 5), emit_visual=bool(payload.get("emit_visual", True)))
+
+    def _launch_supervisor_stop(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return stop_supervisor_run(".", params["run_id"])
 
 
     def _marketplace_task_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -564,6 +602,13 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/launch/runs/{run_id}/replay", router._launch_run_replay, "launch_run_replay")
     router.register("POST", "/launch/runs/{run_id}/export", router._launch_run_export, "launch_run_export")
     router.register("POST", "/launch/runs/{run_id}/stop", router._launch_run_stop, "launch_run_stop")
+    router.register("POST", "/launch/supervisor/start", router._launch_supervisor_start, "launch_supervisor_start")
+    router.register("GET", "/launch/supervisor/status", router._launch_supervisor_status, "launch_supervisor_status")
+    router.register("GET", "/launch/supervisor/runs/{run_id}", router._launch_supervisor_get, "launch_supervisor_get")
+    router.register("GET", "/launch/supervisor/runs/{run_id}/heartbeat", router._launch_supervisor_heartbeat, "launch_supervisor_heartbeat")
+    router.register("POST", "/launch/supervisor/runs/{run_id}/pause", router._launch_supervisor_pause, "launch_supervisor_pause")
+    router.register("POST", "/launch/supervisor/runs/{run_id}/resume", router._launch_supervisor_resume, "launch_supervisor_resume")
+    router.register("POST", "/launch/supervisor/runs/{run_id}/stop", router._launch_supervisor_stop, "launch_supervisor_stop")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

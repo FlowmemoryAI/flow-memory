@@ -215,3 +215,13 @@ Flow Memory now includes a dependency-free local HTTP API server for public-alph
 ## Flow Arena RL + Neural Evidence RC update
 
 This repo now includes Flow Arena, a dependency-free local RL environment layer for agent-economy decision training, plus GPU evidence import/release-gate seams. RL policies are advisory only; policy, approval, autonomy, and economy risk controls remain authoritative. Neural GPU validation evidence is stored as text/JSON metadata and hashes; raw checkpoint/model artifacts are not committed.
+
+### Live Agent Supervisor
+
+```bash
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 5 --tick-interval-ms 10 --emit-visual --json
+python -m flow_memory launch supervisor status --json
+python -m flow_memory launch supervisor heartbeat <run_id> --json
+```
+
+The supervisor is local-only, bounded, inspectable, and policy-gated. GPU-gated release targets still require imported RunPod evidence.

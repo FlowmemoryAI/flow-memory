@@ -30,7 +30,7 @@ PUBLIC_ALPHA_EVIDENCE = (
 )
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
-LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "live_agent_launchpad", "live_agent_operations")
+LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "live_agent_launchpad", "live_agent_operations", "live_agent_supervisor")
 PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE = LOCAL_PUBLIC_ALPHA_EVIDENCE + (
     "public_alpha_launch_test",
     "public_alpha_launch_evidence",
@@ -285,6 +285,13 @@ def _local_public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
             blockers.append("live_agent_operations_evidence_missing_or_invalid")
     except Exception:
         blockers.append("live_agent_operations_evidence_missing_or_invalid")
+    try:
+        from flow_memory.release.launch_supervisor_evidence import live_agent_supervisor_evidence
+
+        if not live_agent_supervisor_evidence(root).get("ok"):
+            blockers.append("live_agent_supervisor_evidence_missing_or_invalid")
+    except Exception:
+        blockers.append("live_agent_supervisor_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_local_launch_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

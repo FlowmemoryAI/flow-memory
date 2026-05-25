@@ -13,7 +13,7 @@ from typing import Any, Mapping
 
 RUN_RECORD_VERSION = "flow-memory-live-agent-run-v1"
 RUN_BUNDLE_VERSION = "flow-memory-live-agent-run-bundle-v1"
-RUN_STATUSES = frozenset({"created", "running", "completed", "failed", "stopped"})
+RUN_STATUSES = frozenset({"created", "running", "paused", "completed", "failed", "stopped"})
 TERMINAL_STATUSES = frozenset({"completed", "failed", "stopped"})
 
 

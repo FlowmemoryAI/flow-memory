@@ -1,0 +1,31 @@
+# Live Agent Supervisor memory scout.
+# Local-only memory retrieval telemetry with bounded supervised ticks.
+agent SupervisedMemoryScoutAgent {
+  identity: "did:flow:example:supervised-memory-scout"
+  goal: "inspect local memory records and summarize relevant evidence"
+  autonomy: "supervised"
+  tool: "respond"
+  capability: "memory"
+  capability: "neural_memory_retrieval"
+  capability: "local_reasoning"
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    seed: 5102
+    model_profile: "local-supervised-memory"
+    perception_streams: ["text", "memory"]
+    plan_scoring_enabled: true
+    risk_scoring_enabled: true
+    memory_retrieval_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "allow_non_neural"
+  }
+
+  policy {
+    requires_approval: true
+    risk_level: "low"
+  }
+}

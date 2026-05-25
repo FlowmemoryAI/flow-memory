@@ -88,3 +88,13 @@ python scripts/release_decision.py --target public-alpha-local-launch
 ```
 
 GPU-gated targets remain blocked until the real RunPod artifact is imported.
+
+## Supervise a bounded live agent run
+
+```bash
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 5 --tick-interval-ms 10 --emit-visual --json
+python -m flow_memory launch supervisor status --json
+python -m flow_memory launch supervisor heartbeat <run_id> --json
+```
+
+Supervisor runs are local-only, finite, and policy-gated.

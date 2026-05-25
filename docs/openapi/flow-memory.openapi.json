@@ -1244,6 +1244,316 @@
         ]
       }
     },
+    "/launch/supervisor/runs/{run_id}": {
+      "get": {
+        "operationId": "launch_supervisor_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "supervisor": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one local Live Agent Supervisor run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/supervisor/runs/{run_id}/heartbeat": {
+      "get": {
+        "operationId": "launch_supervisor_heartbeat",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "heartbeat": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect heartbeat metadata for a supervised run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/supervisor/runs/{run_id}/pause": {
+      "post": {
+        "operationId": "launch_supervisor_pause",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "noop": {
+                      "type": "string"
+                    },
+                    "status_after": {
+                      "type": "string"
+                    },
+                    "status_before": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Pause a non-terminal supervised run or return a terminal no-op",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/supervisor/runs/{run_id}/resume": {
+      "post": {
+        "operationId": "launch_supervisor_resume",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "emit_visual": {
+                    "type": "string"
+                  },
+                  "ticks": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "continued_from_run_id": {
+                      "type": "string"
+                    },
+                    "supervisor": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a continuation run from supervised metadata",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/supervisor/runs/{run_id}/stop": {
+      "post": {
+        "operationId": "launch_supervisor_stop",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "noop": {
+                      "type": "string"
+                    },
+                    "status_after": {
+                      "type": "string"
+                    },
+                    "status_before": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Stop a non-terminal supervised run or return a terminal no-op",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/supervisor/start": {
+      "post": {
+        "operationId": "launch_supervisor_start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "emit_visual": {
+                    "type": "string"
+                  },
+                  "neural": {
+                    "type": "string"
+                  },
+                  "template": {
+                    "type": "string"
+                  },
+                  "tick_interval_ms": {
+                    "type": "string"
+                  },
+                  "ticks": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "heartbeat": {
+                      "type": "string"
+                    },
+                    "run": {
+                      "type": "string"
+                    },
+                    "supervisor": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Start a bounded local Live Agent Supervisor run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/supervisor/status": {
+      "get": {
+        "operationId": "launch_supervisor_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "latest_run_id": {
+                      "type": "string"
+                    },
+                    "runs": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect local Live Agent Supervisor status",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
     "/manifest": {
       "get": {
         "operationId": "manifest",

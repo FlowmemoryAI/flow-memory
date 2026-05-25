@@ -96,3 +96,21 @@ For local development, run a frontend dev server around the existing TypeScript 
 - Gray: replay/mock/inactive state.
 
 Neural/RL signals are advisory only. PolicyEngine and ApprovalGate remain authoritative.
+
+## Live Agent Supervisor replay
+
+Generate a supervised neural-live replay:
+
+```bash
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 5 --tick-interval-ms 10 --emit-visual --json
+python -m flow_memory launch supervisor status --json
+python -m flow_memory launch supervisor heartbeat <run_id> --json
+```
+
+Mission Control can load the stable supervisor fixture:
+
+```text
+dashboard/src/mock-data/live-agent-supervisor.json
+```
+
+Supervisor telemetry maps to the visual `supervisor` state collection and includes run id, supervisor id, agent id, backend, status, phase, tick count, last heartbeat, and policy gate state.

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 from flow_memory.api.signed_requests import verify_request
+from flow_memory.api.scopes import KNOWN_SCOPES
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import SignatureEnvelope
 
@@ -89,6 +90,9 @@ def issue_api_key_record(
     tenant_id = str(payload.get("tenant_id") or "")
     principal = str(payload.get("principal") or payload.get("created_by") or "api-key")
     scopes = _parse_scopes(payload.get("scopes", ()))
+    invalid_scopes = tuple(scope for scope in scopes if scope not in KNOWN_SCOPES)
+    if invalid_scopes:
+        raise ValueError(f"unknown API scopes: {', '.join(invalid_scopes)}")
     now = int(time.time())
     record = {
         "key_id": key_id,

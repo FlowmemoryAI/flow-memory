@@ -155,5 +155,17 @@ class ApiAuthTests(unittest.TestCase):
         self.assertTrue(public["key_hash_configured"])
         self.assertEqual(public["disabled_reason"], "compromised")
 
+    def test_issue_api_key_record_rejects_unknown_scopes(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown API scopes"):
+            issue_api_key_record(
+                {
+                    "key_id": "key_bad_scope",
+                    "tenant_id": "tenant_bad_scope",
+                    "scopes": ["compute:read", "compute:typo"],
+                    "key_prefix": "fmk_bad_",
+                },
+                api_key="fmk_bad_secret",
+            )
+
 if __name__ == "__main__":
     unittest.main()

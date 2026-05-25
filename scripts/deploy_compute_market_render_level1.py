@@ -18,6 +18,10 @@ SERVICE_NAME = "flow-memory-compute-market-api"
 POSTGRES_NAME = "flow-memory-compute-market-postgres"
 KEYVALUE_NAME = "flow-memory-compute-market-redis"
 AUDIT_EXPORT_URI = "/var/lib/flow-memory/audit/compute-market.ndjson"
+DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "free")
+DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "free")
+DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "free")
+ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
 DEPLOY_PATHS = (
     "Dockerfile.compute-market",
     "render.yaml",
@@ -164,7 +168,7 @@ def ensure_postgres(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
     body = {
         "name": POSTGRES_NAME,
         "ownerId": owner_id,
-        "plan": "basic_256mb",
+        "plan": DEFAULT_POSTGRES_PLAN,
         "version": "16",
         "databaseName": "flow_memory",
         "databaseUser": "flow_memory",
@@ -181,12 +185,13 @@ def ensure_keyvalue(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
     body = {
         "name": KEYVALUE_NAME,
         "ownerId": owner_id,
-        "plan": "starter",
+        "plan": DEFAULT_KEYVALUE_PLAN,
         "region": region,
         "maxmemoryPolicy": "noeviction",
-        "persistenceMode": "journal_snapshot",
         "ipAllowList": [],
     }
+    if DEFAULT_KEYVALUE_PLAN != "free":
+        body["persistenceMode"] = "journal_snapshot"
     return render_request(api_key, "POST", "/key-value", body)
 
 
@@ -261,17 +266,18 @@ def ensure_service(
     existing = find_named(api_key, "/services", "service", owner_id, SERVICE_NAME)
     service_details = {
         "runtime": "docker",
-        "plan": "starter",
+        "plan": DEFAULT_SERVICE_PLAN,
         "region": region,
         "numInstances": 1,
         "healthCheckPath": "/healthz",
-        "disk": {"name": "compute-market-audit", "mountPath": "/var/lib/flow-memory/audit", "sizeGB": 10},
         "envSpecificDetails": {
             "dockerfilePath": "./Dockerfile.compute-market",
             "dockerContext": ".",
             "dockerCommand": "flow-memory-api --host 0.0.0.0 --port 8765 --require-scopes",
         },
     }
+    if ENABLE_RENDER_DISK:
+        service_details["disk"] = {"name": "compute-market-audit", "mountPath": "/var/lib/flow-memory/audit", "sizeGB": 10}
     if existing is not None:
         service_id = str(existing["id"])
         render_request(api_key, "PUT", f"/services/{urllib.parse.quote(service_id)}/env-vars", env_vars)
@@ -433,8 +439,10 @@ def main() -> int:
                     "public_level_1_live",
                     0,
                     public_url=url,
-                    postgres="managed_render_postgres",
-                    redis="managed_render_keyvalue",
+                    postgres=f"managed_render_postgres:{DEFAULT_POSTGRES_PLAN}",
+                    redis=f"managed_render_keyvalue:{DEFAULT_KEYVALUE_PLAN}",
+                    service_plan=DEFAULT_SERVICE_PLAN,
+                    audit_export_storage="render_disk" if ENABLE_RENDER_DISK else "container_filesystem",
                     smoke="passed",
                     live_settlement_enabled=False,
                     funds_moved=False,

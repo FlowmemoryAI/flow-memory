@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from flow_memory.compute_market.models import ComputeQuote, PaymentIntent, PaymentPlan, SettlementIntent
+from flow_memory.compute_market.settlement_simulator import simulate_testnet_settlement
 
 
 def build_payment_plan(quote: ComputeQuote | None, *, dry_run_required: bool = True) -> PaymentPlan:
@@ -62,13 +63,16 @@ def simulate_settlement(quote: ComputeQuote | None, payment_plan: PaymentPlan) -
             warnings=("no route selected; no dry-run settlement intent generated",),
             policy_result="not_created_no_route",
         )
+    mode = _select_settlement_mode(quote)
+    amount = float(quote.estimated_total_cost or 0.0)
+    simulation = simulate_testnet_settlement(quote, mode=mode, amount=amount)
     return SettlementIntent(
         settlement_intent_id=f"settlement-{quote.quote_id}",
         route_id=quote.route_id,
         provider_id=quote.provider_id,
         payment_plan_id=payment_plan.payment_plan_id,
-        settlement_mode=_select_settlement_mode(quote),
-        estimated_amount=float(quote.estimated_total_cost or 0.0),
+        settlement_mode=mode,
+        estimated_amount=amount,
         payment_asset=quote.payment_asset,
         network=quote.network,
         dry_run_only=True,
@@ -78,7 +82,12 @@ def simulate_settlement(quote: ComputeQuote | None, payment_plan: PaymentPlan) -
         private_key_required=False,
         funds_moved=False,
         recipient=quote.provider_or_route,
-        transaction_intent={"simulated": True, "route_id": quote.route_id, "provider_id": quote.provider_id},
+        transaction_intent={
+            "simulated": True,
+            "route_id": quote.route_id,
+            "provider_id": quote.provider_id,
+            "testnet_simulation": simulation,
+        },
         warnings=("dry-run settlement simulation only; broadcast is disabled",),
         policy_result="simulated",
         status="simulated",
@@ -123,37 +132,25 @@ def _payment_intent_for_mode(quote: ComputeQuote, mode: str, amount: float) -> P
             **common,
         )
     if mode == "solana_usdc_dry_run":
+        simulation = simulate_testnet_settlement(quote, mode=mode, amount=amount)
         return PaymentIntent(
             payment_intent_id=f"pay-{quote.quote_id}",
             rail="solana_usdc",
             network="solana",
             payment_asset=quote.payment_asset,
             estimated_amount=amount,
-            payload={"asset_symbol": quote.payment_asset, "amount": amount, "dry_run": True},
+            payload=simulation["payload"],
             **common,
         )
     if mode == "base_sepolia_erc4337_dry_run":
-        user_operation = {
-            "sender": "0x0000000000000000000000000000000000000000",
-            "nonce": 0,
-            "init_code": "0x",
-            "call_data": "0x",
-            "call_gas_limit": 0,
-            "verification_gas_limit": 0,
-            "pre_verification_gas": 0,
-            "max_fee_per_gas": 0,
-            "max_priority_fee_per_gas": 0,
-            "paymaster_and_data": "0x",
-            "signature": "0x",
-            "dry_run_only": True,
-        }
+        simulation = simulate_testnet_settlement(quote, mode=mode, amount=amount)
         return PaymentIntent(
             payment_intent_id=f"pay-{quote.quote_id}",
             rail="base_sepolia_erc4337",
             network="base-sepolia",
             payment_asset=quote.payment_asset,
             estimated_amount=amount,
-            payload={"user_operation": user_operation, "validation_errors": ()},
+            payload=simulation["payload"],
             **common,
         )
     if mode == "no_payment":

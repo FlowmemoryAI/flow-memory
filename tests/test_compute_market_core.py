@@ -196,6 +196,10 @@ def test_payment_planning_rails_are_dry_run_only() -> None:
     base_quote = ComputeQuote("base", "p", "Base", "direct", "r", "direct", "base-sepolia", "ETH", "request", 0.1, 1, 0.1, settlement_mode="base_sepolia_erc4337_dry_run", settlement_options=("base_sepolia_erc4337_dry_run",))
     base_plan = build_payment_plan(base_quote)
     assert base_plan.selected_rail == "base_sepolia_erc4337"
+    assert rails["solana_usdc"].payment_intents[0].payload["harness"] == "local_solana_testnet"
+    assert rails["solana_usdc"].payment_intents[0].payload["funds_moved"] is False
+    assert base_plan.payment_intents[0].payload["harness"] == "local_base_sepolia_erc4337"
+    assert base_plan.payment_intents[0].payload["simulated_gas_estimate"] > 0
     for plan in (*rails.values(), base_plan):
         for intent in plan.payment_intents:
             assert intent.dry_run_only is True

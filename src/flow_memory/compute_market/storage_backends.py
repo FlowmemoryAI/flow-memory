@@ -260,12 +260,15 @@ class PostgresComputeMarketStore:
             from psycopg.rows import dict_row
         except Exception as exc:  # pragma: no cover - exercised when optional extra is absent
             raise RuntimeError("PostgreSQL storage requires optional dependency: flow-memory[postgres]") from exc
-        conn = psycopg.connect(
-            self.database_url,
-            connect_timeout=max(1, int(self.timeout_ms / 1000)),
-            sslmode=self.ssl_mode,
-            row_factory=dict_row,
-        )
+        try:
+            conn = psycopg.connect(
+                self.database_url,
+                connect_timeout=max(1, int(self.timeout_ms / 1000)),
+                sslmode=self.ssl_mode,
+                row_factory=dict_row,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"postgres connection failed for {_redact_url(self.database_url)}: {type(exc).__name__}") from None
         try:
             with conn:
                 if self.statement_timeout_ms > 0:

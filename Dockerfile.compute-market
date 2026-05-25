@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+COPY pyproject.toml README.md LICENSE ./
+COPY src ./src
+RUN pip install --no-cache-dir -e ".[compute-market-live]"
+COPY examples ./examples
+COPY docs ./docs
+COPY scripts ./scripts
+
+EXPOSE 8765
+CMD ["flow-memory-api", "--host", "0.0.0.0", "--port", "8765", "--require-scopes"]

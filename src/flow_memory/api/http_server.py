@@ -86,6 +86,16 @@ class HttpApiGateway:
             scopes=context.scopes,
             client_id=context.client_id,
         )
+        if context.method in {"GET", "HEAD"} and context.path == "/healthz":
+            return HttpApiResponse(
+                status=200,
+                body={
+                    "ok": True,
+                    "data": {"ok": True, "service": "flow-memory", "endpoint": "healthz"},
+                    "request_id": request_id,
+                },
+                headers=_headers(request_id),
+            )
         try:
             payload = self._parse_body(method, body)
             auth = authorize_request(

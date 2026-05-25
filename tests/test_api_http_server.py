@@ -21,6 +21,9 @@ def test_http_gateway_api_key_auth_blocks_missing_key():
     assert denied.status == 401
     assert denied.body["error"]["code"] == "auth.invalid"
     assert allowed.status == 200
+    healthz = gateway.handle("GET", "/healthz", {})
+    assert healthz.status == 200
+    assert healthz.body["data"]["endpoint"] == "healthz"
 
 
 def test_http_gateway_scope_enforcement():

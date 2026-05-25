@@ -1,0 +1,136 @@
+services:
+  - type: web
+    name: flow-memory-compute-market-api
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.compute-market
+    dockerContext: .
+    dockerCommand: flow-memory-api --host 0.0.0.0 --port 8765 --require-scopes
+    autoDeployTrigger: off
+    healthCheckPath: /healthz
+    disk:
+      name: compute-market-audit
+      mountPath: /var/lib/flow-memory/audit
+      sizeGB: 10
+    envVars:
+      - key: FLOW_MEMORY_API_HOST
+        value: 0.0.0.0
+      - key: FLOW_MEMORY_API_PORT
+        value: 8765
+      - key: FLOW_MEMORY_API_KEY
+        generateValue: true
+      - key: FLOW_MEMORY_API_REQUIRE_SCOPES
+        value: true
+      - key: FLOW_MEMORY_API_RATE_LIMIT
+        value: 120
+      - key: FLOW_MEMORY_API_RATE_LIMIT_WINDOW_SECONDS
+        value: 60
+      - key: FLOW_MEMORY_API_MAX_BODY_BYTES
+        value: 1048576
+      - key: FLOW_MEMORY_LOG_LEVEL
+        value: INFO
+      - key: FLOW_MEMORY_METRICS_ENABLED
+        value: true
+      - key: FLOW_MEMORY_TRACING_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_MARKET_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_MARKET_MODE
+        value: production_planning
+      - key: FLOW_MEMORY_COMPUTE_STORAGE_BACKEND
+        value: postgres
+      - key: FLOW_MEMORY_COMPUTE_DATABASE_URL
+        fromDatabase:
+          name: flow-memory-compute-market-postgres
+          property: connectionString
+      - key: FLOW_MEMORY_COMPUTE_POSTGRES_SSL_MODE
+        value: require
+      - key: FLOW_MEMORY_COMPUTE_STORAGE_POOL_SIZE
+        value: 4
+      - key: FLOW_MEMORY_COMPUTE_STORAGE_MAX_OVERFLOW
+        value: 4
+      - key: FLOW_MEMORY_COMPUTE_STORAGE_TIMEOUT_MS
+        value: 5000
+      - key: FLOW_MEMORY_COMPUTE_STORAGE_STATEMENT_TIMEOUT_MS
+        value: 5000
+      - key: FLOW_MEMORY_COMPUTE_MIGRATIONS_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_RATE_LIMIT_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND
+        value: redis
+      - key: FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND
+        value: redis
+      - key: FLOW_MEMORY_COMPUTE_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: flow-memory-compute-market-redis
+          property: connectionString
+      - key: FLOW_MEMORY_COMPUTE_REDIS_PREFIX
+        value: flow-memory:compute-market
+      - key: FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_FAIL_CLOSED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI
+        value: /var/lib/flow-memory/audit/compute-market.ndjson
+      - key: FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST
+        value: ""
+      - key: FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_ECONOMIC_MEMORY_WRITES_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_ADMIN_MUTATIONS_ENABLED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_PROVIDER_TIMEOUT_MS
+        value: 2000
+      - key: FLOW_MEMORY_COMPUTE_GLOBAL_PLANNING_TIMEOUT_MS
+        value: 10000
+      - key: FLOW_MEMORY_COMPUTE_MAX_CANDIDATE_ROUTES
+        value: 64
+      - key: FLOW_MEMORY_COMPUTE_MAX_QUOTE_CACHE_ENTRIES
+        value: 10000
+      - key: FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT
+        value: ""
+      - key: FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID
+        value: ""
+
+  - type: keyvalue
+    name: flow-memory-compute-market-redis
+    plan: starter
+    region: oregon
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+databases:
+  - name: flow-memory-compute-market-postgres
+    databaseName: flow_memory
+    user: flow_memory
+    plan: basic-256mb
+    region: oregon
+    ipAllowList: []

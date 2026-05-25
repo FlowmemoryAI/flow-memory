@@ -707,6 +707,11 @@ class ComputeMarketService:
         self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
         self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
         if stale_marked:
+            self.telemetry.increment(
+                "quote_stale_total",
+                {"provider_id": provider_id, "route_id": route_id},
+                value=float(stale_marked),
+            )
             self._audit("market.quote.expired_prior_quotes_marked_stale", payload, request_id=request_id, result="completed", reason_codes=("prior_quotes_expired",), provider_id=provider_id, route_id=route_id)
         return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}, "fraud_signals": fraud_signals}
 

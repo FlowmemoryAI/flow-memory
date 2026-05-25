@@ -281,6 +281,33 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert drifted["ok"] is True
     assert drifted["drift"]["status"] == "review"
     assert drifted["fraud_signals"][0]["signal_type"] == "quote_price_manipulation"
+    expired_quote = {**dict(accepted["quote"]), "expires_at": "2000-01-01T00:00:00Z", "status": "valid"}
+    service.store.put_record(
+        "compute_quote",
+        str(expired_quote["quote_id"]),
+        expired_quote,
+        provider_id="provider_live_gpu_1",
+        route_id="route_live_gpu_1",
+        status="valid",
+        expires_at=str(expired_quote["expires_at"]),
+    )
+    fresh = service.broker_quote(
+        {
+            "quote": {**_quote(), "quote_id": "quote_live_gpu_replacement"},
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+    stale = service.store.get_record("compute_quote", str(expired_quote["quote_id"]))
+
+    assert fresh["ok"] is True
+    assert stale is not None
+    assert stale["status"] == "stale"
+    assert _metric_total(
+        service,
+        "quote_stale_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 1.0
     reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
     assert reputation["quote_replay_count"] == 1
     assert reputation["quote_price_manipulation_count"] == 1

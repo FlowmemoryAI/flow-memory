@@ -107,8 +107,7 @@ if (
     $Mode -eq 'auto' -and
     (Test-Path -LiteralPath $renderBlueprintPath) -and
     (Test-Path -LiteralPath $renderHelper) -and
-    -not [string]::IsNullOrWhiteSpace($renderApiKey) -and
-    -not [string]::IsNullOrWhiteSpace($renderOwnerId)
+    -not [string]::IsNullOrWhiteSpace($renderApiKey)
 ) {
     $render = Invoke-ExternalQuiet -FilePath 'python' -ArgumentList @($renderHelper, '--env-file', $envPath)
     if (-not [string]::IsNullOrWhiteSpace($render.Stdout)) {
@@ -143,7 +142,7 @@ if ($missing.Count -gt 0 -or $placeholders.Count -gt 0) {
         Write-Status -Status 'blocked_missing_deployment_target' -Fields @{
             public_url = ''
             deployment_target = 'render'
-            missing_values = @('RENDER_API_KEY', 'RENDER_OWNER_ID')
+            missing_values = @('RENDER_API_KEY')
             placeholder_values = @($placeholders)
         }
         exit 13

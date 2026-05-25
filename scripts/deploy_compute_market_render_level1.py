@@ -368,6 +368,25 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     }
 
 
+def infer_owner_id(api_key: str, owner_id: str) -> str:
+    if owner_id:
+        return owner_id
+    owners = render_request(api_key, "GET", "/owners?limit=100")
+    candidates = [item.get("owner", {}) for item in owners if isinstance(item, dict)]
+    candidates = [item for item in candidates if item.get("id")]
+    if len(candidates) == 1:
+        return str(candidates[0]["id"])
+    if not candidates:
+        emit("blocked_missing_render_auth", 20, missing_values=["RENDER_OWNER_ID"], reason="api_key_has_no_accessible_render_workspaces")
+    emit(
+        "blocked_missing_render_auth",
+        20,
+        missing_values=["RENDER_OWNER_ID"],
+        available_workspaces=[{"id": item.get("id"), "name": item.get("name"), "type": item.get("type")} for item in candidates],
+    )
+    raise AssertionError("unreachable")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Deploy Flow Memory Compute Market Level 1 to Render")
     parser.add_argument("--env-file", default=".env.compute-market.live")
@@ -378,8 +397,9 @@ def main() -> int:
     parser.add_argument("--repo-url", default=os.environ.get("RENDER_REPO_URL", ""))
     args = parser.parse_args()
 
-    if not args.api_key or not args.owner_id:
-        emit("blocked_missing_render_auth", 20, missing_values=[k for k, v in {"RENDER_API_KEY": args.api_key, "RENDER_OWNER_ID": args.owner_id}.items() if not v])
+    if not args.api_key:
+        emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
+    owner_id = infer_owner_id(args.api_key, args.owner_id)
 
     env_values = parse_env(Path(args.env_file))
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
@@ -391,14 +411,14 @@ def main() -> int:
     assert_branch_is_publishable(branch)
 
     try:
-        postgres = ensure_postgres(args.api_key, args.owner_id, args.region)
-        keyvalue = ensure_keyvalue(args.api_key, args.owner_id, args.region)
+        postgres = ensure_postgres(args.api_key, owner_id, args.region)
+        keyvalue = ensure_keyvalue(args.api_key, owner_id, args.region)
         postgres = wait_available(args.api_key, "/postgres", str(postgres["id"]), "postgres")
         keyvalue = wait_available(args.api_key, "/key-value", str(keyvalue["id"]), "keyvalue")
         pg_conn = render_request(args.api_key, "GET", f"/postgres/{urllib.parse.quote(str(postgres['id']))}/connection-info")
         kv_conn = render_request(args.api_key, "GET", f"/key-value/{urllib.parse.quote(str(keyvalue['id']))}/connection-info")
         env_vars = build_env_vars(api_key_value, str(pg_conn["internalConnectionString"]), str(kv_conn["internalConnectionString"]))
-        service = ensure_service(args.api_key, args.owner_id, args.region, repo, branch, env_vars)
+        service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
         url = public_url(service)
         if not url:
             service = render_request(args.api_key, "GET", f"/services/{urllib.parse.quote(str(service['id']))}")

@@ -40,6 +40,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "provider_reputation",
     "quote_replay_guard",
     "quote_drift_observation",
+    "provider_fraud_signal",
     "compute_job",
     "compute_job_event",
     "compute_job_artifact",

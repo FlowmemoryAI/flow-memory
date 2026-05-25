@@ -388,7 +388,7 @@ class ComputeMarketService:
         )
         provider = _provider_from_application(updated_application)
         self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status="active", request_id=request_id)
-        reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=())
+        reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=(), fraud_signals=())
         self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status="active", request_id=request_id)
         self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
@@ -458,7 +458,8 @@ class ComputeMarketService:
         jobs = tuple(self.store.list_records("compute_job", filters={"provider_id": provider_id}, limit=500).records)
         quotes = tuple(self.store.list_records("compute_quote", filters={"provider_id": provider_id}, limit=500).records)
         health = tuple(self.store.list_records("provider_health_snapshot", filters={"provider_id": provider_id}, limit=100).records)
-        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health)
+        fraud_signals = tuple(self.store.list_records("provider_fraud_signal", filters={"provider_id": provider_id}, limit=500).records)
+        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals)
         self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
         return {"ok": True, "reputation": reputation}
 
@@ -564,6 +565,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        stale_marked = _mark_expired_quotes_stale(self.store, provider_id, route_id, request_id=request_id)
         public_key = _provider_public_key(payload, provider_id, self)
         validation = validate_provider_quote_contract(
             quote,
@@ -574,6 +576,26 @@ class ComputeMarketService:
         )
         quote_id = str(quote.get("quote_id") or deterministic_id("quote", quote))
         quote_hash = content_hash(quote)
+        cross_provider_replay = _cross_provider_quote_replay(self.store, quote_id, quote_hash, provider_id)
+        if cross_provider_replay:
+            signal = _record_provider_fraud_signal(
+                self.store,
+                provider_id=provider_id,
+                route_id=route_id,
+                quote_id=quote_id,
+                signal_type="provider_spoofing_replay",
+                severity="critical",
+                request_id=request_id,
+                details={"quote_hash": quote_hash, "matched_provider_id": str(cross_provider_replay.get("provider_id", ""))},
+            )
+            error = compute_error(
+                "quote.cross_provider_replay_detected",
+                "Provider quote payload was already observed from a different provider.",
+                details={"quote_id": quote_id, "provider_id": provider_id, "signal_id": signal["signal_id"]},
+                request_id=request_id,
+            )
+            self._audit("market.quote.cross_provider_replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("cross_provider_replay_detected",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
         replay_guard = self.store.get_record("quote_replay_guard", quote_id)
         if replay_guard and str(replay_guard.get("quote_hash", "")) != quote_hash:
             error = compute_error(
@@ -582,15 +604,34 @@ class ComputeMarketService:
                 details={"quote_id": quote_id, "provider_id": provider_id},
                 request_id=request_id,
             )
+            signal = _record_provider_fraud_signal(
+                self.store,
+                provider_id=provider_id,
+                route_id=route_id,
+                quote_id=quote_id,
+                signal_type="quote_replay",
+                severity="critical",
+                request_id=request_id,
+                details={"quote_hash": quote_hash, "previous_hash": str(replay_guard.get("quote_hash", ""))},
+            )
             self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
-            return {"ok": False, "error": error.as_record(), "validation": validation.as_record()}
+            return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
         if not validation.ok:
+            fraud_signals = _fraud_signals_from_validation(
+                self.store,
+                provider_id=provider_id,
+                route_id=route_id,
+                quote_id=quote_id,
+                validation_errors=validation.error_codes,
+                request_id=request_id,
+            )
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
-            return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id}
+            return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": fraud_signals}
         signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
         record = _normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid)
         previous = self.store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=1).records
         drift = _quote_drift(previous[0] if previous else {}, record)
+        fraud_signals: tuple[Mapping[str, Any], ...] = ()
         self.store.put_record(
             "quote_replay_guard",
             quote_id,
@@ -620,6 +661,19 @@ class ComputeMarketService:
                 status=str(drift["status"]),
                 request_id=request_id,
             )
+            if str(drift.get("status", "")) == "review":
+                fraud_signals = (
+                    _record_provider_fraud_signal(
+                        self.store,
+                        provider_id=provider_id,
+                        route_id=route_id,
+                        quote_id=quote_id,
+                        signal_type="quote_price_manipulation",
+                        severity="review",
+                        request_id=request_id,
+                        details={"drift": drift},
+                    ),
+                )
         cache_key = self.store.quote_cache_key(provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")))
         self.store.put_record(
             "quote_cache_entry",
@@ -647,7 +701,9 @@ class ComputeMarketService:
         )
         self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
         self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
-        return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}}
+        if stale_marked:
+            self._audit("market.quote.expired_prior_quotes_marked_stale", payload, request_id=request_id, result="completed", reason_codes=("prior_quotes_expired",), provider_id=provider_id, route_id=route_id)
+        return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}, "fraud_signals": fraud_signals}
 
     def request_external_provider_quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -2477,7 +2533,155 @@ def _provider_public_key(payload: Mapping[str, Any], provider_id: str, service: 
     return ""
 
 
-def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...], quotes: tuple[Mapping[str, Any], ...], health: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
+def _record_provider_fraud_signal(
+    store: ComputeMarketStoreProtocol,
+    *,
+    provider_id: str,
+    route_id: str,
+    quote_id: str,
+    signal_type: str,
+    severity: str,
+    request_id: str,
+    details: Mapping[str, Any],
+) -> dict[str, Any]:
+    now = utc_now_iso()
+    signal = {
+        "signal_id": deterministic_id(
+            "provider_fraud_signal",
+            {
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "quote_id": quote_id,
+                "signal_type": signal_type,
+                "request_id": request_id,
+            },
+        ),
+        "provider_id": provider_id,
+        "route_id": route_id,
+        "quote_id": quote_id,
+        "signal_type": signal_type,
+        "severity": severity,
+        "status": "open",
+        "details": dict(details),
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+    store.put_record(
+        "provider_fraud_signal",
+        str(signal["signal_id"]),
+        signal,
+        provider_id=provider_id,
+        route_id=route_id,
+        status="open",
+        request_id=request_id,
+    )
+    return signal
+
+
+def _cross_provider_quote_replay(
+    store: ComputeMarketStoreProtocol,
+    quote_id: str,
+    quote_hash: str,
+    provider_id: str,
+) -> Mapping[str, Any]:
+    existing = store.get_record("quote_replay_guard", quote_id)
+    if existing and str(existing.get("provider_id", "")) and str(existing.get("provider_id", "")) != provider_id:
+        return existing
+    for observed in store.list_records("quote_replay_guard", limit=1000).records:
+        observed_provider_id = str(observed.get("provider_id", ""))
+        if observed_provider_id and observed_provider_id != provider_id and str(observed.get("quote_hash", "")) == quote_hash:
+            return observed
+    return {}
+
+
+def _mark_expired_quotes_stale(
+    store: ComputeMarketStoreProtocol,
+    provider_id: str,
+    route_id: str,
+    *,
+    request_id: str,
+) -> int:
+    now = utc_now_iso()
+    marked = 0
+    for quote in store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=500).records:
+        expires_at = str(quote.get("expires_at", ""))
+        if not expires_at or expires_at > now or str(quote.get("status", "")) != "valid":
+            continue
+        updated = {**dict(quote), "status": "stale", "stale": True, "updated_at": now}
+        store.put_record(
+            "compute_quote",
+            str(updated["quote_id"]),
+            updated,
+            provider_id=provider_id,
+            route_id=route_id,
+            status="stale",
+            expires_at=expires_at,
+            request_id=request_id,
+        )
+        marked += 1
+    return marked
+
+
+_VALIDATION_FRAUD_SIGNALS: dict[str, tuple[str, str]] = {
+    "expired_quote": ("stale_quote_submission", "warning"),
+    "stale_quote": ("stale_quote_submission", "warning"),
+    "missing_signature": ("signature_failure", "critical"),
+    "invalid_signature": ("signature_failure", "critical"),
+    "policy_override_attempt": ("quote_policy_override", "critical"),
+    "provider_id_mismatch": ("provider_spoofing_replay", "critical"),
+}
+
+
+def _fraud_signals_from_validation(
+    store: ComputeMarketStoreProtocol,
+    *,
+    provider_id: str,
+    route_id: str,
+    quote_id: str,
+    validation_errors: tuple[str, ...],
+    request_id: str,
+) -> tuple[Mapping[str, Any], ...]:
+    signals: list[Mapping[str, Any]] = []
+    for error_code in tuple(dict.fromkeys(validation_errors)):
+        signal_definition = _VALIDATION_FRAUD_SIGNALS.get(error_code)
+        if signal_definition is None:
+            continue
+        signal_type, severity = signal_definition
+        signals.append(
+            _record_provider_fraud_signal(
+                store,
+                provider_id=provider_id,
+                route_id=route_id,
+                quote_id=quote_id,
+                signal_type=signal_type,
+                severity=severity,
+                request_id=request_id,
+                details={"validation_error": error_code, "validation_errors": validation_errors},
+            )
+        )
+    return tuple(signals)
+
+
+def _fraud_signal_counts(fraud_signals: tuple[Mapping[str, Any], ...]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for signal in fraud_signals:
+        signal_type = str(signal.get("signal_type", ""))
+        if signal_type:
+            counts[signal_type] = counts.get(signal_type, 0) + 1
+    return counts
+
+
+def _provider_reputation(
+    provider_id: str,
+    *,
+    jobs: tuple[Mapping[str, Any], ...],
+    quotes: tuple[Mapping[str, Any], ...],
+    health: tuple[Mapping[str, Any], ...],
+    fraud_signals: tuple[Mapping[str, Any], ...],
+) -> dict[str, Any]:
     completed = sum(1 for job in jobs if str(job.get("status", "")) == "succeeded")
     failed = sum(1 for job in jobs if str(job.get("status", "")) == "failed")
     valid_quotes = sum(1 for quote in quotes if str(quote.get("status", "")) == "valid")
@@ -2485,7 +2689,32 @@ def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...
     total_jobs = max(1, completed + failed)
     total_quotes = max(1, len(quotes))
     uptime = sum(1 for item in health if str(item.get("status", "")) in {"healthy", "configured"}) / max(1, len(health))
-    score = max(0.0, min(1.0, (completed / total_jobs * 0.4) + (valid_quotes / total_quotes * 0.3) + (uptime * 0.3)))
+    fraud_counts = _fraud_signal_counts(fraud_signals)
+    fraud_signal_count = sum(fraud_counts.values())
+    critical_fraud_signal_count = sum(1 for signal in fraud_signals if str(signal.get("severity", "")) == "critical")
+    fraud_penalty = min(1.0, fraud_signal_count / total_quotes)
+    stale_quote_rate = stale_quotes / total_quotes
+    score = max(
+        0.0,
+        min(
+            1.0,
+            (completed / total_jobs * 0.3)
+            + (valid_quotes / total_quotes * 0.25)
+            + (uptime * 0.25)
+            - (stale_quote_rate * 0.1)
+            - (fraud_penalty * 0.2),
+        ),
+    )
+    manual_review_flags = tuple(
+        sorted(
+            {
+                str(signal.get("signal_type", ""))
+                for signal in fraud_signals
+                if str(signal.get("severity", "")) in {"review", "critical"} and str(signal.get("signal_type", ""))
+            }
+        )
+    )
+    status = "degraded" if critical_fraud_signal_count else ("active" if score >= 0.8 else "probation")
     return {
         "provider_id": provider_id,
         "quote_accuracy_score": round(valid_quotes / total_quotes, 4),
@@ -2494,11 +2723,18 @@ def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...
         "capacity_fulfillment_rate": 1.0,
         "refund_rate": 0.0,
         "dispute_rate": 0.0,
-        "stale_quote_rate": round(stale_quotes / total_quotes, 4),
+        "stale_quote_rate": round(stale_quote_rate, 4),
         "provider_uptime": round(uptime, 4),
         "sla_breach_count": failed,
-        "manual_review_flags": (),
-        "status": "active" if score >= 0.8 else "probation",
+        "quote_replay_count": fraud_counts.get("quote_replay", 0),
+        "stale_quote_submission_count": fraud_counts.get("stale_quote_submission", 0),
+        "signature_failure_count": fraud_counts.get("signature_failure", 0),
+        "quote_price_manipulation_count": fraud_counts.get("quote_price_manipulation", 0),
+        "provider_spoofing_count": fraud_counts.get("provider_spoofing_replay", 0),
+        "fraud_signal_count": fraud_signal_count,
+        "critical_fraud_signal_count": critical_fraud_signal_count,
+        "manual_review_flags": manual_review_flags,
+        "status": status,
         "score": round(score, 4),
         "updated_at": utc_now_iso(),
     }

@@ -63,6 +63,21 @@ def test_provider_contract_verifies_signed_quote() -> None:
     assert "invalid_signature" in tampered.error_codes
 
 
+def test_provider_contract_requires_signature_when_public_key_configured() -> None:
+    signer = LocalTestSigner("provider-local-gpu-key", "provider-local-gpu-seed")
+    unsigned = _valid_quote()
+    unsigned.pop("verification", None)
+
+    result = validate_provider_quote_contract(
+        unsigned,
+        provider_id="provider-local-gpu",
+        public_key=signer.public_record().as_record(),
+    )
+
+    assert result.ok is False
+    assert "missing_signature" in result.error_codes
+
+
 def test_provider_contract_file_validation() -> None:
     fixture = Path("tests/fixtures/compute_market/valid_quote.json")
 

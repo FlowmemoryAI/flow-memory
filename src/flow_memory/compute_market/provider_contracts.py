@@ -128,7 +128,9 @@ class ProviderQuoteContract:
         if "policy" in quote or "policy_override" in quote or "ignore_policy" in quote:
             errors.append("policy_override_attempt")
         signature_present = "signature" in quote or "verification" in quote
-        if not signature_present:
+        if not signature_present and self.public_key:
+            errors.append("missing_signature")
+        elif not signature_present:
             warnings.append("unsigned_quote")
         elif self.public_key and not verify_provider_quote_signature(quote, self.public_key):
             errors.append("invalid_signature")

@@ -304,6 +304,89 @@ class ComputeMarketStore:
             )
             conn.commit()
 
+    def put_record_if_state(
+        self,
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        *,
+        expected_actor_id: str = "",
+        expires_at_before: str = "",
+        tenant_id: str = "",
+        workspace_id: str = "",
+        agent_id: str = "",
+        goal_id: str = "",
+        provider_id: str = "",
+        route_id: str = "",
+        task_type: str = "",
+        task_hash: str = "",
+        status: str = "",
+        expires_at: str = "",
+        idempotency_key: str = "",
+        request_id: str = "",
+        actor_id: str = "",
+        action: str = "",
+        archived: bool = False,
+    ) -> bool:
+        if record_type not in COMPUTE_RECORD_TYPES:
+            raise ValueError(f"unknown compute market record type: {record_type}")
+        expected = tuple(str(item) for item in expected_statuses if str(item))
+        if not expected:
+            return False
+        now = utc_now_iso()
+        created_at = str(payload.get("created_at") or now)
+        normalized = dict(payload)
+        normalized.setdefault("record_id", record_id)
+        normalized.setdefault("created_at", created_at)
+        normalized["updated_at"] = now
+        status_placeholders = ", ".join("?" for _ in expected)
+        where = [f"record_type = ? and record_id = ? and status in ({status_placeholders})"]
+        where_values: list[Any] = [record_type, record_id, *expected]
+        if expected_actor_id:
+            where.append("actor_id = ?")
+            where_values.append(expected_actor_id)
+        if expires_at_before:
+            where.append("expires_at <> '' and expires_at <= ?")
+            where_values.append(expires_at_before)
+        values: list[Any] = [
+            tenant_id or str(normalized.get("tenant_id", "")),
+            workspace_id or str(normalized.get("workspace_id", "")),
+            agent_id or str(normalized.get("agent_id", "")),
+            goal_id or str(normalized.get("goal_id", "")),
+            provider_id or str(normalized.get("provider_id", "")),
+            route_id or str(normalized.get("route_id", "")),
+            task_type or str(normalized.get("task_type", "")),
+            task_hash or str(normalized.get("task_hash", "")),
+            request_id or str(normalized.get("request_id", "")),
+            actor_id or str(normalized.get("actor_id", "")),
+            action or str(normalized.get("action", "")),
+            status or str(normalized.get("status", normalized.get("policy_result", ""))),
+            str(normalized.get("chain_id", "")),
+            int(normalized.get("sequence_number", 0) or 0),
+            str(normalized.get("event_hash", "")),
+            str(normalized.get("previous_hash", "")),
+            created_at,
+            now,
+            expires_at or str(normalized.get("expires_at", "")),
+            idempotency_key or str(normalized.get("idempotency_key", "")),
+            1 if archived else 0,
+            json.dumps(normalized, sort_keys=True, default=str),
+            *where_values,
+        ]
+        sql = (
+            "update compute_market_records set "
+            "tenant_id = ?, workspace_id = ?, agent_id = ?, goal_id = ?, provider_id = ?, route_id = ?, "
+            "task_type = ?, task_hash = ?, request_id = ?, actor_id = ?, action = ?, status = ?, "
+            "chain_id = ?, sequence_number = ?, event_hash = ?, previous_hash = ?, created_at = ?, "
+            "updated_at = ?, expires_at = ?, idempotency_key = ?, archived = ?, payload = ? "
+            f"where {' and '.join(where)}"
+        )
+        with self._connection() as conn:
+            cursor = conn.execute(sql, tuple(values))
+            conn.commit()
+            return cursor.rowcount == 1
+
     def get_record(self, record_type: str, record_id: str) -> Mapping[str, Any] | None:
         with self._connection() as conn:
             row = conn.execute(

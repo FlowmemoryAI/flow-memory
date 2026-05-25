@@ -1632,6 +1632,67 @@
         ]
       }
     },
+    "/compute/jobs/claim": {
+      "post": {
+        "operationId": "compute_job_claim",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "capabilities": {
+                    "type": "string"
+                  },
+                  "job_id": {
+                    "type": "string"
+                  },
+                  "ttl_seconds": {
+                    "type": "string"
+                  },
+                  "worker_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "lease_expires_at": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Claim the next available queued compute job for a worker lease",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/jobs/{job_id}": {
       "get": {
         "operationId": "compute_job",
@@ -1788,6 +1849,9 @@
                   },
                   "currency": {
                     "type": "string"
+                  },
+                  "worker_id": {
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -1845,6 +1909,22 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "worker_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -1869,7 +1949,7 @@
             "description": "Local response"
           }
         },
-        "summary": "Dispatch a queued dry-run compute job into running state",
+        "summary": "Dispatch a queued or worker-claimed dry-run compute job into running state",
         "tags": [
           "compute"
         ]
@@ -1939,6 +2019,9 @@
                   },
                   "reason": {
                     "type": "string"
+                  },
+                  "worker_id": {
+                    "type": "string"
                   }
                 },
                 "type": "object"
@@ -1971,7 +2054,134 @@
             "description": "Local response"
           }
         },
-        "summary": "Fail a queued or running dry-run compute job with structured error details",
+        "summary": "Fail a queued, claimed, or running dry-run compute job with structured error details",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/jobs/{job_id}/heartbeat": {
+      "post": {
+        "operationId": "compute_job_heartbeat",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "ttl_seconds": {
+                    "type": "string"
+                  },
+                  "worker_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "lease_expires_at": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Renew a worker lease for a claimed compute job",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/jobs/{job_id}/release-claim": {
+      "post": {
+        "operationId": "compute_job_release_claim",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "reason": {
+                    "type": "string"
+                  },
+                  "worker_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "event": {
+                      "type": "string"
+                    },
+                    "job": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Release a worker claim and re-queue the compute job before execution starts",
         "tags": [
           "compute"
         ]

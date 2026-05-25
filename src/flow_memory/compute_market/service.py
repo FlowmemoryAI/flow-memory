@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+from datetime import datetime, timedelta, timezone
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Mapping
@@ -832,8 +833,16 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id)["job"])
-        _assert_job_status(job, ("queued",), "dispatch")
+        _assert_job_status(job, ("queued", "dispatched"), "dispatch")
+        worker_id = _assert_claim_owner(job, payload, "dispatch")
         dispatched_at = utc_now_iso()
+        details: dict[str, Any] = {
+            "provider_dispatch": "dry_run_provider_dispatch",
+            "dry_run_only": True,
+            "external_provider_called": False,
+        }
+        if worker_id:
+            details["worker_id"] = worker_id
         job.update(
             {
                 "status": "running",
@@ -844,6 +853,8 @@ class ComputeMarketService:
                 "provider_dispatch": "dry_run_provider_dispatch",
             }
         )
+        if worker_id:
+            job["started_by_worker_id"] = worker_id
         self.store.put_record(
             "compute_job",
             job_id,
@@ -852,18 +863,16 @@ class ComputeMarketService:
             route_id=str(job.get("route_id", "")),
             task_type=str(job.get("task_type", "")),
             status="running",
+            expires_at=str(job.get("lease_expires_at", "")),
             request_id=request_id,
+            actor_id=worker_id,
         )
         event = _job_event(
             job_id,
             "job.started",
             status="running",
             request_id=request_id,
-            details={
-                "provider_dispatch": "dry_run_provider_dispatch",
-                "dry_run_only": True,
-                "external_provider_called": False,
-            },
+            details=details,
         )
         self.store.put_record(
             "compute_job_event",
@@ -873,11 +882,12 @@ class ComputeMarketService:
             route_id=str(job.get("route_id", "")),
             status="running",
             request_id=request_id,
+            actor_id=worker_id,
         )
         self.telemetry.increment("compute_job_started_total", {"task_type": str(job.get("task_type", ""))})
         self._audit(
             "compute.job.dispatched",
-            payload,
+            {**dict(payload), "job_id": job_id, "worker_id": worker_id},
             request_id=request_id,
             result="running",
             provider_id=str(job.get("provider_id", "")),
@@ -890,10 +900,12 @@ class ComputeMarketService:
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id)["job"])
         _assert_job_status(job, ("running",), "complete")
+        worker_id = _assert_claim_owner(job, payload, "complete")
         completed_at = utc_now_iso()
         cost = _job_cost(payload)
         actual_units = _non_negative_float(payload.get("actual_units", payload.get("units", 0.0)), "actual_units")
         actual_latency_ms = _non_negative_float(payload.get("actual_latency_ms", payload.get("latency_ms", 0.0)), "actual_latency_ms")
+        previous_lease_expires_at = str(job.get("lease_expires_at", ""))
         job.update(
             {
                 "status": "succeeded",
@@ -903,8 +915,13 @@ class ComputeMarketService:
                 "actual_total_cost": cost,
                 "actual_latency_ms": actual_latency_ms,
                 "lifecycle": _append_lifecycle(job, "succeeded"),
+                "lease_expires_at": "",
             }
         )
+        if previous_lease_expires_at:
+            job["last_lease_expires_at"] = previous_lease_expires_at
+        if worker_id:
+            job["completed_by_worker_id"] = worker_id
         self.store.put_record(
             "compute_job",
             job_id,
@@ -914,6 +931,7 @@ class ComputeMarketService:
             task_type=str(job.get("task_type", "")),
             status="succeeded",
             request_id=request_id,
+            actor_id=worker_id,
         )
         artifact = _job_artifact(job, payload, request_id=request_id)
         if artifact:
@@ -961,6 +979,7 @@ class ComputeMarketService:
                 "usage_charge_recorded": bool(usage_charge),
                 "actual_total_cost": cost,
                 "funds_moved": False,
+                "worker_id": worker_id,
             },
         )
         self.store.put_record(
@@ -971,13 +990,14 @@ class ComputeMarketService:
             route_id=str(job.get("route_id", "")),
             status="succeeded",
             request_id=request_id,
+            actor_id=worker_id,
         )
         self.telemetry.increment("compute_job_completed_total", {"task_type": str(job.get("task_type", ""))})
         if cost:
             self.telemetry.observe("compute_actual_cost", cost, labels={"provider_id": str(job.get("provider_id", ""))})
         self._audit(
             "compute.job.completed",
-            payload,
+            {**dict(payload), "job_id": job_id, "worker_id": worker_id},
             request_id=request_id,
             result="succeeded",
             provider_id=str(job.get("provider_id", "")),
@@ -989,9 +1009,11 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id)["job"])
-        _assert_job_status(job, ("queued", "running"), "fail")
+        _assert_job_status(job, ("queued", "dispatched", "running"), "fail")
+        worker_id = _assert_claim_owner(job, payload, "fail")
         failed_at = utc_now_iso()
         error_code = str(payload.get("error_code", "provider_execution_failed"))
+        previous_lease_expires_at = str(job.get("lease_expires_at", ""))
         job.update(
             {
                 "status": "failed",
@@ -1000,8 +1022,13 @@ class ComputeMarketService:
                 "error_code": error_code,
                 "failure_reason": str(payload.get("reason", "")),
                 "lifecycle": _append_lifecycle(job, "failed"),
+                "lease_expires_at": "",
             }
         )
+        if previous_lease_expires_at:
+            job["last_lease_expires_at"] = previous_lease_expires_at
+        if worker_id:
+            job["failed_by_worker_id"] = worker_id
         self.store.put_record(
             "compute_job",
             job_id,
@@ -1011,13 +1038,14 @@ class ComputeMarketService:
             task_type=str(job.get("task_type", "")),
             status="failed",
             request_id=request_id,
+            actor_id=worker_id,
         )
         event = _job_event(
             job_id,
             "job.failed",
             status="failed",
             request_id=request_id,
-            details={"error_code": error_code, "reason": str(payload.get("reason", ""))},
+            details={"error_code": error_code, "reason": str(payload.get("reason", "")), "worker_id": worker_id},
         )
         self.store.put_record(
             "compute_job_event",
@@ -1027,11 +1055,12 @@ class ComputeMarketService:
             route_id=str(job.get("route_id", "")),
             status="failed",
             request_id=request_id,
+            actor_id=worker_id,
         )
         self.telemetry.increment("compute_job_failed_total", {"task_type": str(job.get("task_type", "")), "error_code": error_code})
         self._audit(
             "compute.job.failed",
-            payload,
+            {**dict(payload), "job_id": job_id, "worker_id": worker_id},
             request_id=request_id,
             result="failed",
             reason_codes=(error_code,),
@@ -1046,8 +1075,8 @@ class ComputeMarketService:
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
         cancelled_at = utc_now_iso()
-        job.update({"status": "cancelled", "cancelled_at": cancelled_at, "updated_at": cancelled_at})
-        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="cancelled", request_id=request_id)
+        job.update({"status": "cancelled", "cancelled_at": cancelled_at, "updated_at": cancelled_at, "lease_expires_at": ""})
+        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="cancelled", expires_at="", request_id=request_id)
         event = _job_event(job_id, "job.cancelled", status="cancelled", request_id=request_id, details={"reason": str(payload.get("reason", ""))})
         self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), status="cancelled", request_id=request_id)
         self._audit("compute.job.cancelled", payload, request_id=request_id, result="cancelled", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
@@ -1058,11 +1087,232 @@ class ComputeMarketService:
         job = dict(self.get_job(job_id)["job"])
         retry_at = utc_now_iso()
         attempts = int(job.get("attempt", 0) or 0) + 1
-        job.update({"status": "queued", "attempt": attempts, "retried_at": retry_at, "updated_at": retry_at})
-        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="queued", request_id=request_id)
+        job.update({"status": "queued", "attempt": attempts, "retried_at": retry_at, "updated_at": retry_at, "claimed_by": "", "lease_expires_at": "", "worker_capabilities": ()})
+        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="queued", expires_at="", request_id=request_id)
         event = _job_event(job_id, "job.retry_queued", status="queued", request_id=request_id, details={"attempt": attempts})
         self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), status="queued", request_id=request_id)
         self._audit("compute.job.retry_queued", payload, request_id=request_id, result="queued", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
+        return {"ok": True, "job": job, "event": event}
+
+    def claim_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        worker_id = _worker_id(payload)
+        ttl_seconds = _lease_ttl_seconds(payload)
+        lease_expires_at = _future_utc_iso(ttl_seconds)
+        requested_job_id = str(payload.get("job_id", "")).strip()
+        candidates = _claim_candidates(self.store, requested_job_id=requested_job_id)
+        for candidate in candidates:
+            job = dict(candidate)
+            job_id = str(job.get("job_id", job.get("record_id", "")))
+            if not job_id:
+                continue
+            status = str(job.get("status", ""))
+            expires_at_before = ""
+            if status == "queued":
+                expected_statuses = ("queued",)
+            elif status == "dispatched" and _job_lease_expired(job, utc_now_iso()):
+                expected_statuses = ("dispatched",)
+                expires_at_before = utc_now_iso()
+            else:
+                continue
+            claimed_at = utc_now_iso()
+            claim_token = deterministic_id(
+                "job_claim",
+                {"job_id": job_id, "worker_id": worker_id, "request_id": request_id, "claimed_at": claimed_at},
+            )
+            job.update(
+                {
+                    "status": "dispatched",
+                    "claimed_by": worker_id,
+                    "claim_token": claim_token,
+                    "claimed_at": claimed_at,
+                    "lease_expires_at": lease_expires_at,
+                    "worker_capabilities": _worker_capabilities(payload),
+                    "dispatch_attempt": int(job.get("dispatch_attempt", 0) or 0) + 1,
+                    "updated_at": claimed_at,
+                    "lifecycle": _append_lifecycle(job, "dispatched"),
+                    "provider_dispatch": "worker_queue_claim",
+                }
+            )
+            claimed = self.store.put_record_if_state(
+                "compute_job",
+                job_id,
+                expected_statuses,
+                job,
+                expires_at_before=expires_at_before,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                task_type=str(job.get("task_type", "")),
+                status="dispatched",
+                expires_at=lease_expires_at,
+                request_id=request_id,
+                actor_id=worker_id,
+            )
+            if not claimed:
+                continue
+            event = _job_event(
+                job_id,
+                "job.claimed",
+                status="dispatched",
+                request_id=request_id,
+                details={
+                    "worker_id": worker_id,
+                    "lease_expires_at": lease_expires_at,
+                    "claim_token": claim_token,
+                    "dry_run_only": True,
+                    "external_provider_called": False,
+                },
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status="dispatched",
+                request_id=request_id,
+                actor_id=worker_id,
+            )
+            self._audit(
+                "compute.job.claimed",
+                {**dict(payload), "job_id": job_id, "worker_id": worker_id},
+                request_id=request_id,
+                result="dispatched",
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            return {"ok": True, "job": job, "event": event, "lease_expires_at": lease_expires_at}
+        if requested_job_id:
+            raise ValueError(f"compute job is not available to claim: {requested_job_id}")
+        return {"ok": False, "job": {}, "event": {}, "reason": "no_available_queued_job"}
+
+    def heartbeat_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        worker_id = _worker_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        _assert_job_status(job, ("dispatched", "running"), "heartbeat")
+        _assert_claim_owner(job, payload, "heartbeat")
+        lease_expires_at = _future_utc_iso(_lease_ttl_seconds(payload))
+        heartbeat_at = utc_now_iso()
+        job.update(
+            {
+                "lease_expires_at": lease_expires_at,
+                "last_heartbeat_at": heartbeat_at,
+                "heartbeat_count": int(job.get("heartbeat_count", 0) or 0) + 1,
+                "updated_at": heartbeat_at,
+            }
+        )
+        updated = self.store.put_record_if_state(
+            "compute_job",
+            job_id,
+            (str(job.get("status", "")),),
+            job,
+            expected_actor_id=worker_id,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status=str(job.get("status", "")),
+            expires_at=lease_expires_at,
+            request_id=request_id,
+            actor_id=worker_id,
+        )
+        if not updated:
+            raise ValueError(f"cannot heartbeat compute job {job_id}; worker lease changed")
+        event = _job_event(
+            job_id,
+            "job.heartbeat",
+            status=str(job.get("status", "")),
+            request_id=request_id,
+            details={"worker_id": worker_id, "lease_expires_at": lease_expires_at},
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status=str(job.get("status", "")),
+            request_id=request_id,
+            actor_id=worker_id,
+        )
+        self._audit(
+            "compute.job.heartbeat",
+            {**dict(payload), "job_id": job_id, "worker_id": worker_id},
+            request_id=request_id,
+            result=str(job.get("status", "")),
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+        )
+        return {"ok": True, "job": job, "event": event, "lease_expires_at": lease_expires_at}
+
+    def release_job_claim(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        worker_id = _worker_id(payload)
+        job = dict(self.get_job(job_id)["job"])
+        _assert_job_status(job, ("dispatched",), "release claim")
+        _assert_claim_owner(job, payload, "release claim")
+        released_at = utc_now_iso()
+        previous_claim = {
+            "claimed_by": str(job.get("claimed_by", "")),
+            "lease_expires_at": str(job.get("lease_expires_at", "")),
+            "claim_token": str(job.get("claim_token", "")),
+        }
+        job.update(
+            {
+                "status": "queued",
+                "claimed_by": "",
+                "claim_token": "",
+                "lease_expires_at": "",
+                "released_at": released_at,
+                "last_released_claim": previous_claim,
+                "updated_at": released_at,
+                "provider_dispatch": "",
+            }
+        )
+        released = self.store.put_record_if_state(
+            "compute_job",
+            job_id,
+            ("dispatched",),
+            job,
+            expected_actor_id=worker_id,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="queued",
+            expires_at="",
+            request_id=request_id,
+            actor_id="",
+        )
+        if not released:
+            raise ValueError(f"cannot release compute job claim for {job_id}; worker lease changed")
+        event = _job_event(
+            job_id,
+            "job.claim_released",
+            status="queued",
+            request_id=request_id,
+            details={"worker_id": worker_id, "reason": str(payload.get("reason", ""))},
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status="queued",
+            request_id=request_id,
+            actor_id=worker_id,
+        )
+        self._audit(
+            "compute.job.claim_released",
+            {**dict(payload), "job_id": job_id, "worker_id": worker_id},
+            request_id=request_id,
+            result="queued",
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+        )
         return {"ok": True, "job": job, "event": event}
 
     def billing_checkout(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -2160,6 +2410,71 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
     held = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in reservations if str(item.get("status", "")) in {"held", "confirmed"})
     return {"window_count": len(windows), "reservation_count": len(reservations), "total_capacity_units": total_capacity, "held_capacity_units": held, "available_capacity_units": max(0.0, total_capacity - held)}
 
+
+def _claim_candidates(
+    store: ComputeMarketStoreProtocol,
+    *,
+    requested_job_id: str = "",
+) -> tuple[Mapping[str, Any], ...]:
+    if requested_job_id:
+        job = store.get_record("compute_job", requested_job_id)
+        return (job,) if job is not None else ()
+    now = utc_now_iso()
+    queued = store.list_records("compute_job", filters={"status": "queued"}, limit=100).records
+    dispatched = tuple(
+        job
+        for job in store.list_records("compute_job", filters={"status": "dispatched"}, limit=100).records
+        if _job_lease_expired(job, now)
+    )
+    return tuple(
+        sorted(
+            (*queued, *dispatched),
+            key=lambda item: (str(item.get("created_at", "")), str(item.get("job_id", item.get("record_id", "")))),
+        )
+    )
+
+
+def _payload_worker_id(payload: Mapping[str, Any]) -> str:
+    return str(payload.get("worker_id", "")).strip()
+
+
+def _worker_id(payload: Mapping[str, Any]) -> str:
+    worker_id = _payload_worker_id(payload)
+    if not worker_id:
+        raise ValueError("worker_id is required")
+    return worker_id
+
+
+def _assert_claim_owner(job: Mapping[str, Any], payload: Mapping[str, Any], action: str) -> str:
+    claimed_by = str(job.get("claimed_by", "")).strip()
+    worker_id = _payload_worker_id(payload)
+    if claimed_by and worker_id != claimed_by:
+        raise ValueError(f"worker_id does not own claim for compute job during {action}")
+    return worker_id
+
+
+def _lease_ttl_seconds(payload: Mapping[str, Any]) -> int:
+    return min(3_600, max(30, int(_positive_float(payload.get("ttl_seconds", 300), "ttl_seconds"))))
+
+
+def _future_utc_iso(seconds: int) -> str:
+    return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _job_lease_expired(job: Mapping[str, Any], now: str) -> bool:
+    lease_expires_at = str(job.get("lease_expires_at") or job.get("expires_at") or "")
+    return bool(lease_expires_at and lease_expires_at <= now)
+
+
+def _worker_capabilities(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    capabilities = payload.get("capabilities", ())
+    if isinstance(capabilities, Mapping):
+        return tuple(f"{key}:{capabilities[key]}" for key in sorted(capabilities))
+    if isinstance(capabilities, str):
+        return (capabilities,) if capabilities else ()
+    if isinstance(capabilities, (list, tuple, set)):
+        return tuple(str(item) for item in capabilities if str(item))
+    return ()
 
 def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
     task_type = str(payload.get("task_type", "")).strip()

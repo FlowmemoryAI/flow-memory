@@ -278,6 +278,18 @@ def compute_job_fail(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, An
     return default_service().fail_job(job_id, payload)
 
 
+def compute_job_claim(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().claim_job(payload)
+
+
+def compute_job_heartbeat(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().heartbeat_job(job_id, payload)
+
+
+def compute_job_release_claim(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().release_job_claim(job_id, payload)
+
+
 def billing_checkout(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().billing_checkout(payload)
 

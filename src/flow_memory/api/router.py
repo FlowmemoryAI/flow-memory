@@ -67,6 +67,9 @@ from flow_memory.api.compute_endpoints import (
     compute_job_retry,
     compute_job_dispatch,
     compute_job_fail,
+    compute_job_claim,
+    compute_job_heartbeat,
+    compute_job_release_claim,
     compute_marketplace_plan,
     compute_metrics,
     compute_payment_plan,
@@ -647,6 +650,15 @@ class LocalApiRouter:
     def _compute_job_fail(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_fail(params["job_id"], payload)
 
+    def _compute_job_claim(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_claim(payload)
+
+    def _compute_job_heartbeat(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_heartbeat(params["job_id"], payload)
+
+    def _compute_job_release_claim(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_release_claim(params["job_id"], payload)
+
     def _billing_checkout(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_checkout(payload)
 
@@ -780,6 +792,9 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/compute/jobs/{job_id}/dispatch", router._compute_job_dispatch, "compute_job_dispatch")
     router.register("POST", "/compute/jobs/{job_id}/complete", router._compute_job_complete, "compute_job_complete")
     router.register("POST", "/compute/jobs/{job_id}/fail", router._compute_job_fail, "compute_job_fail")
+    router.register("POST", "/compute/jobs/claim", router._compute_job_claim, "compute_job_claim")
+    router.register("POST", "/compute/jobs/{job_id}/heartbeat", router._compute_job_heartbeat, "compute_job_heartbeat")
+    router.register("POST", "/compute/jobs/{job_id}/release-claim", router._compute_job_release_claim, "compute_job_release_claim")
     router.register("GET", "/compute/providers", router._compute_providers, "compute_providers")
     router.register("GET", "/compute/providers/{provider_id}", router._compute_provider, "compute_provider")
     router.register("POST", "/compute/providers", router._compute_provider_create, "compute_provider_create")

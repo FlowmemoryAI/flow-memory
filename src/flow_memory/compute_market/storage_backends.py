@@ -133,6 +133,31 @@ class ComputeMarketStoreProtocol(Protocol):
         action: str = "",
         archived: bool = False,
     ) -> None: ...
+    def put_record_if_state(
+        self,
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        *,
+        expected_actor_id: str = "",
+        expires_at_before: str = "",
+        tenant_id: str = "",
+        workspace_id: str = "",
+        agent_id: str = "",
+        goal_id: str = "",
+        provider_id: str = "",
+        route_id: str = "",
+        task_type: str = "",
+        task_hash: str = "",
+        status: str = "",
+        expires_at: str = "",
+        idempotency_key: str = "",
+        request_id: str = "",
+        actor_id: str = "",
+        action: str = "",
+        archived: bool = False,
+    ) -> bool: ...
 
     def get_record(self, record_type: str, record_id: str) -> Mapping[str, Any] | None: ...
 
@@ -472,6 +497,76 @@ class PostgresComputeMarketStore:
         )
         with self._connection() as conn:
             conn.execute(sql, values)
+
+    def put_record_if_state(
+        self,
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        *,
+        expected_actor_id: str = "",
+        expires_at_before: str = "",
+        tenant_id: str = "",
+        workspace_id: str = "",
+        agent_id: str = "",
+        goal_id: str = "",
+        provider_id: str = "",
+        route_id: str = "",
+        task_type: str = "",
+        task_hash: str = "",
+        status: str = "",
+        expires_at: str = "",
+        idempotency_key: str = "",
+        request_id: str = "",
+        actor_id: str = "",
+        action: str = "",
+        archived: bool = False,
+    ) -> bool:
+        table = _postgres_table(record_type)
+        expected = tuple(str(item) for item in expected_statuses if str(item))
+        if not expected:
+            return False
+        now = utc_now_iso()
+        created_at = str(payload.get("created_at") or now)
+        normalized = dict(payload)
+        normalized.setdefault("record_id", record_id)
+        normalized.setdefault("created_at", created_at)
+        normalized["updated_at"] = now
+        record_values = _record_values(
+            normalized,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            agent_id=agent_id,
+            goal_id=goal_id,
+            provider_id=provider_id,
+            route_id=route_id,
+            task_type=task_type,
+            task_hash=task_hash,
+            status=status,
+            expires_at=expires_at,
+            idempotency_key=idempotency_key,
+            request_id=request_id,
+            actor_id=actor_id,
+            action=action,
+            archived=archived,
+            created_at=created_at,
+            updated_at=now,
+        )
+        assignments = ", ".join(f"{column} = %s::jsonb" if column == "payload" else f"{column} = %s" for column in _COMMON_COLUMNS[1:])
+        status_placeholders = ", ".join("%s" for _ in expected)
+        where = [f"record_id = %s and status in ({status_placeholders})"]
+        values: list[Any] = [*record_values[1:], record_id, *expected]
+        if expected_actor_id:
+            where.append("actor_id = %s")
+            values.append(expected_actor_id)
+        if expires_at_before:
+            where.append("expires_at is not null and expires_at <= %s")
+            values.append(expires_at_before)
+        sql = f"update {table} set {assignments} where {' and '.join(where)}"
+        with self._connection() as conn:
+            cursor = conn.execute(sql, tuple(values))
+            return int(getattr(cursor, "rowcount", 0) or 0) == 1
 
     def get_record(self, record_type: str, record_id: str) -> Mapping[str, Any] | None:
         table = _postgres_table(record_type)

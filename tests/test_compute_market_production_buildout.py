@@ -235,6 +235,68 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:
+    service = _service()
+    job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+
+    claimed = service.claim_job({"worker_id": "worker_1", "ttl_seconds": 60, "capabilities": ["gpu:H100"]})
+    assert claimed["job"]["job_id"] == job_id
+    assert claimed["job"]["status"] == "dispatched"
+    assert claimed["job"]["claimed_by"] == "worker_1"
+    assert claimed["job"]["lease_expires_at"]
+    assert service.claim_job({"worker_id": "worker_2"})["ok"] is False
+
+    try:
+        service.dispatch_job(job_id, {"worker_id": "worker_2"})
+    except ValueError as exc:
+        assert "does not own claim" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("non-owning worker dispatched a claimed job")
+
+    heartbeat = service.heartbeat_job(job_id, {"worker_id": "worker_1", "ttl_seconds": 120})
+    assert heartbeat["job"]["heartbeat_count"] == 1
+    dispatched = service.dispatch_job(job_id, {"worker_id": "worker_1"})
+    assert dispatched["job"]["status"] == "running"
+    completed = service.complete_job(job_id, {"worker_id": "worker_1", "actual_total_cost": 0.2})
+    assert completed["job"]["status"] == "succeeded"
+    assert completed["job"]["completed_by_worker_id"] == "worker_1"
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+    assert {"job.claimed", "job.heartbeat", "job.started", "job.completed"}.issubset(event_types)
+
+
+def test_compute_worker_release_and_expired_lease_reclaim() -> None:
+    service = _service()
+    first_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    released_claim = service.claim_job({"worker_id": "worker_1"})
+    assert released_claim["job"]["job_id"] == first_job_id
+
+    released = service.release_job_claim(first_job_id, {"worker_id": "worker_1", "reason": "worker shutdown"})
+    assert released["job"]["status"] == "queued"
+    reclaimed = service.claim_job({"worker_id": "worker_2"})
+    assert reclaimed["job"]["job_id"] == first_job_id
+    assert reclaimed["job"]["claimed_by"] == "worker_2"
+
+    second_job_id = str(service.create_job({**_job_payload(), "job_id": "job_expired_claim"})["job"]["job_id"])
+    expired = service.claim_job({"worker_id": "worker_3", "job_id": second_job_id})
+    stale_job = dict(expired["job"])
+    stale_job["lease_expires_at"] = "2000-01-01T00:00:00Z"
+    service.store.put_record(
+        "compute_job",
+        second_job_id,
+        stale_job,
+        provider_id=str(stale_job["provider_id"]),
+        route_id=str(stale_job["route_id"]),
+        task_type=str(stale_job["task_type"]),
+        status="dispatched",
+        expires_at="2000-01-01T00:00:00Z",
+        actor_id="worker_3",
+    )
+
+    expired_reclaim = service.claim_job({"worker_id": "worker_4", "job_id": second_job_id})
+    assert expired_reclaim["job"]["claimed_by"] == "worker_4"
+    assert expired_reclaim["job"]["dispatch_attempt"] == 2
+
+
 def test_compute_job_failure_and_invalid_transitions_are_rejected() -> None:
     service = _service()
     job_id = str(service.create_job(_job_payload())["job"]["job_id"])
@@ -294,6 +356,9 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/compute/jobs") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/dispatch") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/complete") == ("compute:execute",)
+        assert required_scopes_for("POST", "/compute/jobs/claim") == ("compute:execute",)
+        assert required_scopes_for("POST", "/compute/jobs/job_1/heartbeat") == ("compute:execute",)
+        assert required_scopes_for("POST", "/compute/jobs/job_1/release-claim") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
@@ -307,10 +372,12 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert fetched["provider"]["provider_id"] == "provider_live_gpu_1"
         job = router.dispatch("POST", "/compute/jobs", _job_payload())
         job_id = str(job["job"]["job_id"])
-        dispatched = router.dispatch("POST", f"/compute/jobs/{job_id}/dispatch", {})
-        completed = router.dispatch("POST", f"/compute/jobs/{job_id}/complete", {"actual_total_cost": 0.12})
+        claimed = router.dispatch("POST", "/compute/jobs/claim", {"worker_id": "worker_api"})
+        dispatched = router.dispatch("POST", f"/compute/jobs/{job_id}/dispatch", {"worker_id": "worker_api"})
+        completed = router.dispatch("POST", f"/compute/jobs/{job_id}/complete", {"actual_total_cost": 0.12, "worker_id": "worker_api"})
         telemetry = router.dispatch("GET", "/compute/telemetry")
         assert dispatched["job"]["status"] == "running"
+        assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
         assert telemetry["summary"]["metric_sample_count"] >= 1
     finally:

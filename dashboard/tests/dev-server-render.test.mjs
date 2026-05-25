@@ -5,7 +5,9 @@ import { dashboardHtml, createMissionControlDevServer, startMissionControlDevSer
 const html = dashboardHtml();
 
 assert.match(html, /Mission Control Run Selector/);
-assert.match(html, /Verified work becomes living memory/);
+assert.match(html, /Verified work[\s\S]*becomes living memory/);
+assert.match(html, /mission-inline-image/);
+assert.match(html, /mission-hero-asymmetry/);
 assert.match(html, /FlowMemory turns local agent runs/);
 assert.match(html, /mission-brand-nav/);
 assert.match(html, /mission-media-stage/);
@@ -14,6 +16,10 @@ assert.match(html, /mission-marquee/);
 assert.match(html, /mission-proof-bento/);
 assert.match(html, /mission-action-footer/);
 assert.match(html, /data-motion="scrub-text"/);
+assert.match(html, /\/vendor\/gsap\.min\.js/);
+assert.match(html, /\/vendor\/ScrollTrigger\.min\.js/);
+assert.match(html, /gsap\.registerPlugin\(ScrollTrigger\)/);
+assert.match(html, /ScrollTrigger\.create/);
 assert.doesNotMatch(html, /Mission Control for verified work memory/);
 assert.doesNotMatch(html, /mission-hero-metrics/);
 assert.match(html, /Live Neural Agent Launch/);
@@ -64,7 +70,15 @@ try {
   assert.match(logs.join("\n"), /already in use; trying/);
   const response = await fetch(started.url);
   assert.equal(response.status, 200);
-  assert.match(await response.text(), /Verified work becomes living memory/);
+  const servedHtml = await response.text();
+  assert.match(servedHtml, /Verified work/);
+  assert.match(servedHtml, /mission-inline-image/);
+  const gsapResponse = await fetch(new URL("/vendor/gsap.min.js", started.url));
+  assert.equal(gsapResponse.status, 200);
+  assert.match(await gsapResponse.text(), /GSAP/);
+  const triggerResponse = await fetch(new URL("/vendor/ScrollTrigger.min.js", started.url));
+  assert.equal(triggerResponse.status, 200);
+  assert.match(await triggerResponse.text(), /ScrollTrigger/);
 } finally {
   started.server.close();
   occupied.server.close();

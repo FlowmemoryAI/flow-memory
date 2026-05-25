@@ -29,6 +29,7 @@ Thumbs.db
 # Build artifacts
 dist/
 build/
+node_modules/
 coverage.xml
 htmlcov/
 

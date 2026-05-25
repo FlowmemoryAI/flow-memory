@@ -10,6 +10,7 @@
     "build": "node tests/mock-api.test.mjs && node tests/mission-control.test.mjs && node tests/replay-controller.test.mjs && node tests/dev-server-render.test.mjs",
     "dev": "node scripts/dev-server.mjs"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "gsap": "^3.15.0"
+  }
 }

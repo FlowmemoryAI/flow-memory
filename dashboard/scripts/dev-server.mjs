@@ -9,6 +9,11 @@ const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || '127.0.0.1';
 const mockDataDir = path.join(root, 'src', 'mock-data');
 const stylePath = path.join(root, 'src', 'styles', 'mission-control.css');
+const gsapDistDir = path.join(root, 'node_modules', 'gsap', 'dist');
+const vendorScripts = new Map([
+  ['gsap.min.js', path.join(gsapDistDir, 'gsap.min.js')],
+  ['ScrollTrigger.min.js', path.join(gsapDistDir, 'ScrollTrigger.min.js')],
+]);
 
 const fixtureSpecs = [
   {
@@ -426,7 +431,13 @@ function renderMotionScript() {
 (() => {
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
-  const scrubBlocks = Array.from(document.querySelectorAll('[data-motion="scrub-text"]'));
+  const gsap = window.gsap;
+  const ScrollTrigger = window.ScrollTrigger;
+  if (!gsap || !ScrollTrigger) return;
+
+  gsap.registerPlugin(ScrollTrigger);
+
+  const scrubBlocks = gsap.utils.toArray('[data-motion="scrub-text"]');
   for (const block of scrubBlocks) {
     const words = block.textContent.trim().split(/\\s+/);
     block.textContent = '';
@@ -436,38 +447,70 @@ function renderMotionScript() {
       span.textContent = word + ' ';
       block.appendChild(span);
     }
+    const spans = block.querySelectorAll('.mission-scrub-word');
+    gsap.fromTo(
+      spans,
+      { opacity: 0.12 },
+      {
+        opacity: 1,
+        stagger: 0.045,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: block,
+          start: 'top 78%',
+          end: 'bottom 38%',
+          scrub: true,
+        },
+      },
+    );
   }
 
-  const animated = Array.from(document.querySelectorAll('[data-motion="image-scale"], .mission-scrub-word'));
-  const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+  gsap.utils.toArray('[data-motion="image-scale"]').forEach((element) => {
+    gsap.fromTo(
+      element,
+      { opacity: 0.28, scale: 0.82, y: 42 },
+      {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: element,
+          start: 'top 92%',
+          end: 'bottom 22%',
+          scrub: true,
+        },
+      },
+    );
+  });
 
-  function update() {
-    const viewport = window.innerHeight || 1;
-    for (const element of animated) {
-      const rect = element.getBoundingClientRect();
-      const progress = clamp(1 - Math.abs((rect.top + rect.height * 0.5 - viewport * 0.52) / viewport), 0, 1);
-      if (element.classList.contains('mission-scrub-word')) {
-        element.style.opacity = String(0.16 + progress * 0.84);
-      } else {
-        element.style.opacity = String(0.52 + progress * 0.48);
-        element.style.transform = \`scale(\${0.94 + progress * 0.06}) translateY(\${(1 - progress) * 18}px)\`;
-      }
-    }
-  }
-
-  let ticking = false;
-  const requestUpdate = () => {
-    if (ticking) return;
-    ticking = true;
-    requestAnimationFrame(() => {
-      ticking = false;
-      update();
+  gsap.matchMedia().add('(min-width: 1081px)', () => {
+    ScrollTrigger.create({
+      trigger: '.mission-proof-narrative',
+      start: 'top 92px',
+      end: 'bottom 68%',
+      pin: '.mission-proof-copy',
+      pinSpacing: false,
     });
-  };
 
-  window.addEventListener('scroll', requestUpdate, { passive: true });
-  window.addEventListener('resize', requestUpdate);
-  update();
+    gsap.utils.toArray('.mission-bento-card').forEach((card, index) => {
+      gsap.fromTo(
+        card,
+        { y: 68 + index * 12, scale: 0.92 },
+        {
+          y: 0,
+          scale: 1,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 92%',
+            end: 'top 44%',
+            scrub: true,
+          },
+        },
+      );
+    });
+  });
 })();
 </script>`;
 }
@@ -500,9 +543,9 @@ function renderMissionControlHtml(payloads, finalizer) {
       <a class="mission-status-pill" href="#finalizer">Public alpha ready</a>
     </header>
 
-    <section class="mission-control-hero mission-hero-editorial" aria-labelledby="mission-control-title">
+    <section class="mission-control-hero mission-hero-asymmetry" aria-labelledby="mission-control-title">
       <div class="mission-hero-copy">
-        <h1 id="mission-control-title">Verified work becomes living memory.</h1>
+        <h1 id="mission-control-title">Verified work <span class="mission-inline-image" aria-hidden="true"></span> becomes living memory.</h1>
         <p class="mission-hero-lede" data-motion="scrub-text">FlowMemory turns local agent runs, replay evidence, neural embodiment, and launch gates into a human-scale memory layer for AI systems.</p>
         <div class="mission-hero-actions">
           <a class="mission-button mission-button-primary" href="#runs">Inspect runs <span aria-hidden="true">→</span></a>
@@ -546,6 +589,8 @@ function renderMissionControlHtml(payloads, finalizer) {
     ${renderLive3DPanel(embodimentPayload, state)}
     ${renderActionFooter()}
   </main>
+  <script src="/vendor/gsap.min.js"></script>
+  <script src="/vendor/ScrollTrigger.min.js"></script>
   ${renderMotionScript()}
 </body>
 </html>`;
@@ -566,6 +611,16 @@ export function createMissionControlDevServer() {
     const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
     if (url.pathname === '/' || url.pathname === '/mission-control') {
       send(res, 200, 'text/html; charset=utf-8', dashboardHtml());
+      return;
+    }
+    if (url.pathname.startsWith('/vendor/')) {
+      const name = path.basename(url.pathname);
+      const filePath = vendorScripts.get(name);
+      if (!filePath || !fs.existsSync(filePath)) {
+        send(res, 404, 'application/json', JSON.stringify({ ok: false, error: 'vendor_asset_not_found' }));
+        return;
+      }
+      send(res, 200, 'application/javascript; charset=utf-8', fs.readFileSync(filePath));
       return;
     }
     if (url.pathname.startsWith('/mock-data/')) {

@@ -8,6 +8,8 @@ from typing import Any, Mapping
 
 from flow_memory.compute_market.models import SUPPORTED_UNIT_TYPES
 from flow_memory.compute_market.storage import utc_now_iso
+from flow_memory.crypto.asymmetric import ED25519_ALGORITHM, LOCAL_TEST_ASYMMETRIC_ALGORITHM, LocalTestVerifier, PublicKeyRecord
+from flow_memory.crypto.ed25519 import Ed25519Verifier
 
 _REQUIRED_FIELDS = (
     "provider_id",
@@ -62,6 +64,7 @@ class ProviderQuoteContract:
     allowed_assets: tuple[str, ...] = ()
     allowed_networks: tuple[str, ...] = ()
     allow_unknown_unit_type: bool = False
+    public_key: str | Mapping[str, Any] = ""
     max_response_bytes: int = 65_536
 
     def validate(self, quote: Mapping[str, Any]) -> ProviderContractValidation:
@@ -124,8 +127,11 @@ class ProviderQuoteContract:
             errors.append("settlement_modes_malformed")
         if "policy" in quote or "policy_override" in quote or "ignore_policy" in quote:
             errors.append("policy_override_attempt")
-        if "signature" not in quote and "verification" not in quote:
+        signature_present = "signature" in quote or "verification" in quote
+        if not signature_present:
             warnings.append("unsigned_quote")
+        elif self.public_key and not verify_provider_quote_signature(quote, self.public_key):
+            errors.append("invalid_signature")
         return ProviderContractValidation(ok=not errors, error_codes=tuple(dict.fromkeys(errors)), warnings=tuple(warnings))
 
 
@@ -137,6 +143,7 @@ def validate_provider_quote_contract(
     allowed_networks: tuple[str, ...] = (),
     allow_unknown_unit_type: bool = False,
     max_response_bytes: int = 65_536,
+    public_key: str | Mapping[str, Any] = "",
 ) -> ProviderContractValidation:
     return ProviderQuoteContract(
         provider_id=provider_id,
@@ -144,6 +151,7 @@ def validate_provider_quote_contract(
         allowed_networks=allowed_networks,
         allow_unknown_unit_type=allow_unknown_unit_type,
         max_response_bytes=max_response_bytes,
+        public_key=public_key,
     ).validate(quote)
 
 
@@ -155,6 +163,41 @@ def validate_provider_contract_file(path: str | Path, *, provider_id: str = "") 
     result = validate_provider_quote_contract(quote, provider_id=provider_id or str(quote.get("provider_id", "")))
     return {"ok": result.ok, "validation": result.as_record(), "path": str(path)}
 
+
+def verify_provider_quote_signature(quote: Mapping[str, Any], public_key: str | Mapping[str, Any]) -> bool:
+    envelope = quote.get("signature") or quote.get("verification")
+    if not isinstance(envelope, Mapping):
+        return False
+    record = dict(envelope)
+    public = _public_key_record(public_key, record)
+    if public is None:
+        return False
+    signed_payload = {
+        key: value
+        for key, value in quote.items()
+        if key not in {"signature", "verification"}
+    }
+    if public.algorithm == LOCAL_TEST_ASYMMETRIC_ALGORITHM:
+        return LocalTestVerifier(public).verify(signed_payload, record).ok
+    if public.algorithm == ED25519_ALGORITHM:
+        return Ed25519Verifier(public).verify(signed_payload, record).ok
+    return False
+
+
+def _public_key_record(public_key: str | Mapping[str, Any], envelope: Mapping[str, Any]) -> PublicKeyRecord | None:
+    if isinstance(public_key, Mapping):
+        key_id = str(public_key.get("key_id") or envelope.get("key_id") or "")
+        algorithm = str(public_key.get("algorithm") or envelope.get("algorithm") or "")
+        key_value = str(public_key.get("public_key") or public_key.get("key") or "")
+        local_only = bool(public_key.get("local_only", algorithm == LOCAL_TEST_ASYMMETRIC_ALGORITHM))
+    else:
+        key_id = str(envelope.get("key_id") or "")
+        algorithm = str(envelope.get("algorithm") or ED25519_ALGORITHM)
+        key_value = str(public_key or envelope.get("public_key") or "")
+        local_only = algorithm == LOCAL_TEST_ASYMMETRIC_ALGORITHM
+    if not key_id or not algorithm or not key_value:
+        return None
+    return PublicKeyRecord(key_id=key_id, algorithm=algorithm, public_key=key_value, local_only=local_only)
 
 def _float_or_none(value: object) -> float | None:
     if value is None or value == "":

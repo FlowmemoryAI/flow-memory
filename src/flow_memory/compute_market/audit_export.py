@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from urllib.parse import unquote, urlparse
 from pathlib import Path
 from typing import Any, Mapping, Protocol
 
@@ -261,6 +262,33 @@ class S3WormAuditExporter:
 
     def get_status(self) -> Mapping[str, object]:
         return {"configured": False, "exporter": "s3_worm_ready", "bucket": self.bucket, "prefix": self.prefix}
+
+
+def create_audit_exporter(uri: str | Path | None) -> AuditExporterProtocol:
+    """Resolve a deployment audit-export URI to a concrete exporter.
+
+    Bare paths and file:// URIs write local tamper-evident NDJSON exports.
+    s3:// URIs deliberately resolve to a fail-closed WORM scaffold until a
+    deployment binds cloud credentials and object-lock semantics.
+    """
+
+    raw = str(uri or "").strip()
+    if not raw:
+        return NoopAuditExporter()
+    parsed = urlparse(raw)
+    if parsed.scheme in {"", "file"} or (len(parsed.scheme) == 1 and len(raw) >= 3 and raw[1] == ":" and raw[2] in {"\\", "/"}):
+        if parsed.scheme == "file":
+            path = unquote(parsed.path)
+            if parsed.netloc:
+                path = f"//{parsed.netloc}{path}"
+            if len(path) >= 3 and path[0] == "/" and path[2] == ":":
+                path = path[1:]
+        else:
+            path = raw
+        return LocalFileAuditExporter(Path(path))
+    if parsed.scheme == "s3":
+        return S3WormAuditExporter(bucket=parsed.netloc, prefix=parsed.path.lstrip("/"))
+    return NoopAuditExporter(f"unsupported_audit_export_uri:{parsed.scheme}")
 
 
 def build_checkpoint(

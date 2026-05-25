@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 116,
-  "manifest_hash": "ff73c31a9f24bdd5e4584c90d082426abc979693b0f081d1f607eb6d13809ba6",
-  "openapi_hash": "715059017be60edb13349e27a65ffa8164315a675d861d46670d73b05b290c38",
+  "endpoint_count": 117,
+  "manifest_hash": "8d9a6f2783c75a9f571f270408c15f992ef808e0c65253c2e45bfcb2d51f303b",
+  "openapi_hash": "0d3a3da691ba6ab9685e006e25cf3f6e9e128168bef3915148ff1effc53068bb",
   "operations": [
     "GET /admin/reconciliation",
     "GET /agents",
@@ -99,6 +99,7 @@
     "POST /market/capacity/release",
     "POST /market/capacity/reserve",
     "POST /market/providers/apply",
+    "POST /market/providers/{provider_id}/conformance",
     "POST /market/providers/{provider_id}/disable",
     "POST /market/providers/{provider_id}/verify",
     "POST /market/quotes/ingest",
@@ -120,7 +121,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 109,
+  "path_count": 110,
   "paths": [
     "/admin/reconciliation",
     "/agents",
@@ -191,6 +192,7 @@
     "/market/prices/history",
     "/market/providers/apply",
     "/market/providers/{provider_id}",
+    "/market/providers/{provider_id}/conformance",
     "/market/providers/{provider_id}/disable",
     "/market/providers/{provider_id}/reputation",
     "/market/providers/{provider_id}/verify",

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import json
 import sys
 from collections.abc import Mapping, Sequence
 
@@ -24,6 +25,7 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
     parser.add_argument("--host", default=source.get("FLOW_MEMORY_API_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=_int(source.get("FLOW_MEMORY_API_PORT"), 8765))
     parser.add_argument("--api-key", default=source.get("FLOW_MEMORY_API_KEY", ""))
+    api_key_records = _api_key_records(source.get("FLOW_MEMORY_API_KEYS_JSON", ""))
     parser.add_argument(
         "--require-scopes",
         action="store_true",
@@ -54,6 +56,7 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         host=str(args.host),
         port=int(args.port),
         api_key=str(args.api_key),
+        api_key_records=api_key_records,
         require_scopes=bool(args.require_scopes),
         rate_limit=int(args.rate_limit),
         rate_limit_window_seconds=int(args.rate_limit_window_seconds),
@@ -62,7 +65,7 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
     errors = config.validate()
     if errors:
         parser.error("; ".join(errors))
-    if _public_bind(config.host) and not config.api_key and not bool(args.allow_unauthenticated_public_bind):
+    if _public_bind(config.host) and not config.api_key and not config.api_key_records and not bool(args.allow_unauthenticated_public_bind):
         parser.error("FLOW_MEMORY_API_KEY or --api-key is required when binding the API server to a non-local host")
     return config
 
@@ -90,6 +93,20 @@ def _int(value: str | None, default: int) -> int:
         return default
     return int(value)
 
+
+
+def _api_key_records(value: str | None) -> tuple[Mapping[str, object], ...]:
+    if value is None or not value.strip():
+        return ()
+    decoded = json.loads(value)
+    if not isinstance(decoded, list):
+        raise ValueError("FLOW_MEMORY_API_KEYS_JSON must be a JSON array")
+    records: list[Mapping[str, object]] = []
+    for item in decoded:
+        if not isinstance(item, Mapping):
+            raise ValueError("FLOW_MEMORY_API_KEYS_JSON entries must be objects")
+        records.append(item)
+    return tuple(records)
 
 if __name__ == "__main__":
     raise SystemExit(main())

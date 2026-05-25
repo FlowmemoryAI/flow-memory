@@ -7,6 +7,7 @@ from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
+from flow_memory.compute_market.audit_export import LocalFileAuditExporter, NoopAuditExporter, S3WormAuditExporter, create_audit_exporter
 from flow_memory.cli import main as cli_main
 
 
@@ -156,3 +157,59 @@ def test_audit_export_refuses_secret_payload(tmp_path: Any) -> None:
 
     assert result["ok"] is False
     assert "audit_export_refused" in result["warnings"]
+
+
+def test_audit_export_uses_configured_exporter_when_out_is_omitted(tmp_path: Any) -> None:
+    out = tmp_path / "configured" / "audit.ndjson"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", audit_export_uri=str(out), audit_export_required=True),
+    )
+    service.plan({"task": "configured audit export"})
+
+    exported = service.audit_export({"chain_id": "all"})
+    readiness = service.readiness()
+
+    assert exported["ok"] is True
+    assert exported["path"] == str(out)
+    assert out.exists()
+    assert readiness["ready"] is True
+    assert readiness["audit_exporter_status"]["configured"] is True
+
+
+def test_audit_exporter_factory_resolves_file_s3_and_empty(tmp_path: Any) -> None:
+    local = create_audit_exporter(tmp_path / "audit.ndjson")
+    file_uri = create_audit_exporter((tmp_path / "file-uri.ndjson").as_uri())
+    s3 = create_audit_exporter("s3://flow-memory-audit/checkpoints")
+    empty = create_audit_exporter("")
+
+    assert isinstance(local, LocalFileAuditExporter)
+    assert isinstance(file_uri, LocalFileAuditExporter)
+    assert isinstance(s3, S3WormAuditExporter)
+    assert isinstance(empty, NoopAuditExporter)
+    assert s3.get_status()["configured"] is False
+
+
+def test_audit_checkpoint_paginates_all_events() -> None:
+    service = _service()
+    for index in range(520):
+        service.store.append_audit_event(
+            {
+                "audit_event_id": f"manual-audit-{index}",
+                "action": "compute.test",
+                "request_id": f"req-{index}",
+                "actor_id": "local",
+                "actor_type": "system",
+                "result": "completed",
+                "dry_run_only": True,
+                "funds_moved": False,
+                "broadcast_allowed": False,
+                "private_key_required": False,
+                "created_at": f"2026-05-25T00:{index // 60:02d}:{index % 60:02d}Z",
+            }
+        )
+
+    checkpoint = service.audit_checkpoint({"chain_id": "all"})["checkpoint"]
+
+    assert checkpoint["event_count"] == 520
+    assert checkpoint["to_sequence"] == 520

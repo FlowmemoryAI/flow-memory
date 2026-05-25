@@ -1,6 +1,6 @@
 import unittest
 
-from flow_memory.api.auth import ApiAuthConfig, authorize_request, require_api_key
+from flow_memory.api.auth import ApiAuthConfig, api_key_hash, authorize_request, require_api_key
 from flow_memory.api.signed_requests import sign_request
 from flow_memory.crypto import generate_local_keypair
 
@@ -14,6 +14,29 @@ class ApiAuthTests(unittest.TestCase):
     def test_api_key_headers_are_case_insensitive(self) -> None:
         config = ApiAuthConfig(api_key="test")
         self.assertTrue(require_api_key({"X-Flow-Memory-Api-Key": "test"}, config))
+
+    def test_tenant_scoped_api_key_record_resolves_identity_and_scopes(self) -> None:
+        config = ApiAuthConfig(
+            api_key_records=(
+                {
+                    "key_id": "key_tenant_a_v1",
+                    "key_prefix": "fmk_tenant_",
+                    "key_hash": api_key_hash("fmk_tenant_secret"),
+                    "tenant_id": "tenant_a",
+                    "principal": "svc-tenant-a",
+                    "scopes": ["compute:read", "compute:plan"],
+                    "enabled": True,
+                },
+            )
+        )
+
+        decision = authorize_request({"x-flow-memory-api-key": "fmk_tenant_secret"}, config)
+
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.tenant_id, "tenant_a")
+        self.assertEqual(decision.principal, "svc-tenant-a")
+        self.assertEqual(decision.scopes, ("compute:plan", "compute:read"))
+        self.assertFalse(require_api_key({"x-flow-memory-api-key": "wrong"}, config))
 
     def test_authorize_request_accepts_valid_api_key_and_signature(self) -> None:
         key = generate_local_keypair("api-auth")

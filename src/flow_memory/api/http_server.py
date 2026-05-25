@@ -28,6 +28,7 @@ class HttpApiConfig:
     host: str = "127.0.0.1"
     port: int = 8765
     api_key: str = ""
+    api_key_records: tuple[Mapping[str, Any], ...] = ()
     require_scopes: bool = False
     enable_rate_limit: bool = True
     rate_limit: int = 120
@@ -86,6 +87,7 @@ class HttpApiGateway:
             principal=context.principal,
             scopes=context.scopes,
             client_id=context.client_id,
+            tenant_id=context.tenant_id,
         )
         if context.method in {"GET", "HEAD"} and context.path == "/healthz":
             return HttpApiResponse(
@@ -131,11 +133,21 @@ class HttpApiGateway:
                 payload = {**query_payload, **dict(payload)}
             auth = authorize_request(
                 header_map,
-                ApiAuthConfig(api_key=self.config.api_key),
+                ApiAuthConfig(api_key=self.config.api_key, api_key_records=self.config.api_key_records),
                 method=context.method,
                 path=context.path,
                 payload=payload,
             )
+            if auth.ok and (auth.scopes or auth.tenant_id or auth.principal):
+                context = context.__class__(
+                    method=context.method,
+                    path=context.path,
+                    request_id=context.request_id,
+                    principal=auth.principal or context.principal,
+                    scopes=tuple(sorted(set(context.scopes) | set(auth.scopes))),
+                    client_id=context.client_id,
+                    tenant_id=auth.tenant_id or context.tenant_id,
+                )
             if not auth.ok:
                 raise auth_error("API authorization failed", details={"reasons": auth.reasons})
             if self.config.require_scopes:

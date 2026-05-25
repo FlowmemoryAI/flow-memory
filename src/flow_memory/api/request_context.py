@@ -14,6 +14,7 @@ class RequestContext:
     principal: str = "anonymous"
     scopes: tuple[str, ...] = ()
     client_id: str = "local"
+    tenant_id: str = ""
 
     def as_record(self) -> dict[str, Any]:
         return {
@@ -23,6 +24,7 @@ class RequestContext:
             "principal": self.principal,
             "scopes": self.scopes,
             "client_id": self.client_id,
+            "tenant_id": self.tenant_id,
         }
 
 
@@ -35,11 +37,13 @@ def build_request_context(
     principal: str = "",
     scopes: tuple[str, ...] = (),
     client_id: str = "",
+    tenant_id: str = "",
 ) -> RequestContext:
     header_map = headers or {}
     resolved_request_id = request_id or _header(header_map, "x-request-id")
     resolved_principal = principal or _header(header_map, "x-flow-memory-principal") or "anonymous"
     resolved_client = client_id or _header(header_map, "x-flow-memory-client") or "local"
+    resolved_tenant = tenant_id or _header(header_map, "x-flow-memory-tenant")
     return RequestContext(
         method=method.upper(),
         path=_normalize_path(path),
@@ -47,6 +51,7 @@ def build_request_context(
         principal=resolved_principal,
         scopes=tuple(sorted(set(scopes))),
         client_id=resolved_client,
+        tenant_id=resolved_tenant,
     )
 
 

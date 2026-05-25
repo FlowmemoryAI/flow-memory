@@ -110,6 +110,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
 
     checks["provider_apply"] = call_json("POST", f"{base}/market/providers/apply", headers_provider, provider)
     checks["provider_verify"] = call_json("POST", f"{base}/market/providers/{provider_id}/verify", headers_provider, {})
+    checks["provider_conformance"] = call_json("POST", f"{base}/market/providers/{provider_id}/conformance", headers_provider, {"sample_quote": quote, "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
     checks["provider_get"] = call_json("GET", f"{base}/market/providers/{provider_id}", headers_read)
     checks["capacity_list"] = call_json(
         "POST",
@@ -171,7 +172,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
-    for name in ("provider_apply", "provider_verify", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_retry", "job_cancel"):
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_retry", "job_cancel"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")

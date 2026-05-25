@@ -3192,6 +3192,77 @@
         ]
       }
     },
+    "/market/providers/{provider_id}/conformance": {
+      "post": {
+        "operationId": "market_provider_conformance",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "allowed_assets": {
+                    "type": "string"
+                  },
+                  "allowed_networks": {
+                    "type": "string"
+                  },
+                  "public_key": {
+                    "type": "string"
+                  },
+                  "sample_quote": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "conformance": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "signed_quote_valid": {
+                      "type": "string"
+                    },
+                    "validation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Validate a provider sandbox quote against the provider contract and optional signature",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/providers/{provider_id}/disable": {
       "post": {
         "operationId": "market_provider_disable",

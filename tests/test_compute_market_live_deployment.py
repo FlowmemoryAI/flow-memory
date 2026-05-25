@@ -61,6 +61,19 @@ def test_api_server_cli_accepts_public_bind_with_api_key_and_scopes() -> None:
     assert config.require_scopes is True
 
 
+def test_api_server_cli_accepts_public_bind_with_hashed_tenant_key_records() -> None:
+    config = build_http_api_config(
+        ["--host", "0.0.0.0", "--require-scopes"],
+        env={
+            "FLOW_MEMORY_API_KEYS_JSON": '[{"key_id":"tenant-key","key_prefix":"fmk_","key_hash":"hash","tenant_id":"tenant","scopes":["compute:read"],"enabled":true}]'
+        },
+    )
+
+    assert config.host == "0.0.0.0"
+    assert config.api_key == ""
+    assert config.api_key_records[0]["tenant_id"] == "tenant"
+
+
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = {"deploy_list": 0, "waited_for": ""}
 

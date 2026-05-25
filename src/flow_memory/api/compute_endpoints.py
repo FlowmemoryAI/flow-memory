@@ -71,6 +71,9 @@ def market_provider_verify(provider_id: str, payload: Mapping[str, Any]) -> Mapp
     return default_service().verify_market_provider(provider_id, payload)
 
 
+def market_provider_conformance(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().provider_conformance(provider_id, payload)
+
 def market_provider_disable(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().disable_market_provider(provider_id, payload)
 

@@ -8,6 +8,7 @@ from flow_memory.compute_market.provider_contracts import (
     validate_provider_contract_file,
     validate_provider_quote_contract,
 )
+from flow_memory.crypto.asymmetric import LocalTestSigner
 
 
 def _valid_quote(**overrides: Any) -> dict[str, Any]:
@@ -39,6 +40,27 @@ def test_provider_contract_accepts_valid_quote_fixture() -> None:
 
     assert result.ok is True
     assert result.error_codes == ()
+
+def test_provider_contract_verifies_signed_quote() -> None:
+    signer = LocalTestSigner("provider-local-gpu-key", "provider-local-gpu-seed")
+    unsigned = _valid_quote()
+    unsigned.pop("verification", None)
+    signed = {**unsigned, "signature": signer.sign(unsigned).as_record()}
+
+    result = validate_provider_quote_contract(
+        signed,
+        provider_id="provider-local-gpu",
+        public_key=signer.public_record().as_record(),
+    )
+    tampered = validate_provider_quote_contract(
+        {**signed, "estimated_total_cost": 6.0},
+        provider_id="provider-local-gpu",
+        public_key=signer.public_record().as_record(),
+    )
+
+    assert result.ok is True
+    assert tampered.ok is False
+    assert "invalid_signature" in tampered.error_codes
 
 
 def test_provider_contract_file_validation() -> None:

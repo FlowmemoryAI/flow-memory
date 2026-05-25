@@ -4,6 +4,7 @@ import urllib.error
 import urllib.request
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
+from flow_memory.api.auth import api_key_hash
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
@@ -72,6 +73,31 @@ def test_http_gateway_get_query_payload_reaches_router():
 
     assert response.status == 200
     assert response.body["data"]["balance"]["account_id"] == "acct_query"
+
+
+def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header():
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-key",
+                    "key_prefix": "fmk_tenant_",
+                    "key_hash": api_key_hash("fmk_tenant_http"),
+                    "tenant_id": "tenant_http",
+                    "principal": "svc-http",
+                    "scopes": "compute:read",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    response = gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": "fmk_tenant_http"})
+
+    assert response.status == 200
+    assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
 
 
 def test_dependency_free_http_server_handles_local_request():

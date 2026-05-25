@@ -88,6 +88,7 @@ from flow_memory.api.compute_endpoints import (
     market_provider,
     market_provider_apply,
     market_provider_disable,
+    market_provider_conformance,
     market_provider_reputation,
     market_provider_verify,
     market_quote_ingest,
@@ -617,6 +618,9 @@ class LocalApiRouter:
     def _billing_webhook_stripe(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_webhook_stripe(payload)
 
+    def _market_provider_conformance(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_conformance(params["provider_id"], payload)
+
     def _billing_balance(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_balance(payload)
 
@@ -726,6 +730,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/market/providers/apply", router._market_provider_apply, "market_provider_apply")
     router.register("GET", "/market/providers/{provider_id}", router._market_provider, "market_provider")
     router.register("POST", "/market/providers/{provider_id}/verify", router._market_provider_verify, "market_provider_verify")
+    router.register("POST", "/market/providers/{provider_id}/conformance", router._market_provider_conformance, "market_provider_conformance")
     router.register("POST", "/market/providers/{provider_id}/disable", router._market_provider_disable, "market_provider_disable")
     router.register("GET", "/market/providers/{provider_id}/reputation", router._market_provider_reputation, "market_provider_reputation")
     router.register("POST", "/market/quotes/ingest", router._market_quote_ingest, "market_quote_ingest")

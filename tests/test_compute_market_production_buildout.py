@@ -8,6 +8,7 @@ from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.hashes import content_hash
+from flow_memory.crypto.asymmetric import LocalTestSigner
 
 
 def _service() -> ComputeMarketService:
@@ -108,6 +109,40 @@ def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only()
     assert service.store.count_records("provider_secret_ref") == 1
 
 
+def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
+    signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")
+    service = _service()
+    application = _provider_application()
+    application["public_key"] = signer.public_record().public_key
+    service.apply_market_provider(application)
+    service.verify_market_provider("provider_live_gpu_1", {})
+
+    unsigned_quote = _quote()
+    signed_quote = {**unsigned_quote, "signature": signer.sign(unsigned_quote).as_record()}
+    conformance = service.provider_conformance(
+        "provider_live_gpu_1",
+        {
+            "sample_quote": signed_quote,
+            "public_key": signer.public_record().as_record(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        },
+    )
+    ingested = service.broker_quote(
+        {
+            "quote": signed_quote,
+            "public_key": signer.public_record().as_record(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+
+    assert conformance["ok"] is True
+    assert conformance["signed_quote_valid"] is True
+    assert ingested["ok"] is True
+    assert ingested["quote"]["signed_quote_valid"] is True
+
+
 
 def test_quote_broker_validates_replay_cache_and_drift() -> None:
     service = _service()
@@ -206,6 +241,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/compute/jobs") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
+        assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
         assert required_scopes_for("GET", "/market/prices") == ("compute:read",)
 
         applied = router.dispatch("POST", "/market/providers/apply", _provider_application())

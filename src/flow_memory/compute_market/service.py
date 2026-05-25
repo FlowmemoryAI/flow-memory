@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
-from flow_memory.compute_market.audit_export import LocalFileAuditExporter, build_checkpoint, verify_audit_export
+from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, build_checkpoint, create_audit_exporter, verify_audit_export
 from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
-from flow_memory.compute_market.provider_contracts import validate_provider_quote_contract
+from flow_memory.compute_market.provider_contracts import validate_provider_quote_contract, verify_provider_quote_signature
 from flow_memory.compute_market.memory import query_economic_memory_typed, query_request_from_payload
 from flow_memory.compute_market.models import (
     AuditEvent,
@@ -58,6 +58,7 @@ class ComputeMarketService:
         telemetry: ComputeMarketTelemetry | None = None,
         rate_limiter: RateLimiter | None = None,
         circuit_breaker: CircuitBreaker | None = None,
+        audit_exporter: AuditExporterProtocol | None = None,
     ) -> None:
         self.config = config or config_from_env()
         errors = self.config.validate()
@@ -67,6 +68,7 @@ class ComputeMarketService:
         self.telemetry = telemetry or ComputeMarketTelemetry()
         self.rate_limiter = rate_limiter or create_rate_limiter(self.config)
         self.circuit_breaker = circuit_breaker or create_circuit_breaker(self.config)
+        self.audit_exporter = audit_exporter or create_audit_exporter(self.config.audit_export_uri)
         self.seed_defaults()
 
     def seed_defaults(self) -> None:
@@ -377,6 +379,44 @@ class ComputeMarketService:
         self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
 
+    def provider_conformance(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/conformance", request_id=request_id, provider_id=provider_id)
+        if limited is not None:
+            return limited
+        quote = payload.get("sample_quote", payload.get("quote", {}))
+        if not isinstance(quote, Mapping):
+            raise ValueError("sample_quote must be an object")
+        public_key = _provider_public_key(payload, provider_id, self)
+        validation = validate_provider_quote_contract(
+            quote,
+            provider_id=provider_id,
+            allowed_assets=_tuple(payload.get("allowed_assets", ())),
+            allowed_networks=_tuple(payload.get("allowed_networks", ())),
+            public_key=public_key,
+        )
+        signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
+        status = "conformant" if validation.ok else "failed"
+        snapshot = {
+            "health_snapshot_id": deterministic_id("provider_conformance", {"provider_id": provider_id, "request_id": request_id}),
+            "provider_id": provider_id,
+            "status": status,
+            "contract_ok": validation.ok,
+            "signed_quote_valid": signed_quote_valid,
+            "dry_run_only": True,
+            "funds_moved": False,
+            "broadcast_allowed": False,
+            "private_key_required": False,
+            "created_at": utc_now_iso(),
+            "request_id": request_id,
+            "error_codes": validation.error_codes,
+            "warnings": validation.warnings,
+        }
+        self.store.put_record("provider_health_snapshot", str(snapshot["health_snapshot_id"]), snapshot, provider_id=provider_id, status=status, request_id=request_id)
+        self._audit("market.provider.conformance_checked", payload, request_id=request_id, result=status, reason_codes=validation.error_codes, provider_id=provider_id)
+        return {"ok": validation.ok, "provider_id": provider_id, "validation": validation.as_record(), "signed_quote_valid": signed_quote_valid, "conformance": snapshot}
+
     def disable_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
         limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/disable", request_id=request_id, provider_id=provider_id)
@@ -510,11 +550,13 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        public_key = _provider_public_key(payload, provider_id, self)
         validation = validate_provider_quote_contract(
             quote,
             provider_id=provider_id,
             allowed_assets=_tuple(payload.get("allowed_assets", ())),
             allowed_networks=_tuple(payload.get("allowed_networks", ())),
+            public_key=public_key,
         )
         quote_id = str(quote.get("quote_id") or deterministic_id("quote", quote))
         quote_hash = content_hash(quote)
@@ -531,7 +573,8 @@ class ComputeMarketService:
         if not validation.ok:
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
             return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id}
-        record = _normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash)
+        signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
+        record = _normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid)
         previous = self.store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=1).records
         drift = _quote_drift(previous[0] if previous else {}, record)
         self.store.put_record(
@@ -875,9 +918,10 @@ class ComputeMarketService:
         return {"ok": ok, "audit_chain": result}
     def audit_export(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         out = str(payload.get("out") or payload.get("path") or "")
-        if not out:
-            raise ValueError("audit export requires --out/path")
-        exporter = LocalFileAuditExporter(Path(out))
+        exporter = LocalFileAuditExporter(Path(out)) if out else self.audit_exporter
+        status = exporter.get_status()
+        if not out and status.get("configured") is False:
+            raise ValueError("audit export requires configured audit_export_uri or --out/path")
         try:
             result = exporter.export_events(
                 self.store,
@@ -894,7 +938,7 @@ class ComputeMarketService:
 
     def audit_checkpoint(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         chain_id = str(payload.get("chain_id", "all") or "all")
-        events = tuple(self.audit({"limit": 500}).get("audit_events", ()))
+        events = self._all_audit_events()
         if chain_id not in {"", "all"}:
             events = tuple(event for event in events if isinstance(event, Mapping) and str(event.get("chain_id", "")) == chain_id)
         checkpoint = build_checkpoint(
@@ -953,6 +997,7 @@ class ComputeMarketService:
                 "audit_export_configured": bool(self.config.audit_export_uri),
                 "provider_contracts_verified": self.config.provider_contracts_verified,
                 "external_provider_allowlist_configured": bool(self.config.external_provider_allowlist),
+                "audit_exporter_status": self.audit_exporter.get_status(),
             }
         )
         return health
@@ -991,7 +1036,12 @@ class ComputeMarketService:
             failures.append("provider_registry_unavailable")
         if self.config.require_managed_sql_in_production and self.config.storage_backend_effective != "postgresql":
             failures.append("sqlite_disallowed_in_production")
-        if self.config.audit_export_required and not self.config.audit_export_uri:
+        audit_exporter_status = health.get("audit_exporter_status", {})
+        if self.config.audit_export_required and (
+            not self.config.audit_export_uri
+            or not isinstance(audit_exporter_status, Mapping)
+            or audit_exporter_status.get("configured") is False
+        ):
             failures.append("audit_export_unavailable")
         if self.config.external_provider_quotes_enabled and not self.config.external_provider_allowlist:
             failures.append("external_provider_allowlist_missing")
@@ -1106,6 +1156,17 @@ class ComputeMarketService:
         if memory and self.config.economic_memory_writes_enabled:
             self.store.put_record("economic_memory", str(memory.get("record_id", deterministic_id("economic_memory", memory))), memory, agent_id=str(memory.get("agent_id", "")), goal_id=str(memory.get("goal_id", "")), provider_id=str(memory.get("provider_id", "")), route_id=str(memory.get("route_id", "")), task_type=str(memory.get("task_type", "")), task_hash=str(memory.get("task_hash", "")), status=str(memory.get("policy_result", "")), idempotency_key=idempotency_key, request_id=request_id)
             self.telemetry.increment("compute_economic_memory_writes_total")
+
+    def _all_audit_events(self, *, limit: int = 500) -> tuple[Mapping[str, Any], ...]:
+        records: list[Mapping[str, Any]] = []
+        cursor = ""
+        while True:
+            page = self.store.list_records("audit_event", limit=limit, cursor=cursor, include_archived=True)
+            records.extend(page.records)
+            if not page.next_cursor:
+                break
+            cursor = page.next_cursor
+        return tuple(records)
 
     def _audit(
         self,
@@ -1276,6 +1337,14 @@ def _provider_secret_reference(payload: Mapping[str, Any], *, provider_id: str, 
 
 def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]:
     now = utc_now_iso()
+    public_key = str(application.get("public_key", ""))
+    metadata = {
+        "quote_endpoint": str(application.get("quote_endpoint", "")),
+        "health_endpoint": str(application.get("health_endpoint", "")),
+        "sla": dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {},
+    }
+    if public_key:
+        metadata["public_key"] = public_key
     return {
         "provider_id": str(application["provider_id"]),
         "provider_name": str(application["provider_name"]),
@@ -1287,11 +1356,8 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "reliability_score": 1.0,
         "dry_run_only": True,
         "capacity_available": True,
-        "metadata": {
-            "quote_endpoint": str(application.get("quote_endpoint", "")),
-            "health_endpoint": str(application.get("health_endpoint", "")),
-            "sla": dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {},
-        },
+        "metadata": metadata,
+        "public_key": public_key,
         "created_at": str(application.get("created_at", now)),
         "updated_at": now,
         "status": "active",
@@ -1306,6 +1372,27 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "verified": True,
         "config_version": 1,
     }
+
+
+def _provider_public_key(payload: Mapping[str, Any], provider_id: str, service: ComputeMarketService) -> str | Mapping[str, Any]:
+    for key in ("provider_public_key", "public_key"):
+        value = payload.get(key)
+        if isinstance(value, Mapping) or str(value or ""):
+            return value  # type: ignore[return-value]
+    provider = service.store.get_record("compute_provider", provider_id) or {}
+    provider_key = provider.get("public_key") if isinstance(provider, Mapping) else ""
+    if provider_key:
+        return str(provider_key)
+    metadata = provider.get("metadata", {}) if isinstance(provider, Mapping) else {}
+    if isinstance(metadata, Mapping) and metadata.get("public_key"):
+        return str(metadata["public_key"])
+    try:
+        application = service._latest_provider_application(provider_id)
+    except KeyError:
+        return ""
+    if application.get("public_key"):
+        return str(application["public_key"])
+    return ""
 
 
 def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...], quotes: tuple[Mapping[str, Any], ...], health: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
@@ -1335,7 +1422,7 @@ def _provider_reputation(provider_id: str, *, jobs: tuple[Mapping[str, Any], ...
     }
 
 
-def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote_hash: str) -> dict[str, Any]:
+def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote_hash: str, signed_quote_valid: bool = False) -> dict[str, Any]:
     now = utc_now_iso()
     estimated_total_cost = _positive_float(quote.get("estimated_total_cost"), "estimated_total_cost")
     return {
@@ -1362,7 +1449,7 @@ def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote
         "assumptions": tuple(str(item) for item in quote.get("assumptions", ())),
         "raw_quote_hash": quote_hash,
         "signed_quote": str(quote.get("signature", "")),
-        "signed_quote_valid": False,
+        "signed_quote_valid": signed_quote_valid,
         "created_at": now,
         "updated_at": now,
     }

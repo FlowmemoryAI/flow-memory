@@ -26,9 +26,18 @@ DEPLOY_PATHS = (
     "Dockerfile.compute-market",
     "render.yaml",
     "src/flow_memory/api/http_server.py",
+    "src/flow_memory/api/auth.py",
+    "src/flow_memory/api/compute_endpoints.py",
+    "src/flow_memory/api/manifest.py",
+    "src/flow_memory/api/router.py",
+    "src/flow_memory/api/server_cli.py",
+    "src/flow_memory/compute_market/audit_export.py",
+    "src/flow_memory/compute_market/provider_contracts.py",
+    "src/flow_memory/compute_market/service.py",
     "scripts/deploy_compute_market_public_level1.ps1",
     "scripts/deploy_compute_market_render_level1.py",
     "scripts/smoke_compute_market_public.ps1",
+    "scripts/validate_compute_market_public_buildout.py",
 )
 PLACEHOLDERS = (
     "CHANGEME",

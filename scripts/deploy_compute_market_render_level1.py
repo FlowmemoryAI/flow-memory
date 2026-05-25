@@ -335,6 +335,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     headers_read = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:read"}
     headers_plan = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:plan"}
     headers_audit = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:audit"}
+    checks["root"] = call_json("GET", f"{base}/")
     checks["health"] = call_json("GET", f"{base}/compute/health", headers_read)
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
     checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
@@ -347,8 +348,11 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     storage = readiness_payload.get("storage", {})
     plan_payload = checks["plan"][1].get("data", {}).get("compute_plan", {}) if isinstance(checks["plan"][1], dict) else {}
     audit_ok = checks["audit_verify"][0] == 200 and checks["audit_verify"][1].get("ok") is True
+    root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
     ok = all(
         (
+            checks["root"][0] == 200,
+            root_payload.get("service") == "Flow Memory Compute Market",
             health_ok,
             checks["readiness"][0] == 200,
             readiness_payload.get("ready") is True,

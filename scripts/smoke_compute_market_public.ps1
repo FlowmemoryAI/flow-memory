@@ -110,6 +110,11 @@ function Get-DataField {
     if ($null -eq $Json -or $null -eq $Json.data) { return $null }
     return $Json.data.$Name
 }
+$root = Invoke-WebRequest -Uri "$baseUrl/" -Method GET -TimeoutSec 90
+$rootJson = $root.Content | ConvertFrom-Json
+Assert-True ([int]$root.StatusCode -eq 200) 'root did not return HTTP 200.'
+Assert-True ($rootJson.ok -eq $true) 'root did not return ok=true.'
+Assert-True ($rootJson.data.service -eq 'Flow Memory Compute Market') 'root did not identify Flow Memory Compute Market.'
 
 $health = Invoke-ComputeMarketRequest -Method GET -Path '/compute/health' -Scopes 'compute:read'
 Assert-Status -Response $health -Expected 200 -Name 'health'
@@ -161,6 +166,7 @@ Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 $result = [ordered]@{
     status = 'passed'
     public_url = $baseUrl
+    root = [int]$root.StatusCode
     health = $health.StatusCode
     readiness = $readiness.StatusCode
     storage_backend = $storageBackend

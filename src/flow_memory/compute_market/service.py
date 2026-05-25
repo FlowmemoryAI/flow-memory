@@ -1670,18 +1670,25 @@ class ComputeMarketService:
         signature = str(payload.get("stripe_signature", ""))
         verified = bool(secret) and _verify_webhook_signature(raw_event, secret, signature)
         event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
+        event_type = str(raw_event.get("type", ""))
         account_id = _stripe_account_id(raw_event, payload)
         credit = _stripe_credit(raw_event)
+        failure = _stripe_failure(raw_event)
+        status = _stripe_payment_event_status(event_type, verified)
+        reason_codes = _stripe_webhook_reason_codes(status, failure)
         record = {
             "payment_event_id": event_id,
             "account_id": account_id,
             "provider": "stripe",
-            "event_type": str(raw_event.get("type", "")),
+            "event_type": event_type,
             "verified": verified,
-            "status": "verified" if verified else "rejected_unverified",
+            "status": status,
             "raw_event_hash": content_hash(raw_event),
             "amount": credit["amount"],
             "currency": credit["currency"],
+            "failure_recorded": bool(failure),
+            "failure_code": str(failure.get("code", "")),
+            "failure_reason": str(failure.get("reason", "")),
             "dry_run_only": True,
             "funds_moved": False,
             "external_payment_recorded": verified,
@@ -1689,6 +1696,8 @@ class ComputeMarketService:
         }
         if not verified:
             self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
+        elif _stripe_event_is_payment_failure(event_type):
+            self.telemetry.increment("billing_payment_failed_total", {"provider": "stripe", "event_type": event_type})
         self.store.put_record("payment_event", event_id, record, tenant_id=account_id, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
         credit_record: Mapping[str, Any] = {}
         if verified and account_id and credit["amount"] > 0 and _stripe_event_posts_credit(raw_event):
@@ -1701,7 +1710,7 @@ class ComputeMarketService:
                 source_event_id=event_id,
             )
             self._audit("billing.credit.added", payload, request_id=request_id, result="credited")
-        self._audit("billing.webhook.received", payload, request_id=request_id, result=str(record["status"]), reason_codes=() if verified else ("webhook_signature_invalid",))
+        self._audit("billing.webhook.received", payload, request_id=request_id, result=str(record["status"]), reason_codes=reason_codes)
         return {"ok": verified, "payment_event": record, "credit_transaction": credit_record}
 
     def billing_balance(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -3441,8 +3450,18 @@ def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request
     }
 
 
+def _stripe_event_object(raw_event: Mapping[str, Any]) -> Mapping[str, Any]:
+    data = raw_event.get("data", {})
+    if isinstance(data, Mapping):
+        obj = data.get("object", {})
+        if isinstance(obj, Mapping):
+            return obj
+    return raw_event
+
+
 def _stripe_account_id(raw_event: Mapping[str, Any], payload: Mapping[str, Any]) -> str:
-    metadata = raw_event.get("metadata", {})
+    event_object = _stripe_event_object(raw_event)
+    metadata = event_object.get("metadata", raw_event.get("metadata", {}))
     if not isinstance(metadata, Mapping):
         metadata = {}
     return str(
@@ -3450,22 +3469,86 @@ def _stripe_account_id(raw_event: Mapping[str, Any], payload: Mapping[str, Any])
         or payload.get("tenant_id")
         or metadata.get("account_id")
         or metadata.get("tenant_id")
+        or event_object.get("client_reference_id")
         or raw_event.get("client_reference_id")
+        or event_object.get("customer")
         or raw_event.get("customer")
         or ""
     )
 
 
 def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
-    amount_source = raw_event.get("amount_total", raw_event.get("amount_paid", raw_event.get("amount", 0)))
+    event_object = _stripe_event_object(raw_event)
+    amount_source = event_object.get("amount_total", "")
+    if amount_source in (None, ""):
+        amount_source = event_object.get("amount_paid", "")
+    if amount_source in (None, ""):
+        amount_source = event_object.get("amount", "")
+    if amount_source in (None, ""):
+        amount_source = raw_event.get("amount_total", raw_event.get("amount_paid", raw_event.get("amount", 0)))
     amount = _non_negative_float(amount_source, "amount")
     if amount >= 100 and float(int(amount)) == amount:
         amount = amount / 100.0
-    return {"amount": amount, "currency": str(raw_event.get("currency", "USD")).upper()}
+    return {
+        "amount": amount,
+        "currency": str(event_object.get("currency", raw_event.get("currency", "USD"))).upper(),
+    }
 
 
 def _stripe_event_posts_credit(raw_event: Mapping[str, Any]) -> bool:
     return str(raw_event.get("type", "")) in {"checkout.session.completed", "invoice.paid", "payment_intent.succeeded"}
+
+
+def _stripe_event_is_payment_failure(event_type: str) -> bool:
+    return event_type in {
+        "checkout.session.expired",
+        "invoice.payment_failed",
+        "payment_intent.canceled",
+        "payment_intent.payment_failed",
+    }
+
+
+def _stripe_payment_event_status(event_type: str, verified: bool) -> str:
+    if not verified:
+        return "rejected_unverified"
+    if event_type == "checkout.session.expired":
+        return "verified_checkout_expired"
+    if event_type == "payment_intent.canceled":
+        return "verified_payment_canceled"
+    if _stripe_event_is_payment_failure(event_type):
+        return "verified_payment_failed"
+    return "verified"
+
+
+def _stripe_failure(raw_event: Mapping[str, Any]) -> Mapping[str, str]:
+    event_type = str(raw_event.get("type", ""))
+    if not _stripe_event_is_payment_failure(event_type):
+        return {}
+    event_object = _stripe_event_object(raw_event)
+    last_error = event_object.get("last_payment_error", raw_event.get("last_payment_error", {}))
+    if not isinstance(last_error, Mapping):
+        last_error = {}
+    code = str(
+        event_object.get("failure_code")
+        or raw_event.get("failure_code")
+        or last_error.get("code")
+        or event_type
+    )
+    reason = str(
+        event_object.get("failure_message")
+        or raw_event.get("failure_message")
+        or last_error.get("message")
+        or event_type
+    )
+    return {"code": code, "reason": reason}
+
+
+def _stripe_webhook_reason_codes(status: str, failure: Mapping[str, str]) -> tuple[str, ...]:
+    if status == "rejected_unverified":
+        return ("webhook_signature_invalid",)
+    if status.startswith("verified_payment") or status == "verified_checkout_expired":
+        return (str(failure.get("code") or status),)
+    return ()
 
 
 def _create_stripe_checkout_session(

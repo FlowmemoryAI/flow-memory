@@ -747,6 +747,43 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
 
 
+def test_billing_webhook_records_verified_payment_failure_without_crediting_balance() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_payment_failed",
+        "type": "payment_intent.payment_failed",
+        "data": {
+            "object": {
+                "customer": "acct_failed_payment",
+                "amount": 1234,
+                "currency": "usd",
+                "last_payment_error": {"code": "card_declined", "message": "The card was declined."},
+            }
+        },
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+
+    webhook = service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+    balance = service.billing_balance({"account_id": "acct_failed_payment"})["balance"]
+
+    assert webhook["ok"] is True
+    assert webhook["payment_event"]["status"] == "verified_payment_failed"
+    assert webhook["payment_event"]["failure_recorded"] is True
+    assert webhook["payment_event"]["failure_code"] == "card_declined"
+    assert webhook["payment_event"]["amount"] == 12.34
+    assert webhook["credit_transaction"] == {}
+    assert balance["available_credits"] == 0.0
+    assert (
+        _metric_total(
+            service,
+            "billing_payment_failed_total",
+            {"provider": "stripe", "event_type": "payment_intent.payment_failed"},
+        )
+        == 1.0
+    )
+
+
 def test_billing_checkout_creates_external_stripe_session_when_enabled() -> None:
     server, base_url = _stripe_checkout_server()
     try:

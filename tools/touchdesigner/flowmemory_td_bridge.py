@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_API = "http://127.0.0.1:8765"
@@ -32,6 +32,8 @@ READ_ONLY_ENDPOINTS = (
     "/neural/live/sessions",
     "/neural/status",
 )
+
+LOCAL_OPENER = build_opener(ProxyHandler({}))
 
 
 @dataclass(frozen=True)
@@ -52,7 +54,7 @@ def api_get(base_url: str, path: str, *, timeout: float) -> Mapping[str, Any]:
     """Fetch a local API route and unwrap the router envelope."""
     url = f"{base_url.rstrip('/')}{path}"
     request = Request(url, method="GET", headers={"accept": "application/json"})
-    with urlopen(request, timeout=timeout) as response:  # noqa: S310 - local operator API only
+    with LOCAL_OPENER.open(request, timeout=timeout) as response:  # noqa: S310 - local operator API only
         payload = json.loads(response.read().decode("utf-8"))
     if not isinstance(payload, Mapping):
         raise ValueError(f"API returned non-object payload for {path}")

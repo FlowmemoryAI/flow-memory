@@ -16,11 +16,13 @@ import time
 from dataclasses import dataclass
 from typing import Any, Mapping
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener
 
 DEFAULT_API = "http://127.0.0.1:8765"
 DEFAULT_AGENT_ID = "touchdesigner-neural-worker"
 DEFAULT_GOAL = "Stream a local neural memory loop into TouchDesigner"
+
+LOCAL_OPENER = build_opener(ProxyHandler({}))
 
 
 @dataclass(frozen=True)
@@ -42,7 +44,7 @@ def post_json(base_url: str, path: str, payload: Mapping[str, Any], *, timeout: 
         method="POST",
         headers={"content-type": "application/json", "accept": "application/json"},
     )
-    with urlopen(request, timeout=timeout) as response:  # noqa: S310 - local operator API only
+    with LOCAL_OPENER.open(request, timeout=timeout) as response:  # noqa: S310 - local operator API only
         body = json.loads(response.read().decode("utf-8"))
     if not isinstance(body, Mapping):
         raise ValueError("API returned non-object JSON")

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any, Mapping
@@ -62,6 +64,21 @@ def require(condition: bool, message: str) -> None:
 def data(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     value = payload.get("data", {})
     return value if isinstance(value, Mapping) else {}
+
+
+
+def public_url_block_reason(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    host = (parsed.hostname or "").strip().strip("[]").lower().rstrip(".")
+    if not host:
+        return "public_url_missing_host"
+    if host in {"localhost", "ip6-localhost", "ip6-loopback"} or host.endswith(".local"):
+        return "public_url_must_not_use_localhost"
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return ""
+    return "" if address.is_global else "public_url_must_use_global_host"
 
 
 def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
@@ -357,6 +374,9 @@ def main(argv: list[str] | None = None) -> int:
     api_key = env_values.get("FLOW_MEMORY_API_KEY", "")
     if not api_url.startswith("https://"):
         raise SystemExit("FLOW_MEMORY_PUBLIC_API_URL/--api-url must be an https:// URL")
+    block_reason = public_url_block_reason(api_url)
+    if block_reason:
+        raise SystemExit(f"FLOW_MEMORY_PUBLIC_API_URL/--api-url is not a public endpoint: {block_reason}")
     if not api_key:
         raise SystemExit("FLOW_MEMORY_API_KEY is required in the env file")
     require_immutable_audit = _bool_env(env_values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", ""), True)

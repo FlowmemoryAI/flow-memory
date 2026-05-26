@@ -540,6 +540,20 @@ def url_scheme(value: str) -> str:
     return urllib.parse.urlparse(value).scheme.lower()
 
 
+def public_url_block_reason(url: str) -> str:
+    parsed = urllib.parse.urlparse(url)
+    host = (parsed.hostname or "").strip().strip("[]").lower().rstrip(".")
+    if not host:
+        return "public_url_missing_host"
+    if host in {"localhost", "ip6-localhost", "ip6-loopback"} or host.endswith(".local"):
+        return "public_url_must_not_use_localhost"
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return ""
+    return "" if address.is_global else "public_url_must_use_global_host"
+
+
 def select_managed_redis_url(connection_info: dict[str, Any]) -> str:
     fields = (
         "redissConnectionString",
@@ -766,6 +780,15 @@ def assert_https_public_url(url: str) -> None:
             reason="public_url_must_use_https_tls",
             required_action="configure a Render public HTTPS URL or custom domain with TLS before smoke tests",
         )
+    block_reason = public_url_block_reason(url)
+    if block_reason:
+        emit(
+            "failed_deployment",
+            33,
+            public_url=url,
+            reason=block_reason,
+            required_action="configure a public Render URL or custom domain that resolves outside loopback/local/private networks",
+        )
 
 
 def call_json(method: str, url: str, headers: dict[str, str] | None = None, body: Any | None = None) -> tuple[int, Any]:
@@ -837,6 +860,14 @@ def smoke_public(
             "statuses": {},
             "public_url": base,
             "reason": "public_url_must_use_https_tls",
+        }
+    block_reason = public_url_block_reason(base)
+    if block_reason:
+        return {
+            "ok": False,
+            "statuses": {},
+            "public_url": base,
+            "reason": block_reason,
         }
     plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "dry_run": True}
     checks: dict[str, Any] = {}

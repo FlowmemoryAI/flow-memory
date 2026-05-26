@@ -5,6 +5,18 @@ from typing import Any, Mapping
 import scripts.validate_compute_market_public_buildout as validator
 
 
+def test_public_buildout_main_blocks_loopback_public_url(tmp_path: Any) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text("FLOW_MEMORY_API_KEY=prod-key\n", encoding="utf-8")
+
+    try:
+        validator.main(["--api-url", "https://127.0.0.1:8443", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        assert "public_url_must_use_global_host" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted a loopback public URL")
+
+
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0

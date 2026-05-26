@@ -112,6 +112,13 @@ def test_render_deploy_requires_https_public_url_before_smoke() -> None:
     assert blocked.value.code == 33
     assert smoke["ok"] is False
     assert smoke["reason"] == "public_url_must_use_https_tls"
+    with pytest.raises(SystemExit) as local_blocked:
+        render_deploy.assert_https_public_url("https://localhost:8443")
+    local_smoke = render_deploy.smoke_public("https://localhost:8443", "api-key")
+
+    assert local_blocked.value.code == 33
+    assert local_smoke["ok"] is False
+    assert local_smoke["reason"] == "public_url_must_not_use_localhost"
 
 def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []

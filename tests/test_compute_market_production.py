@@ -133,6 +133,30 @@ def test_live_settlement_config_gates_fail_closed() -> None:
     assert ComputeMarketConfig(database_url=":memory:").private_key_inputs_allowed is False
 
 
+def test_production_redis_config_requires_fail_closed_backends() -> None:
+    base = {
+        "database_url": "postgresql://db/flow_memory",
+        "storage_backend": "postgres",
+        "compute_market_mode": "production_planning",
+        "require_managed_redis_in_production": True,
+        "rate_limit_backend": "redis",
+        "circuit_breaker_backend": "redis",
+        "redis_url": "rediss://redis.example.com:6379/0",
+    }
+
+    rate_errors = ComputeMarketConfig(**base, rate_limit_fail_closed=False).validate()
+    circuit_errors = ComputeMarketConfig(**base, circuit_breaker_fail_closed=False).validate()
+
+    assert (
+        "production_planning requires fail-closed Redis rate limiting "
+        "when require_managed_redis_in_production=true"
+    ) in rate_errors
+    assert (
+        "production_planning requires fail-closed Redis circuit breaking "
+        "when require_managed_redis_in_production=true"
+    ) in circuit_errors
+
+
 def test_provider_callback_ip_allowlist_config_from_env() -> None:
     config = ComputeMarketConfig(
         database_url=":memory:",

@@ -159,6 +159,16 @@ class ComputeMarketConfig:
                 errors.append("production_planning requires redis_url when require_managed_redis_in_production=true")
             elif _url_scheme(self.redis_url) != "rediss":
                 errors.append("production_planning requires a rediss:// redis_url when require_managed_redis_in_production=true")
+            if normalized_rate_backend == "redis" and not self.rate_limit_fail_closed:
+                errors.append(
+                    "production_planning requires fail-closed Redis rate limiting "
+                    "when require_managed_redis_in_production=true"
+                )
+            if normalized_circuit_backend == "redis" and not self.circuit_breaker_fail_closed:
+                errors.append(
+                    "production_planning requires fail-closed Redis circuit breaking "
+                    "when require_managed_redis_in_production=true"
+                )
         if (
             redis_backend_required
             and self.compute_market_mode == "production_planning"

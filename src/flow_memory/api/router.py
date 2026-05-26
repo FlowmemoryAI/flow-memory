@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, cast
 from urllib.parse import unquote
 
 from flow_memory.api.auth import (
@@ -391,7 +391,7 @@ class LocalApiRouter:
 
     def _flowlang_compile(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         source = str(payload.get("source", EXAMPLE_FLOWLANG))
-        return compile_flowlang(source).as_record()
+        return cast(Mapping[str, Any], compile_flowlang(source).as_record())
 
     def _flowlang_validate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         source = str(payload.get("source", EXAMPLE_FLOWLANG))
@@ -402,7 +402,7 @@ class LocalApiRouter:
         prompt = str(payload.get("prompt", "Run the declared agent"))
         result = compile_flowlang(source)
         if not result.ok:
-            return result.as_record()
+            return cast(Mapping[str, Any], result.as_record())
         import tempfile
         from pathlib import Path
 
@@ -410,7 +410,7 @@ class LocalApiRouter:
             handle.write(source)
             path = Path(handle.name)
         try:
-            return run_flowlang_agent(path, prompt)
+            return cast(Mapping[str, Any], run_flowlang_agent(path, prompt))
         finally:
             try:
                 path.unlink()
@@ -465,7 +465,7 @@ class LocalApiRouter:
 
         scenario = str(payload.get("scenario", "all"))
         emit_visual = bool(payload.get("emit_visual_events", payload.get("visual", False)))
-        return LocalNetworkOrchestrator().run(scenario, emit_visual_events=emit_visual).as_record()
+        return cast(Mapping[str, Any], LocalNetworkOrchestrator().run(scenario, emit_visual_events=emit_visual).as_record())
 
     def _network_state(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return network_state()

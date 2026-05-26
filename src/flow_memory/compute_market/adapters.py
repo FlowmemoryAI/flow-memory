@@ -9,7 +9,7 @@ import urllib.error
 import urllib.request
 from urllib.parse import urlparse
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Protocol
+from typing import Any, Mapping, Protocol, SupportsFloat, cast
 
 from flow_memory.compute_market.models import (
     ComputeMarketPolicy,
@@ -752,13 +752,13 @@ def _tuple(value: object) -> tuple[str, ...]:
 def _optional_float(value: object) -> float | None:
     if value in (None, ""):
         return None
-    return float(value)
+    return float(cast(SupportsFloat | str | bytes | bytearray, value))
 
 
 def _optional_non_negative(value: object) -> float:
     if value in (None, ""):
         return 0.0
-    amount = float(value)
+    amount = float(cast(SupportsFloat | str | bytes | bytearray, value))
     if amount < 0:
         raise ValueError("execution numeric values must be non-negative")
     return amount

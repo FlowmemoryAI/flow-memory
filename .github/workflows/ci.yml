@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
 jobs:
+  compute-market-production:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,compute-market-live]"
+      - run: python scripts/check_compute_market_production.py
   test:
     runs-on: ubuntu-latest
     strategy:

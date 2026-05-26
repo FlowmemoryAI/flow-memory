@@ -57,7 +57,7 @@ def write_rl_benchmark_snapshot(root: str | Path = ROOT) -> Mapping[str, Any]:
     return {"ok": True, "path": str(out.relative_to(root_path))}
 
 
-def _policy(name: str):
+def _policy(name: str) -> RandomPolicy | TabularQPolicy | HeuristicPolicy:
     if name == "random":
         return RandomPolicy(seed=0)
     if name in {"tabular", "tabular_q"}:

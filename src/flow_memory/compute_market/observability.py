@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from time import perf_counter
-from typing import Any, Iterator, Mapping
+from typing import Any, Iterator, Mapping, SupportsFloat, cast
 
 _METRIC_NAMES: tuple[str, ...] = (
     "compute_plan_requests_total",
@@ -290,7 +290,8 @@ def _prometheus_escape(value: object) -> str:
 
 def _metric_value(metric_totals: Mapping[str, object], name: str) -> float:
     try:
-        return float(metric_totals.get(name, 0.0) or 0.0)
+        value = metric_totals.get(name, 0.0) or 0.0
+        return float(cast(SupportsFloat | str | bytes | bytearray, value))
     except (TypeError, ValueError):
         return 0.0
 

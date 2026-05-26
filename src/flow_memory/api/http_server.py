@@ -15,10 +15,11 @@ from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
 
 from flow_memory.api.auth import ApiAuthConfig, authorize_request
-from flow_memory.api.audit_middleware import LocalAuditSink
+from flow_memory.api.audit_middleware import AuditEvent, LocalAuditSink
 from flow_memory.api.errors import ApiError, auth_error, error_response, forbidden_error, validation_error
 from flow_memory.api.rate_limits import LocalRateLimiter, RateLimitRule
 from flow_memory.api.router import LocalApiRouter, create_default_router
+from flow_memory.api.request_context import RequestContext
 from flow_memory.api.scopes import context_from_headers, require_scopes
 from flow_memory.core.types import new_id
 
@@ -217,7 +218,7 @@ class HttpApiGateway:
 
 
 def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "127.0.0.1", port: int = 8765) -> ThreadingHTTPServer:
-    gateway = gateway or HttpApiGateway(config=HttpApiConfig(host=host, port=port))
+    resolved_gateway = gateway or HttpApiGateway(config=HttpApiConfig(host=host, port=port))
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "FlowMemoryLocalHTTP/0.1"
@@ -242,7 +243,7 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
             body = self.rfile.read(length) if length else b""
             headers = dict(self.headers.items())
             headers["x-flow-memory-client-ip"] = str(self.client_address[0])
-            response = gateway.handle(self.command, self.path, headers, body)
+            response = resolved_gateway.handle(self.command, self.path, headers, body)
             payload = response.to_bytes()
             self.send_response(response.status)
             for key, value in response.headers.items():
@@ -253,7 +254,7 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
                 self.wfile.write(payload)
 
     server = ThreadingHTTPServer((host, port), Handler)
-    server.gateway = gateway  # type: ignore[attr-defined]
+    server.gateway = resolved_gateway  # type: ignore[attr-defined]
     return server
 
 
@@ -273,7 +274,7 @@ def _query_payload(query: str) -> Mapping[str, Any]:
     return {key: values[-1] if values else "" for key, values in parsed.items()}
 
 
-def _tenant_scoped_payload(context: Any, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     tenant_id = str(context.tenant_id or "").strip()
     if "api:admin" in context.scopes or "compute:admin" in context.scopes:
         return payload
@@ -315,8 +316,7 @@ def _header(headers: Mapping[str, str], name: str) -> str:
     return ""
 
 
-def _audit_event(context, ok: bool, status: int, error_code: str):
-    from flow_memory.api.audit_middleware import AuditEvent
+def _audit_event(context: RequestContext, ok: bool, status: int, error_code: str) -> AuditEvent:
 
     return AuditEvent(
         method=context.method,

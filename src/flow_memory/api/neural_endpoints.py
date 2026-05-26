@@ -1,7 +1,7 @@
 """Neural metadata handlers for the local API router."""
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 from flow_memory.neural import is_torch_available
 from flow_memory.neural.checkpoints import CheckpointRegistry
 from flow_memory.neural.gpu_evidence import gpu_evidence_index, verify_gpu_run
@@ -32,15 +32,17 @@ def neural_backends() -> Mapping[str, Any]:
     )}
 
 def neural_gpu_runs(root: str | Path = ROOT) -> Mapping[str, Any]:
-    return gpu_evidence_index(root)
+    return cast(Mapping[str, Any], gpu_evidence_index(root))
 
 def neural_gpu_run(run_id: str, root: str | Path = ROOT) -> Mapping[str, Any]:
     path=Path(root)/"release_evidence"/"gpu_runs"/run_id
     if not path.exists():
         raise KeyError(f"Unknown GPU run: {run_id}")
     report=verify_gpu_run(path)
-    runs=report.get("runs", ())
-    return dict(runs[0]) if runs else {"run_id": run_id, "ok": False}
+    runs = report.get("runs", ())
+    if isinstance(runs, (list, tuple)) and runs and isinstance(runs[0], Mapping):
+        return dict(runs[0])
+    return {"run_id": run_id, "ok": False}
 
 def neural_benchmarks(root: str | Path = ROOT) -> Mapping[str, Any]:
     artifact_dir=Path(root)/"artifacts"

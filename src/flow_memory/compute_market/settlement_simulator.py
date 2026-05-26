@@ -102,14 +102,17 @@ class LocalTestnetSettlementSimulator:
     def _simulate_base_sepolia_erc4337(self, quote: ComputeQuote, *, amount: float) -> TestnetSettlementSimulation:
         digest = _simulation_digest("base-sepolia", quote, amount)
         nonce = int(digest[:8], 16)
+        call_gas_limit = 21_000
+        verification_gas_limit = 100_000
+        pre_verification_gas = 50_000
         user_operation = {
             "sender": "0x0000000000000000000000000000000000000000",
             "nonce": nonce,
             "init_code": "0x",
             "call_data": f"0x{digest[:64]}",
-            "call_gas_limit": 21_000,
-            "verification_gas_limit": 100_000,
-            "pre_verification_gas": 50_000,
+            "call_gas_limit": call_gas_limit,
+            "verification_gas_limit": verification_gas_limit,
+            "pre_verification_gas": pre_verification_gas,
             "max_fee_per_gas": 1_000_000_000,
             "max_priority_fee_per_gas": 100_000_000,
             "paymaster_and_data": "0x",
@@ -129,9 +132,7 @@ class LocalTestnetSettlementSimulator:
             "private_key_required": False,
             "user_operation": user_operation,
             "user_operation_hash": f"0x{digest}",
-            "simulated_gas_estimate": user_operation["call_gas_limit"]
-            + user_operation["verification_gas_limit"]
-            + user_operation["pre_verification_gas"],
+            "simulated_gas_estimate": call_gas_limit + verification_gas_limit + pre_verification_gas,
             "validation_errors": (),
         }
         return TestnetSettlementSimulation(

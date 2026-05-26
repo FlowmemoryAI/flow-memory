@@ -640,7 +640,7 @@ class ComputeMarketService:
             self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
         if not validation.ok:
-            fraud_signals = _fraud_signals_from_validation(
+            validation_fraud_signals = _fraud_signals_from_validation(
                 self.store,
                 provider_id=provider_id,
                 route_id=route_id,
@@ -649,7 +649,7 @@ class ComputeMarketService:
                 request_id=request_id,
             )
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
-            return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": fraud_signals}
+            return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": validation_fraud_signals}
         signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
         record = _normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid)
         previous = self.store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=1).records
@@ -883,7 +883,7 @@ class ComputeMarketService:
             )
             validations.append(brokered.get("validation", {}) if isinstance(brokered, Mapping) else {})
             if brokered.get("ok") is True and isinstance(brokered.get("quote"), Mapping):
-                accepted.append(brokered["quote"])  # type: ignore[arg-type]
+                accepted.append(brokered["quote"])
         result = "completed" if accepted else "failed"
         self._audit("market.quote.external_requested", payload, request_id=request_id, result=result, reason_codes=() if accepted else ("external_quote_failed",), provider_id=provider_id, route_id=route_id)
         return {
@@ -2053,6 +2053,8 @@ class ComputeMarketService:
         event_type = str(raw_event.get("type", ""))
         account_id = _stripe_account_id(raw_event, payload)
         credit = _stripe_credit(raw_event)
+        credit_amount = _non_negative_float(credit["amount"], "amount")
+        credit_currency = str(credit["currency"])
         failure = _stripe_failure(raw_event)
         status = _stripe_payment_event_status(event_type, verified)
         reason_codes = _stripe_webhook_reason_codes(status, failure)
@@ -2064,8 +2066,8 @@ class ComputeMarketService:
             "verified": verified,
             "status": status,
             "raw_event_hash": content_hash(raw_event),
-            "amount": credit["amount"],
-            "currency": credit["currency"],
+            "amount": credit_amount,
+            "currency": credit_currency,
             "failure_recorded": bool(failure),
             "failure_code": str(failure.get("code", "")),
             "failure_reason": str(failure.get("reason", "")),
@@ -2080,12 +2082,12 @@ class ComputeMarketService:
             self.telemetry.increment("billing_payment_failed_total", {"provider": "stripe", "event_type": event_type})
         self.store.put_record("payment_event", event_id, record, tenant_id=account_id, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
         credit_record: Mapping[str, Any] = {}
-        if verified and account_id and credit["amount"] > 0 and _stripe_event_posts_credit(raw_event):
+        if verified and account_id and credit_amount > 0 and _stripe_event_posts_credit(raw_event):
             credit_record = _apply_credit(
                 self.store,
                 account_id,
-                amount=float(credit["amount"]),
-                currency=str(credit["currency"]),
+                amount=credit_amount,
+                currency=credit_currency,
                 request_id=request_id,
                 source_event_id=event_id,
             )
@@ -2119,8 +2121,8 @@ class ComputeMarketService:
         if idempotency_key:
             existing = self.store.find_by_idempotency("refund", idempotency_key)
             if existing is not None:
-                credit_transaction = _refund_credit_transaction(self.store, existing)
-                return {"ok": True, "refund": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
+                replay_credit_transaction = _refund_credit_transaction(self.store, existing)
+                return {"ok": True, "refund": existing, "credit_transaction": replay_credit_transaction, "idempotent_replay": True}
 
         usage_charge_id = str(payload.get("usage_charge_id", "")).strip()
         usage_charge = self.store.get_record("usage_charge", usage_charge_id) if usage_charge_id else None
@@ -2165,8 +2167,8 @@ class ComputeMarketService:
         )
         existing_refund = self.store.get_record("refund", refund_id)
         if existing_refund is not None:
-            credit_transaction = _refund_credit_transaction(self.store, existing_refund)
-            return {"ok": True, "refund": existing_refund, "credit_transaction": credit_transaction, "idempotent_replay": True}
+            existing_refund_credit_transaction = _refund_credit_transaction(self.store, existing_refund)
+            return {"ok": True, "refund": existing_refund, "credit_transaction": existing_refund_credit_transaction, "idempotent_replay": True}
 
         now = utc_now_iso()
         refund = {
@@ -2675,9 +2677,11 @@ class ComputeMarketService:
         evaluation = AlertEvaluator().evaluate(self.telemetry).as_record()
         acknowledgements = tuple(self.store.list_records("alert_acknowledgement", limit=100).records)
         acknowledged = {str(item.get("rule_name", "")) for item in acknowledgements}
+        raw_firing_items = evaluation.get("firing", ())
+        firing_items = raw_firing_items if isinstance(raw_firing_items, (list, tuple)) else ()
         firing = tuple(
             {**dict(item), "acknowledged": str(item.get("rule_name", "")) in acknowledged}
-            for item in evaluation.get("firing", ())
+            for item in firing_items
             if isinstance(item, Mapping)
         )
         return {
@@ -2690,7 +2694,9 @@ class ComputeMarketService:
         payload = payload or {}
         request_id = _request_id(payload)
         evaluation = AlertEvaluator().evaluate(self.telemetry).as_record()
-        firing = tuple(item for item in evaluation.get("firing", ()) if isinstance(item, Mapping))
+        raw_firing_items = evaluation.get("firing", ())
+        firing_items = raw_firing_items if isinstance(raw_firing_items, (list, tuple)) else ()
+        firing = tuple(item for item in firing_items if isinstance(item, Mapping))
         if not firing:
             return {
                 "ok": True,
@@ -2942,8 +2948,10 @@ class ComputeMarketService:
             return {"ok": False, "error": "otlp_endpoint_url_not_allowed", "request_id": request_id}
 
         snapshot = self.telemetry.snapshot(reset=False)
-        metric_count = len(snapshot.get("metrics", ()))
-        trace_count = len(snapshot.get("traces", ()))
+        metrics = snapshot.get("metrics", ())
+        traces = snapshot.get("traces", ())
+        metric_count = len(metrics) if isinstance(metrics, (list, tuple)) else 0
+        trace_count = len(traces) if isinstance(traces, (list, tuple)) else 0
         export_id = deterministic_id(
             "otlp_export",
             {"request_id": request_id, "metric_count": metric_count, "trace_count": trace_count},
@@ -4072,7 +4080,7 @@ def _capacity_auction_clearing(
         if remaining_units <= 0:
             rejected_bids.append({**bid, "rejection_reason": "capacity_exhausted"})
             continue
-        bid_units = float(bid["capacity_units"])
+        bid_units = _positive_float(bid["capacity_units"], "bid.capacity_units")
         allocated_units = min(bid_units, remaining_units)
         if allocated_units < bid_units and not allow_partial:
             rejected_bids.append({**bid, "rejection_reason": "capacity_exhausted"})

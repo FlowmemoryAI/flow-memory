@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from http.client import HTTPMessage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping
 
@@ -112,7 +113,7 @@ def create_provider_sandbox_server(host: str = "127.0.0.1", port: int = 0, *, si
             if not isinstance(payload, Mapping):
                 payload = {}
             if signing_key is not None and not verify_provider_sandbox_request(
-                self.headers,
+                dict(self.headers.items()),
                 payload,
                 signing_key=signing_key,
                 kind="execution" if self.path == "/execute" else "quote",
@@ -145,14 +146,14 @@ def create_provider_sandbox_server(host: str = "127.0.0.1", port: int = 0, *, si
 
 
 def verify_provider_sandbox_request(
-    headers: Mapping[str, Any],
+    headers: Mapping[str, Any] | HTTPMessage,
     payload: Mapping[str, Any],
     *,
     signing_key: LocalKeyPair,
     kind: str,
 ) -> bool:
-    signature_payload_raw = str(headers.get("x-flow-memory-provider-signature-payload", ""))
-    signature_raw = str(headers.get("x-flow-memory-provider-signature", ""))
+    signature_payload_raw = _header_value(headers, "x-flow-memory-provider-signature-payload")
+    signature_raw = _header_value(headers, "x-flow-memory-provider-signature")
     if not signature_payload_raw or not signature_raw:
         return False
     try:
@@ -168,7 +169,19 @@ def verify_provider_sandbox_request(
         return False
     if not str(signature_payload.get("timestamp", "")) or not str(signature_payload.get("nonce", "")):
         return False
-    return verify_payload(signature_payload, envelope, signing_key)
+    return bool(verify_payload(signature_payload, envelope, signing_key))
+
+
+def _header_value(headers: Mapping[str, Any] | HTTPMessage, name: str) -> str:
+    value = headers.get(name, "")
+    if value:
+        return str(value)
+    lowered = name.lower()
+    if isinstance(headers, Mapping):
+        for key, candidate in headers.items():
+            if str(key).lower() == lowered:
+                return str(candidate)
+    return ""
 
 
 def main(argv: list[str] | None = None) -> int:

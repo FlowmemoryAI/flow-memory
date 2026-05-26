@@ -1,7 +1,7 @@
 """Quote collection and normalization for heterogeneous compute prices."""
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping, SupportsFloat, cast
 
 from flow_memory.compute_market.models import ComputeCapacityWindow, ComputeQuote, ComputeRoute, QuoteStatus, TaskEconomicProfile
 
@@ -242,7 +242,7 @@ def _float_or_none(value: object) -> float | None:
     if value in (None, ""):
         return None
     try:
-        return float(value)
+        return float(cast(SupportsFloat | str | bytes | bytearray, value))
     except (TypeError, ValueError):
         return None
 

@@ -1,6 +1,7 @@
 """Minimal OpenAPI document generation for the local endpoint manifest."""
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Mapping
 
 from flow_memory.api.manifest import API_ENDPOINTS
@@ -35,8 +36,16 @@ def openapi_schema() -> Mapping[str, object]:
 
 
 def _object_schema(fields: object) -> Mapping[str, object]:
-    field_names = tuple(str(field) for field in fields or ())
-    properties = {field: {"type": "string"} for field in field_names}
+    field_names: tuple[str, ...]
+    if fields is None:
+        field_names = ()
+    elif isinstance(fields, str):
+        field_names = (fields,)
+    elif isinstance(fields, Iterable):
+        field_names = tuple(str(item) for item in fields)
+    else:
+        field_names = (str(fields),)
+    properties: dict[str, Mapping[str, str]] = {field: {"type": "string"} for field in field_names}
     schema: dict[str, object] = {"type": "object", "additionalProperties": True}
     if properties:
         schema["properties"] = properties

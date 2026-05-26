@@ -180,9 +180,9 @@ def verify_provider_quote_signature(quote: Mapping[str, Any], public_key: str | 
         if key not in {"signature", "verification"}
     }
     if public.algorithm == LOCAL_TEST_ASYMMETRIC_ALGORITHM:
-        return LocalTestVerifier(public).verify(signed_payload, record).ok
+        return bool(LocalTestVerifier(public).verify(signed_payload, record).ok)
     if public.algorithm == ED25519_ALGORITHM:
-        return Ed25519Verifier(public).verify(signed_payload, record).ok
+        return bool(Ed25519Verifier(public).verify(signed_payload, record).ok)
     return False
 
 

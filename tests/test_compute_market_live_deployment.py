@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -32,6 +36,8 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://CHANGEME-audit-object-lock-bucket/compute-market",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+        "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
+        "RENDER_KEYVALUE_IP_ALLOWLIST",
     ):
         assert required in template
 
@@ -71,6 +77,9 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "property: connectionString" not in blueprint[
         blueprint.index("FLOW_MEMORY_COMPUTE_REDIS_URL") : blueprint.index("FLOW_MEMORY_COMPUTE_REDIS_PREFIX")
     ]
+
+    assert "Direct blueprint deploys cannot infer public egress CIDRs" in blueprint
+    assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
 
 
 
@@ -193,6 +202,56 @@ def test_render_keyvalue_creation_requires_explicit_external_tls_allowlist(monke
         {"source": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"},
         {"source": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
     ]
+
+
+def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_path: Path) -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for public deployment script validation")
+
+    env_file = tmp_path / "render-placeholder.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "FLOW_MEMORY_API_KEY=fmk_live_test_key",
+                "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://CHANGEME-managed-postgres-host:5432/flow_memory",
+                "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    env = os.environ.copy()
+    env.pop("RENDER_API_KEY", None)
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "deploy_compute_market_public_level1.ps1"),
+            "-EnvFile",
+            str(env_file),
+        ],
+        cwd=ROOT,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 13, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked_missing_deployment_target"
+    assert payload["placeholder_values"] == [
+        "FLOW_MEMORY_COMPUTE_DATABASE_URL",
+        "FLOW_MEMORY_COMPUTE_REDIS_URL",
+    ]
+    assert payload["missing_values"] == ["RENDER_API_KEY", "RENDER_KEYVALUE_IP_ALLOWLIST"]
 
 
 

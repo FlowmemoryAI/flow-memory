@@ -164,6 +164,12 @@ foreach ($key in $requiredKeys) {
     }
 }
 
+$renderManagedPrerequisites = New-Object System.Collections.Generic.List[string]
+$renderManagedPrerequisites.Add('RENDER_API_KEY')
+if ($placeholders -contains 'FLOW_MEMORY_COMPUTE_REDIS_URL') {
+    $renderManagedPrerequisites.Add('RENDER_KEYVALUE_IP_ALLOWLIST')
+}
+
 if ($missing.Count -gt 0 -or $placeholders.Count -gt 0) {
     $renderManagedPlaceholders = @(
         $placeholders | Where-Object {
@@ -179,7 +185,7 @@ if ($missing.Count -gt 0 -or $placeholders.Count -gt 0) {
         Write-Status -Status 'blocked_missing_deployment_target' -Fields @{
             public_url = ''
             deployment_target = 'render'
-            missing_values = @('RENDER_API_KEY')
+            missing_values = @($renderManagedPrerequisites)
             placeholder_values = @($placeholders)
         }
         exit 13

@@ -63,8 +63,9 @@ For horizontally scaled production planning, use:
 - `FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true`
 - `FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND=redis`
 - `FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND=redis`
-- `FLOW_MEMORY_COMPUTE_REDIS_URL=redis://...`
+- `FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://...`
 - immutable audit export storage with object lock or equivalent WORM controls
+- Render API deployment requires `RENDER_KEYVALUE_IP_ALLOWLIST=<public-egress-cidr>[,<public-egress-cidr>]` so the external TLS Key Value endpoint can be used safely.
 
 SQLite remains appropriate for local development and single-node deployments only. Multi-node production requires managed PostgreSQL, automated backups, restore drills, migration promotion gates, advisory-lock-protected migrations, Redis-backed distributed abuse controls, and immutable audit export/checkpoint retention.
 

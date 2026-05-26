@@ -6,7 +6,7 @@ This runbook is for the fastest safe **Level 1 — Production Planning Live** la
 
 - Hosted HTTP API boundary for `/compute/*` planning endpoints.
 - Managed PostgreSQL storage when `FLOW_MEMORY_COMPUTE_DATABASE_URL` points at your provider; the bundled Compose PostgreSQL service is only a private smoke fallback.
-- Redis-backed distributed rate limiting and provider circuit breaking when `FLOW_MEMORY_COMPUTE_REDIS_URL` points at managed Redis; the bundled Compose Redis service is only a private smoke fallback.
+- Redis-backed distributed rate limiting and provider circuit breaking when `FLOW_MEMORY_COMPUTE_REDIS_URL` points at managed TLS Redis (`rediss://...`); the bundled Compose Redis service is only a private smoke fallback.
 - Local audit export/checkpoint file suitable for handoff to immutable object storage.
 - API-key plus scope enforcement at the Flow Memory gateway.
 
@@ -21,6 +21,7 @@ cp deployments/compute-market/live.env.example .env.compute-market.live
 ```
 
 2. Fill every `CHANGEME` value. Do not commit the filled file.
+   For Render API provisioning, export `RENDER_API_KEY`, `RENDER_OWNER_ID`, `RENDER_KEYVALUE_IP_ALLOWLIST`, and `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI` in the shell before running `scripts/deploy_compute_market_render_level1.py`. `RENDER_KEYVALUE_IP_ALLOWLIST` must contain the public egress CIDR ranges allowed to reach the external `rediss://` Key Value endpoint.
 
 3. Start the planning stack:
 

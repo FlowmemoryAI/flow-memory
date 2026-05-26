@@ -155,6 +155,9 @@ services:
     name: flow-memory-compute-market-redis
     plan: free
     region: oregon
+    # Direct blueprint deploys cannot infer public egress CIDRs for the external TLS Redis endpoint.
+    # Prefer scripts/deploy_compute_market_render_level1.py with RENDER_KEYVALUE_IP_ALLOWLIST set,
+    # or replace this empty list with explicit CIDRs before using the blueprint directly.
     ipAllowList: []
     maxmemoryPolicy: noeviction
 

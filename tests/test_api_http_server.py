@@ -410,6 +410,110 @@ def test_http_gateway_billing_reads_are_tenant_scoped_and_fail_closed() -> None:
     assert [charge["usage_charge_id"] for charge in explicit_unbound_usage.body["data"]["usage_charges"]] == ["usage_tenant_b"]
 
 
+def test_http_gateway_billing_writes_are_tenant_scoped_and_fail_closed() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    service.store.put_record(
+        "usage_charge",
+        "usage_tenant_write_b",
+        {
+            "usage_charge_id": "usage_tenant_write_b",
+            "account_id": "tenant_billing_write_b",
+            "amount": 2.0,
+            "currency": "USD",
+            "status": "dry_run_recorded",
+        },
+        tenant_id="tenant_billing_write_b",
+    )
+    service.store.put_record(
+        "provider_payout",
+        "payout_tenant_write_b",
+        {
+            "provider_payout_id": "payout_tenant_write_b",
+            "account_id": "tenant_billing_write_b",
+            "provider_id": "provider_write_b",
+            "amount": 2.0,
+            "currency": "USD",
+            "status": "accrued",
+        },
+        tenant_id="tenant_billing_write_b",
+        provider_id="provider_write_b",
+        status="accrued",
+    )
+    reset_default_service(service)
+    tenant_key = "fmk_tenant_billing_write_a"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-billing-write-a-key",
+                    "key_prefix": "fmk_tenant_billing_write_a",
+                    "key_hash": api_key_hash(tenant_key),
+                    "tenant_id": "tenant_billing_write_a",
+                    "principal": "svc-billing-write-a",
+                    "scopes": "compute:billing",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    try:
+        checkout = gateway.handle(
+            "POST",
+            "/billing/checkout",
+            {"x-flow-memory-api-key": tenant_key},
+            json.dumps({"account_id": "tenant_billing_write_b", "amount": 10, "currency": "USD"}).encode("utf-8"),
+        )
+        webhook = gateway.handle(
+            "POST",
+            "/billing/webhooks/stripe",
+            {"x-flow-memory-api-key": tenant_key},
+            json.dumps(
+                {
+                    "raw_event": {
+                        "id": "evt_tenant_write_b",
+                        "type": "checkout.session.completed",
+                        "amount": 100,
+                        "currency": "usd",
+                        "metadata": {"account_id": "tenant_billing_write_b"},
+                    }
+                }
+            ).encode("utf-8"),
+        )
+        refund = gateway.handle(
+            "POST",
+            "/billing/refund",
+            {"x-flow-memory-api-key": tenant_key},
+            json.dumps({"usage_charge_id": "usage_tenant_write_b", "reason": "cross-tenant-attempt"}).encode("utf-8"),
+        )
+        settle = gateway.handle(
+            "POST",
+            "/billing/provider-payouts/payout_tenant_write_b/settle",
+            {"x-flow-memory-api-key": tenant_key},
+            json.dumps({"external_payout_reference": "cross-tenant-attempt"}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert checkout.status == 400
+    assert checkout.body["error"]["message"] == "account_id must match tenant_id"
+    assert webhook.status == 400
+    assert webhook.body["error"]["message"] == "tenant_id must match billing record account_id"
+    assert refund.status == 400
+    assert refund.body["error"]["message"] == "tenant_id must match billing record account_id"
+    assert settle.status == 400
+    assert settle.body["error"]["message"] == "tenant_id must match billing record account_id"
+    assert service.store.count_records("payment_event") == 0
+    assert service.store.count_records("refund") == 0
+    payout = service.store.get_record("provider_payout", "payout_tenant_write_b")
+    assert payout is not None
+    assert payout["status"] == "accrued"
+
+
 def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),

@@ -1496,6 +1496,7 @@ class ComputeMarketService:
         cost = _job_cost(payload)
         actual_units = _non_negative_float(payload.get("actual_units", payload.get("units", 0.0)), "actual_units")
         actual_latency_ms = _non_negative_float(payload.get("actual_latency_ms", payload.get("latency_ms", 0.0)), "actual_latency_ms")
+        usage_charge = _usage_charge(job, payload, request_id=request_id, amount=cost, units=actual_units)
         provider = self.store.get_record("compute_provider", str(job.get("provider_id", ""))) or {}
         sla_max_latency_ms = _provider_sla_max_latency_ms(provider if isinstance(provider, Mapping) else {})
         sla_latency_breached = bool(sla_max_latency_ms and actual_latency_ms and actual_latency_ms > sla_max_latency_ms)
@@ -1544,7 +1545,6 @@ class ComputeMarketService:
         credit_debit: Mapping[str, Any] = {}
         provider_payout: Mapping[str, Any] = {}
         provider_sla_penalty: Mapping[str, Any] = {}
-        usage_charge = _usage_charge(job, payload, request_id=request_id, amount=cost, units=actual_units)
         if usage_charge:
             self.store.put_record(
                 "usage_charge",
@@ -2014,7 +2014,7 @@ class ComputeMarketService:
     def billing_checkout(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        account_id = str(payload.get("account_id") or payload.get("tenant_id") or deterministic_id("billing_account", payload))
+        account_id = _billing_account_id(payload)
         amount = _positive_float(payload.get("amount"), "amount")
         currency = str(payload.get("currency", "USD")).upper()
         account = _billing_account(account_id, payload)
@@ -2119,7 +2119,7 @@ class ComputeMarketService:
         )
         event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
         event_type = str(raw_event.get("type", ""))
-        account_id = _stripe_account_id(raw_event, payload)
+        account_id = _billing_account_id(payload, fallback_account_id=_stripe_account_id(raw_event, {}))
         credit = _stripe_credit(raw_event)
         credit_amount = _non_negative_float(credit["amount"], "amount")
         credit_currency = str(credit["currency"])
@@ -2208,6 +2208,7 @@ class ComputeMarketService:
         payout = self.store.get_record("provider_payout", payout_id)
         if payout is None:
             raise KeyError(f"Unknown provider payout: {payout_id}")
+        _billing_account_id(payload, fallback_account_id=str(payout.get("account_id", "")).strip())
         current_status = str(payout.get("status", ""))
         if current_status != "accrued":
             raise ValueError(f"provider payout is not accrued: {current_status}")
@@ -2260,9 +2261,7 @@ class ComputeMarketService:
         if usage_charge_id and usage_charge is None:
             raise ValueError(f"Unknown usage charge: {usage_charge_id}")
 
-        account_id = str(payload.get("account_id") or payload.get("tenant_id") or (usage_charge or {}).get("account_id", "")).strip()
-        if not account_id:
-            raise ValueError("account_id or tenant_id is required")
+        account_id = _billing_account_id(payload, fallback_account_id=str((usage_charge or {}).get("account_id", "")).strip())
         if usage_charge is not None:
             usage_account_id = str(usage_charge.get("account_id", "")).strip()
             if usage_account_id and usage_account_id != account_id:
@@ -4712,13 +4711,19 @@ def _job_artifact(job: Mapping[str, Any], payload: Mapping[str, Any], *, request
     }
 
 
-def _billing_account_id(payload: Mapping[str, Any]) -> str:
+def _billing_account_id(payload: Mapping[str, Any], *, fallback_account_id: str = "", required: bool = True) -> str:
     account_id = str(payload.get("account_id", "")).strip()
     tenant_id = str(payload.get("tenant_id", "")).strip()
+    fallback = str(fallback_account_id).strip()
     if account_id and tenant_id and account_id != tenant_id:
         raise ValueError("account_id must match tenant_id")
-    resolved = account_id or tenant_id
-    if not resolved:
+    if fallback:
+        if account_id and account_id != fallback:
+            raise ValueError("account_id must match billing record account_id")
+        if tenant_id and tenant_id != fallback:
+            raise ValueError("tenant_id must match billing record account_id")
+    resolved = account_id or tenant_id or fallback
+    if required and not resolved:
         raise ValueError("account_id or tenant_id is required")
     return resolved
 
@@ -4726,7 +4731,7 @@ def _billing_account_id(payload: Mapping[str, Any]) -> str:
 def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request_id: str, amount: float, units: float) -> dict[str, Any]:
     if amount <= 0:
         return {}
-    account_id = str(payload.get("account_id") or payload.get("tenant_id") or job.get("tenant_id", ""))
+    account_id = _billing_account_id(payload, fallback_account_id=str(job.get("tenant_id", "")).strip(), required=False)
     currency = str(payload.get("currency", payload.get("asset", "USD"))).upper()
     now = utc_now_iso()
     usage_charge_id = str(payload.get("usage_charge_id") or deterministic_id("usage_charge", {"job_id": job.get("job_id", ""), "amount": amount, "request_id": request_id}))

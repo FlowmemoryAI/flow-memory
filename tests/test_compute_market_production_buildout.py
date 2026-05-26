@@ -825,6 +825,40 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_compute_job_completion_rejects_cross_tenant_billing_account_before_state_change() -> None:
+    service = _service()
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_tenant_billing_guard",
+                "tenant_id": "tenant_job_billing_a",
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+
+    try:
+        service.complete_job(
+            job_id,
+            {
+                "tenant_id": "tenant_job_billing_a",
+                "account_id": "tenant_job_billing_b",
+                "actual_units": 2,
+                "actual_total_cost": 0.18,
+                "currency": "USD",
+            },
+        )
+    except ValueError as exc:
+        assert "account_id must match tenant_id" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant billing account was accepted")
+
+    assert service.get_job(job_id)["job"]["status"] == "running"
+    assert service.store.count_records("usage_charge") == 0
+    assert not any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
+
+
 def test_provider_reputation_tracks_sla_latency_breaches() -> None:
     service = _service()
     service.apply_market_provider(_provider_application())

@@ -155,6 +155,14 @@ Assert-True ($computePlan.funds_moved -eq $false) 'plan did not return funds_mov
 Assert-True ($computePlan.broadcast_allowed -eq $false) 'plan did not return broadcast_allowed=false.'
 Assert-True ($computePlan.private_key_required -eq $false) 'plan did not return private_key_required=false.'
 
+$metricsHeaders = @{
+    'x-flow-memory-api-key' = $ApiKey
+    'x-flow-memory-scopes' = 'compute:read'
+}
+$metrics = Invoke-WebRequest -Uri "$baseUrl/metrics" -Method GET -Headers $metricsHeaders -TimeoutSec 90
+Assert-True ([int]$metrics.StatusCode -eq 200) 'Prometheus metrics did not return HTTP 200.'
+Assert-True ([string]$metrics.Content -match 'compute_plan_requests_total') 'Prometheus metrics did not expose compute_plan_requests_total.'
+
 $auditVerify = Invoke-ComputeMarketRequest -Method GET -Path '/compute/audit/verify' -Scopes 'compute:audit'
 Assert-Status -Response $auditVerify -Expected 200 -Name 'audit verify'
 Assert-True (($auditVerify.Json.ok -eq $true) -and ($auditVerify.Json.data.ok -eq $true)) 'audit verify did not return ok=true.'
@@ -197,6 +205,7 @@ $result = [ordered]@{
     circuit_breaker_backend = $circuitBreakerBackend
     plan = $plan.StatusCode
     audit_verify = $auditVerify.StatusCode
+    metrics = [int]$metrics.StatusCode
     audit_export = $auditExport.StatusCode
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
     admin_redis_diagnostics = $redisDiagnostics.StatusCode

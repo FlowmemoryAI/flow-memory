@@ -554,6 +554,17 @@ def call_json(method: str, url: str, headers: dict[str, str] | None = None, body
         return 0, {"raw": str(exc)}
 
 
+def call_text(method: str, url: str, headers: dict[str, str] | None = None) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers=dict(headers or {}), method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status, resp.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8", "replace")
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
+        return 0, str(exc)
+
+
 def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     base = base_url.rstrip("/")
     plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "dry_run": True}
@@ -566,6 +577,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     checks["health"] = call_json("GET", f"{base}/compute/health", headers_read)
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
     checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
+    checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
@@ -601,6 +613,8 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             plan_payload.get("funds_moved") is False,
             plan_payload.get("broadcast_allowed") is False,
             plan_payload.get("private_key_required") is False,
+            checks["metrics"][0] == 200,
+            "compute_plan_requests_total" in str(checks["metrics"][1]),
             audit_ok,
             checks["admin_audit_export"][0] == 200,
             checks["admin_storage_diagnostics"][0] == 200,
@@ -636,6 +650,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
         "admin_redis_diagnostics": checks["admin_redis_diagnostics"][0],
         "redis_url_scheme": safety.get("redis_url_scheme"),
+        "metrics": checks["metrics"][0],
     }
 
 

@@ -73,6 +73,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "reconciliation_run": "compute_reconciliation_runs",
     "alert_acknowledgement": "compute_alert_acknowledgements",
     "alert_delivery": "compute_alert_deliveries",
+    "error_tracking_event": "compute_error_tracking_events",
     "audit_checkpoint_manifest": "compute_audit_checkpoint_manifests",
     "audit_replay_run": "compute_audit_replay_runs",
 }

@@ -358,6 +358,10 @@ def compute_alert_ack(rule_name: str, payload: Mapping[str, Any]) -> Mapping[str
     return default_service().acknowledge_alert(rule_name, payload)
 
 
+def compute_track_error(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().track_error(payload)
+
+
 def admin_reconciliation(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().reconciliation(payload or {})
 

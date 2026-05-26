@@ -74,6 +74,10 @@ class ComputeMarketConfig:
     alert_webhook_url: str = ""
     alert_webhook_secret: str = ""
     alert_webhook_timeout_ms: int = 2_000
+    error_tracking_enabled: bool = False
+    error_tracking_webhook_url: str = ""
+    error_tracking_webhook_secret: str = ""
+    error_tracking_timeout_ms: int = 2_000
 
     @property
     def storage_backend_effective(self) -> str:
@@ -147,6 +151,8 @@ class ComputeMarketConfig:
             errors.append("audit_checkpoint_interval_seconds must be positive")
         if self.alert_webhook_timeout_ms < 1:
             errors.append("alert_webhook_timeout_ms must be positive")
+        if self.error_tracking_timeout_ms < 1:
+            errors.append("error_tracking_timeout_ms must be positive")
         if self.stripe_checkout_enabled:
             if not self.stripe_secret_key:
                 errors.append("stripe_checkout_enabled requires stripe_secret_key")
@@ -236,6 +242,10 @@ class ComputeMarketConfig:
             "alert_webhook_configured": bool(self.alert_webhook_url),
             "alert_webhook_secret_configured": bool(self.alert_webhook_secret),
             "alert_webhook_timeout_ms": self.alert_webhook_timeout_ms,
+            "error_tracking_enabled": self.error_tracking_enabled,
+            "error_tracking_webhook_configured": bool(self.error_tracking_webhook_url),
+            "error_tracking_secret_configured": bool(self.error_tracking_webhook_secret),
+            "error_tracking_timeout_ms": self.error_tracking_timeout_ms,
         }
 
 
@@ -310,6 +320,10 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         alert_webhook_url=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL", ""),
         alert_webhook_secret=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET", ""),
         alert_webhook_timeout_ms=_int(source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS"), 2_000),
+        error_tracking_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED"), False),
+        error_tracking_webhook_url=source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL", ""),
+        error_tracking_webhook_secret=source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET", ""),
+        error_tracking_timeout_ms=_int(source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS"), 2_000),
     )
 
 

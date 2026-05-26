@@ -2617,6 +2617,14 @@ class ComputeMarketService:
             failures.append("alert_webhook_unavailable")
         if self.config.alert_routing_enabled and self.config.alert_webhook_url.strip() and not _alert_webhook_url_allowed(self.config.alert_webhook_url.strip()):
             failures.append("alert_webhook_url_not_allowed")
+        if self.config.error_tracking_enabled and not self.config.error_tracking_webhook_url.strip():
+            failures.append("error_tracking_webhook_unavailable")
+        if (
+            self.config.error_tracking_enabled
+            and self.config.error_tracking_webhook_url.strip()
+            and not _alert_webhook_url_allowed(self.config.error_tracking_webhook_url.strip())
+        ):
+            failures.append("error_tracking_webhook_url_not_allowed")
         if self.config.external_provider_quotes_enabled and not self.config.external_provider_allowlist:
             failures.append("external_provider_allowlist_missing")
         if self.config.external_provider_quotes_enabled and not health.get("circuit_breaker_active", False):
@@ -2812,6 +2820,92 @@ class ComputeMarketService:
         self.store.put_record("alert_acknowledgement", str(record["acknowledgement_id"]), record, status="acknowledged", request_id=request_id)
         self._audit("compute.alert.acknowledged", payload, request_id=request_id, result="acknowledged", reason_codes=(rule_name,))
         return {"ok": True, "acknowledgement": record}
+
+    def track_error(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        payload = payload or {}
+        request_id = _request_id(payload)
+        error_code = str(payload.get("error_code", payload.get("code", ""))).strip()
+        if not error_code:
+            raise ValueError("error_code is required")
+        message = str(payload.get("message", "")).strip()
+        details = _safe_error_details(payload.get("details", {}))
+        audit_payload = {"error_code": error_code, "message": message, "details": details, "request_id": request_id}
+        if not self.config.error_tracking_enabled:
+            return {"ok": False, "error": "error_tracking_disabled", "request_id": request_id}
+
+        webhook_url = self.config.error_tracking_webhook_url.strip()
+        if not webhook_url:
+            self._audit(
+                "compute.error.tracking_failed",
+                audit_payload,
+                request_id=request_id,
+                result="failed",
+                reason_codes=("error_tracking_webhook_unavailable",),
+            )
+            return {"ok": False, "error": "error_tracking_webhook_unavailable", "request_id": request_id}
+        if not _alert_webhook_url_allowed(webhook_url):
+            self._audit(
+                "compute.error.tracking_failed",
+                audit_payload,
+                request_id=request_id,
+                result="failed",
+                reason_codes=("error_tracking_webhook_url_not_allowed",),
+            )
+            return {"ok": False, "error": "error_tracking_webhook_url_not_allowed", "request_id": request_id}
+
+        record = _error_tracking_record(
+            error_code,
+            message,
+            details,
+            webhook_url=webhook_url,
+            request_id=request_id,
+        )
+        envelope = _error_tracking_envelope(record)
+        self.telemetry.increment("error_tracking_pending_total", {"error_code": error_code})
+        if self.config.compute_market_mode == "test":
+            record = {
+                **record,
+                "status": "dry_run_skipped",
+                "delivery_attempted": False,
+                "reason_codes": ("test_mode_no_external_webhook",),
+                "updated_at": utc_now_iso(),
+            }
+        else:
+            sent = _post_alert_webhook(
+                webhook_url,
+                envelope,
+                secret=self.config.error_tracking_webhook_secret,
+                timeout_ms=self.config.error_tracking_timeout_ms,
+            )
+            record = {**record, **sent, "delivery_attempted": True}
+
+        status = str(record.get("status", ""))
+        self.store.put_record(
+            "error_tracking_event",
+            str(record["event_id"]),
+            record,
+            status=status,
+            request_id=request_id,
+            idempotency_key=str(record["event_id"]),
+        )
+        if status == "delivered":
+            self.telemetry.increment("error_tracking_sent_total", {"error_code": error_code})
+        elif status == "failed":
+            self.telemetry.increment("error_tracking_failed_total", {"error_code": error_code})
+        self._audit(
+            "compute.error.tracked",
+            audit_payload,
+            request_id=request_id,
+            result=status or "failed",
+            reason_codes=(error_code,),
+        )
+        return {
+            "ok": status in {"delivered", "dry_run_skipped"},
+            "event_id": str(record["event_id"]),
+            "status": status,
+            "request_id": request_id,
+            "event": record,
+        }
 
     def admin_storage_diagnostics(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         _ = payload
@@ -3047,6 +3141,10 @@ _READINESS_FAILURE_METRICS = {
     "external_provider_allowlist_missing": "external_provider_allowlist_missing_total",
     "unsafe_live_settlement_config": "unexpected_live_settlement_config_total",
     "audit_immutable_retention_not_configured": "audit_chain_verify_fail_total",
+    "alert_webhook_unavailable": "alert_delivery_failed_total",
+    "alert_webhook_url_not_allowed": "alert_delivery_failed_total",
+    "error_tracking_webhook_unavailable": "error_tracking_failed_total",
+    "error_tracking_webhook_url_not_allowed": "error_tracking_failed_total",
 }
 
 
@@ -3116,6 +3214,7 @@ def _enrich_provider(provider: ComputeProvider) -> ComputeProvider:
     )
 
 _CREDENTIAL_VALUE_KEYS = frozenset({"api_key", "token", "access_token", "refresh_token", "password", "secret", "secret_key", "private_key"})
+_ERROR_DETAIL_KEY_FRAGMENTS = ("api_key", "token", "password", "secret", "private_key", "seed", "mnemonic")
 
 
 def _assert_no_inline_credentials(payload: Mapping[str, Any]) -> None:
@@ -4353,6 +4452,70 @@ def _alert_delivery_envelope(alert: Mapping[str, Any], *, request_id: str) -> di
         "service": "flow-memory-compute-market",
         "created_at": utc_now_iso(),
     }
+
+
+def _error_tracking_record(
+    error_code: str,
+    message: str,
+    details: Mapping[str, Any],
+    *,
+    webhook_url: str,
+    request_id: str,
+) -> dict[str, Any]:
+    now = utc_now_iso()
+    event_id = deterministic_id(
+        "error_tracking_event",
+        {"error_code": error_code, "message": message, "details": details, "request_id": request_id},
+    )
+    return {
+        "event_id": event_id,
+        "error_code": error_code,
+        "message": message,
+        "details": dict(details),
+        "status": "pending_delivery",
+        "channel": "webhook",
+        "target": _redacted_url(webhook_url),
+        "delivery_attempted": False,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _error_tracking_envelope(record: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "type": "flow_memory.compute_market.error",
+        "request_id": str(record.get("request_id", "")),
+        "event_id": str(record.get("event_id", "")),
+        "error_code": str(record.get("error_code", "")),
+        "message": str(record.get("message", "")),
+        "details": dict(record.get("details", {})) if isinstance(record.get("details", {}), Mapping) else {},
+        "service": "flow-memory-compute-market",
+        "created_at": str(record.get("created_at", utc_now_iso())),
+    }
+
+
+def _safe_error_details(raw: object) -> dict[str, Any]:
+    if not isinstance(raw, Mapping):
+        return {}
+    return {str(key): _safe_error_value(str(key), value) for key, value in raw.items()}
+
+
+def _safe_error_value(key: str, value: object) -> Any:
+    if _is_sensitive_error_key(key):
+        return "[redacted]"
+    if isinstance(value, Mapping):
+        return {str(child_key): _safe_error_value(str(child_key), child_value) for child_key, child_value in value.items()}
+    if isinstance(value, (list, tuple)):
+        return tuple(_safe_error_value("", item) for item in value)
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _is_sensitive_error_key(key: str) -> bool:
+    lowered = key.lower()
+    return any(fragment in lowered for fragment in _ERROR_DETAIL_KEY_FRAGMENTS)
 
 
 def _post_alert_webhook(

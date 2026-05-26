@@ -65,6 +65,7 @@ def test_compute_scope_enforcement() -> None:
     assert required_scopes_for("GET", "/compute/providers") == ("compute:read",)
     assert required_scopes_for("POST", "/compute/plan") == ("compute:plan",)
     assert required_scopes_for("POST", "/compute/economic-memory/query") == ("compute:plan",)
+    assert required_scopes_for("POST", "/compute/errors/track") == ("compute:admin",)
 
     gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev-local-only", require_scopes=True, enable_rate_limit=False))
     denied = gateway.handle("GET", "/compute/providers", {"x-flow-memory-api-key": "dev-local-only", "x-flow-memory-scopes": "api:read"})

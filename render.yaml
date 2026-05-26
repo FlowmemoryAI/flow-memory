@@ -99,6 +99,14 @@ services:
         sync: false
       - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS
         value: 2000
+      - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL
+        value: ""
+      - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS
+        value: 2000
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED
         value: false
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST

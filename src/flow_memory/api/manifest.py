@@ -173,6 +173,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/compute/alerts", "compute_alerts", "Evaluate Compute Market alert rules against in-process telemetry", response_fields=("ok", "alerts", "acknowledgements")),
     EndpointSpec("POST", "/compute/alerts/route", "compute_alert_route", "Evaluate alert rules and route firing alerts to configured delivery sinks", response_fields=("ok", "alerts", "deliveries", "delivery_count")),
     EndpointSpec("POST", "/compute/alerts/{rule_name}/ack", "compute_alert_ack", "Acknowledge a firing Compute Market alert rule", request_fields=("acknowledged_by",), response_fields=("ok", "acknowledgement")),
+    EndpointSpec("POST", "/compute/errors/track", "compute_track_error", "Submit an operational error event to the configured webhook sink", request_fields=("error_code", "message", "details"), response_fields=("ok", "event_id", "status", "request_id")),
 )
 
 

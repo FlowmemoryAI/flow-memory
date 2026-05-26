@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 
+from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.router import create_default_router
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry, MetricSample, TraceSpanRecord, metric_names, span_names
@@ -104,6 +105,9 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "alert_delivery_pending_total" in names
     assert "alert_delivery_sent_total" in names
     assert "alert_delivery_failed_total" in names
+    assert "error_tracking_pending_total" in names
+    assert "error_tracking_sent_total" in names
+    assert "error_tracking_failed_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 
@@ -237,6 +241,142 @@ def test_alert_routing_enabled_readiness_requires_usable_webhook_url() -> None:
     assert "alert_webhook_unavailable" in missing.readiness()["readiness_failures"]
     assert "alert_webhook_url_not_allowed" in unsafe.readiness()["readiness_failures"]
 
+
+def test_error_tracking_disabled_noops() -> None:
+    service = _service()
+
+    tracked = service.track_error({"error_code": "test.error", "message": "ignored"})
+
+    assert tracked["ok"] is False
+    assert tracked["error"] == "error_tracking_disabled"
+    assert service.store.count_records("error_tracking_event") == 0
+
+
+def test_error_tracking_records_delivery_and_metrics() -> None:
+    server, url = _alert_webhook_server()
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                error_tracking_enabled=True,
+                error_tracking_webhook_url=url,
+                error_tracking_webhook_secret="error-track-secret",
+            ),
+        )
+        tracked = service.track_error(
+            {
+                "error_code": "storage.write_failed",
+                "message": "failed to persist record",
+                "details": {"table": "compute_jobs", "password": "must-not-persist"},
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert tracked["ok"] is True
+    assert tracked["status"] == "delivered"
+    assert service.store.count_records("error_tracking_event") == 1
+    event = tracked["event"]
+    assert event["details"]["password"] == "[redacted]"
+    assert "error-track-secret" not in json.dumps(event)
+    assert _ALERT_WEBHOOK_POSTS[0]["body"]["type"] == "flow_memory.compute_market.error"
+    assert _ALERT_WEBHOOK_POSTS[0]["body"]["details"]["password"] == "[redacted]"
+    assert _ALERT_WEBHOOK_POSTS[0]["signature"]
+    assert "error-track-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert metric_totals["error_tracking_pending_total"] == 1.0
+    assert metric_totals["error_tracking_sent_total"] == 1.0
+
+
+def test_error_tracking_records_failed_webhook_without_leaking_secret() -> None:
+    server, url = _alert_webhook_server()
+    failing_url = url.replace("/alerts", "/fail")
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                error_tracking_enabled=True,
+                error_tracking_webhook_url=failing_url,
+                error_tracking_webhook_secret="error-track-secret",
+            ),
+        )
+        tracked = service.track_error({"error_code": "provider.timeout", "message": "provider timed out"})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert tracked["ok"] is False
+    assert tracked["status"] == "failed"
+    assert tracked["event"]["http_status"] == 503
+    assert "error-track-secret" not in json.dumps(tracked)
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert metric_totals["error_tracking_failed_total"] == 1.0
+
+
+def test_error_tracking_enabled_readiness_requires_usable_webhook_url() -> None:
+    missing = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            error_tracking_enabled=True,
+        ),
+    )
+    unsafe = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            error_tracking_enabled=True,
+            error_tracking_webhook_url="http://example.com/errors",
+        ),
+    )
+
+    assert "error_tracking_webhook_unavailable" in missing.readiness()["readiness_failures"]
+    assert "error_tracking_webhook_url_not_allowed" in unsafe.readiness()["readiness_failures"]
+
+
+def test_error_tracking_integrates_via_http_gateway() -> None:
+    server, url = _alert_webhook_server()
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            error_tracking_enabled=True,
+            error_tracking_webhook_url=url,
+            error_tracking_webhook_secret="error-track-secret",
+        ),
+    )
+    reset_default_service(service)
+    gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev-key", require_scopes=True, enable_rate_limit=False))
+    try:
+        response = gateway.handle(
+            "POST",
+            "/compute/errors/track",
+            {"x-flow-memory-api-key": "dev-key", "x-flow-memory-scopes": "compute:admin"},
+            json.dumps({"error_code": "gateway.error", "message": "gateway observed error"}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+        server.shutdown()
+        server.server_close()
+
+    body = json.loads(response.to_bytes())
+    assert response.status == 200
+    assert body["data"]["status"] == "delivered"
+    assert body["data"]["event"]["error_code"] == "gateway.error"
+
 def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> None:
     service = _service()
     webhook = service.billing_webhook_stripe(
@@ -325,6 +465,9 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "alert_delivery_pending_total",
         "alert_delivery_sent_total",
         "alert_delivery_failed_total",
+        "error_tracking_pending_total",
+        "error_tracking_sent_total",
+        "error_tracking_failed_total",
         "audit_chain_verify_fail_total",
         "settlement_attempt_total",
         "unexpected_live_settlement_config_total",

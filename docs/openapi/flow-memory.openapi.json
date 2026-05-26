@@ -1814,6 +1814,64 @@
         ]
       }
     },
+    "/compute/errors/track": {
+      "post": {
+        "operationId": "compute_track_error",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "details": {
+                    "type": "string"
+                  },
+                  "error_code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "event_id": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "request_id": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Submit an operational error event to the configured webhook sink",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/health": {
       "get": {
         "operationId": "compute_health",

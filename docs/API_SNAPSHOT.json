@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 147,
-  "manifest_hash": "90f62d9c670ab17a704b5de898044673710e19e9b5b07f2fc5173783fdd8407f",
-  "openapi_hash": "42de628e7dd1a07a6a5f32753b4bb2ef2fdf5086d03f4bda1a03bf8d0e011cf7",
+  "endpoint_count": 148,
+  "manifest_hash": "6dafa2b34f4677e3713442e44fdc44d3ca176865131f9830d6ea8526adb89d8d",
+  "openapi_hash": "41e98da0d5e1d3dbb9f8d4e4b186e68c271b01b11bcc756d2f3ae7809430d270",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -93,6 +93,7 @@
     "POST /compute/audit/verify-export",
     "POST /compute/decisions/{decision_id}/replay",
     "POST /compute/economic-memory/query",
+    "POST /compute/errors/track",
     "POST /compute/jobs",
     "POST /compute/jobs/claim",
     "POST /compute/jobs/{job_id}/cancel",
@@ -151,7 +152,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 139,
+  "path_count": 140,
   "paths": [
     "/admin/audit/export",
     "/admin/reconciliation",
@@ -196,6 +197,7 @@
     "/compute/economic-memory/routes/{route_id}",
     "/compute/economic-memory/summary",
     "/compute/economic-memory/tasks/{task_type}",
+    "/compute/errors/track",
     "/compute/health",
     "/compute/jobs",
     "/compute/jobs/claim",

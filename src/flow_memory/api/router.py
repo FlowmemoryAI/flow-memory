@@ -56,6 +56,7 @@ from flow_memory.api.compute_endpoints import (
     compute_alert_ack,
     compute_alerts,
     compute_alert_route,
+    compute_track_error,
     compute_decision,
     compute_decision_replay,
     compute_economic_memory,
@@ -750,6 +751,9 @@ class LocalApiRouter:
     def _compute_alert_ack(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_alert_ack(params["rule_name"], payload)
 
+    def _compute_track_error(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_track_error(payload)
+
 
     def _auth_api_keys(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return {
@@ -950,6 +954,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/compute/alerts", router._compute_alerts, "compute_alerts")
     router.register("POST", "/compute/alerts/route", router._compute_alert_route, "compute_alert_route")
     router.register("POST", "/compute/alerts/{rule_name}/ack", router._compute_alert_ack, "compute_alert_ack")
+    router.register("POST", "/compute/errors/track", router._compute_track_error, "compute_track_error")
     router.register("POST", "/billing/checkout", router._billing_checkout, "billing_checkout")
     router.register("POST", "/billing/webhooks/stripe", router._billing_webhook_stripe, "billing_webhook_stripe")
     router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")

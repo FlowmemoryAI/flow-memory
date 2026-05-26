@@ -153,6 +153,21 @@ def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
     assert env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
 
+def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(render_deploy, "DEFAULT_POSTGRES_PLAN", "free")
+    monkeypatch.setattr(render_deploy, "DEFAULT_KEYVALUE_PLAN", "free")
+    monkeypatch.setattr(render_deploy, "DEFAULT_SERVICE_PLAN", "free")
+    monkeypatch.setattr(render_deploy, "ALLOW_FREE_RENDER_PLANS", False)
+
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.validate_render_plans()
+
+    monkeypatch.setattr(render_deploy, "ALLOW_FREE_RENDER_PLANS", True)
+
+    assert blocked.value.code == 28
+    assert render_deploy.validate_render_plans() is None
+
+
 def test_render_deploy_selects_tls_keyvalue_connection_string() -> None:
     redis_url = render_deploy.select_managed_redis_url(
         {

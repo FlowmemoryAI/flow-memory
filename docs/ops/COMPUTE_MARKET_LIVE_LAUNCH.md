@@ -21,7 +21,7 @@ cp deployments/compute-market/live.env.example .env.compute-market.live
 ```
 
 2. Fill every `CHANGEME` value. Do not commit the filled file.
-   For Render API provisioning, export `RENDER_API_KEY`, `RENDER_OWNER_ID`, `RENDER_KEYVALUE_IP_ALLOWLIST`, and `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI` in the shell before running `scripts/deploy_compute_market_render_level1.py`. `RENDER_KEYVALUE_IP_ALLOWLIST` must contain the public egress CIDR ranges allowed to reach the external `rediss://` Key Value endpoint.
+   For Render API provisioning, export `RENDER_API_KEY`, `RENDER_OWNER_ID`, `RENDER_KEYVALUE_IP_ALLOWLIST`, and `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI` in the shell before running `scripts/deploy_compute_market_render_level1.py`. `RENDER_KEYVALUE_IP_ALLOWLIST` must contain the public egress CIDR ranges allowed to reach the external `rediss://` Key Value endpoint. Set `RENDER_POSTGRES_PLAN`, `RENDER_KEYVALUE_PLAN`, and `RENDER_SERVICE_PLAN` to production-grade paid plans; `RENDER_ALLOW_FREE_PLANS=true` is reserved for non-production smoke deployments only.
 
 3. Start the planning stack:
 

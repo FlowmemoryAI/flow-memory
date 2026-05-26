@@ -23,6 +23,7 @@ DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "free")
 DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "free")
 DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "free")
 DEFAULT_KEYVALUE_IP_ALLOWLIST = os.environ.get("RENDER_KEYVALUE_IP_ALLOWLIST", "").strip()
+ALLOW_FREE_RENDER_PLANS = os.environ.get("RENDER_ALLOW_FREE_PLANS", "").strip().lower() in {"1", "true", "yes"}
 ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
 DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE = os.environ.get(
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", "COMPLIANCE"
@@ -125,6 +126,30 @@ def audit_export_uri_from_env(values: dict[str, str]) -> str:
 
 def has_placeholder(value: str) -> bool:
     return any(token in value for token in PLACEHOLDERS)
+
+
+def validate_render_plans() -> None:
+    if ALLOW_FREE_RENDER_PLANS:
+        return
+    free_plans = [
+        {"env": env_name, "value": value}
+        for env_name, value in (
+            ("RENDER_POSTGRES_PLAN", DEFAULT_POSTGRES_PLAN),
+            ("RENDER_KEYVALUE_PLAN", DEFAULT_KEYVALUE_PLAN),
+            ("RENDER_SERVICE_PLAN", DEFAULT_SERVICE_PLAN),
+        )
+        if value.strip().lower() == "free"
+    ]
+    if free_plans:
+        emit(
+            "blocked_free_render_plan",
+            28,
+            invalid_values=free_plans,
+            required_action=(
+                "Set RENDER_POSTGRES_PLAN, RENDER_KEYVALUE_PLAN, and RENDER_SERVICE_PLAN to production-grade "
+                "paid plans, or set RENDER_ALLOW_FREE_PLANS=true only for non-production smoke deployments."
+            ),
+        )
 
 
 def public_repo_url() -> str:
@@ -645,6 +670,7 @@ def main() -> int:
 
     if not args.api_key:
         emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
+    validate_render_plans()
     env_values = parse_env(Path(args.env_file))
     audit_export_uri = audit_export_uri_from_env(env_values)
     owner_id = infer_owner_id(args.api_key, args.owner_id)

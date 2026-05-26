@@ -66,6 +66,7 @@ For horizontally scaled production planning, use:
 - `FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://...`
 - immutable audit export storage with object lock or equivalent WORM controls
 - Render API deployment requires `RENDER_KEYVALUE_IP_ALLOWLIST=<public-egress-cidr>[,<public-egress-cidr>]` so the external TLS Key Value endpoint can be used safely.
+- Render production automation blocks `free` Render service, PostgreSQL, and Key Value plans unless `RENDER_ALLOW_FREE_PLANS=true` is set for an explicitly non-production smoke deployment.
 
 SQLite remains appropriate for local development and single-node deployments only. Multi-node production requires managed PostgreSQL, automated backups, restore drills, migration promotion gates, advisory-lock-protected migrations, Redis-backed distributed abuse controls, and immutable audit export/checkpoint retention.
 

@@ -64,6 +64,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "quote_cache_invalidated_total" in names
     assert "capacity_confirmed_total" in names
     assert "capacity_auction_cleared_total" in names
+    assert "provider_sla_penalty_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 
@@ -171,6 +172,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "billing_debit_total",
         "billing_payment_failed_total",
         "billing_webhook_failures_total",
+        "provider_sla_penalty_total",
         "audit_chain_verify_fail_total",
         "settlement_attempt_total",
         "unexpected_live_settlement_config_total",

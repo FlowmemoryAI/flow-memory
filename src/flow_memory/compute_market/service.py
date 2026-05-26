@@ -1508,6 +1508,7 @@ class ComputeMarketService:
             )
         credit_debit: Mapping[str, Any] = {}
         provider_payout: Mapping[str, Any] = {}
+        provider_sla_penalty: Mapping[str, Any] = {}
         usage_charge = _usage_charge(job, payload, request_id=request_id, amount=cost, units=actual_units)
         if usage_charge:
             self.store.put_record(
@@ -1532,6 +1533,38 @@ class ComputeMarketService:
                 route_id=str(job.get("route_id", "")),
             )
             self.telemetry.increment("billing_debit_total", {"provider_id": str(job.get("provider_id", ""))}, value=float(usage_charge["amount"]))
+            if sla_latency_breached:
+                provider_sla_penalty = _provider_sla_penalty(
+                    provider if isinstance(provider, Mapping) else {},
+                    job,
+                    usage_charge,
+                    request_id=request_id,
+                )
+                if provider_sla_penalty:
+                    self.store.put_record(
+                        "provider_sla_penalty",
+                        str(provider_sla_penalty["sla_penalty_id"]),
+                        provider_sla_penalty,
+                        tenant_id=str(provider_sla_penalty.get("account_id", "")),
+                        provider_id=str(provider_sla_penalty.get("provider_id", "")),
+                        route_id=str(provider_sla_penalty.get("route_id", "")),
+                        status=str(provider_sla_penalty.get("status", "")),
+                        request_id=request_id,
+                        idempotency_key=str(provider_sla_penalty["sla_penalty_id"]),
+                    )
+                    self.telemetry.increment(
+                        "provider_sla_penalty_total",
+                        {"provider_id": str(provider_sla_penalty.get("provider_id", ""))},
+                        value=float(provider_sla_penalty.get("recommended_credit_amount", 0.0) or 0.0),
+                    )
+                    self._audit(
+                        "billing.provider_sla_penalty.recorded",
+                        payload,
+                        request_id=request_id,
+                        result=str(provider_sla_penalty.get("status", "")),
+                        provider_id=str(provider_sla_penalty.get("provider_id", "")),
+                        route_id=str(provider_sla_penalty.get("route_id", "")),
+                    )
             account_id = str(usage_charge.get("account_id", ""))
             if account_id:
                 credit_debit = _debit_credit(
@@ -1567,6 +1600,7 @@ class ComputeMarketService:
                 "usage_charge_recorded": bool(usage_charge),
                 "credit_debit_recorded": bool(credit_debit),
                 "provider_payout_recorded": bool(provider_payout),
+                "provider_sla_penalty_recorded": bool(provider_sla_penalty),
                 "actual_total_cost": cost,
                 "funds_moved": False,
                 "provider_sla_max_latency_ms": sla_max_latency_ms,
@@ -1595,7 +1629,16 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event, "artifact": artifact, "usage_charge": usage_charge, "credit_debit": credit_debit, "provider_payout": provider_payout}
+        return {
+            "ok": True,
+            "job": job,
+            "event": event,
+            "artifact": artifact,
+            "usage_charge": usage_charge,
+            "credit_debit": credit_debit,
+            "provider_payout": provider_payout,
+            "provider_sla_penalty": provider_sla_penalty,
+        }
 
     def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -2191,6 +2234,7 @@ class ComputeMarketService:
             "payment_event_count": self.store.count_records("payment_event"),
             "provider_payout_count": self.store.count_records("provider_payout"),
             "refund_count": self.store.count_records("refund"),
+            "provider_sla_penalty_count": self.store.count_records("provider_sla_penalty"),
             "funds_moved": False,
             "created_at": utc_now_iso(),
         }
@@ -4073,6 +4117,60 @@ def _stripe_account_id(raw_event: Mapping[str, Any], payload: Mapping[str, Any])
         or raw_event.get("customer")
         or ""
     )
+
+
+def _provider_sla_refund_policy(provider: Mapping[str, Any]) -> str:
+    metadata = provider.get("metadata", {})
+    if isinstance(metadata, Mapping):
+        sla = metadata.get("sla", {})
+        if isinstance(sla, Mapping) and str(sla.get("refund_policy", "")).strip():
+            return str(sla["refund_policy"])
+    sla = provider.get("sla", {})
+    if isinstance(sla, Mapping) and str(sla.get("refund_policy", "")).strip():
+        return str(sla["refund_policy"])
+    return "manual_review"
+
+
+def _provider_sla_penalty(
+    provider: Mapping[str, Any],
+    job: Mapping[str, Any],
+    usage_charge: Mapping[str, Any],
+    *,
+    request_id: str,
+) -> dict[str, Any]:
+    if not usage_charge or not bool(job.get("provider_sla_latency_breached", False)):
+        return {}
+    amount = _safe_non_negative_float(usage_charge.get("amount", 0.0))
+    if amount <= 0:
+        return {}
+    usage_charge_id = str(usage_charge.get("usage_charge_id", ""))
+    job_id = str(job.get("job_id", ""))
+    penalty_id = deterministic_id(
+        "provider_sla_penalty",
+        {"provider_id": job.get("provider_id", ""), "job_id": job_id, "usage_charge_id": usage_charge_id},
+    )
+    now = utc_now_iso()
+    return {
+        "sla_penalty_id": penalty_id,
+        "job_id": job_id,
+        "usage_charge_id": usage_charge_id,
+        "account_id": str(usage_charge.get("account_id", "")),
+        "provider_id": str(job.get("provider_id", "")),
+        "route_id": str(job.get("route_id", "")),
+        "status": "pending_reconciliation",
+        "sla_breach_type": "latency",
+        "refund_policy": _provider_sla_refund_policy(provider),
+        "provider_sla_max_latency_ms": _safe_non_negative_float(job.get("provider_sla_max_latency_ms", 0.0)),
+        "actual_latency_ms": _safe_non_negative_float(job.get("actual_latency_ms", 0.0)),
+        "recommended_credit_amount": amount,
+        "provider_payout_adjustment_amount": amount,
+        "currency": str(usage_charge.get("currency", "USD")),
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
 
 
 def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:

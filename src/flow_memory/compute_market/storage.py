@@ -52,6 +52,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "payment_event",
     "provider_payout",
     "usage_charge",
+    "provider_sla_penalty",
     "refund",
     "reconciliation_run",
     "alert_acknowledgement",

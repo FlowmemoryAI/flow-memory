@@ -702,6 +702,16 @@ def test_provider_reputation_tracks_sla_latency_breaches() -> None:
     assert reputation["sla_latency_breach_count"] == 1
     assert reputation["sla_breach_count"] == 1
     assert reputation["latency_reliability"] == 0.0
+    penalty = completed["provider_sla_penalty"]
+    assert completed["event"]["details"]["provider_sla_penalty_recorded"] is True
+    assert penalty["status"] == "pending_reconciliation"
+    assert penalty["refund_policy"] == "credit"
+    assert penalty["recommended_credit_amount"] == 0.18
+    assert penalty["provider_payout_adjustment_amount"] == 0.18
+    assert penalty["funds_moved"] is False
+    assert service.store.count_records("provider_sla_penalty") == 1
+    assert service.reconciliation({})["reconciliation"]["provider_sla_penalty_count"] == 1
+    assert _metric_total(service, "provider_sla_penalty_total", {"provider_id": "provider_live_gpu_1"}) == 0.18
 
 
 def test_signed_provider_receipt_callback_completes_job_and_blocks_replay(monkeypatch: Any) -> None:

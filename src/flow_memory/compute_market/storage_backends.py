@@ -68,6 +68,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "payment_event": "compute_payment_events",
     "provider_payout": "compute_provider_payouts",
     "usage_charge": "compute_usage_charges",
+    "provider_sla_penalty": "compute_provider_sla_penalties",
     "refund": "compute_refunds",
     "reconciliation_run": "compute_reconciliation_runs",
     "alert_acknowledgement": "compute_alert_acknowledgements",

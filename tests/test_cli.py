@@ -172,7 +172,17 @@ class CLITests(unittest.TestCase):
             balance_code, balance_output = self._run_cli(["compute", "billing", "balance", "acct_cli"])
             usage_code, usage_output = self._run_cli(["compute", "billing", "usage", "--account-id", "acct_cli"])
             payout_code, payout_output = self._run_cli(
-                ["compute", "billing", "provider-payouts", "--provider", "provider_live_gpu_1", "--status", "accrued"]
+                [
+                    "compute",
+                    "billing",
+                    "provider-payouts",
+                    "--account-id",
+                    "acct_cli",
+                    "--provider",
+                    "provider_live_gpu_1",
+                    "--status",
+                    "accrued",
+                ]
             )
             settle_code, settle_output = self._run_cli(
                 [

@@ -303,6 +303,113 @@ def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> Non
     assert mismatch.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
 
 
+def test_http_gateway_billing_reads_are_tenant_scoped_and_fail_closed() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    service.store.put_record(
+        "usage_charge",
+        "usage_tenant_a",
+        {"usage_charge_id": "usage_tenant_a", "account_id": "tenant_billing_a", "amount": 1.0, "currency": "USD"},
+        tenant_id="tenant_billing_a",
+    )
+    service.store.put_record(
+        "usage_charge",
+        "usage_tenant_b",
+        {"usage_charge_id": "usage_tenant_b", "account_id": "tenant_billing_b", "amount": 2.0, "currency": "USD"},
+        tenant_id="tenant_billing_b",
+    )
+    service.store.put_record(
+        "provider_payout",
+        "payout_tenant_a",
+        {
+            "provider_payout_id": "payout_tenant_a",
+            "account_id": "tenant_billing_a",
+            "provider_id": "provider_a",
+            "amount": 1.0,
+            "currency": "USD",
+            "status": "accrued",
+        },
+        tenant_id="tenant_billing_a",
+        provider_id="provider_a",
+        status="accrued",
+    )
+    service.store.put_record(
+        "provider_payout",
+        "payout_tenant_b",
+        {
+            "provider_payout_id": "payout_tenant_b",
+            "account_id": "tenant_billing_b",
+            "provider_id": "provider_b",
+            "amount": 2.0,
+            "currency": "USD",
+            "status": "accrued",
+        },
+        tenant_id="tenant_billing_b",
+        provider_id="provider_b",
+        status="accrued",
+    )
+    reset_default_service(service)
+    tenant_key = "fmk_tenant_billing_a"
+    unbound_key = "fmk_unbound_billing"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-billing-a-key",
+                    "key_prefix": "fmk_tenant_billing_a",
+                    "key_hash": api_key_hash(tenant_key),
+                    "tenant_id": "tenant_billing_a",
+                    "principal": "svc-billing-a",
+                    "scopes": "compute:billing",
+                    "enabled": True,
+                },
+                {
+                    "key_id": "unbound-billing-key",
+                    "key_prefix": "fmk_unbound_billing",
+                    "key_hash": api_key_hash(unbound_key),
+                    "principal": "svc-billing-unbound",
+                    "scopes": "compute:billing",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    try:
+        scoped_usage = gateway.handle("GET", "/billing/usage", {"x-flow-memory-api-key": tenant_key})
+        scoped_payouts = gateway.handle("GET", "/billing/provider-payouts?status=accrued", {"x-flow-memory-api-key": tenant_key})
+        mismatched_account = gateway.handle(
+            "GET",
+            "/billing/usage?account_id=tenant_billing_b",
+            {"x-flow-memory-api-key": tenant_key},
+        )
+        unbound_usage = gateway.handle("GET", "/billing/usage", {"x-flow-memory-api-key": unbound_key})
+        unbound_payouts = gateway.handle("GET", "/billing/provider-payouts?status=accrued", {"x-flow-memory-api-key": unbound_key})
+        explicit_unbound_usage = gateway.handle(
+            "GET",
+            "/billing/usage?account_id=tenant_billing_b",
+            {"x-flow-memory-api-key": unbound_key},
+        )
+    finally:
+        reset_default_service(None)
+
+    assert scoped_usage.status == 200
+    assert [charge["usage_charge_id"] for charge in scoped_usage.body["data"]["usage_charges"]] == ["usage_tenant_a"]
+    assert scoped_payouts.status == 200
+    assert [payout["provider_payout_id"] for payout in scoped_payouts.body["data"]["provider_payouts"]] == ["payout_tenant_a"]
+    assert mismatched_account.status == 400
+    assert mismatched_account.body["error"]["message"] == "account_id must match tenant_id"
+    assert unbound_usage.status == 400
+    assert unbound_usage.body["error"]["message"] == "account_id or tenant_id is required"
+    assert unbound_payouts.status == 400
+    assert unbound_payouts.body["error"]["message"] == "account_id or tenant_id is required"
+    assert explicit_unbound_usage.status == 200
+    assert [charge["usage_charge_id"] for charge in explicit_unbound_usage.body["data"]["usage_charges"]] == ["usage_tenant_b"]
+
+
 def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),

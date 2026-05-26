@@ -2164,9 +2164,7 @@ class ComputeMarketService:
         return {"ok": verified, "payment_event": record, "credit_transaction": credit_record}
 
     def billing_balance(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        account_id = str(payload.get("account_id") or payload.get("tenant_id", ""))
-        if not account_id:
-            raise ValueError("account_id or tenant_id is required")
+        account_id = _billing_account_id(payload)
         balance = self.store.get_record("credit_balance", account_id) or {
             "account_id": account_id,
             "available_credits": 0.0,
@@ -2177,23 +2175,20 @@ class ComputeMarketService:
         return {"ok": True, "balance": balance}
 
     def billing_usage(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        account_id = str(payload.get("account_id") or payload.get("tenant_id", ""))
-        filters = {"tenant_id": account_id} if account_id else {}
+        account_id = _billing_account_id(payload)
+        filters = {"tenant_id": account_id}
         charges = tuple(self.store.list_records("usage_charge", filters=filters, limit=int(payload.get("limit", 100) or 100)).records)
         return {"ok": True, "usage_charges": charges, "account_id": account_id}
 
     def billing_provider_payouts(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
-        filters: dict[str, Any] = {}
+        filters: dict[str, Any] = {"tenant_id": _billing_account_id(payload)}
         provider_id = str(payload.get("provider_id", "")).strip()
         status = str(payload.get("status", "")).strip()
-        account_id = str(payload.get("account_id") or payload.get("tenant_id", "")).strip()
         if provider_id:
             filters["provider_id"] = provider_id
         if status:
             filters["status"] = status
-        if account_id:
-            filters["tenant_id"] = account_id
         page = self.store.list_records(
             "provider_payout",
             filters=filters,
@@ -4715,6 +4710,17 @@ def _job_artifact(job: Mapping[str, Any], payload: Mapping[str, Any], *, request
         "updated_at": now,
         "request_id": request_id,
     }
+
+
+def _billing_account_id(payload: Mapping[str, Any]) -> str:
+    account_id = str(payload.get("account_id", "")).strip()
+    tenant_id = str(payload.get("tenant_id", "")).strip()
+    if account_id and tenant_id and account_id != tenant_id:
+        raise ValueError("account_id must match tenant_id")
+    resolved = account_id or tenant_id
+    if not resolved:
+        raise ValueError("account_id or tenant_id is required")
+    return resolved
 
 
 def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request_id: str, amount: float, units: float) -> dict[str, Any]:

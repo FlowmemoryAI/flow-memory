@@ -821,7 +821,7 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert completed["credit_debit"] == {}
     assert completed["provider_payout"] == {}
     assert service.job_artifacts(job_id)["artifacts"]
-    assert service.billing_usage({})["usage_charges"]
+    assert service.store.count_records("usage_charge") == 1
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
@@ -1463,7 +1463,7 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
     completed = service.complete_job(job_id, {"account_id": "acct_payout", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
     payout_id = str(completed["provider_payout"]["provider_payout_id"])
 
-    accrued = service.billing_provider_payouts({"provider_id": "provider_live_gpu_1", "status": "accrued"})
+    accrued = service.billing_provider_payouts({"account_id": "acct_payout", "provider_id": "provider_live_gpu_1", "status": "accrued"})
     before_reconciliation = service.reconciliation({})["reconciliation"]
 
     assert accrued["summary"]["accrued_total"] == 0.18
@@ -1475,7 +1475,7 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
     reset_default_service(service)
     router = create_default_router()
     try:
-        routed_list = router.dispatch("GET", "/billing/provider-payouts", {"status": "accrued"})
+        routed_list = router.dispatch("GET", "/billing/provider-payouts", {"account_id": "acct_payout", "status": "accrued"})
         routed_settle = router.dispatch(
             "POST",
             f"/billing/provider-payouts/{payout_id}/settle",
@@ -1489,7 +1489,7 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
     assert routed_settle["provider_payout"]["external_disbursement_recorded"] is True
     assert routed_settle["provider_payout"]["funds_moved"] is False
 
-    settled = service.billing_provider_payouts({"provider_id": "provider_live_gpu_1", "status": "settled"})
+    settled = service.billing_provider_payouts({"account_id": "acct_payout", "provider_id": "provider_live_gpu_1", "status": "settled"})
     after_reconciliation = service.reconciliation({})["reconciliation"]
 
     assert settled["summary"]["settled_total"] == 0.18

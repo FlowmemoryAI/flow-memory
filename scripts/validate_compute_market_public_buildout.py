@@ -237,7 +237,11 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     )
     checks["job_artifacts"] = call_json("GET", f"{base}/compute/jobs/{job_id}/artifacts", headers_read)
     payout_id = str(data(checks["job_complete"][1]).get("provider_payout", {}).get("provider_payout_id", ""))
-    checks["billing_provider_payouts"] = call_json("GET", f"{base}/billing/provider-payouts?provider_id={provider_id}", headers_billing)
+    checks["billing_provider_payouts"] = call_json(
+        "GET",
+        f"{base}/billing/provider-payouts?provider_id={provider_id}&account_id={account_id}",
+        headers_billing,
+    )
     checks["billing_provider_payout_settle"] = call_json(
         "POST",
         f"{base}/billing/provider-payouts/{payout_id}/settle",

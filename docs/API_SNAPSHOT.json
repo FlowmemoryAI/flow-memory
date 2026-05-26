@@ -1,6 +1,6 @@
 {
   "endpoint_count": 164,
-  "manifest_hash": "6cc9fec222ef9bf96420243f777d34df29c58cd9bf6dde81f7752ac6978f3296",
+  "manifest_hash": "7155cd45bb7df0a49b4b26810b1711a450d417899b68801ab18597a5ff145c6d",
   "openapi_hash": "f5f8d16c55a229e630ca8efe7c9a6b9fbdd666ab31f5354084b27684d192a9d5",
   "operations": [
     "GET /admin/audit/export",

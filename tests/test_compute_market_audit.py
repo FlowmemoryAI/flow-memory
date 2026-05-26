@@ -221,13 +221,20 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),
-        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", audit_export_required=True, audit_export_uri="s3://flow-memory-audit/compute-market"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            audit_export_required=True,
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_immutable_required=True,
+        ),
         audit_exporter=exporter,
     )
     service.plan({"task": "s3 object lock export", "request_id": "s3-worm"})
 
     exported = service.audit_export({"chain_id": "all"})
     verified = exporter.verify_export()
+    readiness = service.readiness()
 
     assert exported["ok"] is True
     assert exported["path"].startswith("s3://flow-memory-audit/compute-market/exports/")
@@ -235,6 +242,8 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     assert exported["checkpoint"]["object_lock_mode"] == "COMPLIANCE"
     assert exported["checkpoint"]["retention_until"]
     assert verified.ok is True
+    assert readiness["ready"] is True
+    assert readiness["audit_exporter_status"]["immutable"] is True
     assert len(client.puts) == 2
     assert {put["ContentType"] for put in client.puts} == {"application/x-ndjson", "application/json"}
     assert all(put["ObjectLockMode"] == "COMPLIANCE" for put in client.puts)

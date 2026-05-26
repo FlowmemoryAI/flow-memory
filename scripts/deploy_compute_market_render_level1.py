@@ -17,11 +17,20 @@ API_BASE = "https://api.render.com/v1"
 SERVICE_NAME = "flow-memory-compute-market-api"
 POSTGRES_NAME = "flow-memory-compute-market-postgres"
 KEYVALUE_NAME = "flow-memory-compute-market-redis"
-AUDIT_EXPORT_URI = "/var/lib/flow-memory/audit/compute-market.ndjson"
+DEFAULT_AUDIT_EXPORT_URI = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "")
 DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "free")
 DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "free")
 DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "free")
 ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
+DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE = os.environ.get(
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", "COMPLIANCE"
+)
+DEFAULT_AUDIT_EXPORT_RETENTION_DAYS = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS", "365")
+DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", "true"
+)
+DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
+DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
 DEPLOY_PATHS = (
     "Dockerfile.compute-market",
     "render.yaml",
@@ -91,6 +100,25 @@ def parse_env(path: Path) -> dict[str, str]:
         key, value = line.split("=", 1)
         values[key.strip()] = value.strip().strip('"').strip("'")
     return values
+
+
+def audit_export_uri_from_env(values: dict[str, str]) -> str:
+    uri = values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI") or DEFAULT_AUDIT_EXPORT_URI
+    if not uri or has_placeholder(uri):
+        emit(
+            "blocked_missing_audit_object_storage",
+            23,
+            missing_values=["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"],
+            required_action="configure an S3 Object Lock audit export URI before public deployment",
+        )
+    if not uri.startswith("s3://"):
+        emit(
+            "blocked_missing_audit_object_storage",
+            23,
+            audit_export_uri=uri,
+            required_action="FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI must be an s3:// Object Lock bucket/prefix",
+        )
+    return uri
 
 
 def has_placeholder(value: str) -> bool:
@@ -261,7 +289,13 @@ def env_var(key: str, value: str) -> dict[str, str]:
     return {"key": key, "value": value}
 
 
-def build_env_vars(api_key_value: str, database_url: str, redis_url: str, public_api_url: str = "") -> list[dict[str, str]]:
+def build_env_vars(
+    api_key_value: str,
+    database_url: str,
+    redis_url: str,
+    public_api_url: str = "",
+    audit_export_uri: str = "",
+) -> list[dict[str, str]]:
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
@@ -300,7 +334,12 @@ def build_env_vars(api_key_value: str, database_url: str, redis_url: str, public
         "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED": "false",
         "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED": "true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED": "true",
-        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": AUDIT_EXPORT_URI,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": audit_export_uri,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE": DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS": DEFAULT_AUDIT_EXPORT_RETENTION_DAYS,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION": DEFAULT_AUDIT_EXPORT_S3_REGION,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL": DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
         "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED": "false",
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL": "",
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET": "",
@@ -409,11 +448,13 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     headers_read = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:read"}
     headers_plan = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:plan"}
     headers_audit = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:audit"}
+    headers_admin = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:admin"}
     checks["root"] = call_json("GET", f"{base}/")
     checks["health"] = call_json("GET", f"{base}/compute/health", headers_read)
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
     checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
+    checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, plan_body)
     health_ok = checks["health"][0] == 200 and checks["health"][1].get("ok") is True
@@ -423,6 +464,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     plan_payload = checks["plan"][1].get("data", {}).get("compute_plan", {}) if isinstance(checks["plan"][1], dict) else {}
     audit_ok = checks["audit_verify"][0] == 200 and checks["audit_verify"][1].get("ok") is True
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
+    audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
     ok = all(
         (
             checks["root"][0] == 200,
@@ -439,6 +481,8 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             plan_payload.get("broadcast_allowed") is False,
             plan_payload.get("private_key_required") is False,
             audit_ok,
+            checks["admin_audit_export"][0] == 200,
+            audit_export_payload.get("immutable") is True,
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
         )
@@ -453,6 +497,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
         "funds_moved": plan_payload.get("funds_moved"),
         "broadcast_allowed": plan_payload.get("broadcast_allowed"),
         "private_key_required": plan_payload.get("private_key_required"),
+        "audit_export_immutable": audit_export_payload.get("immutable"),
     }
 
 
@@ -487,9 +532,10 @@ def main() -> int:
 
     if not args.api_key:
         emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
+    env_values = parse_env(Path(args.env_file))
+    audit_export_uri = audit_export_uri_from_env(env_values)
     owner_id = infer_owner_id(args.api_key, args.owner_id)
 
-    env_values = parse_env(Path(args.env_file))
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
     if not api_key_value or has_placeholder(api_key_value):
         api_key_value = "fmk_live_" + secrets.token_urlsafe(48)
@@ -505,7 +551,12 @@ def main() -> int:
         keyvalue = wait_available(args.api_key, "/key-value", str(keyvalue["id"]), "keyvalue")
         pg_conn = render_request(args.api_key, "GET", f"/postgres/{urllib.parse.quote(str(postgres['id']))}/connection-info")
         kv_conn = render_request(args.api_key, "GET", f"/key-value/{urllib.parse.quote(str(keyvalue['id']))}/connection-info")
-        env_vars = build_env_vars(api_key_value, str(pg_conn["internalConnectionString"]), str(kv_conn["internalConnectionString"]))
+        env_vars = build_env_vars(
+            api_key_value,
+            str(pg_conn["internalConnectionString"]),
+            str(kv_conn["internalConnectionString"]),
+            audit_export_uri=audit_export_uri,
+        )
         service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
         url = public_url(service)
         if not url:
@@ -513,7 +564,13 @@ def main() -> int:
             url = public_url(service)
         if not url:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
-        env_vars = build_env_vars(api_key_value, str(pg_conn["internalConnectionString"]), str(kv_conn["internalConnectionString"]), url)
+        env_vars = build_env_vars(
+            api_key_value,
+            str(pg_conn["internalConnectionString"]),
+            str(kv_conn["internalConnectionString"]),
+            url,
+            audit_export_uri,
+        )
         render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
         trigger_service_deploy(args.api_key, str(service["id"]))
         last_smoke: dict[str, Any] | None = None
@@ -527,7 +584,7 @@ def main() -> int:
                     postgres=f"managed_render_postgres:{DEFAULT_POSTGRES_PLAN}",
                     redis=f"managed_render_keyvalue:{DEFAULT_KEYVALUE_PLAN}",
                     service_plan=DEFAULT_SERVICE_PLAN,
-                    audit_export_storage="render_disk" if ENABLE_RENDER_DISK else "container_filesystem",
+                    audit_export_storage="s3_object_lock",
                     smoke="passed",
                     live_settlement_enabled=False,
                     funds_moved=False,

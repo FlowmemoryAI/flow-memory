@@ -53,6 +53,7 @@ class ComputeMarketConfig:
     audit_export_uri: str = ""
     audit_export_object_lock_mode: str = ""
     audit_export_retention_days: int = 0
+    audit_export_immutable_required: bool = False
     audit_export_s3_region: str = ""
     audit_export_s3_endpoint_url: str = ""
     audit_checkpoint_interval_seconds: int = 86_400
@@ -151,6 +152,8 @@ class ComputeMarketConfig:
             errors.append("audit_export_object_lock_mode must be COMPLIANCE or GOVERNANCE")
         if self.audit_export_retention_days < 0:
             errors.append("audit_export_retention_days must be non-negative")
+        if self.audit_export_immutable_required and not self.audit_export_uri.startswith("s3://"):
+            errors.append("audit_export_immutable_required requires an s3:// audit_export_uri")
         if self.audit_checkpoint_interval_seconds < 1:
             errors.append("audit_checkpoint_interval_seconds must be positive")
         if self.alert_webhook_timeout_ms < 1:
@@ -230,6 +233,7 @@ class ComputeMarketConfig:
             "audit_export_configured": bool(self.audit_export_uri),
             "audit_export_object_lock_mode_configured": bool(self.audit_export_object_lock_mode),
             "audit_export_retention_days": self.audit_export_retention_days,
+            "audit_export_immutable_required": self.audit_export_immutable_required,
             "audit_export_s3_region_configured": bool(self.audit_export_s3_region),
             "audit_export_s3_endpoint_configured": bool(self.audit_export_s3_endpoint_url),
             "audit_checkpoint_interval_seconds": self.audit_checkpoint_interval_seconds,
@@ -309,6 +313,7 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         audit_export_uri=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", ""),
         audit_export_object_lock_mode=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", ""),
         audit_export_retention_days=_int(source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS"), 0),
+        audit_export_immutable_required=_bool(source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"), False),
         audit_export_s3_region=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", ""),
         audit_export_s3_endpoint_url=source.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", ""),
         audit_checkpoint_interval_seconds=_int(source.get("FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"), 86_400),

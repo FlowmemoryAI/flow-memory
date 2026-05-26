@@ -192,6 +192,16 @@ if ($missing.Count -gt 0 -or $placeholders.Count -gt 0) {
     exit 2
 }
 
+$auditExportUri = [string]$envValues['FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI']
+if (-not $auditExportUri.StartsWith('s3://')) {
+    Write-Status -Status 'blocked_missing_audit_object_storage' -Fields @{
+        public_url = ''
+        audit_export_uri = $auditExportUri
+        required_action = 'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI must be an s3:// Object Lock bucket/prefix.'
+    }
+    exit 14
+}
+
 $safetyExpectations = @{
     FLOW_MEMORY_API_REQUIRE_SCOPES = 'true'
     FLOW_MEMORY_COMPUTE_MARKET_ENABLED = 'true'
@@ -211,6 +221,7 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED = 'false'
     FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED = 'true'
     FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED = 'true'
+    FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED = 'true'
     FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED = 'false'

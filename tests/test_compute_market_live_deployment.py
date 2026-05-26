@@ -28,6 +28,9 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS=2000",
         "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS=5000",
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://CHANGEME-audit-object-lock-bucket/compute-market",
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
     ):
         assert required in template
 
@@ -55,6 +58,8 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS:-2000}" in compose
     assert "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED: ${FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS:-5000}" in compose
+    assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED:-false}" in compose
+    assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE:-COMPLIANCE}" in compose
 
 
 def test_api_server_cli_rejects_public_bind_without_api_key() -> None:
@@ -100,6 +105,31 @@ def test_api_server_cli_accepts_public_bind_with_jwt_gateway_secret() -> None:
     assert config.jwt_hs256_secret == "gateway-shared-secret"
     assert config.jwt_issuer == "https://issuer.example"
     assert config.jwt_audience == "flow-memory-api"
+
+
+def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
+    with pytest.raises(SystemExit) as missing:
+        render_deploy.audit_export_uri_from_env({})
+    with pytest.raises(SystemExit) as local_file:
+        render_deploy.audit_export_uri_from_env(
+            {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "/var/lib/flow-memory/audit/compute-market.ndjson"}
+        )
+
+    env_vars = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+        )
+    }
+
+    assert missing.value.code == 23
+    assert local_file.value.code == 23
+    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == "s3://flow-memory-audit/compute-market"
+    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "true"
+    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
 
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:

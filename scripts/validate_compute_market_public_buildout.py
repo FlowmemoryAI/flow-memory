@@ -55,7 +55,7 @@ def data(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
-def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
+def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
     base = base_url.rstrip("/")
     headers_read = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:read"}
     headers_plan = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:plan"}
@@ -244,6 +244,7 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     storage_diag = data(checks["admin_storage_diagnostics"][1])
     redis_diag = data(checks["admin_redis_diagnostics"][1])
 
+    audit_export_status = data(checks["admin_audit_export"][1])
     require(checks["root"][0] == 200 and root_data.get("service") == "Flow Memory Compute Market", "root public landing failed")
     require(checks["health"][0] == 200 and data(checks["health"][1]).get("ok") is True, "health failed")
     require(checks["readiness"][0] == 200 and readiness.get("ready") is True, "readiness failed")
@@ -267,6 +268,12 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
     require(checks["admin_storage_diagnostics"][0] == 200 and storage_diag.get("ok") is True and storage_diag.get("production_readiness", {}).get("production_ready") is True, "admin storage diagnostics failed")
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
     require(checks["admin_audit_export"][0] == 200 and "audit_exporter_status" in data(checks["admin_audit_export"][1]), "admin audit export status failed")
+    if require_immutable_audit:
+        require(
+            audit_export_status.get("immutable") is True
+            and audit_export_status.get("audit_exporter_status", {}).get("exporter") == "s3_object_lock",
+            "admin audit export is not immutable S3 Object Lock storage",
+        )
 
     return {
         "status": "passed",
@@ -279,7 +286,15 @@ def validate(base_url: str, api_key: str) -> Mapping[str, Any]:
         "funds_moved": False,
         "broadcast_allowed": False,
         "private_key_required": False,
+        "audit_export_immutable": audit_export_status.get("immutable"),
     }
+
+
+
+def _bool_env(value: str, default: bool = False) -> bool:
+    if not value:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -295,7 +310,8 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("FLOW_MEMORY_PUBLIC_API_URL/--api-url must be an https:// URL")
     if not api_key:
         raise SystemExit("FLOW_MEMORY_API_KEY is required in the env file")
-    result = validate(api_url, api_key)
+    require_immutable_audit = _bool_env(env_values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", ""), True)
+    result = validate(api_url, api_key, require_immutable_audit=require_immutable_audit)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 

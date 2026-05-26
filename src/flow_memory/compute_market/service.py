@@ -2615,6 +2615,15 @@ class ComputeMarketService:
             and not audit_exporter_status.get("immutable", False)
         ):
             failures.append("audit_immutable_retention_not_configured")
+        if (
+            self.config.audit_export_immutable_required
+            and (
+                not isinstance(audit_exporter_status, Mapping)
+                or audit_exporter_status.get("exporter") != "s3_object_lock"
+                or not audit_exporter_status.get("immutable", False)
+            )
+        ):
+            failures.append("audit_immutable_storage_unavailable")
         if self.config.alert_routing_enabled and not self.config.alert_webhook_url.strip():
             failures.append("alert_webhook_unavailable")
         if self.config.alert_routing_enabled and self.config.alert_webhook_url.strip() and not _alert_webhook_url_allowed(self.config.alert_webhook_url.strip()):
@@ -3240,6 +3249,7 @@ _READINESS_FAILURE_METRICS = {
     "external_provider_allowlist_missing": "external_provider_allowlist_missing_total",
     "unsafe_live_settlement_config": "unexpected_live_settlement_config_total",
     "audit_immutable_retention_not_configured": "audit_chain_verify_fail_total",
+    "audit_immutable_storage_unavailable": "audit_chain_verify_fail_total",
     "alert_webhook_unavailable": "alert_delivery_failed_total",
     "alert_webhook_url_not_allowed": "alert_delivery_failed_total",
     "error_tracking_webhook_unavailable": "error_tracking_failed_total",

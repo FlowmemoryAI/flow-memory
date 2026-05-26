@@ -96,18 +96,25 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
         if url.endswith("/admin/redis/diagnostics"):
             return 200, {"ok": True, "data": {"ok": True, "rate_limit_probe": {"ok": True}, "circuit_breaker_probe": {"ok": True}}}
         if url.endswith("/admin/audit/export"):
-            return 200, {"ok": True, "data": {"audit_exporter_status": {"ok": True}}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "immutable": True,
+                    "audit_exporter_status": {"exporter": "s3_object_lock", "immutable": True},
+                },
+            }
         return 200, {"ok": True, "data": {}}
 
     monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
     monkeypatch.setattr(validator, "call_json", fake_call_json)
 
-    result = validator.validate("https://api.example.test", "prod-key")
+    result = validator.validate("https://api.example.test", "prod-key", require_immutable_audit=True)
 
     receipt_calls = [call for call in calls if call[1].endswith("/receipt")]
     assert result["status"] == "passed"
     assert result["checks"]["job_receipt_wrong_scope"] == 403
     assert result["checks"]["job_receipt_unsigned"] == 200
+    assert result["audit_export_immutable"] is True
     assert len(receipt_calls) == 2
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
     assert len(refund_calls) == 1

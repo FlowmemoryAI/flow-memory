@@ -157,6 +157,10 @@ $auditVerify = Invoke-ComputeMarketRequest -Method GET -Path '/compute/audit/ver
 Assert-Status -Response $auditVerify -Expected 200 -Name 'audit verify'
 Assert-True (($auditVerify.Json.ok -eq $true) -and ($auditVerify.Json.data.ok -eq $true)) 'audit verify did not return ok=true.'
 
+$auditExport = Invoke-ComputeMarketRequest -Method GET -Path '/admin/audit/export' -Scopes 'compute:admin'
+Assert-Status -Response $auditExport -Expected 200 -Name 'admin audit export'
+Assert-True ($auditExport.Json.data.immutable -eq $true) 'admin audit export did not report immutable Object Lock storage.'
+
 $missingKey = Invoke-ComputeMarketRequest -Method GET -Path '/compute/health' -Scopes 'compute:read' -IncludeApiKey $false
 Assert-Status -Response $missingKey -Expected 401 -Name 'missing-key health'
 
@@ -174,6 +178,8 @@ $result = [ordered]@{
     circuit_breaker_backend = $circuitBreakerBackend
     plan = $plan.StatusCode
     audit_verify = $auditVerify.StatusCode
+    audit_export = $auditExport.StatusCode
+    audit_export_immutable = [bool]$auditExport.Json.data.immutable
     missing_key = $missingKey.StatusCode
     wrong_scope = $wrongScope.StatusCode
     dry_run_only = [bool]$computePlan.dry_run_only

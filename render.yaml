@@ -90,7 +90,17 @@ services:
       - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED
         value: true
       - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI
-        value: /var/lib/flow-memory/audit/compute-market.ndjson
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE
+        value: COMPLIANCE
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS
+        value: 365
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED
+        value: true
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL
+        value: ""
       - key: FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED
         value: false
       - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL

@@ -78,6 +78,18 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/receipt"):
             return 200, {"ok": True, "data": {"ok": False, "error": {"error_code": "provider_receipt.signing_key_missing"}}}
+        if url.endswith("/complete"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "job": {"job_id": "job_public_1", "status": "succeeded"},
+                    "provider_payout": {
+                        "provider_payout_id": "payout_public",
+                        "status": "accrued",
+                        "funds_moved": False,
+                    },
+                },
+            }
         if url.endswith("/billing/checkout"):
             return 200, {
                 "ok": True,
@@ -85,6 +97,27 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             }
         if "/billing/balance" in url:
             return 200, {"ok": True, "data": {"balance": {"account_id": "acct_public_buildout_1234567890"}}}
+        if "/billing/provider-payouts?" in url:
+            return 200, {
+                "ok": True,
+                "data": {
+                    "provider_payouts": [
+                        {"provider_payout_id": "payout_public", "status": "accrued", "funds_moved": False}
+                    ],
+                    "summary": {"accrued_total": 0.18},
+                },
+            }
+        if url.endswith("/billing/provider-payouts/payout_public/settle"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "provider_payout": {
+                        "provider_payout_id": "payout_public",
+                        "status": "settled",
+                        "funds_moved": False,
+                    }
+                },
+            }
         if url.endswith("/billing/refund"):
             return 200, {
                 "ok": True,
@@ -149,6 +182,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert refund_calls[0][2] is not None and refund_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"
     assert refund_calls[0][3] is not None
     assert refund_calls[0][3]["amount"] == 1
+    payout_calls = [call for call in calls if "/billing/provider-payouts" in call[1]]
+    assert len(payout_calls) == 2
+    assert payout_calls[0][2] is not None and payout_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"
+    assert payout_calls[1][3] is not None
+    assert payout_calls[1][3]["settled_by"] == "public-buildout-validator"
     assert receipt_calls[0][2] is not None and receipt_calls[0][2]["x-flow-memory-scopes"] == "compute:read"
     assert receipt_calls[1][2] is not None and receipt_calls[1][2]["x-flow-memory-scopes"] == "compute:execute"
     assert receipt_calls[1][3] is not None

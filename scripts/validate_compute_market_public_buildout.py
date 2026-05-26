@@ -77,6 +77,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     suffix = str(int(time.time()))
     provider_id = f"provider_public_buildout_{suffix}"
     route_id = f"route_public_buildout_{suffix}"
+    account_id = f"acct_public_buildout_{suffix}"
     provider = {
         "provider_id": provider_id,
         "provider_name": "Public Buildout Validation Provider",
@@ -192,11 +193,20 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
             "actual_units": 2,
             "actual_total_cost": 0.18,
             "currency": "USD",
+            "account_id": account_id,
             "artifact_ref": "s3://flow-memory-results/public-buildout-validation.json",
             "artifact_data": {"result": "ok"},
         },
     )
     checks["job_artifacts"] = call_json("GET", f"{base}/compute/jobs/{job_id}/artifacts", headers_read)
+    payout_id = str(data(checks["job_complete"][1]).get("provider_payout", {}).get("provider_payout_id", ""))
+    checks["billing_provider_payouts"] = call_json("GET", f"{base}/billing/provider-payouts?provider_id={provider_id}", headers_billing)
+    checks["billing_provider_payout_settle"] = call_json(
+        "POST",
+        f"{base}/billing/provider-payouts/{payout_id}/settle",
+        headers_billing,
+        {"external_payout_reference": f"public_validation_payout_{suffix}", "settled_by": "public-buildout-validator"},
+    )
     checks["job_fail_create"] = call_json(
         "POST",
         f"{base}/compute/jobs",
@@ -216,14 +226,14 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
     checks["metrics"] = call_json("GET", f"{base}/compute/metrics", headers_read)
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
-    checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": f"acct_public_buildout_{suffix}", "amount": 100, "currency": "USD"})
-    checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id=acct_public_buildout_{suffix}", headers_billing)
+    checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": account_id, "amount": 100, "currency": "USD"})
+    checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id={account_id}", headers_billing)
     checks["billing_refund"] = call_json(
         "POST",
         f"{base}/billing/refund",
         headers_billing,
         {
-            "account_id": f"acct_public_buildout_{suffix}",
+            "account_id": account_id,
             "amount": 1,
             "currency": "USD",
             "reason": "public_validation_no_custody",
@@ -241,6 +251,8 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     job = data(checks["job_create"][1]).get("job", {})
     checkout = data(checks["billing_checkout"][1]).get("checkout", {})
     refund = data(checks["billing_refund"][1]).get("refund", {})
+    payout_list = data(checks["billing_provider_payouts"][1])
+    payout_settle = data(checks["billing_provider_payout_settle"][1]).get("provider_payout", {})
     storage_diag = data(checks["admin_storage_diagnostics"][1])
     redis_diag = data(checks["admin_redis_diagnostics"][1])
     safety_defaults = readiness.get("production_safety_defaults", {})
@@ -263,12 +275,19 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
-    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics", "alerts"):
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics", "alerts", "billing_provider_payouts", "billing_provider_payout_settle"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")
-    require(checks["billing_balance"][0] == 200 and data(checks["billing_balance"][1]).get("balance", {}).get("account_id") == f"acct_public_buildout_{suffix}", "billing balance failed")
+    require(checks["billing_balance"][0] == 200 and data(checks["billing_balance"][1]).get("balance", {}).get("account_id") == account_id, "billing balance failed")
     require(checks["billing_refund"][0] == 200 and refund.get("funds_moved") is False and refund.get("external_refund_created") is False and refund.get("status") == "recorded_no_custody", "billing refund safety failed")
+    require(
+        payout_list.get("provider_payouts", ())
+        and payout_list.get("provider_payouts", ())[0].get("funds_moved") is False
+        and payout_settle.get("status") == "settled"
+        and payout_settle.get("funds_moved") is False,
+        "provider payout no-custody validation failed",
+    )
     require(checks["admin_reconciliation"][0] == 200 and checks["admin_reconciliation"][1].get("ok") is True, "admin reconciliation failed")
     require(checks["admin_storage_diagnostics"][0] == 200 and storage_diag.get("ok") is True and storage_diag.get("production_readiness", {}).get("production_ready") is True, "admin storage diagnostics failed")
     require(

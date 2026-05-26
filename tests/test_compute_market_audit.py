@@ -159,6 +159,26 @@ def test_audit_verify_export_detects_tampering(capsys: Any, tmp_path: Any) -> No
     assert verified["ok"] is False
 
 
+def test_audit_verify_export_detects_manifest_tampering(capsys: Any, tmp_path: Any) -> None:
+    service = _service()
+    service.plan({"task": "tamper audit manifest", "request_id": "req-manifest-tamper", "idempotency_key": "manifest-tamper-1"})
+    reset_default_service(service)
+    out = tmp_path / "audit_export.ndjson"
+    assert cli_main(["compute", "audit", "export", "--out", str(out), "--json"]) == 0
+    capsys.readouterr()
+
+    lines = out.read_text(encoding="utf-8").splitlines()
+    manifest = json.loads(lines[0])
+    manifest["created_at"] = "2099-01-01T00:00:00Z"
+    lines[0] = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    verified = LocalFileAuditExporter(out).verify_export()
+
+    assert verified.ok is False
+    assert verified.error_code == "manifest_hash_mismatch"
+
+
 def test_audit_export_refuses_secret_payload(tmp_path: Any) -> None:
     service = _service()
     service.store.append_audit_event(
@@ -248,11 +268,21 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     assert {put["ContentType"] for put in client.puts} == {"application/x-ndjson", "application/json"}
     assert all(put["ObjectLockMode"] == "COMPLIANCE" for put in client.puts)
     assert all(put["ObjectLockRetainUntilDate"] for put in client.puts)
-    export_body = next(client.objects[(str(put["Bucket"]), str(put["Key"]))] for put in client.puts if put["ContentType"] == "application/x-ndjson")
+    export_put = next(put for put in client.puts if put["ContentType"] == "application/x-ndjson")
+    export_bucket = str(export_put["Bucket"])
+    export_key = str(export_put["Key"])
+    export_body = client.objects[(export_bucket, export_key)]
     manifest = json.loads(export_body.decode("utf-8").splitlines()[0])
     assert manifest["object_lock_mode"] == "COMPLIANCE"
     assert manifest["storage_uri"] == exported["path"]
     assert manifest["retention_until"]
+    lines = export_body.decode("utf-8").splitlines()
+    manifest["created_at"] = "2099-01-01T00:00:00Z"
+    lines[0] = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+    client.objects[(export_bucket, export_key)] = ("\n".join(lines) + "\n").encode("utf-8")
+    tampered = exporter.verify_export()
+    assert tampered.ok is False
+    assert tampered.error_code == "manifest_hash_mismatch"
 
 
 

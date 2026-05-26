@@ -207,6 +207,9 @@ class LocalFileAuditExporter:
             events = tuple(_event_from_line(item) for item in parsed[1:-1])
             if str(manifest.get("format", "")) != _EXPORT_FORMAT:
                 return AuditExportVerification(False, str(self.path), 0, error_code="invalid_format", message="audit export format is invalid")
+            manifest_error = _verify_manifest_hash(manifest)
+            if manifest_error:
+                return AuditExportVerification(False, str(self.path), 0, error_code=manifest_error[0], message=manifest_error[1])
             if any(event is None for event in events):
                 return AuditExportVerification(False, str(self.path), 0, error_code="invalid_event_line", message="audit export contains a malformed event line")
             event_records = tuple(event for event in events if event is not None)
@@ -360,6 +363,9 @@ class S3WormAuditExporter:
             events = tuple(_event_from_line(item) for item in parsed[1:-1])
             if str(manifest.get("format", "")) != _EXPORT_FORMAT:
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code="invalid_format", message="audit export format is invalid")
+            manifest_error = _verify_manifest_hash(manifest)
+            if manifest_error:
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=manifest_error[0], message=manifest_error[1])
             if any(event is None for event in events):
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code="invalid_event_line", message="audit export contains a malformed event line")
             event_records = tuple(event for event in events if event is not None)
@@ -594,6 +600,16 @@ def _checkpoint_hash(events: tuple[Mapping[str, Any], ...], chain_id: str, expor
         exported_to="local_file",
     )
     return checkpoint.checkpoint_hash
+
+
+def _verify_manifest_hash(manifest: Mapping[str, Any]) -> tuple[str, str] | None:
+    manifest_hash = str(manifest.get("manifest_hash", ""))
+    if not manifest_hash:
+        return ("missing_manifest_hash", "audit export manifest is missing manifest_hash")
+    expected = content_hash({key: value for key, value in manifest.items() if key != "manifest_hash"})
+    if manifest_hash != expected:
+        return ("manifest_hash_mismatch", "manifest hash does not match manifest payload")
+    return None
 
 
 def _verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> tuple[str, str] | None:

@@ -288,7 +288,7 @@ def _query_payload(query: str) -> Mapping[str, Any]:
 
 def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     tenant_id = str(context.tenant_id or "").strip()
-    if "api:admin" in context.scopes or "compute:admin" in context.scopes:
+    if ("api:admin" in context.scopes or "compute:admin" in context.scopes) and not tenant_id:
         return payload
     if not tenant_id:
         return payload

@@ -207,7 +207,7 @@ def test_http_gateway_api_key_management_rotates_active_tenant_key() -> None:
                     "key_id": "admin-key",
                     "key_prefix": "fmk_admin_",
                     "key_hash": api_key_hash(admin_key),
-                    "tenant_id": "admin",
+                    "tenant_id": "",
                     "principal": "svc-admin",
                     "scopes": "api:admin",
                     "enabled": True,
@@ -257,6 +257,62 @@ def test_http_gateway_api_key_management_rotates_active_tenant_key() -> None:
     assert disable_response.status == 200
     assert disable_response.body["data"]["record"]["status"] == "disabled"
     assert gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": rotated_key}).status == 401
+
+
+def test_http_gateway_tenant_bound_admin_cannot_manage_other_tenant() -> None:
+    admin_key = "fmk_tenant_admin_secret"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-admin-key",
+                    "key_prefix": "fmk_tenant_admin_",
+                    "key_hash": api_key_hash(admin_key),
+                    "tenant_id": "tenant_a",
+                    "principal": "svc-tenant-admin",
+                    "scopes": "api:admin",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    denied = gateway.handle(
+        "POST",
+        "/auth/api-keys",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps(
+            {
+                "key_id": "tenant-b-key",
+                "tenant_id": "tenant_b",
+                "principal": "svc-tenant-b",
+                "scopes": ["compute:read"],
+                "key_prefix": "fmk_tenant_b_",
+            }
+        ).encode("utf-8"),
+    )
+    allowed = gateway.handle(
+        "POST",
+        "/auth/api-keys",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps(
+            {
+                "key_id": "tenant-a-key",
+                "principal": "svc-tenant-a",
+                "scopes": ["compute:read"],
+                "key_prefix": "fmk_tenant_a_",
+            }
+        ).encode("utf-8"),
+    )
+
+    assert denied.status == 403
+    assert denied.body["error"]["code"] == "auth.forbidden"
+    assert denied.body["error"]["details"]["tenant_id"] == "tenant_a"
+    assert denied.body["error"]["details"]["requested_tenant_id"] == "tenant_b"
+    assert allowed.status == 200
+    assert allowed.body["data"]["record"]["tenant_id"] == "tenant_a"
 
 
 def test_http_gateway_injects_provider_receipt_client_ip(monkeypatch: Any) -> None:

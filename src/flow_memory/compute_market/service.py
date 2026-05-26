@@ -925,6 +925,14 @@ class ComputeMarketService:
         expired_reservations = self._expire_capacity_holds(filters, request_id=request_id)
         windows = tuple(self.store.list_records("compute_capacity_window", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
         reservations = tuple(self.store.list_records("compute_reservation", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
+        interval_start, interval_end = _capacity_time_range(filters)
+        if _capacity_has_time_range(filters):
+            windows = tuple(window for window in windows if _capacity_window_overlaps(window, interval_start, interval_end))
+            reservations = tuple(
+                reservation
+                for reservation in reservations
+                if _capacity_reservation_overlaps(reservation, interval_start, interval_end)
+            )
         return {"ok": True, "capacity_windows": windows, "reservations": reservations, "expired_reservations": expired_reservations, "summary": _capacity_summary(windows, reservations)}
 
     def auction_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -1118,8 +1126,12 @@ class ComputeMarketService:
             filters["route_id"] = route_id
         page = self.store.list_records("compute_reservation", filters=filters, limit=500)
         now = utc_now_iso()
+        interval_start, interval_end = _capacity_time_range(payload)
+        restrict_to_interval = _capacity_has_time_range(payload)
         expired: list[Mapping[str, Any]] = []
         for current in page.records:
+            if restrict_to_interval and not _capacity_reservation_overlaps(current, interval_start, interval_end):
+                continue
             if not _capacity_hold_expired(current, now):
                 continue
             reservation_id = str(current.get("reservation_id", current.get("record_id", "")))
@@ -4074,6 +4086,44 @@ def _capacity_window(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _capacity_time_range(payload: Mapping[str, Any]) -> tuple[str, str]:
+    return (
+        str(payload.get("reserved_from", payload.get("starts_at", ""))).strip(),
+        str(payload.get("reserved_until", payload.get("ends_at", ""))).strip(),
+    )
+
+
+def _capacity_has_time_range(payload: Mapping[str, Any]) -> bool:
+    start, end = _capacity_time_range(payload)
+    return bool(start or end)
+
+
+def _time_ranges_overlap(a_start: str, a_end: str, b_start: str, b_end: str) -> bool:
+    if a_end and b_start and a_end <= b_start:
+        return False
+    if b_end and a_start and b_end <= a_start:
+        return False
+    return True
+
+
+def _capacity_window_overlaps(window: Mapping[str, Any], start: str, end: str) -> bool:
+    return _time_ranges_overlap(
+        start,
+        end,
+        str(window.get("starts_at", "")),
+        str(window.get("ends_at", "")),
+    )
+
+
+def _capacity_reservation_overlaps(reservation: Mapping[str, Any], start: str, end: str) -> bool:
+    return _time_ranges_overlap(
+        start,
+        end,
+        str(reservation.get("reserved_from", "")),
+        str(reservation.get("reserved_until", "")),
+    )
+
+
 def _capacity_reservation_active(reservation: Mapping[str, Any], now: str) -> bool:
     status = str(reservation.get("status", ""))
     if status == "confirmed":
@@ -4094,12 +4144,28 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
     if not windows:
         raise ValueError("no active capacity window found for provider_id and route_id")
     now = utc_now_iso()
-    active_windows = tuple(window for window in windows if str(window.get("status", "active")) == "active" and str(window.get("ends_at", "")) > now)
+    requested_start, requested_end = _capacity_time_range(payload)
+    active_windows = tuple(
+        window
+        for window in windows
+        if str(window.get("status", "active")) == "active"
+        and str(window.get("ends_at", "")) > now
+        and (not requested_start and not requested_end or _capacity_window_overlaps(window, requested_start, requested_end))
+    )
     if not active_windows:
+        if requested_start or requested_end:
+            raise ValueError("no unexpired active capacity window overlaps requested reservation interval")
         raise ValueError("no unexpired active capacity window found for provider_id and route_id")
     window = active_windows[0]
+    reservation_start = requested_start or str(window.get("starts_at", now))
+    reservation_end = requested_end or str(window.get("ends_at", ""))
     requested_units = _positive_float(payload.get("capacity_units"), "capacity_units")
-    active_reservations = tuple(item for item in reservations if _capacity_reservation_active(item, now))
+    active_reservations = tuple(
+        item
+        for item in reservations
+        if _capacity_reservation_active(item, now)
+        and _capacity_reservation_overlaps(item, reservation_start, reservation_end)
+    )
     reserved = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
     available = float(window.get("capacity_units", window.get("available_units", 0.0)) or 0.0) - reserved
     allow_partial = bool(payload.get("allow_partial", payload.get("partial_fill_allowed", False)))
@@ -4120,8 +4186,8 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
         "partial_fill": partial_fill,
         "partial_fill_reason": "capacity_shortfall" if partial_fill else "",
         "unit_type": str(payload.get("unit_type", window.get("resource_type", "gpu_hour"))),
-        "reserved_from": str(payload.get("reserved_from", window.get("starts_at", now))),
-        "reserved_until": str(payload.get("reserved_until", window.get("ends_at", ""))),
+        "reserved_from": reservation_start,
+        "reserved_until": reservation_end,
         "status": "held",
         "hold_expires_at": str(payload.get("hold_expires_at", window.get("ends_at", ""))),
         "dry_run_only": True,
@@ -4138,14 +4204,29 @@ def _capacity_auction_clearing(
     request_id: str,
 ) -> dict[str, Any]:
     now = utc_now_iso()
+    requested_start, requested_end = _capacity_time_range(payload)
+    restrict_to_interval = bool(requested_start or requested_end)
     active_windows = tuple(
         window
         for window in windows
-        if str(window.get("status", "active")) == "active" and str(window.get("ends_at", "")) > now
+        if str(window.get("status", "active")) == "active"
+        and str(window.get("ends_at", "")) > now
+        and (not restrict_to_interval or _capacity_window_overlaps(window, requested_start, requested_end))
     )
     if not active_windows:
+        if restrict_to_interval:
+            raise ValueError("no unexpired active capacity window overlaps requested auction interval")
         raise ValueError("no unexpired active capacity window found for auction")
-    summary = _capacity_summary(active_windows, reservations)
+    auction_reservations = (
+        tuple(
+            reservation
+            for reservation in reservations
+            if _capacity_reservation_overlaps(reservation, requested_start, requested_end)
+        )
+        if restrict_to_interval
+        else reservations
+    )
+    summary = _capacity_summary(active_windows, auction_reservations)
     available_units = float(summary.get("available_capacity_units", 0.0) or 0.0)
     if available_units <= 0:
         raise ValueError("no available capacity for auction")

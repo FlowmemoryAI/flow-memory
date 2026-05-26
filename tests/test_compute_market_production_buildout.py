@@ -647,6 +647,152 @@ def test_capacity_auction_clears_highest_bids_without_mutating_reservations() ->
     assert service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})["ok"] is True
 
 
+def test_capacity_reservations_only_consume_overlapping_windows() -> None:
+    service = _service()
+    first = service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )["capacity_window"]
+    second = service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T01:00:00Z",
+            "ends_at": "2099-01-01T02:00:00Z",
+            "price_floor": 2.4,
+        }
+    )["capacity_window"]
+
+    first_hold = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 10,
+            "reserved_from": first["starts_at"],
+            "reserved_until": first["ends_at"],
+        }
+    )
+    second_hold = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 10,
+            "reserved_from": second["starts_at"],
+            "reserved_until": second["ends_at"],
+        }
+    )
+
+    first_summary = service.capacity_order_book(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "starts_at": first["starts_at"],
+            "ends_at": first["ends_at"],
+        }
+    )["summary"]
+    second_summary = service.capacity_order_book(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "starts_at": second["starts_at"],
+            "ends_at": second["ends_at"],
+        }
+    )["summary"]
+
+    assert first_hold["reservation"]["window_id"] == first["window_id"]
+    assert second_hold["reservation"]["window_id"] == second["window_id"]
+    assert first_summary["held_capacity_units"] == 10
+    assert first_summary["available_capacity_units"] == 0
+    assert second_summary["held_capacity_units"] == 10
+    assert second_summary["available_capacity_units"] == 0
+
+
+def test_capacity_auction_uses_target_interval_capacity() -> None:
+    service = _service()
+    first = service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )["capacity_window"]
+    second = service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T01:00:00Z",
+            "ends_at": "2099-01-01T02:00:00Z",
+            "price_floor": 2.4,
+        }
+    )["capacity_window"]
+    service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 10,
+            "reserved_from": second["starts_at"],
+            "reserved_until": second["ends_at"],
+        }
+    )
+
+    try:
+        service.auction_capacity(
+            {
+                "provider_id": "provider_live_gpu_1",
+                "route_id": "route_live_gpu_1",
+                "capacity_units": 1,
+                "starts_at": second["starts_at"],
+                "ends_at": second["ends_at"],
+                "bids": [
+                    {"bid_id": "bid_target_reserved", "account_id": "acct_reserved", "capacity_units": 1, "max_unit_price": 3.0}
+                ],
+            }
+        )
+    except ValueError as exc:
+        assert "no available capacity" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("auction cleared against capacity outside the requested interval")
+
+    auction = service.auction_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 5,
+            "reserved_from": first["starts_at"],
+            "reserved_until": first["ends_at"],
+            "bids": [
+                {"bid_id": "bid_target_free", "account_id": "acct_free", "capacity_units": 5, "max_unit_price": 3.0}
+            ],
+        }
+    )
+
+    assert auction["clearing"]["available_capacity_units"] == 10
+    assert auction["clearing"]["total_units_cleared"] == 5
+    assert auction["clearing"]["winning_bids"][0]["bid_id"] == "bid_target_free"
+
 def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:
     service = _service()
     created = service.create_job(_job_payload())

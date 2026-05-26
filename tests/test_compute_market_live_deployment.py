@@ -26,6 +26,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_API_JWT_ISSUER=",
         "FLOW_MEMORY_API_JWT_AUDIENCE=",
         "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS=60",
+        "FLOW_MEMORY_PUBLIC_API_URL=https://api.yourdomain.com",
         "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
@@ -106,6 +107,7 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
         blueprint.index("FLOW_MEMORY_COMPUTE_REDIS_URL") : blueprint.index("FLOW_MEMORY_COMPUTE_REDIS_PREFIX")
     ]
 
+    assert "FLOW_MEMORY_PUBLIC_API_URL\n        sync: false" in blueprint
     assert "Direct blueprint deploys cannot infer public egress CIDRs" in blueprint
     assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
     assert "FLOW_MEMORY_API_JWT_HS256_SECRET\n        sync: false" in blueprint
@@ -796,6 +798,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_PUBLIC_API_URL=https://api.flowmemory.example",
             ]
         ),
         encoding="utf-8",
@@ -872,7 +875,11 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
     monkeypatch.setattr(render_deploy, "ensure_service", fake_ensure_service)
     monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
-    monkeypatch.setattr(render_deploy, "smoke_public", lambda url, api_key, gateway_jwt=None: {"ok": True})
+    def fake_smoke_public(url: str, api_key: str, gateway_jwt: Mapping[str, str] | None = None) -> dict[str, object]:
+        calls["smoke"] = {"url": url, "api_key": api_key, "gateway_jwt": gateway_jwt}
+        return {"ok": True}
+
+    monkeypatch.setattr(render_deploy, "smoke_public", fake_smoke_public)
     monkeypatch.setattr(render_deploy, "assert_branch_is_publishable", lambda branch: None)
 
     with pytest.raises(SystemExit) as completed:
@@ -885,6 +892,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert payload["postgres"] == "managed_render_postgres:pro"
     assert payload["redis"] == "managed_render_keyvalue:pro"
     assert payload["service_plan"] == "professional"
+    assert payload["public_url"] == "https://api.flowmemory.example"
     assert calls["postgres"] == {
         "api_key": "render_live_key_from_env_file",
         "owner_id": "owner_from_env_file",
@@ -895,6 +903,9 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert calls["service"]["plan"] == "professional"
     assert calls["service"]["enable_disk"] is True
     assert calls["env_put"]["api_key"] == "render_live_key_from_env_file"
+    env_vars_by_key = {item["key"]: item["value"] for item in calls["env_put"]["body"]}
+    assert env_vars_by_key["FLOW_MEMORY_PUBLIC_API_URL"] == "https://api.flowmemory.example"
+    assert calls["smoke"]["url"] == "https://api.flowmemory.example"
 
 
 
@@ -916,6 +927,13 @@ def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> Non
 
     assert redis_blocked.value.code == 24
     assert postgres_blocked.value.code == 25
+
+
+def test_render_deploy_blocks_placeholder_public_api_url() -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.public_api_url_from_env({"FLOW_MEMORY_PUBLIC_API_URL": "https://api.yourdomain.com"})
+
+    assert blocked.value.code == 39
 
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:

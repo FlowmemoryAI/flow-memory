@@ -85,6 +85,7 @@ PLACEHOLDERS = (
     "CHANGEME",
     "<required>",
     "<your-domain>",
+    "yourdomain.com",
     "<managed_postgres_url>",
     "<managed_redis_url>",
     "<audit_export_uri>",
@@ -618,6 +619,21 @@ def public_url_block_reason(url: str) -> str:
     return "" if address.is_global else "public_url_must_use_global_host"
 
 
+def public_api_url_from_env(values: dict[str, str]) -> str:
+    url = values.get("FLOW_MEMORY_PUBLIC_API_URL", "").strip()
+    if not url:
+        return ""
+    if has_placeholder(url):
+        emit(
+            "blocked_invalid_public_api_url",
+            39,
+            invalid_value="FLOW_MEMORY_PUBLIC_API_URL",
+            required_action="set FLOW_MEMORY_PUBLIC_API_URL to the real public HTTPS API URL or leave it empty for Render's generated URL",
+        )
+    assert_https_public_url(url)
+    return url
+
+
 def select_managed_redis_url(connection_info: dict[str, Any]) -> str:
     fields = (
         "redissConnectionString",
@@ -697,6 +713,8 @@ def build_env_vars(
         {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist}
     )
     validate_gateway_jwt_config(jwt_hs256_secret, jwt_issuer, jwt_audience, jwt_leeway_seconds)
+    if public_api_url:
+        assert_https_public_url(public_api_url)
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
@@ -1153,6 +1171,7 @@ def main() -> int:
     otlp_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS", "5000")
     provider_callback_ip_allowlist = provider_callback_ip_allowlist_from_env(env_values)
     gateway_jwt = gateway_jwt_config_from_env(env_values)
+    configured_public_api_url = public_api_url_from_env(env_values)
     owner_id = infer_owner_id(render_api_key, render_owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
@@ -1181,6 +1200,7 @@ def main() -> int:
             api_key_value,
             str(pg_conn["internalConnectionString"]),
             redis_url,
+            public_api_url=configured_public_api_url,
             audit_export_uri=audit_export_uri,
             audit_export_s3_region=audit_export_s3_region,
             audit_export_object_lock_mode=audit_export_object_lock_mode,
@@ -1209,12 +1229,13 @@ def main() -> int:
             url = public_url(service)
         if not url:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
-        assert_https_public_url(url)
+        deployment_public_url = configured_public_api_url or url
+        assert_https_public_url(deployment_public_url)
         env_vars = build_env_vars(
             api_key_value,
             str(pg_conn["internalConnectionString"]),
             redis_url,
-            public_api_url=url,
+            public_api_url=deployment_public_url,
             audit_export_uri=audit_export_uri,
             audit_export_s3_region=audit_export_s3_region,
             audit_export_object_lock_mode=audit_export_object_lock_mode,
@@ -1240,12 +1261,12 @@ def main() -> int:
         trigger_service_deploy(render_api_key, str(service["id"]))
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
-            last_smoke = smoke_public(url, api_key_value, gateway_jwt)
+            last_smoke = smoke_public(deployment_public_url, api_key_value, gateway_jwt)
             if last_smoke.get("ok") is True:
                 emit(
                     "public_level_1_live",
                     0,
-                    public_url=url,
+                    public_url=deployment_public_url,
                     postgres=f"managed_render_postgres:{render_postgres_plan}",
                     redis=f"managed_render_keyvalue:{render_keyvalue_plan}",
                     service_plan=render_service_plan,
@@ -1257,7 +1278,7 @@ def main() -> int:
                     broadcast_enabled=False,
                 )
             time.sleep(10)
-        emit("failed_public_smoke_tests", 34, public_url=url, smoke=last_smoke or {})
+        emit("failed_public_smoke_tests", 34, public_url=deployment_public_url, smoke=last_smoke or {})
     except RenderError as exc:
         status = "blocked_render_payment_or_permission" if exc.status in {401, 402, 403} else "failed_deployment"
         emit(status, 40, render_status=exc.status, render_message=exc.message)

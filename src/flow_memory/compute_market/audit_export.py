@@ -308,21 +308,21 @@ class S3WormAuditExporter:
         ) + "\n"
         self._assert_bucket_object_lock_enabled()
         client = self._client()
+        metadata = {
+            "manifest-hash": manifest_hash,
+            "checkpoint-id": checkpoint.checkpoint_id,
+            "audit-format": _EXPORT_FORMAT,
+        }
         client.put_object(
             Bucket=self.bucket,
             Key=key,
             Body=body.encode("utf-8"),
             ContentType="application/x-ndjson",
-            Metadata={
-                "manifest-hash": manifest_hash,
-                "checkpoint-id": checkpoint.checkpoint_id,
-                "audit-format": _EXPORT_FORMAT,
-            },
+            Metadata=metadata,
             ObjectLockMode=self.object_lock_mode,
             ObjectLockRetainUntilDate=retention_until,
         )
-        if hasattr(client, "head_object"):
-            client.head_object(Bucket=self.bucket, Key=key)
+        self._assert_object_lock_readback(client, key, expected_metadata=metadata)
         self._last_export_key = key
         return AuditExportResult(True, export_uri, checkpoint, manifest_hash, len(events))
 
@@ -339,17 +339,17 @@ class S3WormAuditExporter:
         ) + "\n"
         self._assert_bucket_object_lock_enabled()
         client = self._client()
+        metadata = {"checkpoint-id": checkpoint.checkpoint_id, "audit-format": _EXPORT_FORMAT}
         client.put_object(
             Bucket=self.bucket,
             Key=key,
             Body=body.encode("utf-8"),
             ContentType="application/json",
-            Metadata={"checkpoint-id": checkpoint.checkpoint_id, "audit-format": _EXPORT_FORMAT},
+            Metadata=metadata,
             ObjectLockMode=self.object_lock_mode,
             ObjectLockRetainUntilDate=retention_until,
         )
-        if hasattr(client, "head_object"):
-            client.head_object(Bucket=self.bucket, Key=key)
+        self._assert_object_lock_readback(client, key, expected_metadata=metadata)
         return {"ok": True, "path": f"s3://{self.bucket}/{key}", "checkpoint": checkpoint.as_record(), "object_lock_mode": self.object_lock_mode}
 
     def verify_export(self) -> AuditExportVerification:
@@ -433,6 +433,24 @@ class S3WormAuditExporter:
     def _assert_bucket_object_lock_enabled(self) -> None:
         if not self._bucket_object_lock_enabled():
             raise RuntimeError("S3 audit exporter requires bucket Object Lock to be enabled")
+
+    def _assert_object_lock_readback(self, client: Any, key: str, *, expected_metadata: Mapping[str, str]) -> None:
+        if not hasattr(client, "head_object"):
+            raise RuntimeError("S3 audit exporter requires head_object readback")
+        response = client.head_object(Bucket=self.bucket, Key=key)
+        if not isinstance(response, Mapping):
+            raise RuntimeError("S3 audit exporter head_object readback returned an invalid response")
+        metadata = response.get("Metadata", {})
+        if not isinstance(metadata, Mapping):
+            raise RuntimeError("S3 audit exporter head_object readback returned invalid metadata")
+        for metadata_key, expected_value in expected_metadata.items():
+            if str(metadata.get(metadata_key, "")) != str(expected_value):
+                raise RuntimeError(f"S3 audit exporter readback metadata mismatch for {metadata_key}")
+        object_lock_mode = str(response.get("ObjectLockMode", ""))
+        if object_lock_mode != self.object_lock_mode:
+            raise RuntimeError("S3 audit exporter readback Object Lock mode mismatch")
+        if not response.get("ObjectLockRetainUntilDate"):
+            raise RuntimeError("S3 audit exporter readback retention timestamp is missing")
 
     def _client(self) -> Any:
         if not self.bucket:

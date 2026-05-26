@@ -19,19 +19,27 @@ class FakeS3Client:
     def __init__(self) -> None:
         self.objects: dict[tuple[str, str], bytes] = {}
         self.puts: list[dict[str, Any]] = []
+        self.heads: dict[tuple[str, str], dict[str, Any]] = {}
 
     def put_object(self, **kwargs: Any) -> dict[str, Any]:
         bucket = str(kwargs["Bucket"])
         key = str(kwargs["Key"])
         body = kwargs.get("Body", b"")
-        self.objects[(bucket, key)] = body if isinstance(body, bytes) else str(body).encode("utf-8")
+        body_bytes = body if isinstance(body, bytes) else str(body).encode("utf-8")
+        self.objects[(bucket, key)] = body_bytes
+        self.heads[(bucket, key)] = {
+            "ContentLength": len(body_bytes),
+            "Metadata": dict(kwargs.get("Metadata", {})),
+            "ObjectLockMode": kwargs.get("ObjectLockMode", ""),
+            "ObjectLockRetainUntilDate": kwargs.get("ObjectLockRetainUntilDate"),
+        }
         self.puts.append(dict(kwargs))
         return {"ETag": "fake-etag"}
 
     def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         if (Bucket, Key) not in self.objects:
             raise KeyError(Key)
-        return {"ContentLength": len(self.objects[(Bucket, Key)])}
+        return dict(self.heads[(Bucket, Key)])
 
     def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         return {"Body": self.objects[(Bucket, Key)]}
@@ -272,6 +280,9 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     export_bucket = str(export_put["Bucket"])
     export_key = str(export_put["Key"])
     export_body = client.objects[(export_bucket, export_key)]
+    assert client.heads[(export_bucket, export_key)]["Metadata"]["manifest-hash"] == exported["manifest_hash"]
+    assert client.heads[(export_bucket, export_key)]["ObjectLockMode"] == "COMPLIANCE"
+    assert client.heads[(export_bucket, export_key)]["ObjectLockRetainUntilDate"]
     manifest = json.loads(export_body.decode("utf-8").splitlines()[0])
     assert manifest["object_lock_mode"] == "COMPLIANCE"
     assert manifest["storage_uri"] == exported["path"]
@@ -311,6 +322,26 @@ def test_s3_object_lock_exporter_fails_closed_without_bucket_object_lock() -> No
         assert "Object Lock" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("S3 exporter wrote without bucket Object Lock")
+
+
+def test_s3_object_lock_exporter_fails_closed_without_head_readback_retention() -> None:
+    class MissingRetentionS3Client(FakeS3Client):
+        def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+            response = super().head_object(Bucket=Bucket, Key=Key)
+            response.pop("ObjectLockRetainUntilDate", None)
+            return response
+
+    client = MissingRetentionS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = _service()
+    service.plan({"task": "s3 missing retention readback", "request_id": "s3-no-retention"})
+
+    try:
+        exporter.export_events(service.store, chain_id="all")
+    except RuntimeError as exc:
+        assert "readback retention timestamp" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("S3 exporter accepted missing readback retention evidence")
 
 
 def test_s3_exporter_factory_uses_first_class_region_endpoint_and_retention_config() -> None:

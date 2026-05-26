@@ -126,6 +126,91 @@ class CLITests(unittest.TestCase):
         self.assertEqual(reputation["reputation"]["provider_id"], "provider_cli_gpu_1")
         self.assertEqual(disabled["provider_application"]["status"], "disabled")
 
+    def test_billing_cli_lists_usage_payouts_refunds_and_settles(self) -> None:
+        import hmac
+
+        from flow_memory.compute_market.config import ComputeMarketConfig
+        from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+        from flow_memory.compute_market.storage import ComputeMarketStore
+        from flow_memory.crypto.hashes import content_hash
+
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+        )
+        raw_event = {
+            "id": "evt_cli_credit",
+            "type": "checkout.session.completed",
+            "amount": 1.0,
+            "currency": "usd",
+            "metadata": {"account_id": "acct_cli"},
+        }
+        secret = "whsec_cli_secret"
+        signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+        service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+        created = service.create_job(
+            {
+                "task_type": "inference",
+                "input_ref": "s3://flow-memory-inputs/job-cli.json",
+                "model_or_runtime": "llama-runtime",
+                "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+                "budget_policy_id": "policy_default",
+                "route_id": "route_live_gpu_1",
+                "provider_id": "provider_live_gpu_1",
+            }
+        )
+        job_id = str(created["job"]["job_id"])
+        service.dispatch_job(job_id, {})
+        completed = service.complete_job(
+            job_id,
+            {"account_id": "acct_cli", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"},
+        )
+        payout_id = str(completed["provider_payout"]["provider_payout_id"])
+        usage_charge_id = str(completed["usage_charge"]["usage_charge_id"])
+        reset_default_service(service)
+        try:
+            balance_code, balance_output = self._run_cli(["compute", "billing", "balance", "acct_cli"])
+            usage_code, usage_output = self._run_cli(["compute", "billing", "usage", "--account-id", "acct_cli"])
+            payout_code, payout_output = self._run_cli(
+                ["compute", "billing", "provider-payouts", "--provider", "provider_live_gpu_1", "--status", "accrued"]
+            )
+            settle_code, settle_output = self._run_cli(
+                [
+                    "compute",
+                    "billing",
+                    "payout-settle",
+                    payout_id,
+                    "--external-payout-reference",
+                    "external-transfer-1",
+                    "--settled-by",
+                    "ops",
+                ]
+            )
+            refund_code, refund_output = self._run_cli(
+                ["compute", "billing", "refund", usage_charge_id, "--reason", "cli_sla_credit"]
+            )
+        finally:
+            reset_default_service(None)
+
+        balance = json.loads(balance_output)
+        usage = json.loads(usage_output)
+        payout = json.loads(payout_output)
+        settled = json.loads(settle_output)
+        refund = json.loads(refund_output)
+
+        self.assertEqual(balance_code, 0)
+        self.assertEqual(usage_code, 0)
+        self.assertEqual(payout_code, 0)
+        self.assertEqual(settle_code, 0)
+        self.assertEqual(refund_code, 0)
+        self.assertEqual(balance["balance"]["available_credits"], 0.82)
+        self.assertEqual(usage["usage_charges"][0]["usage_charge_id"], usage_charge_id)
+        self.assertEqual(payout["provider_payouts"][0]["provider_payout_id"], payout_id)
+        self.assertEqual(settled["provider_payout"]["status"], "settled")
+        self.assertFalse(settled["provider_payout"]["funds_moved"])
+        self.assertEqual(refund["refund"]["usage_charge_id"], usage_charge_id)
+        self.assertFalse(refund["refund"]["funds_moved"])
+
 
     def test_verify_script_uses_portable_python_launcher(self) -> None:
         verify_script = (Path(__file__).resolve().parents[1] / "scripts" / "verify.sh").read_text(

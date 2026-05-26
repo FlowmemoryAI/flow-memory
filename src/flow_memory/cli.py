@@ -120,6 +120,24 @@ def _compute(argv: list[str]) -> int:
     provider_admin.add_argument("--verification-notes", default="")
     provider_admin.add_argument("--asset", action="append", default=[])
     provider_admin.add_argument("--network", action="append", default=[])
+    billing = subparsers.add_parser("billing", help="Operate no-custody billing ledgers")
+    billing.add_argument(
+        "billing_action",
+        choices=("balance", "usage", "provider-payouts", "payout-settle", "refund", "checkout", "webhook-stripe"),
+    )
+    billing.add_argument("billing_id", nargs="?", default="")
+    _add_compute_query_args(billing)
+    billing.add_argument("--account", "--account-id", dest="account_id", default="")
+    billing.add_argument("--amount", type=float, default=0.0)
+    billing.add_argument("--currency", default="USD")
+    billing.add_argument("--status", default="")
+    billing.add_argument("--external-payout-reference", default="")
+    billing.add_argument("--settled-by", default="")
+    billing.add_argument("--reason", default="")
+    billing.add_argument("--usage-charge", "--usage-charge-id", dest="usage_charge_id", default="")
+    billing.add_argument("--webhook-secret", default="")
+    billing.add_argument("--stripe-signature", default="")
+    billing.add_argument("--raw-event-file", default="")
     args = parser.parse_args(argv)
     service = default_service()
     payload = _compute_payload(args)
@@ -162,6 +180,8 @@ def _compute(argv: list[str]) -> int:
             output = validate_provider_contract_file(Path(str(args.file)), provider_id=str(getattr(args, "provider", "")))
         elif args.command == "provider-admin":
             output = _provider_admin_output(service, args, payload)
+        elif args.command == "billing":
+            output = _billing_output(service, args, payload)
         elif args.command == "quote":
             output = service.quote(payload)
         elif args.command == "route":
@@ -266,6 +286,58 @@ def _provider_admin_output(service: Any, args: Any, payload: dict[str, Any]) -> 
     raise ValueError(f"unsupported provider admin action: {action}")
 
 
+def _billing_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str, Any]:
+    action = str(getattr(args, "billing_action", ""))
+    billing_id = str(getattr(args, "billing_id", ""))
+    billing_payload = dict(payload)
+    account_id = str(getattr(args, "account_id", ""))
+    if account_id:
+        billing_payload["account_id"] = account_id
+    if billing_id and action in {"balance", "checkout"}:
+        billing_payload["account_id"] = billing_id
+    if action == "checkout":
+        billing_payload["amount"] = float(getattr(args, "amount", 0.0) or 0.0)
+        billing_payload["currency"] = str(getattr(args, "currency", "USD"))
+        return service.billing_checkout(billing_payload)
+    if action == "balance":
+        return service.billing_balance(billing_payload)
+    if action == "usage":
+        return service.billing_usage(billing_payload)
+    if action == "provider-payouts":
+        status = str(getattr(args, "status", ""))
+        if status:
+            billing_payload["status"] = status
+        return service.billing_provider_payouts(billing_payload)
+    if action == "payout-settle":
+        billing_payload["external_payout_reference"] = str(getattr(args, "external_payout_reference", ""))
+        billing_payload["settled_by"] = str(getattr(args, "settled_by", ""))
+        return service.settle_provider_payout(_required_billing_id(billing_id, "payout_id"), billing_payload)
+    if action == "refund":
+        usage_charge_id = str(getattr(args, "usage_charge_id", "") or billing_id)
+        if usage_charge_id:
+            billing_payload["usage_charge_id"] = usage_charge_id
+        amount = float(getattr(args, "amount", 0.0) or 0.0)
+        if amount > 0.0:
+            billing_payload["amount"] = amount
+        reason = str(getattr(args, "reason", ""))
+        if reason:
+            billing_payload["reason"] = reason
+        billing_payload["currency"] = str(getattr(args, "currency", "USD"))
+        return service.billing_refund(billing_payload)
+    if action == "webhook-stripe":
+        billing_payload["raw_event"] = _load_json_object(str(getattr(args, "raw_event_file", "")))
+        billing_payload["webhook_secret"] = str(getattr(args, "webhook_secret", ""))
+        billing_payload["stripe_signature"] = str(getattr(args, "stripe_signature", ""))
+        return service.billing_webhook_stripe(billing_payload)
+    raise ValueError(f"unsupported billing action: {action}")
+
+
+def _required_billing_id(value: str, label: str) -> str:
+    if not value:
+        raise ValueError(f"{label} is required")
+    return value
+
+
 def _load_json_object(path: str) -> dict[str, Any]:
     if not path:
         return {}
@@ -317,6 +389,7 @@ def _compute_payload(args: Any) -> dict[str, Any]:
         "export": bool(getattr(args, "export", False)),
         "interval_seconds": int(getattr(args, "interval_seconds", 0) or 0),
         "min_events": int(getattr(args, "min_events", 0) or 0),
+        "account_id": str(getattr(args, "account_id", "")),
         "dry_run": True,
     }
 

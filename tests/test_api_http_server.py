@@ -1,4 +1,5 @@
 import json
+import hmac
 import time
 import threading
 import urllib.error
@@ -193,6 +194,45 @@ def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> Non
     assert mismatch.body["error"]["code"] == "auth.forbidden"
     assert mismatch.body["error"]["details"]["tenant_id"] == "tenant_billing"
     assert mismatch.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+
+
+def test_http_gateway_accepts_direct_stripe_webhook_body_with_signature_header() -> None:
+    secret = "whsec_http_gateway_secret"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            stripe_webhook_secret=secret,
+        ),
+    )
+    reset_default_service(service)
+    raw_event = {
+        "id": "evt_http_stripe",
+        "type": "checkout.session.completed",
+        "amount_total": 3300,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_http_stripe"},
+    }
+    raw_body = json.dumps(raw_event, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    timestamp = "1770000001"
+    signed_body = f"{timestamp}.{raw_body.decode('utf-8')}".encode("utf-8")
+    digest = hmac.new(secret.encode("utf-8"), signed_body, "sha256").hexdigest()
+    gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
+    try:
+        response = gateway.handle(
+            "POST",
+            "/billing/webhooks/stripe",
+            {"Stripe-Signature": f"t={timestamp},v1={digest}"},
+            raw_body,
+        )
+    finally:
+        reset_default_service(None)
+
+    assert response.status == 200
+    assert response.body["data"]["payment_event"]["verified"] is True
+    assert response.body["data"]["credit_transaction"]["amount"] == 33.0
 
 
 

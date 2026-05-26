@@ -195,6 +195,7 @@ class HttpApiGateway:
                     raise rate_decision.error
             router_payload = _tenant_scoped_payload(context, payload)
             router_payload = _inject_provider_callback_ip(context.method, context.path, router_payload, header_map)
+            router_payload = _inject_stripe_webhook_context(context.method, context.path, router_payload, header_map, body)
             result = self.router.dispatch(context.method, context.path, router_payload)
             self.audit_sink.record(_audit_event(context, True, 200, ""))
             return HttpApiResponse(
@@ -308,6 +309,22 @@ def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, A
     if not client_ip:
         return payload
     return {**dict(payload), "_flow_memory_client_ip": client_ip}
+
+
+def _inject_stripe_webhook_context(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str], body: bytes) -> Mapping[str, Any]:
+    if method.upper() != "POST" or path != "/billing/webhooks/stripe":
+        return payload
+    enriched = dict(payload)
+    signature = _header(headers, "stripe-signature")
+    if signature and not enriched.get("stripe_signature"):
+        enriched["stripe_signature"] = signature
+    if "raw_event" not in enriched and enriched.get("id") and enriched.get("type"):
+        excluded = {"stripe_signature", "raw_event_body", "webhook_secret", "tenant_id", "_flow_memory_principal"}
+        raw_event = {key: value for key, value in enriched.items() if key not in excluded}
+        enriched["raw_event"] = raw_event
+        if body and not enriched.get("raw_event_body"):
+            enriched["raw_event_body"] = body.decode("utf-8", "replace")
+    return enriched
 
 
 def _trusted_client_ip(headers: Mapping[str, str]) -> str:

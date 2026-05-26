@@ -4,6 +4,8 @@ import argparse
 import json
 import os
 import sys
+import urllib.error
+import urllib.request
 import threading
 from http.server import ThreadingHTTPServer
 from typing import Any, Mapping, cast
@@ -23,6 +25,7 @@ _SIGNING_SECRET_ENV = "FLOW_MEMORY_PROVIDER_SANDBOX_SIGNING_SECRET"
 
 
 def _provider_record(endpoint: str, signing_key: LocalKeyPair) -> dict[str, Any]:
+    health_endpoint = endpoint.rsplit("/", 1)[0] + "/health"
     return {
         "provider_id": _PROVIDER_ID,
         "provider_name": "Flow Memory Provider Sandbox",
@@ -36,8 +39,10 @@ def _provider_record(endpoint: str, signing_key: LocalKeyPair) -> dict[str, Any]
         "supported_assets": ("USDC", "CREDITS"),
         "supported_networks": ("offchain",),
         "quote_endpoint": endpoint,
+        "health_endpoint": health_endpoint,
         "metadata": {
             "quote_endpoint": endpoint,
+            "health_endpoint": health_endpoint,
             "outbound_signing_required": True,
             "outbound_signing_key_id": signing_key.key_id,
             "outbound_signing_key_env": _SIGNING_SECRET_ENV,
@@ -70,6 +75,17 @@ def _route_record() -> dict[str, Any]:
     }
 
 
+def _get_json(url: str) -> tuple[int, Mapping[str, Any]]:
+    request = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(request, timeout=2.0) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            return response.status, payload if isinstance(payload, Mapping) else {}
+    except urllib.error.HTTPError as exc:
+        payload = json.loads(exc.read().decode("utf-8") or "{}")
+        return exc.code, payload if isinstance(payload, Mapping) else {}
+
+
 def validate_provider_sandbox() -> Mapping[str, Any]:
     signing_key = LocalKeyPair("sandbox-provider-signing", "sandbox-provider-shared-secret")
     old_secret = os.environ.get(_SIGNING_SECRET_ENV)
@@ -92,7 +108,9 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
         )
         provider_created = service.create_provider(_provider_record(endpoint, signing_key))
         route_created = service.create_route(_route_record())
+        provider_health = service.provider_health(_PROVIDER_ID)
         sample_quote = sandbox_quote({})
+        health_status, health_payload = _get_json(endpoint.rsplit("/", 1)[0] + "/health")
         for contract_unsafe_key in ("broadcast_allowed", "private_key_required", "broadcast_required", "private_key"):
             sample_quote.pop(contract_unsafe_key, None)
         conformance = service.provider_conformance(
@@ -133,6 +151,7 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
         cache_records = service.store.list_records("quote_cache_entry", filters={"provider_id": _PROVIDER_ID, "route_id": _ROUTE_ID}).records
         quote_records = service.store.list_records("compute_quote", filters={"provider_id": _PROVIDER_ID, "route_id": _ROUTE_ID}).records
         audit_events = service.audit({}).get("audit_events", ())
+        health_records = service.store.list_records("provider_health_snapshot", filters={"provider_id": _PROVIDER_ID}).records
         audit_actions = tuple(str(event.get("action", "")) for event in audit_events if isinstance(event, Mapping))
         selected_route = decision.selected_route if isinstance(decision.selected_route, Mapping) else {}
         normalized_quote = decision.normalized_quote if isinstance(decision.normalized_quote, Mapping) else {}
@@ -143,8 +162,12 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
                 conformance.get("ok") is True,
                 quote_request.get("ok") is True,
                 bool(quote_records),
+                provider_health.get("ok") is True,
+                health_status == 200,
+                health_payload.get("ok") is True,
                 bool(cache_records),
                 "market.quote.ingested" in audit_actions,
+                bool(health_records),
                 bool(selected_route),
                 selected_route.get("route_id") == _ROUTE_ID,
                 bool(normalized_quote),
@@ -161,9 +184,12 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
             "route_created": route_created.get("ok") is True,
             "contract_ok": conformance.get("ok") is True,
             "quote_ingested": quote_request.get("ok") is True,
+            "provider_health_checked": provider_health.get("ok") is True,
+            "sandbox_health_status": health_status,
             "quote_count": len(quote_records),
             "quote_cache_count": len(cache_records),
             "audit_ingested": "market.quote.ingested" in audit_actions,
+            "health_count": len(health_records),
             "selected_route_id": selected_route.get("route_id", ""),
             "selected_quote_source": normalized_quote.get("source", ""),
             "dry_run_only": True,

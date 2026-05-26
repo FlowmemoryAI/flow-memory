@@ -17,9 +17,12 @@ def test_provider_sandbox_validator_ingests_and_selects_live_quote(monkeypatch: 
     assert result["route_created"] is True
     assert result["contract_ok"] is True
     assert result["quote_ingested"] is True
+    assert result["provider_health_checked"] is True
+    assert result["sandbox_health_status"] == 200
     assert result["quote_count"] == 1
     assert result["quote_cache_count"] == 1
     assert result["audit_ingested"] is True
+    assert result["health_count"] >= 1
     assert result["selected_route_id"] == validator._ROUTE_ID
     assert result["selected_quote_source"] == "live_provider"
     assert result["fail_closed_errors"] == ()

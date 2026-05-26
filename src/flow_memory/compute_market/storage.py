@@ -20,6 +20,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "compute_quote",
     "compute_capacity_window",
     "compute_reservation",
+    "capacity_auction",
     "compute_intent",
     "payment_intent",
     "payment_plan",

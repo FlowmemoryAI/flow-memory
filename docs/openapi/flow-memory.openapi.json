@@ -4009,6 +4009,67 @@
         ]
       }
     },
+    "/market/capacity/auction": {
+      "post": {
+        "operationId": "market_capacity_auction",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "allow_partial": {
+                    "type": "string"
+                  },
+                  "bids": {
+                    "type": "string"
+                  },
+                  "capacity_units": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "reserve_price": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "clearing": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Clear a no-custody dry-run capacity auction against currently available provider capacity",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/capacity/confirm": {
       "post": {
         "operationId": "market_capacity_confirm",

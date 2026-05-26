@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 145,
-  "manifest_hash": "2ab63447e4af85043d39d02d77a9fffd8e9771b6e8fb8b9e1a0c2dca2f7570b3",
-  "openapi_hash": "04504352e257e0aa4d18ea1a2284494e15905fd4d8edbbb52569119667adfcd3",
+  "endpoint_count": 146,
+  "manifest_hash": "4ab045c660fffc6578990b849770fd4e12bb13e5f003960428bf40e925391d3c",
+  "openapi_hash": "4fa1aa92317e3f3ac0b8b1b969433835573331520e6ee714e23f80f3f7436d9e",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -119,6 +119,7 @@
     "POST /flowlang/compile",
     "POST /flowlang/run",
     "POST /flowlang/validate",
+    "POST /market/capacity/auction",
     "POST /market/capacity/confirm",
     "POST /market/capacity/expire",
     "POST /market/capacity/list",
@@ -149,7 +150,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 137,
+  "path_count": 138,
   "paths": [
     "/admin/audit/export",
     "/admin/reconciliation",
@@ -234,6 +235,7 @@
     "/flowlang/validate",
     "/health",
     "/manifest",
+    "/market/capacity/auction",
     "/market/capacity/confirm",
     "/market/capacity/expire",
     "/market/capacity/list",

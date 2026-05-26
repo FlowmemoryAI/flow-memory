@@ -112,6 +112,9 @@ def market_capacity_reserve(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 def market_capacity_confirm(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().confirm_capacity(payload)
 
+def market_capacity_auction(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().auction_capacity(payload)
+
 
 def market_capacity_expire(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().expire_capacity(payload)

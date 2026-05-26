@@ -36,6 +36,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "compute_quote": "compute_quotes",
     "compute_capacity_window": "compute_capacity_windows",
     "compute_reservation": "compute_reservations",
+    "capacity_auction": "compute_capacity_auctions",
     "compute_intent": "compute_intents",
     "payment_intent": "compute_payment_intents",
     "payment_plan": "compute_payment_plans",

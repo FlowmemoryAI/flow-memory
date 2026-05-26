@@ -927,6 +927,70 @@ class ComputeMarketService:
         reservations = tuple(self.store.list_records("compute_reservation", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
         return {"ok": True, "capacity_windows": windows, "reservations": reservations, "expired_reservations": expired_reservations, "summary": _capacity_summary(windows, reservations)}
 
+    def auction_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        provider_id = str(payload.get("provider_id", "")).strip()
+        route_id = str(payload.get("route_id", "")).strip()
+        if not provider_id or not route_id:
+            raise ValueError("provider_id and route_id are required")
+        limited = self._rate_limit_response(
+            payload,
+            "POST /market/capacity/auction",
+            request_id=request_id,
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        if limited is not None:
+            return limited
+        idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        if idempotency_key:
+            existing = self.store.find_by_idempotency("capacity_auction", idempotency_key)
+            if existing is not None:
+                return {"ok": True, "clearing": existing, "idempotent_replay": True}
+        self._expire_capacity_holds(payload, request_id=request_id)
+        windows = tuple(
+            self.store.list_records(
+                "compute_capacity_window",
+                filters={"provider_id": provider_id, "route_id": route_id},
+                limit=100,
+            ).records
+        )
+        reservations = tuple(
+            self.store.list_records(
+                "compute_reservation",
+                filters={"provider_id": provider_id, "route_id": route_id},
+                limit=500,
+            ).records
+        )
+        clearing = _capacity_auction_clearing(payload, windows, reservations, request_id=request_id)
+        self.store.put_record(
+            "capacity_auction",
+            str(clearing["auction_id"]),
+            clearing,
+            provider_id=provider_id,
+            route_id=route_id,
+            status=str(clearing["status"]),
+            idempotency_key=idempotency_key,
+            request_id=request_id,
+        )
+        total_units_cleared = float(clearing.get("total_units_cleared", 0.0) or 0.0)
+        self.telemetry.increment(
+            "capacity_auction_cleared_total",
+            {"provider_id": provider_id, "route_id": route_id},
+            value=total_units_cleared,
+        )
+        self._audit(
+            "market.capacity.auction.completed",
+            payload,
+            request_id=request_id,
+            result=str(clearing["status"]),
+            reason_codes=tuple(clearing.get("reason_codes", ())),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return {"ok": True, "clearing": clearing}
+
     def expire_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
@@ -3562,6 +3626,144 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
         "funds_moved": False,
         "created_at": now,
         "updated_at": now,
+    }
+
+def _capacity_auction_clearing(
+    payload: Mapping[str, Any],
+    windows: tuple[Mapping[str, Any], ...],
+    reservations: tuple[Mapping[str, Any], ...],
+    *,
+    request_id: str,
+) -> dict[str, Any]:
+    now = utc_now_iso()
+    active_windows = tuple(
+        window
+        for window in windows
+        if str(window.get("status", "active")) == "active" and str(window.get("ends_at", "")) > now
+    )
+    if not active_windows:
+        raise ValueError("no unexpired active capacity window found for auction")
+    summary = _capacity_summary(active_windows, reservations)
+    available_units = float(summary.get("available_capacity_units", 0.0) or 0.0)
+    if available_units <= 0:
+        raise ValueError("no available capacity for auction")
+    requested_units = _positive_float(
+        payload.get("capacity_units", payload.get("requested_capacity_units", available_units)),
+        "capacity_units",
+    )
+    allow_partial = bool(payload.get("allow_partial", True))
+    if requested_units > available_units and not allow_partial:
+        raise ValueError("requested auction capacity exceeds available capacity")
+    auction_capacity_units = min(requested_units, available_units)
+    raw_bids = payload.get("bids", ())
+    if not isinstance(raw_bids, (list, tuple)):
+        raise ValueError("bids must be a list")
+    if not raw_bids:
+        raise ValueError("at least one bid is required")
+    window_floor = max(_safe_non_negative_float(window.get("price_floor", 0.0)) for window in active_windows)
+    reserve_price = max(
+        window_floor,
+        _safe_non_negative_float(payload.get("reserve_price", payload.get("price_floor", 0.0))),
+    )
+    normalized_bids: list[dict[str, Any]] = []
+    rejected_bids: list[dict[str, Any]] = []
+    for index, raw_bid in enumerate(raw_bids):
+        if not isinstance(raw_bid, Mapping):
+            raise ValueError("each bid must be an object")
+        bidder_id = str(raw_bid.get("bidder_id", raw_bid.get("account_id", ""))).strip()
+        if not bidder_id:
+            raise ValueError("bidder_id or account_id is required for each bid")
+        bid_units = _positive_float(
+            raw_bid.get("capacity_units", raw_bid.get("units", auction_capacity_units)),
+            f"bids[{index}].capacity_units",
+        )
+        max_unit_price = _positive_float(
+            raw_bid.get("max_unit_price", raw_bid.get("bid_price", raw_bid.get("unit_price"))),
+            f"bids[{index}].max_unit_price",
+        )
+        bid = {
+            "bid_id": str(
+                raw_bid.get("bid_id")
+                or deterministic_id("capacity_bid", {"request_id": request_id, "index": index, "bid": raw_bid})
+            ),
+            "bidder_id": bidder_id,
+            "capacity_units": bid_units,
+            "max_unit_price": max_unit_price,
+            "submitted_at": str(raw_bid.get("submitted_at", now)),
+        }
+        if max_unit_price < reserve_price:
+            rejected_bids.append({**bid, "rejection_reason": "below_reserve_price"})
+            continue
+        normalized_bids.append(bid)
+    sorted_bids = sorted(
+        normalized_bids,
+        key=lambda bid: (-float(bid["max_unit_price"]), str(bid["submitted_at"]), str(bid["bid_id"])),
+    )
+    remaining_units = auction_capacity_units
+    winning_bids: list[dict[str, Any]] = []
+    for bid in sorted_bids:
+        if remaining_units <= 0:
+            rejected_bids.append({**bid, "rejection_reason": "capacity_exhausted"})
+            continue
+        bid_units = float(bid["capacity_units"])
+        allocated_units = min(bid_units, remaining_units)
+        if allocated_units < bid_units and not allow_partial:
+            rejected_bids.append({**bid, "rejection_reason": "capacity_exhausted"})
+            continue
+        winning_bids.append(
+            {
+                **bid,
+                "capacity_units": allocated_units,
+                "requested_capacity_units": bid_units,
+                "partial_fill": allocated_units < bid_units,
+            }
+        )
+        remaining_units -= allocated_units
+    total_units_cleared = sum(float(bid["capacity_units"]) for bid in winning_bids)
+    clearing_unit_price = min((float(bid["max_unit_price"]) for bid in winning_bids), default=0.0)
+    priced_winners = tuple(
+        {
+            **bid,
+            "clearing_unit_price": clearing_unit_price,
+            "estimated_total_cost": round(float(bid["capacity_units"]) * clearing_unit_price, 8),
+        }
+        for bid in winning_bids
+    )
+    status = "cleared" if priced_winners else "no_fill"
+    auction_id = str(
+        payload.get("auction_id")
+        or deterministic_id(
+            "capacity_auction",
+            {
+                "provider_id": payload.get("provider_id", ""),
+                "route_id": payload.get("route_id", ""),
+                "request_id": request_id,
+                "bids": normalized_bids,
+            },
+        )
+    )
+    reason_codes = () if priced_winners else ("no_winning_bids",)
+    return {
+        "auction_id": auction_id,
+        "provider_id": str(payload.get("provider_id", "")),
+        "route_id": str(payload.get("route_id", "")),
+        "status": status,
+        "unit_type": str(payload.get("unit_type", active_windows[0].get("resource_type", "gpu_hour"))),
+        "window_ids": tuple(str(window.get("window_id", "")) for window in active_windows),
+        "available_capacity_units": available_units,
+        "requested_capacity_units": requested_units,
+        "auction_capacity_units": auction_capacity_units,
+        "total_units_cleared": total_units_cleared,
+        "reserve_price": reserve_price,
+        "clearing_unit_price": clearing_unit_price,
+        "winning_bids": priced_winners,
+        "rejected_bids": tuple(rejected_bids),
+        "reason_codes": reason_codes,
+        "dry_run_only": True,
+        "funds_moved": False,
+        "reservations_created": False,
+        "created_at": now,
+        "request_id": request_id,
     }
 
 

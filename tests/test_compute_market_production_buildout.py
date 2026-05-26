@@ -574,6 +574,77 @@ def test_capacity_reservation_confirm_creates_dry_run_commitment() -> None:
     else:  # pragma: no cover
         raise AssertionError("expired capacity hold was confirmed")
 
+def test_capacity_auction_clears_highest_bids_without_mutating_reservations() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 8,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.5,
+        }
+    )
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 2}
+    )
+    payload = {
+        "provider_id": "provider_live_gpu_1",
+        "route_id": "route_live_gpu_1",
+        "capacity_units": 5,
+        "reserve_price": 2.7,
+        "idempotency_key": "auction-idempotent-1",
+        "bids": [
+            {"bid_id": "bid_low", "account_id": "acct_low", "capacity_units": 4, "max_unit_price": 2.6},
+            {"bid_id": "bid_high", "account_id": "acct_high", "capacity_units": 4, "max_unit_price": 3.2},
+            {"bid_id": "bid_mid", "account_id": "acct_mid", "capacity_units": 4, "max_unit_price": 3.0},
+            {"bid_id": "bid_tail", "account_id": "acct_tail", "capacity_units": 2, "max_unit_price": 2.9},
+        ],
+    }
+    reset_default_service(service)
+    router = create_default_router()
+    try:
+        auction = router.dispatch("POST", "/market/capacity/auction", payload)
+    finally:
+        reset_default_service(None)
+    clearing = auction["clearing"]
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert auction["ok"] is True
+    assert clearing["status"] == "cleared"
+    assert clearing["dry_run_only"] is True
+    assert clearing["funds_moved"] is False
+    assert clearing["reservations_created"] is False
+    assert clearing["available_capacity_units"] == 6
+    assert clearing["total_units_cleared"] == 5
+    assert clearing["clearing_unit_price"] == 3.0
+    assert [bid["bid_id"] for bid in clearing["winning_bids"]] == ["bid_high", "bid_mid"]
+    assert clearing["winning_bids"][1]["partial_fill"] is True
+    assert {bid["rejection_reason"] for bid in clearing["rejected_bids"]} == {
+        "below_reserve_price",
+        "capacity_exhausted",
+    }
+    assert summary["reserved_capacity_units"] == 2
+    assert summary["available_capacity_units"] == 6
+    assert service.store.count_records("capacity_auction") == 1
+    assert _metric_total(
+        service,
+        "capacity_auction_cleared_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 5.0
+
+    replay = service.auction_capacity(payload)
+    assert replay["idempotent_replay"] is True
+    assert replay["clearing"]["auction_id"] == clearing["auction_id"]
+    assert service.store.count_records("capacity_auction") == 1
+    assert service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})["ok"] is True
+
 
 def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:
     service = _service()

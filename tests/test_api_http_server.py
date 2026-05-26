@@ -15,7 +15,7 @@ from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import sign_payload
 
 
-def test_http_gateway_health_response():
+def test_http_gateway_health_response() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     response = gateway.handle("GET", "/health", {"x-flow-memory-scopes": "api:read"})
     assert response.status == 200
@@ -23,7 +23,7 @@ def test_http_gateway_health_response():
     assert response.headers["content-type"].startswith("application/json")
 
 
-def test_http_gateway_api_key_auth_blocks_missing_key():
+def test_http_gateway_api_key_auth_blocks_missing_key() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", enable_rate_limit=False))
     denied = gateway.handle("GET", "/health", {})
     allowed = gateway.handle("GET", "/health", {"x-flow-memory-api-key": "dev"})
@@ -41,7 +41,7 @@ def test_http_gateway_api_key_auth_blocks_missing_key():
     assert root.body["data"]["endpoints"]["alerts"] == "/compute/alerts"
 
 
-def test_http_gateway_nonce_check_blocks_replay_when_enabled():
+def test_http_gateway_nonce_check_blocks_replay_when_enabled() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", enable_rate_limit=False, enable_nonce_check=True))
     headers = {
         "x-flow-memory-api-key": "dev",
@@ -56,7 +56,7 @@ def test_http_gateway_nonce_check_blocks_replay_when_enabled():
     assert replay.status == 401
     assert "replayed request nonce" in replay.body["error"]["details"]["reasons"]
 
-def test_http_gateway_scope_enforcement():
+def test_http_gateway_scope_enforcement() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))
     denied = gateway.handle("GET", "/health", {})
     allowed = gateway.handle("GET", "/health", {"x-flow-memory-scopes": "api:read"})
@@ -84,20 +84,20 @@ def test_http_gateway_prometheus_metrics_alias_returns_text_and_requires_compute
     assert "# TYPE compute_plan_requests_total gauge" in allowed.to_bytes().decode("utf-8")
     assert 'strategy="balanced"' in allowed.to_bytes().decode("utf-8")
 
-def test_http_gateway_rate_limit():
+def test_http_gateway_rate_limit() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(rate_limit=1, rate_limit_window_seconds=60))
     headers = {"x-flow-memory-scopes": "api:read", "x-flow-memory-principal": "alice"}
     assert gateway.handle("GET", "/health", headers).status == 200
     assert gateway.handle("GET", "/health", headers).status == 429
 
 
-def test_http_gateway_invalid_json_error_contract():
+def test_http_gateway_invalid_json_error_contract() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     response = gateway.handle("POST", "/runtime/tick", {"x-flow-memory-scopes": "api:write"}, b"{")
     assert response.status == 400
     assert response.body["error"]["code"] == "request.invalid"
 
-def test_http_gateway_get_query_payload_reaches_router():
+def test_http_gateway_get_query_payload_reaches_router() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),
         config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
@@ -117,7 +117,7 @@ def test_http_gateway_get_query_payload_reaches_router():
     assert response.body["data"]["balance"]["account_id"] == "acct_query"
 
 
-def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header():
+def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header() -> None:
     gateway = HttpApiGateway(
         config=HttpApiConfig(
             require_scopes=True,
@@ -496,7 +496,7 @@ def test_http_gateway_injects_provider_receipt_client_ip(monkeypatch: Any) -> No
     assert response.body["data"]["error"]["error_code"] == "provider_receipt.ip_not_allowed"
 
 
-def test_dependency_free_http_server_handles_local_request():
+def test_dependency_free_http_server_handles_local_request() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server = create_http_server(gateway, host="127.0.0.1", port=0)
     thread = threading.Thread(target=server.serve_forever, daemon=True)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hmac
+import time
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
@@ -1089,7 +1090,7 @@ def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:
     raw_event = {"id": "evt_stripe_header", "type": "checkout.session.completed", "amount_total": 2500, "currency": "usd", "metadata": {"account_id": "acct_header"}}
     raw_event_body = json.dumps(raw_event, separators=(",", ":"), sort_keys=True)
     secret = "whsec_test_secret"
-    timestamp = "1770000000"
+    timestamp = str(int(time.time()))
     digest = hmac.new(secret.encode("utf-8"), f"{timestamp}.{raw_event_body}".encode("utf-8"), "sha256").hexdigest()
     stripe_signature = f"t={timestamp},v1=bad-signature,v1={digest}"
 
@@ -1108,12 +1109,30 @@ def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:
             "stripe_signature": stripe_signature,
         }
     )
+    expired_event = {**raw_event, "id": "evt_stripe_header_expired"}
+    expired_body = json.dumps(expired_event, separators=(",", ":"), sort_keys=True)
+    expired_timestamp = str(int(time.time()) - 301)
+    expired_digest = hmac.new(
+        secret.encode("utf-8"),
+        f"{expired_timestamp}.{expired_body}".encode("utf-8"),
+        "sha256",
+    ).hexdigest()
+    expired = service.billing_webhook_stripe(
+        {
+            "raw_event": expired_event,
+            "raw_event_body": expired_body,
+            "webhook_secret": secret,
+            "stripe_signature": f"t={expired_timestamp},v1={expired_digest}",
+        }
+    )
 
     assert webhook["ok"] is True
     assert webhook["payment_event"]["verified"] is True
     assert webhook["credit_transaction"]["amount"] == 25.0
     assert missing_body["ok"] is False
     assert missing_body["payment_event"]["status"] == "rejected_unverified"
+    assert expired["ok"] is False
+    assert expired["payment_event"]["status"] == "rejected_unverified"
 
 
 def test_billing_webhook_records_verified_payment_failure_without_crediting_balance() -> None:

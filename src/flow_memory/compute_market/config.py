@@ -72,6 +72,7 @@ class ComputeMarketConfig:
     stripe_api_base_url: str = "https://api.stripe.com"
     stripe_checkout_product_name: str = "Flow Memory compute credits"
     stripe_webhook_secret: str = ""
+    stripe_webhook_tolerance_seconds: int = 300
     alert_routing_enabled: bool = False
     alert_webhook_url: str = ""
     alert_webhook_secret: str = ""
@@ -178,6 +179,8 @@ class ComputeMarketConfig:
             errors.append("redis_url must include a URL scheme")
         if self.compute_market_mode == "production_planning" and self.stripe_webhook_secret and len(self.stripe_webhook_secret) < 16:
             errors.append("stripe_webhook_secret must be high entropy when configured")
+        if self.stripe_webhook_tolerance_seconds < 1:
+            errors.append("stripe_webhook_tolerance_seconds must be positive")
         if self.audit_export_object_lock_mode and self.audit_export_object_lock_mode.upper() not in {"COMPLIANCE", "GOVERNANCE"}:
             errors.append("audit_export_object_lock_mode must be COMPLIANCE or GOVERNANCE")
         if self.audit_export_retention_days < 0:
@@ -280,6 +283,7 @@ class ComputeMarketConfig:
             "stripe_secret_key_configured": bool(self.stripe_secret_key),
             "stripe_checkout_urls_configured": bool(self.stripe_checkout_success_url and self.stripe_checkout_cancel_url),
             "stripe_checkout_timeout_ms": self.stripe_checkout_timeout_ms,
+            "stripe_webhook_tolerance_seconds": self.stripe_webhook_tolerance_seconds,
             "alert_routing_enabled": self.alert_routing_enabled,
             "alert_webhook_configured": bool(self.alert_webhook_url),
             "alert_webhook_secret_configured": bool(self.alert_webhook_secret),
@@ -364,6 +368,7 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         stripe_api_base_url=source.get("FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL", "https://api.stripe.com"),
         stripe_checkout_product_name=source.get("FLOW_MEMORY_BILLING_STRIPE_PRODUCT_NAME", "Flow Memory compute credits"),
         stripe_webhook_secret=source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET", ""),
+        stripe_webhook_tolerance_seconds=_int(source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"), 300),
         alert_routing_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"), False),
         alert_webhook_url=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL", ""),
         alert_webhook_secret=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET", ""),

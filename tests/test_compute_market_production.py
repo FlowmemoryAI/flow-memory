@@ -169,3 +169,11 @@ def test_provider_callback_ip_allowlist_config_from_env() -> None:
 
     assert config.as_record()["provider_callback_ip_allowlist_configured"] is True
     assert from_env.provider_callback_ip_allowlist == ("203.0.113.0/24", "2001:db8::1")
+
+def test_stripe_webhook_tolerance_config_from_env_and_validation() -> None:
+    config = config_from_env({"FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS": "600"})
+    invalid = ComputeMarketConfig(database_url=":memory:", stripe_webhook_tolerance_seconds=0)
+
+    assert config.stripe_webhook_tolerance_seconds == 600
+    assert config.as_record()["stripe_webhook_tolerance_seconds"] == 600
+    assert "stripe_webhook_tolerance_seconds must be positive" in invalid.validate()

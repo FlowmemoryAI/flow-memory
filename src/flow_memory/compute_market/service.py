@@ -2049,7 +2049,13 @@ class ComputeMarketService:
             secret = str(payload.get("webhook_secret", ""))
         signature = str(payload.get("stripe_signature", ""))
         raw_event_body = str(payload.get("raw_event_body", ""))
-        verified = bool(secret) and _verify_webhook_signature(raw_event, secret, signature, raw_event_body=raw_event_body)
+        verified = bool(secret) and _verify_webhook_signature(
+            raw_event,
+            secret,
+            signature,
+            raw_event_body=raw_event_body,
+            tolerance_seconds=self.config.stripe_webhook_tolerance_seconds,
+        )
         event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
         event_type = str(raw_event.get("type", ""))
         account_id = _stripe_account_id(raw_event, payload)
@@ -5339,7 +5345,14 @@ def _billing_account(account_id: str, payload: Mapping[str, Any]) -> dict[str, A
     }
 
 
-def _verify_webhook_signature(raw_event: Mapping[str, Any], secret: str, signature: str, *, raw_event_body: str = "") -> bool:
+def _verify_webhook_signature(
+    raw_event: Mapping[str, Any],
+    secret: str,
+    signature: str,
+    *,
+    raw_event_body: str = "",
+    tolerance_seconds: int = 300,
+) -> bool:
     if not secret or not signature:
         return False
     secret_bytes = secret.encode("utf-8")
@@ -5355,6 +5368,13 @@ def _verify_webhook_signature(raw_event: Mapping[str, Any], secret: str, signatu
             elif key == "v1" and value:
                 candidates.append(value)
         if not timestamp or not candidates or not raw_event_body:
+            return False
+        try:
+            event_timestamp = int(timestamp)
+        except ValueError:
+            return False
+        current_timestamp = int(datetime.now(timezone.utc).timestamp())
+        if abs(current_timestamp - event_timestamp) > tolerance_seconds:
             return False
         expected = hmac.new(secret_bytes, f"{timestamp}.{raw_event_body}".encode("utf-8"), "sha256").hexdigest()
         return any(hmac.compare_digest(expected, candidate) for candidate in candidates)

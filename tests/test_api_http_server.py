@@ -216,7 +216,7 @@ def test_http_gateway_accepts_direct_stripe_webhook_body_with_signature_header()
         "metadata": {"account_id": "acct_http_stripe"},
     }
     raw_body = json.dumps(raw_event, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    timestamp = "1770000001"
+    timestamp = str(int(time.time()))
     signed_body = f"{timestamp}.{raw_body.decode('utf-8')}".encode("utf-8")
     digest = hmac.new(secret.encode("utf-8"), signed_body, "sha256").hexdigest()
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))

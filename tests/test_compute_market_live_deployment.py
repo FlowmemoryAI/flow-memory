@@ -200,6 +200,7 @@ def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.
         )
     monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_URI", "s3://flow-memory-shell-audit/compute-market")
     monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_S3_REGION", "us-west-2")
+    monkeypatch.setattr(render_deploy, "DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST", "")
 
     assert (
         render_deploy.audit_export_uri_from_env(
@@ -234,6 +235,8 @@ def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"] == "300"
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"] == ""
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"] == ""
+    assert env_vars["FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST"] == ""
+
 
 def test_render_env_builder_binds_https_observability_sinks() -> None:
     env_vars = {
@@ -301,6 +304,45 @@ def test_render_env_builder_binds_https_observability_sinks() -> None:
 
     assert missing.value.code == 29
     assert insecure.value.code == 29
+
+def test_render_env_builder_propagates_and_validates_provider_callback_ip_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(render_deploy, "DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST", "")
+    env_vars = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_s3_region="us-east-1",
+            provider_callback_ip_allowlist="203.0.113.0/24,2001:db8::1",
+        )
+    }
+
+    assert env_vars["FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST"] == "203.0.113.0/24,2001:db8::1"
+
+    assert (
+        render_deploy.provider_callback_ip_allowlist_from_env(
+            {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "203.0.113.10,2001:db8::1"}
+        )
+        == "203.0.113.10,2001:db8::1"
+    )
+    with pytest.raises(SystemExit) as missing:
+        render_deploy.provider_callback_ip_allowlist_from_env(
+            {"FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "true"}
+        )
+    with pytest.raises(SystemExit) as world_open:
+        render_deploy.provider_callback_ip_allowlist_from_env(
+            {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "0.0.0.0/0"}
+        )
+    with pytest.raises(SystemExit) as placeholder:
+        render_deploy.provider_callback_ip_allowlist_from_env(
+            {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "CHANGEME-provider-cidr"}
+        )
+
+    assert missing.value.code == 30
+    assert world_open.value.code == 31
+    assert placeholder.value.code == 31
 
 def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_POSTGRES_PLAN", "free")

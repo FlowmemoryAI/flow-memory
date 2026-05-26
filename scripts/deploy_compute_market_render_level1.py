@@ -35,6 +35,7 @@ DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
 DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
 DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
 DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = os.environ.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300")
+DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST = os.environ.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "").strip()
 DEPLOY_PATHS = (
     "Dockerfile.compute-market",
     "render.yaml",
@@ -175,6 +176,53 @@ def observability_sink_url_from_env(values: dict[str, str], url_key: str, enable
         )
     assert_https_observability_sink_url(url, url_key)
     return url
+
+
+def provider_callback_ip_allowlist_from_env(values: dict[str, str]) -> str:
+    allowlist = DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST or values.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "")
+    allowlist = allowlist.strip()
+    external_quotes_enabled = _truthy_env(values.get("FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED", ""))
+    external_execution_enabled = _truthy_env(values.get("FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED", ""))
+
+    if (external_quotes_enabled or external_execution_enabled) and not allowlist:
+        emit(
+            "blocked_missing_provider_callback_allowlist",
+            30,
+            missing_values=["FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST"],
+            required_action=(
+                "configure explicit provider callback source IPs before enabling external provider "
+                "quotes or execution"
+            ),
+        )
+
+    invalid_entries: list[dict[str, str]] = []
+    for entry in (item.strip() for item in allowlist.split(",") if item.strip()):
+        if has_placeholder(entry):
+            invalid_entries.append({"value": entry, "reason": "placeholder_not_allowed"})
+            continue
+        try:
+            if "/" in entry:
+                network = ipaddress.ip_network(entry, strict=True)
+                if network.prefixlen == 0:
+                    invalid_entries.append({"value": entry, "reason": "world_open_cidr_not_allowed"})
+            else:
+                address = ipaddress.ip_address(entry)
+                if address.is_unspecified:
+                    invalid_entries.append({"value": entry, "reason": "unspecified_ip_not_allowed"})
+        except ValueError as exc:
+            invalid_entries.append({"value": entry, "reason": str(exc)})
+
+    if invalid_entries:
+        emit(
+            "blocked_invalid_provider_callback_allowlist",
+            31,
+            invalid_values=invalid_entries,
+            required_action=(
+                "set FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST to explicit provider IP "
+                "addresses or non-world-open CIDR ranges"
+            ),
+        )
+    return allowlist
 
 
 def has_placeholder(value: str) -> bool:
@@ -458,6 +506,7 @@ def build_env_vars(
     otlp_endpoint_url: str = "",
     otlp_headers: str = "",
     otlp_timeout_ms: str = "5000",
+    provider_callback_ip_allowlist: str = "",
 ) -> list[dict[str, str]]:
     if url_scheme(redis_url) != "rediss":
         emit(
@@ -481,6 +530,9 @@ def build_env_vars(
         ("FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL", otlp_endpoint_url),
     ):
         assert_https_observability_sink_url(value, key)
+    provider_callback_ip_allowlist_from_env(
+        {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist}
+    )
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
@@ -549,7 +601,7 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS": otlp_timeout_ms,
         "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "false",
         "FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST": "",
-        "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "",
+        "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist,
         "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED": "false",
         "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED": "false",
         "FLOW_MEMORY_COMPUTE_ECONOMIC_MEMORY_WRITES_ENABLED": "true",
@@ -842,6 +894,7 @@ def main() -> int:
         "2000",
     )
     otlp_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS", "5000")
+    provider_callback_ip_allowlist = provider_callback_ip_allowlist_from_env(env_values)
     owner_id = infer_owner_id(args.api_key, args.owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
@@ -879,6 +932,7 @@ def main() -> int:
             otlp_endpoint_url=otlp_endpoint_url,
             otlp_headers=otlp_headers,
             otlp_timeout_ms=otlp_timeout_ms,
+            provider_callback_ip_allowlist=provider_callback_ip_allowlist,
         )
         service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
         url = public_url(service)
@@ -908,6 +962,7 @@ def main() -> int:
             otlp_endpoint_url=otlp_endpoint_url,
             otlp_headers=otlp_headers,
             otlp_timeout_ms=otlp_timeout_ms,
+            provider_callback_ip_allowlist=provider_callback_ip_allowlist,
         )
         render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
         trigger_service_deploy(args.api_key, str(service["id"]))

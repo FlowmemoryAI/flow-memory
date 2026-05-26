@@ -79,6 +79,7 @@ For horizontally scaled production planning, use:
 - Render production automation blocks `free` Render service, PostgreSQL, and Key Value plans unless `RENDER_ALLOW_FREE_PLANS=true` is set for an explicitly non-production smoke deployment.
 - Level 1 production planning keeps Stripe checkout disabled (`FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false`). If paid credits are enabled later, provision `FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY` and `FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET` only through the deployment secret manager and keep `FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS` bounded for replay protection.
   Stripe webhook ingress may omit Flow Memory API-key headers only when `FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET` is configured and the request carries a valid Stripe `Stripe-Signature` header inside the configured replay window; all other `/billing/*` traffic still requires `compute:billing`.
+- Before enabling external provider quotes or execution callbacks, configure `FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST` with explicit provider source IPs/CIDRs; Render API deployment validates the list and refuses placeholder or world-open ranges.
 
 SQLite remains appropriate for local development and single-node deployments only. Multi-node production requires managed PostgreSQL, automated backups, restore drills, migration promotion gates, advisory-lock-protected migrations, Redis-backed distributed abuse controls, and immutable audit export/checkpoint retention.
 

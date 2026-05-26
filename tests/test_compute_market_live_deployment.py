@@ -114,6 +114,15 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '"alerts": checks["alerts"][0]' in render_script
 
 
+def test_public_buildout_validator_requires_observability_endpoints() -> None:
+    validator_script = (ROOT / "scripts" / "validate_compute_market_public_buildout.py").read_text(encoding="utf-8")
+
+    assert 'checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)' in validator_script
+    assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in validator_script
+    assert '"compute_plan_requests_total" in checks["metrics"][1]' in validator_script
+    assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
+
+
 def test_api_server_cli_rejects_public_bind_without_api_key() -> None:
     with pytest.raises(SystemExit):
         build_http_api_config(["--host", "0.0.0.0"], env={})

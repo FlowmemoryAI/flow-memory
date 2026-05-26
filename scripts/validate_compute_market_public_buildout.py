@@ -45,6 +45,15 @@ def call_json(method: str, url: str, headers: Mapping[str, str] | None = None, b
             return exc.code, {"raw": text}
 
 
+def call_text(method: str, url: str, headers: Mapping[str, str] | None = None) -> tuple[int, str]:
+    req = urllib.request.Request(url, headers=dict(headers or {}), method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=90) as response:
+            return response.status, response.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8", "replace")
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
@@ -65,7 +74,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     headers_billing = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:billing"}
     headers_admin = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:admin"}
 
-    checks: dict[str, tuple[int, Mapping[str, Any]]] = {}
+    checks: dict[str, Any] = {}
     checks["root"] = call_json("GET", f"{base}/")
     checks["health"] = call_json("GET", f"{base}/compute/health", headers_read)
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
@@ -224,7 +233,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     fail_job_id = str(data(checks["job_fail_create"][1]).get("job", {}).get("job_id", ""))
     checks["job_fail"] = call_json("POST", f"{base}/compute/jobs/{fail_job_id}/fail", headers_execute, {"error_code": "public_validation_failure_path"})
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
-    checks["metrics"] = call_json("GET", f"{base}/compute/metrics", headers_read)
+    checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
     checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": account_id, "amount": 100, "currency": "USD"})
     checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id={account_id}", headers_billing)
@@ -275,8 +284,9 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
-    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "metrics", "alerts", "billing_provider_payouts", "billing_provider_payout_settle"):
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "alerts", "billing_provider_payouts", "billing_provider_payout_settle"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
+    require(checks["metrics"][0] == 200 and "compute_plan_requests_total" in checks["metrics"][1], "Prometheus metrics did not expose compute_plan_requests_total")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")
     require(checks["billing_balance"][0] == 200 and data(checks["billing_balance"][1]).get("balance", {}).get("account_id") == account_id, "billing balance failed")

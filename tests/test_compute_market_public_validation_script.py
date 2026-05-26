@@ -8,6 +8,7 @@ import scripts.validate_compute_market_public_buildout as validator
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0
+    text_calls: list[tuple[str, str, Mapping[str, str] | None]] = []
 
     def fake_call_json(
         method: str,
@@ -164,8 +165,17 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             }
         return 200, {"ok": True, "data": {}}
 
+    def fake_call_text(
+        method: str,
+        url: str,
+        headers: Mapping[str, str] | None = None,
+    ) -> tuple[int, str]:
+        text_calls.append((method, url, headers))
+        return 200, "# HELP compute_plan_requests_total Total compute plan requests\ncompute_plan_requests_total 1\n"
+
     monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
     monkeypatch.setattr(validator, "call_json", fake_call_json)
+    monkeypatch.setattr(validator, "call_text", fake_call_text)
 
     result = validator.validate("https://api.example.test", "prod-key", require_immutable_audit=True)
 
@@ -176,6 +186,20 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_export_immutable"] is True
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"
+    assert result["checks"]["metrics"] == 200
+    assert result["checks"]["alerts"] == 200
+    assert text_calls == [
+        (
+            "GET",
+            "https://api.example.test/metrics",
+            {"x-flow-memory-api-key": "prod-key", "x-flow-memory-scopes": "compute:read"},
+        )
+    ]
+    assert any(
+        call[1] == "https://api.example.test/compute/alerts"
+        and call[2] == {"x-flow-memory-api-key": "prod-key", "x-flow-memory-scopes": "compute:read"}
+        for call in calls
+    )
     assert len(receipt_calls) == 2
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
     assert len(refund_calls) == 1

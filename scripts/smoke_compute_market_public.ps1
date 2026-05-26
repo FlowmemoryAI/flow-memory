@@ -16,6 +16,17 @@ $baseUrl = $ApiUrl.TrimEnd('/')
 if (-not ($baseUrl -match '^https://')) {
     throw 'ApiUrl must be an https:// public URL for Level 1 smoke tests.'
 }
+function Add-NonceHeaders {
+    param(
+        [Parameter(Mandatory = $true)] [hashtable]$Headers,
+        [Parameter(Mandatory = $true)] [string]$Label
+    )
+
+    $Headers['x-flow-memory-timestamp'] = [string][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    $Headers['x-flow-memory-nonce'] = "$Label-$([Guid]::NewGuid().ToString('N'))"
+    return $Headers
+}
+
 
 function Read-HttpErrorBody {
     param([Parameter(Mandatory = $true)] $ErrorRecord)
@@ -61,6 +72,7 @@ function Invoke-ComputeMarketRequest {
     if ($IncludeApiKey) {
         $headers['x-flow-memory-api-key'] = $ApiKey
     }
+    $headers = Add-NonceHeaders -Headers $headers -Label "$Method-$Path"
 
     $request = @{
         Uri = "$baseUrl$Path"
@@ -155,10 +167,10 @@ Assert-True ($computePlan.funds_moved -eq $false) 'plan did not return funds_mov
 Assert-True ($computePlan.broadcast_allowed -eq $false) 'plan did not return broadcast_allowed=false.'
 Assert-True ($computePlan.private_key_required -eq $false) 'plan did not return private_key_required=false.'
 
-$metricsHeaders = @{
+$metricsHeaders = Add-NonceHeaders -Headers @{
     'x-flow-memory-api-key' = $ApiKey
     'x-flow-memory-scopes' = 'compute:read'
-}
+} -Label 'GET-/metrics'
 $metrics = Invoke-WebRequest -Uri "$baseUrl/metrics" -Method GET -Headers $metricsHeaders -TimeoutSec 90
 Assert-True ([int]$metrics.StatusCode -eq 200) 'Prometheus metrics did not return HTTP 200.'
 Assert-True ([string]$metrics.Content -match 'compute_plan_requests_total') 'Prometheus metrics did not expose compute_plan_requests_total.'

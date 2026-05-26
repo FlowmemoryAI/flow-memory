@@ -56,6 +56,34 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         type=int,
         default=_int(source.get("FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS"), 300),
     )
+    parser.add_argument(
+        "--nonce-replay-backend",
+        default=source.get("FLOW_MEMORY_API_NONCE_REPLAY_BACKEND", "memory"),
+        choices=("memory", "in_memory", "redis"),
+    )
+    parser.add_argument(
+        "--nonce-redis-url",
+        default=source.get("FLOW_MEMORY_API_NONCE_REDIS_URL") or source.get("FLOW_MEMORY_COMPUTE_REDIS_URL", ""),
+    )
+    parser.add_argument(
+        "--nonce-redis-prefix",
+        default=source.get("FLOW_MEMORY_API_NONCE_REDIS_PREFIX", "flow-memory:api"),
+    )
+    parser.add_argument(
+        "--nonce-fail-open",
+        action="store_true",
+        default=not _bool(source.get("FLOW_MEMORY_API_NONCE_FAIL_CLOSED"), True),
+    )
+    parser.add_argument(
+        "--nonce-require-tls",
+        action="store_true",
+        default=_bool(source.get("FLOW_MEMORY_API_NONCE_REQUIRE_TLS"), False),
+    )
+    parser.add_argument(
+        "--nonce-skip-tls-verify",
+        action="store_true",
+        default=not _bool(source.get("FLOW_MEMORY_API_NONCE_VERIFY_TLS"), True),
+    )
     parser.add_argument("--jwt-hs256-secret", default=source.get("FLOW_MEMORY_API_JWT_HS256_SECRET", ""))
     parser.add_argument("--jwt-issuer", default=source.get("FLOW_MEMORY_API_JWT_ISSUER", ""))
     parser.add_argument("--jwt-audience", default=source.get("FLOW_MEMORY_API_JWT_AUDIENCE", ""))
@@ -85,6 +113,12 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         jwt_issuer=str(args.jwt_issuer),
         jwt_audience=str(args.jwt_audience),
         jwt_leeway_seconds=int(args.jwt_leeway_seconds),
+        nonce_replay_backend=str(args.nonce_replay_backend),
+        nonce_redis_url=str(args.nonce_redis_url),
+        nonce_redis_prefix=str(args.nonce_redis_prefix),
+        nonce_fail_closed=not bool(args.nonce_fail_open),
+        nonce_require_tls=bool(args.nonce_require_tls),
+        nonce_verify_tls=not bool(args.nonce_skip_tls_verify),
     )
     errors = config.validate()
     if errors:

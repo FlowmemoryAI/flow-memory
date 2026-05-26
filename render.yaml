@@ -36,6 +36,20 @@ services:
         value: 60
       - key: FLOW_MEMORY_API_MAX_BODY_BYTES
         value: 1048576
+      - key: FLOW_MEMORY_API_ENABLE_NONCE_CHECK
+        value: true
+      - key: FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS
+        value: 300
+      - key: FLOW_MEMORY_API_NONCE_REPLAY_BACKEND
+        value: redis
+      - key: FLOW_MEMORY_API_NONCE_REDIS_PREFIX
+        value: flow-memory:api
+      - key: FLOW_MEMORY_API_NONCE_FAIL_CLOSED
+        value: true
+      - key: FLOW_MEMORY_API_NONCE_REQUIRE_TLS
+        value: true
+      - key: FLOW_MEMORY_API_NONCE_VERIFY_TLS
+        value: true
       - key: FLOW_MEMORY_LOG_LEVEL
         value: INFO
       - key: FLOW_MEMORY_METRICS_ENABLED

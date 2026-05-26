@@ -7,7 +7,7 @@ import urllib.request
 from typing import Any
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
-from flow_memory.api.auth import api_key_hash
+from flow_memory.api.auth import RedisNonceReplayStore, api_key_hash
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
@@ -51,6 +51,40 @@ def test_http_gateway_nonce_check_blocks_replay_when_enabled() -> None:
 
     first = gateway.handle("GET", "/health", headers)
     replay = gateway.handle("GET", "/health", headers)
+
+    assert first.status == 200
+    assert replay.status == 401
+    assert "replayed request nonce" in replay.body["error"]["details"]["reasons"]
+
+def test_http_gateway_nonce_check_shares_redis_replay_state_across_instances() -> None:
+    class FakeRedis:
+        def __init__(self) -> None:
+            self.values: dict[str, str] = {}
+
+        def set(self, key: str, value: str, *, nx: bool, ex: int) -> bool:
+            if nx and key in self.values:
+                return False
+            self.values[key] = value
+            return True
+
+    redis_client = FakeRedis()
+    config = HttpApiConfig(api_key="dev", enable_rate_limit=False, enable_nonce_check=True)
+    first_gateway = HttpApiGateway(
+        config=config,
+        nonce_replay_store=RedisNonceReplayStore("rediss://cache.example:6379/0", client=redis_client, require_tls=True),
+    )
+    second_gateway = HttpApiGateway(
+        config=config,
+        nonce_replay_store=RedisNonceReplayStore("rediss://cache.example:6379/0", client=redis_client, require_tls=True),
+    )
+    headers = {
+        "x-flow-memory-api-key": "dev",
+        "x-flow-memory-timestamp": str(time.time()),
+        "x-flow-memory-nonce": "nonce-http-redis-shared-1",
+    }
+
+    first = first_gateway.handle("GET", "/health", headers)
+    replay = second_gateway.handle("GET", "/health", headers)
 
     assert first.status == 200
     assert replay.status == 401

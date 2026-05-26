@@ -225,6 +225,10 @@ if (-not $redisUri.StartsWith('rediss://')) {
 
 $safetyExpectations = @{
     FLOW_MEMORY_API_REQUIRE_SCOPES = 'true'
+    FLOW_MEMORY_API_ENABLE_NONCE_CHECK = 'true'
+    FLOW_MEMORY_API_NONCE_REPLAY_BACKEND = 'redis'
+    FLOW_MEMORY_API_NONCE_FAIL_CLOSED = 'true'
+    FLOW_MEMORY_API_NONCE_REQUIRE_TLS = 'true'
     FLOW_MEMORY_COMPUTE_MARKET_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_MARKET_MODE = 'production_planning'
     FLOW_MEMORY_COMPUTE_STORAGE_BACKEND = 'postgres'

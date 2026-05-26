@@ -8,14 +8,88 @@ import hmac
 import secrets
 import time
 import hashlib
-from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+import ssl
+from dataclasses import dataclass, field
+from typing import Any, Mapping, Protocol, Sequence
 
 from flow_memory.api.signed_requests import verify_request
 from flow_memory.api.scopes import KNOWN_SCOPES
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import SignatureEnvelope
 
+class NonceReplayStore(Protocol):
+    """Atomic nonce replay guard shared by API server instances."""
+
+    def claim(self, cache_key: str, *, timestamp_seconds: float, ttl_seconds: int) -> bool:
+        """Return True when the nonce key was newly claimed."""
+
+
+class NonceStoreUnavailable(RuntimeError):
+    """Raised when a fail-closed nonce replay backend cannot be reached."""
+
+
+@dataclass
+class LocalNonceReplayStore:
+    """In-process nonce replay guard for local and single-instance deployments."""
+
+    seen: dict[str, float] = field(default_factory=dict)
+
+    def claim(self, cache_key: str, *, timestamp_seconds: float, ttl_seconds: int) -> bool:
+        self.purge(now=time.time(), max_age_seconds=ttl_seconds)
+        if cache_key in self.seen:
+            return False
+        self.seen[cache_key] = timestamp_seconds
+        return True
+
+    def purge(self, *, now: float, max_age_seconds: int) -> None:
+        stale_before = now - max(1, int(max_age_seconds))
+        for key, seen_at in tuple(self.seen.items()):
+            if seen_at < stale_before:
+                self.seen.pop(key, None)
+
+
+@dataclass
+class RedisNonceReplayStore:
+    """Redis-backed nonce replay guard for horizontally scaled public API nodes."""
+
+    redis_url: str
+    prefix: str = "flow-memory:api"
+    fail_closed: bool = True
+    require_tls: bool = False
+    verify_tls: bool = True
+    client: Any | None = None
+
+    def claim(self, cache_key: str, *, timestamp_seconds: float, ttl_seconds: int) -> bool:
+        try:
+            redis_client = self._client()
+            redis_key = self._redis_key(cache_key)
+            claimed = redis_client.set(redis_key, str(timestamp_seconds), nx=True, ex=max(1, int(ttl_seconds)))
+            return bool(claimed)
+        except Exception as exc:
+            if self.fail_closed:
+                raise NonceStoreUnavailable("nonce replay backend unavailable") from exc
+            return True
+
+    def _redis_key(self, cache_key: str) -> str:
+        digest = hashlib.sha256(cache_key.encode("utf-8")).hexdigest()
+        return f"{self.prefix}:nonce:{digest}"
+
+    def _client(self) -> Any:
+        if not self.redis_url:
+            raise RuntimeError("redis_url is required")
+        if self.require_tls and not self.redis_url.startswith("rediss://"):
+            raise RuntimeError("managed Redis nonce replay requires a rediss:// TLS URL")
+        if self.client is not None:
+            return self.client
+        try:
+            import redis
+        except Exception as exc:  # pragma: no cover - optional dependency
+            raise RuntimeError("Redis nonce replay requires optional dependency: redis") from exc
+        kwargs: dict[str, object] = {"decode_responses": True}
+        if self.verify_tls and self.redis_url.startswith("rediss://"):
+            kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+        self.client = redis.Redis.from_url(self.redis_url, **kwargs)
+        return self.client
 
 @dataclass(frozen=True)
 class ApiKeyIdentity:
@@ -37,6 +111,7 @@ class ApiAuthConfig:
     jwt_issuer: str = ""
     jwt_audience: str = ""
     jwt_leeway_seconds: int = 60
+    nonce_replay_store: NonceReplayStore | None = None
 
 KNOWN_AUTH_ROLES = frozenset({"admin", "member", "viewer", "billing", "auditor", "provider", "provider-admin"})
 
@@ -365,7 +440,14 @@ def authorize_request(
         elif not verify_request(method, path, payload or {}, signature, signature_key):
             reasons.append("invalid request signature")
     if config.enable_nonce_check and identity is not None:
-        reasons.extend(_nonce_replay_reasons(headers, identity=identity, max_age_seconds=config.max_request_age_seconds))
+        reasons.extend(
+            _nonce_replay_reasons(
+                headers,
+                identity=identity,
+                max_age_seconds=config.max_request_age_seconds,
+                replay_store=config.nonce_replay_store,
+            )
+        )
     return ApiAuthDecision(
         ok=not reasons,
         reasons=tuple(reasons),
@@ -518,9 +600,16 @@ def _constant_time_equal(left: str, right: str) -> bool:
 
 
 _NONCE_CACHE: dict[str, float] = {}
+_LOCAL_NONCE_REPLAY_STORE = LocalNonceReplayStore(_NONCE_CACHE)
 
 
-def _nonce_replay_reasons(headers: Mapping[str, str], *, identity: ApiKeyIdentity, max_age_seconds: int) -> tuple[str, ...]:
+def _nonce_replay_reasons(
+    headers: Mapping[str, str],
+    *,
+    identity: ApiKeyIdentity,
+    max_age_seconds: int,
+    replay_store: NonceReplayStore | None = None,
+) -> tuple[str, ...]:
     reasons: list[str] = []
     nonce = _header(headers, "x-flow-memory-nonce").strip()
     timestamp = _header(headers, "x-flow-memory-timestamp").strip()
@@ -538,12 +627,24 @@ def _nonce_replay_reasons(headers: Mapping[str, str], *, identity: ApiKeyIdentit
     max_age = max(1, int(max_age_seconds))
     if abs(now - timestamp_seconds) > max_age:
         return ("stale request timestamp",)
-    _purge_nonce_cache(now=now, max_age_seconds=max_age)
-    namespace = identity.key_id or identity.principal or identity.tenant_id or "legacy"
+    namespace = "|".join(
+        (
+            identity.tenant_id or "tenant:*",
+            identity.key_id or "key:*",
+            identity.principal or "principal:*",
+        )
+    )
     cache_key = f"{namespace}:{nonce}"
-    if cache_key in _NONCE_CACHE:
+    try:
+        claimed = (replay_store or _LOCAL_NONCE_REPLAY_STORE).claim(
+            cache_key,
+            timestamp_seconds=timestamp_seconds,
+            ttl_seconds=max_age,
+        )
+    except Exception:
+        return ("nonce replay backend unavailable",)
+    if not claimed:
         return ("replayed request nonce",)
-    _NONCE_CACHE[cache_key] = timestamp_seconds
     return ()
 
 

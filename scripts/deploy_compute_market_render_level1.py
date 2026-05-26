@@ -40,6 +40,9 @@ DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = os.environ.get("FLOW_MEMORY_BILLING_S
 LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
     "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
+    "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
+    "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
+    "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
     "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED": "true",
     "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED": "false",
     "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED": "false",
@@ -727,6 +730,13 @@ def build_env_vars(
         "FLOW_MEMORY_API_RATE_LIMIT": "120",
         "FLOW_MEMORY_API_RATE_LIMIT_WINDOW_SECONDS": "60",
         "FLOW_MEMORY_API_MAX_BODY_BYTES": "1048576",
+        "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
+        "FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS": "300",
+        "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND": "redis",
+        "FLOW_MEMORY_API_NONCE_REDIS_PREFIX": "flow-memory:api",
+        "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
+        "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
+        "FLOW_MEMORY_API_NONCE_VERIFY_TLS": "true",
         "FLOW_MEMORY_LOG_LEVEL": "INFO",
         "FLOW_MEMORY_METRICS_ENABLED": "true",
         "FLOW_MEMORY_TRACING_ENABLED": "true",
@@ -935,6 +945,20 @@ def gateway_jwt_bearer_token(secret: str, issuer: str, audience: str, scopes: st
     return f"{signing_input}.{_b64url(signature)}"
 
 
+def _smoke_nonce_headers(headers: dict[str, str], label: str) -> dict[str, str]:
+    nonce_headers = dict(headers)
+    nonce_headers["x-flow-memory-timestamp"] = str(time.time())
+    nonce_headers["x-flow-memory-nonce"] = f"{label}-{secrets.token_urlsafe(18)}"
+    return nonce_headers
+
+
+def _smoke_api_headers(api_key_value: str, scopes: str, label: str) -> dict[str, str]:
+    return _smoke_nonce_headers(
+        {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": scopes},
+        label,
+    )
+
+
 def smoke_public(
     base_url: str,
     api_key_value: str,
@@ -958,23 +982,19 @@ def smoke_public(
         }
     plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "dry_run": True}
     checks: dict[str, Any] = {}
-    headers_read = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:read"}
-    headers_plan = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:plan"}
-    headers_audit = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:audit"}
-    headers_admin = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:admin"}
     checks["root"] = call_json("GET", f"{base}/")
-    checks["health"] = call_json("GET", f"{base}/compute/health", headers_read)
-    checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
-    checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
-    checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)
-    checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
-    checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
-    checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
-    checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
-    checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
-    checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
+    checks["health"] = call_json("GET", f"{base}/compute/health", _smoke_api_headers(api_key_value, "compute:read", "health"))
+    checks["readiness"] = call_json("GET", f"{base}/compute/readiness", _smoke_api_headers(api_key_value, "compute:read", "readiness"))
+    checks["plan"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:plan", "plan"), plan_body)
+    checks["metrics"] = call_text("GET", f"{base}/metrics", _smoke_api_headers(api_key_value, "compute:read", "metrics"))
+    checks["alerts"] = call_json("GET", f"{base}/compute/alerts", _smoke_api_headers(api_key_value, "compute:read", "alerts"))
+    checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", _smoke_api_headers(api_key_value, "compute:read", "telemetry"))
+    checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", _smoke_api_headers(api_key_value, "compute:audit", "audit-verify"))
+    checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", _smoke_api_headers(api_key_value, "compute:admin", "audit-export"))
+    checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "storage-diagnostics"))
+    checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "redis-diagnostics"))
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
-    checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, plan_body)
+    checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:read", "wrong-scope"), plan_body)
     jwt_secret = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_HS256_SECRET", ""))
     if jwt_secret:
         jwt_issuer = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_ISSUER", ""))
@@ -985,12 +1005,15 @@ def smoke_public(
         checks["jwt_health"] = call_json(
             "GET",
             f"{base}/compute/health",
-            {"authorization": f"Bearer {jwt_token}", "x-flow-memory-scopes": "compute:read"},
+            _smoke_nonce_headers({"authorization": f"Bearer {jwt_token}", "x-flow-memory-scopes": "compute:read"}, "jwt-health"),
         )
         checks["jwt_wrong_audience"] = call_json(
             "GET",
             f"{base}/compute/health",
-            {"authorization": f"Bearer {bad_jwt_token}", "x-flow-memory-scopes": "compute:read"},
+            _smoke_nonce_headers(
+                {"authorization": f"Bearer {bad_jwt_token}", "x-flow-memory-scopes": "compute:read"},
+                "jwt-wrong-audience",
+            ),
         )
     health_ok = checks["health"][0] == 200 and checks["health"][1].get("ok") is True
     readiness_payload = checks["readiness"][1].get("data", {}) if isinstance(checks["readiness"][1], dict) else {}

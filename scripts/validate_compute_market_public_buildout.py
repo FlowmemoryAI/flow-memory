@@ -28,9 +28,19 @@ def parse_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def nonce_headers(headers: Mapping[str, str], *, label: str) -> dict[str, str]:
+    enriched = dict(headers)
+    lowered = {key.lower(): value for key, value in enriched.items()}
+    has_auth = "x-flow-memory-api-key" in lowered or "authorization" in lowered
+    if has_auth and "x-flow-memory-nonce" not in lowered:
+        enriched["x-flow-memory-timestamp"] = str(time.time())
+        enriched["x-flow-memory-nonce"] = f"{label}-{time.time_ns()}"
+    return enriched
+
+
 def call_json(method: str, url: str, headers: Mapping[str, str] | None = None, body: Mapping[str, Any] | None = None) -> tuple[int, Mapping[str, Any]]:
     data = None
-    request_headers = dict(headers or {})
+    request_headers = nonce_headers(headers or {}, label=f"{method}-json")
     if body is not None:
         data = json.dumps(body, separators=(",", ":")).encode("utf-8")
         request_headers["content-type"] = "application/json"
@@ -48,7 +58,7 @@ def call_json(method: str, url: str, headers: Mapping[str, str] | None = None, b
 
 
 def call_text(method: str, url: str, headers: Mapping[str, str] | None = None) -> tuple[int, str]:
-    req = urllib.request.Request(url, headers=dict(headers or {}), method=method)
+    req = urllib.request.Request(url, headers=nonce_headers(headers or {}, label=f"{method}-text"), method=method)
     try:
         with urllib.request.urlopen(req, timeout=90) as response:
             return response.status, response.read().decode("utf-8", "replace")

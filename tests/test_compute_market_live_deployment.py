@@ -26,6 +26,11 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_API_JWT_ISSUER=",
         "FLOW_MEMORY_API_JWT_AUDIENCE=",
         "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS=60",
+        "FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true",
+        "FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS=300",
+        "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=redis",
+        "FLOW_MEMORY_API_NONCE_FAIL_CLOSED=true",
+        "FLOW_MEMORY_API_NONCE_REQUIRE_TLS=true",
         "FLOW_MEMORY_PUBLIC_API_URL=https://api.yourdomain.com",
         "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
@@ -75,6 +80,9 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_EXTRAS: compute-market-live" in compose
     assert "FLOW_MEMORY_API_KEY: ${FLOW_MEMORY_API_KEY:?" in compose
     assert "--require-scopes" in compose
+    assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK: \"true\"" in compose
+    assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND: ${FLOW_MEMORY_API_NONCE_REPLAY_BACKEND:-redis}" in compose
+    assert "FLOW_MEMORY_API_NONCE_FAIL_CLOSED: \"true\"" in compose
     assert "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND: postgres" in compose
     assert "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND: redis" in compose
     assert "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION: ${FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION:-false}" in compose
@@ -114,6 +122,9 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_JWT_ISSUER\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_AUDIENCE\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS\n        value: 60" in blueprint
+    assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK\n        value: true" in blueprint
+    assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND\n        value: redis" in blueprint
+    assert "FLOW_MEMORY_API_NONCE_REQUIRE_TLS\n        value: true" in blueprint
     assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
 
 
@@ -315,15 +326,17 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "compute_plan_requests_total" in smoke_script
     assert "Path '/compute/alerts'" in smoke_script
     assert "Path '/compute/telemetry'" in smoke_script
-    assert 'checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)' in render_script
-    assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in render_script
-    assert 'checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)' in render_script
+    assert '_smoke_api_headers(api_key_value, "compute:read", "metrics")' in render_script
+    assert '_smoke_api_headers(api_key_value, "compute:read", "alerts")' in render_script
+    assert '_smoke_api_headers(api_key_value, "compute:read", "telemetry")' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
     assert '"alerts": checks["alerts"][0]' in render_script
     assert '"telemetry": checks["telemetry"][0]' in render_script
     assert "deployments/compute-market/prometheus-alerts.yml" in render_script
     assert 'checks["jwt_health"] = call_json(' in render_script
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script
+    assert "_smoke_nonce_headers" in render_script
+    assert "x-flow-memory-nonce" in smoke_script
 
 
 def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:
@@ -345,6 +358,7 @@ def test_public_buildout_validator_requires_observability_endpoints() -> None:
     assert 'checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)' in validator_script
     assert '"compute_plan_requests_total" in checks["metrics"][1]' in validator_script
     assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
+    assert "nonce_headers(headers or {}, label=f\"{method}-json\")" in validator_script
 
 
 def test_api_server_cli_rejects_public_bind_without_api_key() -> None:
@@ -390,6 +404,25 @@ def test_api_server_cli_accepts_public_bind_with_jwt_gateway_secret() -> None:
     assert config.jwt_hs256_secret == "gateway-shared-secret"
     assert config.jwt_issuer == "https://issuer.example"
     assert config.jwt_audience == "flow-memory-api"
+
+
+def test_api_server_cli_builds_redis_nonce_guard_from_public_env() -> None:
+    config = build_http_api_config(
+        ["--host", "0.0.0.0", "--api-key", "dev-key", "--require-scopes"],
+        env={
+            "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
+            "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND": "redis",
+            "FLOW_MEMORY_COMPUTE_REDIS_URL": "rediss://cache.example:6379/0",
+            "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
+            "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
+        },
+    )
+
+    assert config.enable_nonce_check is True
+    assert config.nonce_replay_backend == "redis"
+    assert config.nonce_redis_url == "rediss://cache.example:6379/0"
+    assert config.nonce_require_tls is True
+    assert config.nonce_fail_closed is True
 
 
 def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -445,6 +478,10 @@ def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.
     assert env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == ""
     assert env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == ""
     assert env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "60"
+    assert env_vars["FLOW_MEMORY_API_ENABLE_NONCE_CHECK"] == "true"
+    assert env_vars["FLOW_MEMORY_API_NONCE_REPLAY_BACKEND"] == "redis"
+    assert env_vars["FLOW_MEMORY_API_NONCE_FAIL_CLOSED"] == "true"
+    assert env_vars["FLOW_MEMORY_API_NONCE_REQUIRE_TLS"] == "true"
 
 
 def test_render_env_builder_binds_https_observability_sinks() -> None:

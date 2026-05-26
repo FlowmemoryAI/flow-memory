@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
 
-from flow_memory.api.auth import ApiAuthConfig, ApiAuthDecision, authorize_request
+from flow_memory.api.auth import ApiAuthConfig, ApiAuthDecision, LocalNonceReplayStore, NonceReplayStore, RedisNonceReplayStore, authorize_request
 from flow_memory.api.audit_middleware import AuditEvent, LocalAuditSink
 from flow_memory.api.errors import ApiError, auth_error, error_response, forbidden_error, validation_error
 from flow_memory.api.rate_limits import LocalRateLimiter, RateLimitRule
@@ -41,6 +41,12 @@ class HttpApiConfig:
     jwt_issuer: str = ""
     jwt_audience: str = ""
     jwt_leeway_seconds: int = 60
+    nonce_replay_backend: str = "memory"
+    nonce_redis_url: str = ""
+    nonce_redis_prefix: str = "flow-memory:api"
+    nonce_fail_closed: bool = True
+    nonce_require_tls: bool = False
+    nonce_verify_tls: bool = True
 
     def validate(self) -> tuple[str, ...]:
         errors: list[str] = []
@@ -56,6 +62,14 @@ class HttpApiConfig:
             errors.append("max_request_age_seconds must be positive")
         if self.jwt_leeway_seconds < 0:
             errors.append("jwt_leeway_seconds must be non-negative")
+        normalized_nonce_backend = self.nonce_replay_backend.strip().lower()
+        if normalized_nonce_backend not in {"memory", "in_memory", "redis"}:
+            errors.append("nonce_replay_backend must be memory or redis")
+        if self.enable_nonce_check and normalized_nonce_backend == "redis":
+            if not self.nonce_redis_url:
+                errors.append("nonce_redis_url is required when nonce_replay_backend=redis")
+            if self.nonce_require_tls and not self.nonce_redis_url.startswith("rediss://"):
+                errors.append("nonce_redis_url must be rediss:// when nonce_require_tls=true")
         return tuple(errors)
 
 
@@ -78,6 +92,7 @@ class HttpApiGateway:
     config: HttpApiConfig = field(default_factory=HttpApiConfig)
     audit_sink: LocalAuditSink = field(default_factory=LocalAuditSink)
     limiter: LocalRateLimiter | None = None
+    nonce_replay_store: NonceReplayStore | None = None
 
     def __post_init__(self) -> None:
         errors = self.config.validate()
@@ -87,6 +102,8 @@ class HttpApiGateway:
             self.limiter = LocalRateLimiter(
                 RateLimitRule(self.config.rate_limit, self.config.rate_limit_window_seconds)
             )
+        if self.config.enable_nonce_check and self.nonce_replay_store is None:
+            self.nonce_replay_store = _nonce_replay_store_from_config(self.config)
 
     def handle(self, method: str, target: str, headers: Mapping[str, str] | None = None, body: bytes = b"") -> HttpApiResponse:
         header_map = {str(key): str(value) for key, value in (headers or {}).items()}
@@ -168,6 +185,7 @@ class HttpApiGateway:
                     jwt_issuer=self.config.jwt_issuer,
                     jwt_audience=self.config.jwt_audience,
                     jwt_leeway_seconds=self.config.jwt_leeway_seconds,
+                    nonce_replay_store=self.nonce_replay_store,
                 ),
                 method=context.method,
                 path=context.path,
@@ -299,6 +317,18 @@ def serve_local_api(config: HttpApiConfig | None = None) -> None:
     server = create_http_server(HttpApiGateway(config=config), host=config.host, port=config.port)
     server.serve_forever()
 
+
+def _nonce_replay_store_from_config(config: HttpApiConfig) -> NonceReplayStore:
+    backend = config.nonce_replay_backend.strip().lower()
+    if backend in {"memory", "in_memory"}:
+        return LocalNonceReplayStore()
+    return RedisNonceReplayStore(
+        config.nonce_redis_url,
+        prefix=config.nonce_redis_prefix,
+        fail_closed=config.nonce_fail_closed,
+        require_tls=config.nonce_require_tls,
+        verify_tls=config.nonce_verify_tls,
+    )
 
 def _headers(request_id: str) -> dict[str, str]:
     return {"content-type": "application/json; charset=utf-8", "x-request-id": request_id}

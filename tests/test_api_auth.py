@@ -7,6 +7,7 @@ import time
 
 from flow_memory.api.auth import (
     ApiAuthConfig,
+    RedisNonceReplayStore,
     api_key_hash,
     authorize_request,
     disable_api_key_record,
@@ -139,6 +140,69 @@ class ApiAuthTests(unittest.TestCase):
         self.assertIn("replayed request nonce", replay.reasons)
         self.assertFalse(stale.ok)
         self.assertIn("stale request timestamp", stale.reasons)
+
+    def test_authorize_request_uses_distributed_nonce_store(self) -> None:
+        class FakeRedis:
+            def __init__(self) -> None:
+                self.values: dict[str, str] = {}
+
+            def set(self, key: str, value: str, *, nx: bool, ex: int) -> bool:
+                if nx and key in self.values:
+                    return False
+                self.values[key] = value
+                assert ex == 30
+                return True
+
+        redis_client = FakeRedis()
+        store_a = RedisNonceReplayStore("rediss://cache.example:6379/0", client=redis_client, require_tls=True)
+        store_b = RedisNonceReplayStore("rediss://cache.example:6379/0", client=redis_client, require_tls=True)
+        timestamp = str(time.time())
+        headers = {
+            "x-flow-memory-api-key": "test",
+            "x-flow-memory-timestamp": timestamp,
+            "x-flow-memory-nonce": "nonce-auth-distributed-1",
+        }
+
+        first = authorize_request(
+            headers,
+            ApiAuthConfig(api_key="test", enable_nonce_check=True, max_request_age_seconds=30, nonce_replay_store=store_a),
+        )
+        replay = authorize_request(
+            headers,
+            ApiAuthConfig(api_key="test", enable_nonce_check=True, max_request_age_seconds=30, nonce_replay_store=store_b),
+        )
+
+        self.assertTrue(first.ok, first.reasons)
+        self.assertFalse(replay.ok)
+        self.assertIn("replayed request nonce", replay.reasons)
+        self.assertEqual(len(redis_client.values), 1)
+        self.assertNotIn("nonce-auth-distributed-1", next(iter(redis_client.values)))
+
+    def test_authorize_request_fails_closed_when_nonce_backend_unavailable(self) -> None:
+        class BrokenRedis:
+            def set(self, key: str, value: str, *, nx: bool, ex: int) -> bool:
+                raise ConnectionError("down")
+
+        decision = authorize_request(
+            {
+                "x-flow-memory-api-key": "test",
+                "x-flow-memory-timestamp": str(time.time()),
+                "x-flow-memory-nonce": "nonce-auth-backend-down",
+            },
+            ApiAuthConfig(
+                api_key="test",
+                enable_nonce_check=True,
+                max_request_age_seconds=30,
+                nonce_replay_store=RedisNonceReplayStore(
+                    "rediss://cache.example:6379/0",
+                    client=BrokenRedis(),
+                    require_tls=True,
+                ),
+            ),
+        )
+
+        self.assertFalse(decision.ok)
+        self.assertIn("nonce replay backend unavailable", decision.reasons)
 
     def test_authorize_request_accepts_valid_hs256_bearer_jwt(self) -> None:
         token = _jwt(

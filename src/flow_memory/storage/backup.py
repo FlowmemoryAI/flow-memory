@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, cast
 
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.storage.sqlite_store import SCHEMA_VERSION, TABLES, SQLiteStore
@@ -69,7 +70,10 @@ def write_backup(store: SQLiteStore, path: str | Path) -> Path:
 def read_backup(path: str | Path) -> Mapping[str, Any]:
     """Read and validate a storage backup JSON file."""
 
-    bundle = json.loads(Path(path).read_text(encoding="utf-8"))
+    raw = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(raw, Mapping):
+        raise ValueError("backup must be a JSON object")
+    bundle = cast(Mapping[str, Any], raw)
     validate_backup(bundle)
     return bundle
 

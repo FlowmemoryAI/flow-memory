@@ -17,7 +17,7 @@ class SandboxBackendSelection:
         return {"backend": self.backend, "reason": self.reason}
 
 
-def select_sandbox_backend(prefer_docker: bool = False, *, docker_enabled: bool = False):
+def select_sandbox_backend(prefer_docker: bool = False, *, docker_enabled: bool = False) -> DockerSandbox | ContainerSandbox:
     if prefer_docker and docker_enabled and docker_available():
         return DockerSandbox(DockerSandboxConfig(enabled=True))
     return ContainerSandbox(enabled=False)

@@ -48,13 +48,6 @@ def tool_to_mcp_spec(tool: Tool) -> MCPToolSpec:
 
 
 def registry_to_mcp_manifest(registry: ToolRegistry) -> Mapping[str, Any]:
-    return {
-        "protocol": "mcp-compatible",
-        "tools": [tool_to_mcp_spec(tool).as_dict() for tool in registry.list()],
-    }
-
-
-def registry_to_mcp_manifest(registry: ToolRegistry) -> Mapping[str, Any]:
     """Return a transport-neutral MCP-compatible manifest for a tool registry."""
 
     return {

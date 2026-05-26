@@ -1,7 +1,7 @@
 """Neural metadata handlers for the local API router."""
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Mapping, cast
+from typing import Any, Mapping
 from flow_memory.neural import is_torch_available
 from flow_memory.neural.checkpoints import CheckpointRegistry
 from flow_memory.neural.gpu_evidence import gpu_evidence_index, verify_gpu_run
@@ -32,7 +32,10 @@ def neural_backends() -> Mapping[str, Any]:
     )}
 
 def neural_gpu_runs(root: str | Path = ROOT) -> Mapping[str, Any]:
-    return cast(Mapping[str, Any], gpu_evidence_index(root))
+    evidence = gpu_evidence_index(root)
+    if not isinstance(evidence, Mapping):
+        return {}
+    return {str(key): value for key, value in evidence.items()}
 
 def neural_gpu_run(run_id: str, root: str | Path = ROOT) -> Mapping[str, Any]:
     path=Path(root)/"release_evidence"/"gpu_runs"/run_id

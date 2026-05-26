@@ -7,7 +7,7 @@ import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from flow_memory import Agent
 from flow_memory.protocols import CapabilityManifest
@@ -109,6 +109,13 @@ def _compute(argv: list[str]) -> int:
     contract.add_argument("file", help="Quote JSON file to validate")
     contract.add_argument("--json", action="store_true", help="Print JSON output")
     contract.add_argument("--provider", default="")
+    provider_admin = subparsers.add_parser("provider-admin", help="Administer market provider onboarding")
+    provider_admin.add_argument("provider_action", choices=("apply", "verify", "disable", "conformance", "get", "reputation"))
+    _add_compute_query_args(provider_admin)
+    provider_admin.add_argument("--file", default="", help="JSON provider application, conformance request, or raw quote")
+    provider_admin.add_argument("--verification-notes", default="")
+    provider_admin.add_argument("--asset", action="append", default=[])
+    provider_admin.add_argument("--network", action="append", default=[])
     args = parser.parse_args(argv)
     service = default_service()
     payload = _compute_payload(args)
@@ -143,6 +150,8 @@ def _compute(argv: list[str]) -> int:
             output = service.replay_decision(str(args.decision_id), payload)
         elif args.command == "provider-contract":
             output = validate_provider_contract_file(Path(str(args.file)), provider_id=str(getattr(args, "provider", "")))
+        elif args.command == "provider-admin":
+            output = _provider_admin_output(service, args, payload)
         elif args.command == "quote":
             output = service.quote(payload)
         elif args.command == "route":
@@ -206,6 +215,60 @@ def _add_compute_query_args(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--route", default="")
     sub.add_argument("--limit", type=int, default=100)
     sub.add_argument("--cursor", default="")
+
+
+
+def _provider_admin_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str, Any]:
+    action = str(getattr(args, "provider_action", ""))
+    provider_payload = {**payload, **_load_json_object(str(getattr(args, "file", "")))}
+    provider_id = str(provider_payload.get("provider_id") or getattr(args, "provider", "") or "")
+    if provider_id:
+        provider_payload["provider_id"] = provider_id
+    assets = tuple(str(item) for item in getattr(args, "asset", ()) if str(item))
+    networks = tuple(str(item) for item in getattr(args, "network", ()) if str(item))
+    if assets and "allowed_assets" not in provider_payload:
+        provider_payload["allowed_assets"] = assets
+    if networks and "allowed_networks" not in provider_payload:
+        provider_payload["allowed_networks"] = networks
+    verification_notes = str(getattr(args, "verification_notes", ""))
+    if verification_notes:
+        provider_payload["verification_notes"] = verification_notes
+
+    if action == "apply":
+        return service.apply_market_provider(provider_payload)
+    if action == "verify":
+        return service.verify_market_provider(_required_provider_id(provider_id), provider_payload)
+    if action == "disable":
+        return service.disable_market_provider(_required_provider_id(provider_id), provider_payload)
+    if action == "get":
+        return service.market_provider(_required_provider_id(provider_id))
+    if action == "reputation":
+        return service.provider_reputation(_required_provider_id(provider_id))
+    if action == "conformance":
+        conformance_payload: dict[str, Any] = dict(provider_payload)
+        if (
+            "sample_quote" not in conformance_payload
+            and "quote" not in conformance_payload
+            and "quote_id" in conformance_payload
+        ):
+            conformance_payload = {**conformance_payload, "sample_quote": dict(conformance_payload)}
+        return service.provider_conformance(_required_provider_id(provider_id), conformance_payload)
+    raise ValueError(f"unsupported provider admin action: {action}")
+
+
+def _load_json_object(path: str) -> dict[str, Any]:
+    if not path:
+        return {}
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, Mapping):
+        raise ValueError("provider admin file must contain a JSON object")
+    return dict(data)
+
+
+def _required_provider_id(provider_id: str) -> str:
+    if not provider_id:
+        raise ValueError("provider_id is required; pass --provider or include provider_id in --file")
+    return provider_id
 
 
 def _compute_payload(args: Any) -> dict[str, Any]:

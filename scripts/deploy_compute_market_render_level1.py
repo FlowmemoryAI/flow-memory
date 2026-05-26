@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
 import secrets
@@ -282,6 +283,28 @@ def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
                 "external rediss:// endpoint."
             ),
         )
+
+    invalid_entries: list[dict[str, str]] = []
+    for entry in entries:
+        if "/" not in entry:
+            invalid_entries.append({"value": entry, "reason": "cidr_prefix_required"})
+            continue
+        try:
+            network = ipaddress.ip_network(entry, strict=True)
+        except ValueError as exc:
+            invalid_entries.append({"value": entry, "reason": str(exc)})
+            continue
+        if network.prefixlen == 0:
+            invalid_entries.append({"value": entry, "reason": "world_open_cidr_not_allowed"})
+
+    if invalid_entries:
+        emit(
+            "blocked_invalid_redis_external_allowlist",
+            27,
+            invalid_values=invalid_entries,
+            required_action="Set RENDER_KEYVALUE_IP_ALLOWLIST to explicit non-world-open CIDR ranges.",
+        )
+
     return [{"source": entry, "description": "flow-memory-compute-market-redis-tls"} for entry in entries]
 
 

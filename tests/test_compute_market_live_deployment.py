@@ -204,6 +204,21 @@ def test_render_keyvalue_creation_requires_explicit_external_tls_allowlist(monke
     ]
 
 
+def test_render_keyvalue_external_allowlist_rejects_invalid_or_world_open_cidrs() -> None:
+    with pytest.raises(SystemExit) as missing_prefix:
+        render_deploy.keyvalue_ip_allow_list("203.0.113.10")
+
+    with pytest.raises(SystemExit) as host_bits:
+        render_deploy.keyvalue_ip_allow_list("203.0.113.10/24")
+
+    with pytest.raises(SystemExit) as world_open:
+        render_deploy.keyvalue_ip_allow_list("0.0.0.0/0")
+
+    assert missing_prefix.value.code == 27
+    assert host_bits.value.code == 27
+    assert world_open.value.code == 27
+
+
 def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_path: Path) -> None:
     powershell = shutil.which("powershell") or shutil.which("pwsh")
     if powershell is None:

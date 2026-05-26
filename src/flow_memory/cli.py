@@ -138,6 +138,49 @@ def _compute(argv: list[str]) -> int:
     billing.add_argument("--webhook-secret", default="")
     billing.add_argument("--stripe-signature", default="")
     billing.add_argument("--raw-event-file", default="")
+    jobs = subparsers.add_parser("jobs", help="Operate compute job execution lifecycle")
+    jobs.add_argument(
+        "job_action",
+        choices=("create", "get", "events", "artifacts", "cancel", "retry", "dispatch", "complete", "fail", "claim", "heartbeat", "release-claim"),
+    )
+    jobs.add_argument("job_id", nargs="?", default="")
+    _add_compute_query_args(jobs)
+    jobs.add_argument("--file", default="", help="JSON job payload or lifecycle payload")
+    jobs.add_argument("--task-type", default="")
+    jobs.add_argument("--input-ref", default="")
+    jobs.add_argument("--model-or-runtime", default="")
+    jobs.add_argument("--gpu-type", default="")
+    jobs.add_argument("--gpu-count", type=int, default=0)
+    jobs.add_argument("--memory-gb", type=int, default=0)
+    jobs.add_argument("--max-runtime-seconds", type=int, default=0)
+    jobs.add_argument("--budget-policy", default="")
+    jobs.add_argument("--worker-id", default="")
+    jobs.add_argument("--account", "--account-id", dest="account_id", default="")
+    jobs.add_argument("--actual-units", type=float, default=0.0)
+    jobs.add_argument("--actual-total-cost", type=float, default=0.0)
+    jobs.add_argument("--actual-latency-ms", type=float, default=0.0)
+    jobs.add_argument("--artifact-ref", default="")
+    jobs.add_argument("--error-code", default="")
+    jobs.add_argument("--reason", default="")
+    jobs.add_argument("--lease-ttl-seconds", type=int, default=0)
+    capacity = subparsers.add_parser("capacity", help="Operate capacity inventory and reservation book")
+    capacity.add_argument("capacity_action", choices=("list", "order-book", "reserve", "confirm", "release", "expire", "auction"))
+    capacity.add_argument("reservation_id", nargs="?", default="")
+    _add_compute_query_args(capacity)
+    capacity.add_argument("--file", default="", help="JSON capacity payload")
+    capacity.add_argument("--capacity-units", type=float, default=0.0)
+    capacity.add_argument("--available-units", type=float, default=0.0)
+    capacity.add_argument("--unit-type", default="")
+    capacity.add_argument("--resource-type", default="")
+    capacity.add_argument("--gpu-type", default="")
+    capacity.add_argument("--region", default="")
+    capacity.add_argument("--starts-at", default="")
+    capacity.add_argument("--ends-at", default="")
+    capacity.add_argument("--reserved-from", default="")
+    capacity.add_argument("--reserved-until", default="")
+    capacity.add_argument("--hold-expires-at", default="")
+    capacity.add_argument("--price-floor", type=float, default=0.0)
+    capacity.add_argument("--allow-partial", action="store_true")
     args = parser.parse_args(argv)
     service = default_service()
     payload = _compute_payload(args)
@@ -182,6 +225,10 @@ def _compute(argv: list[str]) -> int:
             output = _provider_admin_output(service, args, payload)
         elif args.command == "billing":
             output = _billing_output(service, args, payload)
+        elif args.command == "jobs":
+            output = _job_output(service, args, payload)
+        elif args.command == "capacity":
+            output = _capacity_output(service, args, payload)
         elif args.command == "quote":
             output = service.quote(payload)
         elif args.command == "route":
@@ -336,6 +383,124 @@ def _required_billing_id(value: str, label: str) -> str:
     if not value:
         raise ValueError(f"{label} is required")
     return value
+
+
+def _job_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str, Any]:
+    action = str(getattr(args, "job_action", ""))
+    job_id = str(getattr(args, "job_id", ""))
+    job_payload = {**payload, **_load_json_object(str(getattr(args, "file", "")))}
+    for attr, key in (
+        ("task_type", "task_type"),
+        ("input_ref", "input_ref"),
+        ("model_or_runtime", "model_or_runtime"),
+        ("budget_policy", "budget_policy_id"),
+        ("worker_id", "worker_id"),
+        ("account_id", "account_id"),
+        ("artifact_ref", "artifact_ref"),
+        ("error_code", "error_code"),
+        ("reason", "reason"),
+    ):
+        _set_if_present(job_payload, key, str(getattr(args, attr, "")))
+    resource_request = dict(job_payload.get("resource_request", {})) if isinstance(job_payload.get("resource_request"), Mapping) else {}
+    if str(getattr(args, "gpu_type", "")):
+        resource_request["gpu_type"] = str(getattr(args, "gpu_type", ""))
+    if int(getattr(args, "gpu_count", 0) or 0) > 0:
+        resource_request["gpu_count"] = int(getattr(args, "gpu_count", 0) or 0)
+    if int(getattr(args, "memory_gb", 0) or 0) > 0:
+        resource_request["memory_gb"] = int(getattr(args, "memory_gb", 0) or 0)
+    if int(getattr(args, "max_runtime_seconds", 0) or 0) > 0:
+        resource_request["max_runtime_seconds"] = int(getattr(args, "max_runtime_seconds", 0) or 0)
+    if resource_request:
+        job_payload["resource_request"] = resource_request
+    for attr, key in (
+        ("actual_units", "actual_units"),
+        ("actual_total_cost", "actual_total_cost"),
+        ("actual_latency_ms", "actual_latency_ms"),
+    ):
+        value = float(getattr(args, attr, 0.0) or 0.0)
+        if value > 0.0:
+            job_payload[key] = value
+    lease_ttl_seconds = int(getattr(args, "lease_ttl_seconds", 0) or 0)
+    if lease_ttl_seconds > 0:
+        job_payload["lease_ttl_seconds"] = lease_ttl_seconds
+    if action == "create":
+        return service.create_job(job_payload)
+    if action == "claim":
+        if job_id:
+            job_payload["job_id"] = job_id
+        return service.claim_job(job_payload)
+    required_job_id = _required_billing_id(job_id, "job_id")
+    if action == "get":
+        return service.get_job(required_job_id)
+    if action == "events":
+        return service.job_events(required_job_id)
+    if action == "artifacts":
+        return service.job_artifacts(required_job_id)
+    if action == "cancel":
+        return service.cancel_job(required_job_id, job_payload)
+    if action == "retry":
+        return service.retry_job(required_job_id, job_payload)
+    if action == "dispatch":
+        return service.dispatch_job(required_job_id, job_payload)
+    if action == "complete":
+        return service.complete_job(required_job_id, job_payload)
+    if action == "fail":
+        return service.fail_job(required_job_id, job_payload)
+    if action == "heartbeat":
+        return service.heartbeat_job(required_job_id, job_payload)
+    if action == "release-claim":
+        return service.release_job_claim(required_job_id, job_payload)
+    raise ValueError(f"unsupported job action: {action}")
+
+
+def _capacity_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str, Any]:
+    action = str(getattr(args, "capacity_action", ""))
+    reservation_id = str(getattr(args, "reservation_id", ""))
+    capacity_payload = {**payload, **_load_json_object(str(getattr(args, "file", "")))}
+    if reservation_id:
+        capacity_payload["reservation_id"] = reservation_id
+    for attr, key in (
+        ("unit_type", "unit_type"),
+        ("resource_type", "resource_type"),
+        ("gpu_type", "gpu_type"),
+        ("region", "region"),
+        ("starts_at", "starts_at"),
+        ("ends_at", "ends_at"),
+        ("reserved_from", "reserved_from"),
+        ("reserved_until", "reserved_until"),
+        ("hold_expires_at", "hold_expires_at"),
+    ):
+        _set_if_present(capacity_payload, key, str(getattr(args, attr, "")))
+    for attr, key in (
+        ("capacity_units", "capacity_units"),
+        ("available_units", "available_units"),
+        ("price_floor", "price_floor"),
+    ):
+        value = float(getattr(args, attr, 0.0) or 0.0)
+        if value > 0.0:
+            capacity_payload[key] = value
+    if bool(getattr(args, "allow_partial", False)):
+        capacity_payload["allow_partial"] = True
+    if action == "list":
+        return service.list_capacity(capacity_payload)
+    if action == "order-book":
+        return service.capacity_order_book(capacity_payload)
+    if action == "reserve":
+        return service.reserve_capacity(capacity_payload)
+    if action == "confirm":
+        return service.confirm_capacity(capacity_payload)
+    if action == "release":
+        return service.release_capacity(capacity_payload)
+    if action == "expire":
+        return service.expire_capacity(capacity_payload)
+    if action == "auction":
+        return service.auction_capacity(capacity_payload)
+    raise ValueError(f"unsupported capacity action: {action}")
+
+
+def _set_if_present(payload: dict[str, Any], key: str, value: str) -> None:
+    if value:
+        payload[key] = value
 
 
 def _load_json_object(path: str) -> dict[str, Any]:

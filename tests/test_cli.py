@@ -211,6 +211,138 @@ class CLITests(unittest.TestCase):
         self.assertEqual(refund["refund"]["usage_charge_id"], usage_charge_id)
         self.assertFalse(refund["refund"]["funds_moved"])
 
+    def test_execution_and_capacity_cli_lifecycle(self) -> None:
+        from flow_memory.compute_market.config import ComputeMarketConfig
+        from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+        from flow_memory.compute_market.storage import ComputeMarketStore
+
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+        )
+        reset_default_service(service)
+        try:
+            create_code, create_output = self._run_cli(
+                [
+                    "compute",
+                    "jobs",
+                    "create",
+                    "--task-type",
+                    "inference",
+                    "--input-ref",
+                    "s3://flow-memory-inputs/job-cli-lifecycle.json",
+                    "--model-or-runtime",
+                    "llama-runtime",
+                    "--provider",
+                    "provider_live_gpu_1",
+                    "--route",
+                    "route_live_gpu_1",
+                    "--gpu-type",
+                    "H100",
+                    "--gpu-count",
+                    "1",
+                    "--memory-gb",
+                    "80",
+                    "--max-runtime-seconds",
+                    "600",
+                    "--budget-policy",
+                    "policy_default",
+                ]
+            )
+            job_id = json.loads(create_output)["job"]["job_id"]
+            dispatch_code, dispatch_output = self._run_cli(["compute", "jobs", "dispatch", job_id])
+            complete_code, complete_output = self._run_cli(
+                [
+                    "compute",
+                    "jobs",
+                    "complete",
+                    job_id,
+                    "--actual-units",
+                    "2",
+                    "--actual-total-cost",
+                    "0.18",
+                    "--actual-latency-ms",
+                    "250",
+                    "--artifact-ref",
+                    "s3://flow-memory-results/job-cli-lifecycle.json",
+                ]
+            )
+            events_code, events_output = self._run_cli(["compute", "jobs", "events", job_id])
+            artifacts_code, artifacts_output = self._run_cli(["compute", "jobs", "artifacts", job_id])
+
+            list_code, list_output = self._run_cli(
+                [
+                    "compute",
+                    "capacity",
+                    "list",
+                    "--provider",
+                    "provider_live_gpu_1",
+                    "--route",
+                    "route_live_gpu_1",
+                    "--capacity-units",
+                    "10",
+                    "--gpu-type",
+                    "H100",
+                    "--region",
+                    "us-east",
+                    "--ends-at",
+                    "2099-01-01T00:00:00Z",
+                    "--price-floor",
+                    "2.4",
+                ]
+            )
+            reserve_code, reserve_output = self._run_cli(
+                [
+                    "compute",
+                    "capacity",
+                    "reserve",
+                    "--provider",
+                    "provider_live_gpu_1",
+                    "--route",
+                    "route_live_gpu_1",
+                    "--capacity-units",
+                    "2",
+                ]
+            )
+            reservation_id = json.loads(reserve_output)["reservation"]["reservation_id"]
+            confirm_code, confirm_output = self._run_cli(["compute", "capacity", "confirm", reservation_id])
+            order_book_code, order_book_output = self._run_cli(["compute", "capacity", "order-book"])
+            release_code, release_output = self._run_cli(["compute", "capacity", "release", reservation_id])
+        finally:
+            reset_default_service(None)
+
+        created = json.loads(create_output)
+        dispatched = json.loads(dispatch_output)
+        completed = json.loads(complete_output)
+        events = json.loads(events_output)
+        artifacts = json.loads(artifacts_output)
+        listed = json.loads(list_output)
+        confirmed = json.loads(confirm_output)
+        order_book = json.loads(order_book_output)
+        released = json.loads(release_output)
+
+        self.assertEqual(create_code, 0)
+        self.assertEqual(dispatch_code, 0)
+        self.assertEqual(complete_code, 0)
+        self.assertEqual(events_code, 0)
+        self.assertEqual(artifacts_code, 0)
+        self.assertEqual(created["job"]["status"], "queued")
+        self.assertEqual(dispatched["job"]["status"], "running")
+        self.assertEqual(completed["job"]["status"], "succeeded")
+        self.assertEqual(completed["artifact"]["artifact_ref"], "s3://flow-memory-results/job-cli-lifecycle.json")
+        self.assertTrue(any(event["event_type"] == "job.completed" for event in events["events"]))
+        self.assertEqual(artifacts["artifacts"][0]["artifact_ref"], "s3://flow-memory-results/job-cli-lifecycle.json")
+
+        self.assertEqual(list_code, 0)
+        self.assertEqual(reserve_code, 0)
+        self.assertEqual(confirm_code, 0)
+        self.assertEqual(order_book_code, 0)
+        self.assertEqual(release_code, 0)
+        self.assertEqual(listed["capacity_window"]["capacity_units"], 10.0)
+        self.assertEqual(confirmed["reservation"]["status"], "confirmed")
+        self.assertEqual(order_book["summary"]["total_capacity_units"], 10.0)
+        self.assertEqual(released["reservation"]["status"], "released")
+
 
     def test_verify_script_uses_portable_python_launcher(self) -> None:
         verify_script = (Path(__file__).resolve().parents[1] / "scripts" / "verify.sh").read_text(

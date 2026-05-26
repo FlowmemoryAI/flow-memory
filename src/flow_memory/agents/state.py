@@ -24,6 +24,8 @@ class AgentState:
     current_goal: str = ""
     current_plan: Mapping[str, Any] | None = None
     current_task_graph: Mapping[str, Any] | None = None
+    current_prediction: Mapping[str, Any] | None = None
+    current_prediction_error: Mapping[str, Any] | None = None
     working_memory_snapshot: tuple[Mapping[str, Any], ...] = field(default_factory=tuple)
     recent_events: list[Mapping[str, Any]] = field(default_factory=list)
     outstanding_approvals: list[Mapping[str, Any]] = field(default_factory=list)
@@ -45,6 +47,8 @@ class AgentState:
             "current_goal": self.current_goal,
             "current_plan": dict(self.current_plan or {}),
             "current_task_graph": dict(self.current_task_graph or {}),
+            "current_prediction": dict(self.current_prediction or {}),
+            "current_prediction_error": dict(self.current_prediction_error or {}),
             "working_memory_snapshot": tuple(dict(item) for item in self.working_memory_snapshot),
             "recent_events": tuple(dict(event) for event in self.recent_events),
             "outstanding_approvals": tuple(dict(item) for item in self.outstanding_approvals),

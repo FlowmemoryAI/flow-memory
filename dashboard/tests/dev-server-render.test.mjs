@@ -57,6 +57,8 @@ assert.match(html, /Public-alpha finalizer status/);
 assert.match(html, /C:\\tmp backup/);
 assert.match(html, /not tracked/);
 assert.match(html, /Replay\/mock mode works without API/);
+assert.match(html, /Predictive Cognitive Core/);
+assert.match(html, /prediction matched reality/i);
 assert.doesNotMatch(html, /production frontend bundling remains a public-alpha next step/);
 assert.doesNotMatch(html, /POST \/launch\//);
 assert.doesNotMatch(html, /POST \/network\/run-scenario/);

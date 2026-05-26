@@ -319,6 +319,19 @@ class NeuralRuntimeManager:
         self._sessions[session_id] = updated
         return record
 
+    def learn_from_prediction_error(self, session_id: str, experience: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Convert prediction-error experience into a local learning sample."""
+        sample = dict(experience.get("neural_learning_sample", experience))
+        prediction_error = _safe_float(sample.get("prediction_error", experience.get("prediction_error", 0.0)))
+        sample["prediction_error"] = prediction_error
+        sample["learning_signal"] = "prediction_error"
+        record = dict(self.learn(session_id, sample))
+        record["prediction_error"] = prediction_error
+        record["learning_signal"] = "prediction_error"
+        record["advisory_only"] = True
+        record["raw_weights_written"] = False
+        return record
+
     def checkpoint(self, session_id: str, checkpoint_ref: str = "") -> Mapping[str, Any]:
         session = self.get_session(session_id)
         ref = checkpoint_ref or session.config.checkpoint_ref or f"artifacts/neural/live/{session.session_id}.metadata.json"
@@ -480,6 +493,14 @@ def _stable_id(prefix: str, *parts: str) -> str:
     digest = hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:16]
     return f"{prefix}_{digest}"
 
+
+def _safe_float(value: Any) -> float:
+    try:
+        if value is not None and value != "":
+            return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return 0.0
 
 def _as_tuple(value: Any) -> tuple[str, ...]:
     if value is None:

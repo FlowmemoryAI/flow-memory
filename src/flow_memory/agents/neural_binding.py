@@ -89,6 +89,15 @@ class AgentNeuralBinding:
                 record["reason"] = "neural backend unavailable; policy allowed non-neural fallback"
         return record
 
+    def learn_from_prediction_error(self, neural_metadata: Mapping[str, Any], experience: Mapping[str, Any]) -> Mapping[str, Any]:
+        session_id = str(neural_metadata.get("session_id", ""))
+        if not session_id:
+            return {"ok": True, "status": "skipped", "reason": "no live neural session", "local_only": True}
+        try:
+            return self.live_runtime.learn_from_prediction_error(session_id, experience)
+        except KeyError as exc:
+            return {"ok": False, "status": "skipped", "reason": str(exc), "local_only": True}
+
     def attach_perception_metadata(self, profile: Any, video: Any | None = None) -> Mapping[str, Any]:
         config = neural_config_from_mapping(getattr(profile, "neural_config", {}))
         if config.backend == "none" or video is None:

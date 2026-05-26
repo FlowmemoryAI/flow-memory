@@ -1,5 +1,5 @@
 {
-  "bundle_hash": "fd4d35d3765f232a9bd951a1aff1962cdd594764324a874058ea6ef2d612406d",
+  "bundle_hash": "a1e46d2e0cdf4a9d169d91f08e14cb6d2ae489ead965766f818b7319c79643e8",
   "embodiment": {
     "action_state": "recommended",
     "agent_id": "agent_a093fc05c99e8dc6",
@@ -1590,6 +1590,7 @@
         "summary": "supervisor observed"
       }
     ],
+    "cognitive": [],
     "compute": [],
     "economy": [],
     "memory": [

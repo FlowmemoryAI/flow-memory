@@ -12,6 +12,7 @@ from flow_memory.visualization.state import (
     VisualMemoryNode,
     VisualNetworkState,
     VisualNeuralSignal,
+    VisualCognitivePrediction,
     VisualComputeMarketSignal,
     VisualRLEpisode,
     VisualRuntimeHealth,
@@ -77,6 +78,7 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
     memory: dict[str, VisualMemoryNode] = {}
     economy: dict[str, VisualEconomyEdge] = {}
     neural: dict[str, VisualNeuralSignal] = {}
+    cognitive: dict[str, VisualCognitivePrediction] = {}
     compute: dict[str, VisualComputeMarketSignal] = {}
     supervisor: dict[str, VisualSupervisorSignal] = {}
     rl: dict[str, VisualRLEpisode] = {}
@@ -158,6 +160,25 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
                 provenance=event_provenance,
                 source_event_id=event_id,
             )
+        elif event_type == "cognitive":
+            prediction = dict(payload.get("prediction", {})) if isinstance(payload.get("prediction", {}), Mapping) else {}
+            actual = dict(payload.get("actual_result", {})) if isinstance(payload.get("actual_result", {}), Mapping) else {}
+            prediction_id = str(payload.get("prediction_id") or prediction.get("prediction_id") or event_id)
+            cognitive[prediction_id] = VisualCognitivePrediction(
+                prediction_id=prediction_id,
+                agent_id=str(payload.get("agent_id") or prediction.get("agent_id", "")),
+                goal=str(payload.get("goal") or prediction.get("goal", "")),
+                chosen_action=str(payload.get("chosen_action") or prediction.get("chosen_action", "")),
+                predicted_outcome=str(payload.get("predicted_outcome") or prediction.get("predicted_outcome", "")),
+                actual_result=str(payload.get("actual_summary") or actual.get("output") or actual.get("reason") or actual.get("success", "")),
+                confidence=float(payload.get("confidence", prediction.get("confidence", 0.0)) or 0.0),
+                prediction_error=float(payload.get("prediction_error", 0.0) or 0.0),
+                success=bool(payload.get("success", False)),
+                lesson=str(payload.get("lesson", "")),
+                future_policy=str(payload.get("future_policy", "")),
+                provenance=event_provenance,
+                source_event_id=event_id,
+            )
         elif event_type == "compute":
             signal_id = str(payload.get("signal_id") or event_id)
             compute[signal_id] = VisualComputeMarketSignal(
@@ -230,6 +251,7 @@ def reduce_visual_events(events: Iterable[VisualEvent | Mapping[str, Any]], *, p
         memory=tuple(memory.values()),
         economy=tuple(economy.values()),
         neural=tuple(neural.values()),
+        cognitive=tuple(cognitive.values()),
         compute=tuple(compute.values()),
         supervisor=tuple(supervisor.values()),
         rl=tuple(rl.values()),

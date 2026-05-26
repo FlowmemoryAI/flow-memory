@@ -71,6 +71,23 @@ export type VisualNeuralSignal = {
   source_event_id?: string;
 };
 
+export type VisualCognitivePrediction = {
+  prediction_id: string;
+  agent_id: string;
+  goal: string;
+  chosen_action: string;
+  predicted_outcome: string;
+  actual_result?: string;
+  confidence?: number;
+  prediction_error?: number;
+  success?: boolean;
+  lesson?: string;
+  future_policy?: string;
+  provenance?: VisualProvenance | string;
+  source_event_id?: string;
+};
+
+
 export type NeuralEmbodimentGraphNode = {
   id: string;
   label: string;
@@ -236,6 +253,7 @@ export type VisualNetworkState = {
   memory: VisualMemoryNode[];
   economy: VisualEconomyEdge[];
   neural: VisualNeuralSignal[];
+  cognitive?: VisualCognitivePrediction[];
   rl: VisualRLEpisode[];
   compute?: VisualComputeMarketSignal[];
   supervisor?: VisualSupervisorSignal[];
@@ -250,8 +268,10 @@ export function summarizeVisualState(state: VisualNetworkState): string {
 
 export function agentNeuralActivity(state: VisualNetworkState, agentId: string): number {
   const signals = state.neural.filter((signal) => signal.agent_id === agentId);
-  if (!signals.length) return 0;
-  return clamp(Math.max(...signals.map((signal) => Number(signal.plan_score || 0) * 0.7 + Number(signal.surprise_score || 0) * 0.3)));
+  const cognitive = state.cognitive?.filter((item) => item.agent_id === agentId) ?? [];
+  const predictionActivity = cognitive.length ? Math.max(...cognitive.map((item) => 1 - Number(item.prediction_error || 0))) * 0.2 : 0;
+  if (!signals.length) return clamp(predictionActivity);
+  return clamp(Math.max(...signals.map((signal) => Number(signal.plan_score || 0) * 0.7 + Number(signal.surprise_score || 0) * 0.3)) + predictionActivity);
 }
 
 export function agentRiskScore(state: VisualNetworkState, agentId: string): number {

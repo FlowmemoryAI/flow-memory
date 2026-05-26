@@ -233,6 +233,7 @@ function renderReplaySummary(payloads) {
   const replay = payloads['local-network-replay'] || {};
   const events = eventsFrom(replay);
   const progress = events.length ? Math.min(1, 8 / events.length) : 0;
+  const cognitive = Array.isArray(replay?.state?.cognitive) ? replay.state.cognitive[0] : null;
   const latest = events.slice(-6).reverse().map((event) => `
     <li data-event-type="${text(event.event_type || 'event')}">
       <b>${text(event.event_type || 'event')}</b>
@@ -250,6 +251,7 @@ function renderReplaySummary(payloads) {
       <div class="replay-progress" aria-label="Replay progress"><span style="--replay-progress: ${progress}"></span></div>
       <div class="event-filters"><label>neural</label><label>policy</label><label>memory</label><label>compute/economy</label><label>audit/safety</label></div>
       <ol class="event-timeline">${latest}</ol>
+      ${cognitive ? `<article class="predictive-cognitive-readout" aria-label="Predictive Cognitive Core"><strong>Predictive Cognitive Core</strong><span>${text(cognitive.chosen_action)} → error ${Number(cognitive.prediction_error || 0).toFixed(2)}</span><small>${text(cognitive.lesson || '')}</small></article>` : ''}
     </section>`;
 }
 

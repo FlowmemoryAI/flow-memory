@@ -10,9 +10,10 @@ def visual_schema() -> Mapping[str, Any]:
     return {
         "schema_version": VISUAL_SCHEMA_VERSION,
         "provenance_values": ("live", "replay", "mock", "synthetic"),
-        "event_types": ("agent", "task", "memory", "economy", "compute", "supervisor", "neural", "rl", "safety", "audit"),
-        "state_collections": ("agents", "tasks", "memory", "economy", "compute", "supervisor", "neural", "rl", "safety", "audit"),
+        "event_types": ("agent", "task", "memory", "economy", "compute", "supervisor", "neural", "cognitive", "rl", "safety", "audit"),
+        "state_collections": ("agents", "tasks", "memory", "economy", "compute", "supervisor", "neural", "cognitive", "rl", "safety", "audit"),
         "neural_live_fields": ("session_id", "phase", "prediction_confidence", "uncertainty", "learning_tick_count", "memory_activation_count", "action_state", "policy_gate_state"),
+        "predictive_cognitive_fields": ("prediction_id", "chosen_action", "predicted_outcome", "actual_result", "prediction_error", "lesson", "future_policy"),
         "supervisor_fields": ("supervisor_id", "run_id", "status", "current_phase", "ticks_completed", "max_ticks", "policy_gate_state", "last_heartbeat_at", "bounded"),
         "required_reference": "source_event_id when available",
     }

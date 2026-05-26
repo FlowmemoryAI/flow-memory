@@ -778,6 +778,33 @@
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:requester",
       "source_event_id": "network_receipt_0006"
+    },
+    {
+      "created_at": "1970-01-01T00:00:00+00:00",
+      "event_id": "visual_event_predictive_cognitive_0001",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "output": "Mission Control panels rendered",
+          "success": true
+        },
+        "actual_summary": "served dashboard contained Mission Control panels, not placeholder copy",
+        "agent_id": "did:flow:worker",
+        "chosen_action": "verify_first",
+        "confidence": 0.78,
+        "experience_id": "prediction_experience_fixture_mission_control_verify",
+        "future_policy": "Run served-content verification before claiming dashboard visual changes are visible.",
+        "goal": "launch dashboard and verify Mission Control served HTML",
+        "lesson": "Prediction matched reality after verifying served HTML; preserve this check before UI handoff.",
+        "predicted_outcome": "Verify served HTML before claiming Mission Control is live.",
+        "prediction_error": 0.12,
+        "prediction_id": "prediction_fixture_mission_control_verify",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "did:flow:worker",
+      "source_event_id": "prediction_experience_fixture_mission_control_verify"
     }
   ],
   "generated_at": "1970-01-01T00:00:00+00:00",
@@ -1236,6 +1263,32 @@
         "provenance": "live",
         "source_event_id": "visual_event_0041",
         "summary": "audit observed"
+      },
+      {
+        "actor_id": "did:flow:worker",
+        "audit_id": "visual_event_predictive_cognitive_0001",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_predictive_cognitive_0001",
+        "summary": "prediction error memory recorded"
+      }
+    ],
+    "cognitive": [
+      {
+        "actual_result": "served dashboard contained Mission Control panels, not placeholder copy",
+        "agent_id": "did:flow:worker",
+        "chosen_action": "verify_first",
+        "confidence": 0.78,
+        "future_policy": "Run served-content verification before claiming dashboard visual changes are visible.",
+        "goal": "launch dashboard and verify Mission Control served HTML",
+        "lesson": "Prediction matched reality after verifying served HTML; preserve this check before UI handoff.",
+        "predicted_outcome": "Verify served HTML before claiming Mission Control is live.",
+        "prediction_error": 0.12,
+        "prediction_id": "prediction_fixture_mission_control_verify",
+        "provenance": "replay",
+        "source_event_id": "visual_event_predictive_cognitive_0001",
+        "success": true
       }
     ],
     "compute": [
@@ -1612,7 +1665,7 @@
     ],
     "runtime": {
       "agents": 4,
-      "events": 41,
+      "events": 42,
       "ignored_regressions": [],
       "status": "ok",
       "tasks": 2,

@@ -96,6 +96,26 @@ class VisualNeuralSignal:
 
 
 @dataclass(frozen=True)
+class VisualCognitivePrediction:
+    prediction_id: str
+    agent_id: str
+    goal: str
+    chosen_action: str
+    predicted_outcome: str
+    actual_result: str = ""
+    confidence: float = 0.0
+    prediction_error: float = 0.0
+    success: bool = False
+    lesson: str = ""
+    future_policy: str = ""
+    provenance: str = "live"
+    source_event_id: str = ""
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
 class VisualComputeMarketSignal:
     signal_id: str
     agent_id: str
@@ -202,6 +222,7 @@ class VisualNetworkState:
     memory: tuple[VisualMemoryNode, ...] = ()
     economy: tuple[VisualEconomyEdge, ...] = ()
     neural: tuple[VisualNeuralSignal, ...] = ()
+    cognitive: tuple[VisualCognitivePrediction, ...] = ()
     compute: tuple[VisualComputeMarketSignal, ...] = ()
     supervisor: tuple[VisualSupervisorSignal, ...] = ()
     rl: tuple[VisualRLEpisode, ...] = ()
@@ -221,6 +242,7 @@ class VisualNetworkState:
             "memory": tuple(item.as_record() for item in self.memory),
             "economy": tuple(item.as_record() for item in self.economy),
             "neural": tuple(item.as_record() for item in self.neural),
+            "cognitive": tuple(item.as_record() for item in self.cognitive),
             "rl": tuple(item.as_record() for item in self.rl),
             "compute": tuple(item.as_record() for item in self.compute),
             "supervisor": tuple(item.as_record() for item in self.supervisor),

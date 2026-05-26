@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import ipaddress
 import json
+import hmac
 import os
 import secrets
 import subprocess
@@ -36,6 +38,10 @@ DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPOR
 DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
 DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = os.environ.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300")
 DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST = os.environ.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "").strip()
+DEFAULT_API_JWT_HS256_SECRET = os.environ.get("FLOW_MEMORY_API_JWT_HS256_SECRET", "").strip()
+DEFAULT_API_JWT_ISSUER = os.environ.get("FLOW_MEMORY_API_JWT_ISSUER", "").strip()
+DEFAULT_API_JWT_AUDIENCE = os.environ.get("FLOW_MEMORY_API_JWT_AUDIENCE", "").strip()
+DEFAULT_API_JWT_LEEWAY_SECONDS = os.environ.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS", "").strip()
 DEPLOY_PATHS = (
     "Dockerfile.compute-market",
     "render.yaml",
@@ -223,6 +229,81 @@ def provider_callback_ip_allowlist_from_env(values: dict[str, str]) -> str:
             ),
         )
     return allowlist
+
+
+def validate_gateway_jwt_config(secret: str, issuer: str, audience: str, leeway_seconds: str) -> None:
+    configured = any((secret, issuer, audience))
+    if not configured:
+        return
+
+    missing: list[str] = []
+    if not secret or has_placeholder(secret):
+        missing.append("FLOW_MEMORY_API_JWT_HS256_SECRET")
+    if not issuer or has_placeholder(issuer):
+        missing.append("FLOW_MEMORY_API_JWT_ISSUER")
+    if not audience or has_placeholder(audience):
+        missing.append("FLOW_MEMORY_API_JWT_AUDIENCE")
+    if missing:
+        emit(
+            "blocked_incomplete_gateway_jwt",
+            32,
+            missing_values=missing,
+            required_action=(
+                "configure FLOW_MEMORY_API_JWT_HS256_SECRET, FLOW_MEMORY_API_JWT_ISSUER, "
+                "and FLOW_MEMORY_API_JWT_AUDIENCE together for public gateway JWT auth"
+            ),
+        )
+
+    if len(secret) < 32:
+        emit(
+            "blocked_weak_gateway_jwt_secret",
+            32,
+            invalid_value="FLOW_MEMORY_API_JWT_HS256_SECRET",
+            required_action="use a high-entropy gateway JWT HS256 secret with at least 32 characters",
+        )
+    if not issuer.startswith("https://"):
+        emit(
+            "blocked_insecure_gateway_jwt_issuer",
+            32,
+            invalid_value="FLOW_MEMORY_API_JWT_ISSUER",
+            required_scheme="https",
+            required_action="use an https:// issuer URL for public gateway JWT auth",
+        )
+    try:
+        leeway = int(leeway_seconds)
+    except ValueError:
+        emit(
+            "blocked_invalid_gateway_jwt_leeway",
+            32,
+            invalid_value="FLOW_MEMORY_API_JWT_LEEWAY_SECONDS",
+            required_action="set FLOW_MEMORY_API_JWT_LEEWAY_SECONDS to a non-negative integer",
+        )
+        return
+    if leeway < 0:
+        emit(
+            "blocked_invalid_gateway_jwt_leeway",
+            32,
+            invalid_value="FLOW_MEMORY_API_JWT_LEEWAY_SECONDS",
+            required_action="set FLOW_MEMORY_API_JWT_LEEWAY_SECONDS to a non-negative integer",
+        )
+
+
+def gateway_jwt_config_from_env(values: dict[str, str]) -> dict[str, str]:
+    secret = DEFAULT_API_JWT_HS256_SECRET or values.get("FLOW_MEMORY_API_JWT_HS256_SECRET", "")
+    issuer = DEFAULT_API_JWT_ISSUER or values.get("FLOW_MEMORY_API_JWT_ISSUER", "")
+    audience = DEFAULT_API_JWT_AUDIENCE or values.get("FLOW_MEMORY_API_JWT_AUDIENCE", "")
+    leeway_seconds = DEFAULT_API_JWT_LEEWAY_SECONDS or values.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS", "60")
+    secret = secret.strip()
+    issuer = issuer.strip()
+    audience = audience.strip()
+    leeway_seconds = leeway_seconds.strip() or "60"
+    validate_gateway_jwt_config(secret, issuer, audience, leeway_seconds)
+    return {
+        "FLOW_MEMORY_API_JWT_HS256_SECRET": secret,
+        "FLOW_MEMORY_API_JWT_ISSUER": issuer,
+        "FLOW_MEMORY_API_JWT_AUDIENCE": audience,
+        "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": leeway_seconds,
+    }
 
 
 def has_placeholder(value: str) -> bool:
@@ -497,6 +578,10 @@ def build_env_vars(
     audit_export_immutable_required: str = DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
     audit_export_s3_region: str = DEFAULT_AUDIT_EXPORT_S3_REGION,
     audit_export_s3_endpoint_url: str = DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
+    jwt_hs256_secret: str = "",
+    jwt_issuer: str = "",
+    jwt_audience: str = "",
+    jwt_leeway_seconds: str = "60",
     alert_webhook_url: str = "",
     alert_webhook_secret: str = "",
     alert_webhook_timeout_ms: str = "2000",
@@ -533,11 +618,16 @@ def build_env_vars(
     provider_callback_ip_allowlist_from_env(
         {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist}
     )
+    validate_gateway_jwt_config(jwt_hs256_secret, jwt_issuer, jwt_audience, jwt_leeway_seconds)
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
         "FLOW_MEMORY_API_KEY": api_key_value,
         "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
+        "FLOW_MEMORY_API_JWT_HS256_SECRET": jwt_hs256_secret,
+        "FLOW_MEMORY_API_JWT_ISSUER": jwt_issuer,
+        "FLOW_MEMORY_API_JWT_AUDIENCE": jwt_audience,
+        "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": jwt_leeway_seconds,
         "FLOW_MEMORY_API_RATE_LIMIT": "120",
         "FLOW_MEMORY_API_RATE_LIMIT_WINDOW_SECONDS": "60",
         "FLOW_MEMORY_API_MAX_BODY_BYTES": "1048576",
@@ -710,7 +800,36 @@ def call_text(method: str, url: str, headers: dict[str, str] | None = None) -> t
         return 0, str(exc)
 
 
-def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def gateway_jwt_bearer_token(secret: str, issuer: str, audience: str, scopes: str) -> str:
+    now = int(time.time())
+    header = {"alg": "HS256", "typ": "JWT"}
+    claims = {
+        "sub": "render-public-smoke",
+        "iss": issuer,
+        "aud": audience,
+        "iat": now,
+        "exp": now + 300,
+        "scope": scopes,
+    }
+    signing_input = ".".join(
+        (
+            _b64url(json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")),
+            _b64url(json.dumps(claims, separators=(",", ":"), sort_keys=True).encode("utf-8")),
+        )
+    )
+    signature = hmac.new(secret.encode("utf-8"), signing_input.encode("ascii"), "sha256").digest()
+    return f"{signing_input}.{_b64url(signature)}"
+
+
+def smoke_public(
+    base_url: str,
+    api_key_value: str,
+    gateway_jwt: dict[str, str] | None = None,
+) -> dict[str, Any]:
     base = base_url.rstrip("/")
     if not base.startswith("https://"):
         return {
@@ -738,6 +857,23 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, plan_body)
+    jwt_secret = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_HS256_SECRET", ""))
+    if jwt_secret:
+        jwt_issuer = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_ISSUER", ""))
+        jwt_audience = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_AUDIENCE", ""))
+        jwt_scopes = "compute:read compute:plan compute:audit compute:admin"
+        jwt_token = gateway_jwt_bearer_token(jwt_secret, jwt_issuer, jwt_audience, jwt_scopes)
+        bad_jwt_token = gateway_jwt_bearer_token(jwt_secret, jwt_issuer, f"{jwt_audience}-wrong", jwt_scopes)
+        checks["jwt_health"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            {"authorization": f"Bearer {jwt_token}", "x-flow-memory-scopes": "compute:read"},
+        )
+        checks["jwt_wrong_audience"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            {"authorization": f"Bearer {bad_jwt_token}", "x-flow-memory-scopes": "compute:read"},
+        )
     health_ok = checks["health"][0] == 200 and checks["health"][1].get("ok") is True
     readiness_payload = checks["readiness"][1].get("data", {}) if isinstance(checks["readiness"][1], dict) else {}
     safety = readiness_payload.get("production_safety_defaults", {})
@@ -773,6 +909,9 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             checks["alerts"][1].get("ok") is True,
             checks["telemetry"][0] == 200,
             checks["telemetry"][1].get("ok") is True,
+            (not jwt_secret or checks["jwt_health"][0] == 200),
+            (not jwt_secret or checks["jwt_health"][1].get("ok") is True),
+            (not jwt_secret or checks["jwt_wrong_audience"][0] == 401),
             audit_ok,
             checks["admin_audit_export"][0] == 200,
             checks["admin_storage_diagnostics"][0] == 200,
@@ -895,6 +1034,7 @@ def main() -> int:
     )
     otlp_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS", "5000")
     provider_callback_ip_allowlist = provider_callback_ip_allowlist_from_env(env_values)
+    gateway_jwt = gateway_jwt_config_from_env(env_values)
     owner_id = infer_owner_id(args.api_key, args.owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
@@ -923,6 +1063,10 @@ def main() -> int:
             audit_export_retention_days=audit_export_retention_days,
             audit_export_immutable_required=audit_export_immutable_required,
             audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
+            jwt_hs256_secret=gateway_jwt["FLOW_MEMORY_API_JWT_HS256_SECRET"],
+            jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
+            jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],
+            jwt_leeway_seconds=gateway_jwt["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"],
             alert_webhook_url=alert_webhook_url,
             alert_webhook_secret=alert_webhook_secret,
             alert_webhook_timeout_ms=alert_webhook_timeout_ms,
@@ -953,6 +1097,10 @@ def main() -> int:
             audit_export_retention_days=audit_export_retention_days,
             audit_export_immutable_required=audit_export_immutable_required,
             audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
+            jwt_hs256_secret=gateway_jwt["FLOW_MEMORY_API_JWT_HS256_SECRET"],
+            jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
+            jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],
+            jwt_leeway_seconds=gateway_jwt["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"],
             alert_webhook_url=alert_webhook_url,
             alert_webhook_secret=alert_webhook_secret,
             alert_webhook_timeout_ms=alert_webhook_timeout_ms,
@@ -968,7 +1116,7 @@ def main() -> int:
         trigger_service_deploy(args.api_key, str(service["id"]))
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
-            last_smoke = smoke_public(url, api_key_value)
+            last_smoke = smoke_public(url, api_key_value, gateway_jwt)
             if last_smoke.get("ok") is True:
                 emit(
                     "public_level_1_live",

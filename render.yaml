@@ -18,6 +18,14 @@ services:
         generateValue: true
       - key: FLOW_MEMORY_API_REQUIRE_SCOPES
         value: true
+      - key: FLOW_MEMORY_API_JWT_HS256_SECRET
+        sync: false
+      - key: FLOW_MEMORY_API_JWT_ISSUER
+        value: ""
+      - key: FLOW_MEMORY_API_JWT_AUDIENCE
+        value: ""
+      - key: FLOW_MEMORY_API_JWT_LEEWAY_SECONDS
+        value: 60
       - key: FLOW_MEMORY_API_RATE_LIMIT
         value: 120
       - key: FLOW_MEMORY_API_RATE_LIMIT_WINDOW_SECONDS

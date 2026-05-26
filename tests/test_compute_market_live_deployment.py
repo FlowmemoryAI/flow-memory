@@ -18,6 +18,10 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
     template = (ROOT / "deployments" / "compute-market" / "live.env.example").read_text(encoding="utf-8")
 
     for required in (
+        "FLOW_MEMORY_API_JWT_HS256_SECRET=",
+        "FLOW_MEMORY_API_JWT_ISSUER=",
+        "FLOW_MEMORY_API_JWT_AUDIENCE=",
+        "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS=60",
         "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
@@ -90,6 +94,10 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
 
     assert "Direct blueprint deploys cannot infer public egress CIDRs" in blueprint
     assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
+    assert "FLOW_MEMORY_API_JWT_HS256_SECRET\n        sync: false" in blueprint
+    assert "FLOW_MEMORY_API_JWT_ISSUER\n        value: \"\"" in blueprint
+    assert "FLOW_MEMORY_API_JWT_AUDIENCE\n        value: \"\"" in blueprint
+    assert "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS\n        value: 60" in blueprint
 
 
 def test_render_deploy_requires_https_public_url_before_smoke() -> None:
@@ -104,6 +112,110 @@ def test_render_deploy_requires_https_public_url_before_smoke() -> None:
     assert blocked.value.code == 33
     assert smoke["ok"] is False
     assert smoke["reason"] == "public_url_must_use_https_tls"
+
+def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []
+    jwt_health_calls = 0
+
+    def fake_call_json(method: str, url: str, headers=None, body=None):
+        nonlocal jwt_health_calls
+        calls.append((method, url, headers, body))
+        scopes = (headers or {}).get("x-flow-memory-scopes", "")
+        if url == "https://api.example.test/":
+            return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
+        if url.endswith("/compute/health") and (headers or {}).get("authorization"):
+            jwt_health_calls += 1
+            if jwt_health_calls == 1:
+                return 200, {"ok": True, "data": {"ok": True}}
+            return 401, {"ok": False, "error": {"code": "auth.invalid"}}
+        if url.endswith("/compute/health") and not (headers or {}).get("x-flow-memory-api-key"):
+            return 401, {"ok": False, "error": {"code": "auth.required"}}
+        if url.endswith("/compute/health"):
+            return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/readiness"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ready": True,
+                    "storage": {"backend": "postgres"},
+                    "rate_limiter_status": {"backend": "redis"},
+                    "circuit_breaker_status": {"backend": "redis"},
+                    "production_safety_defaults": {
+                        "rate_limit_backend": "redis",
+                        "circuit_breaker_backend": "redis",
+                        "require_managed_redis_in_production": True,
+                        "redis_url_scheme": "rediss",
+                    },
+                },
+            }
+        if url.endswith("/compute/plan") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
+        if url.endswith("/compute/plan"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "compute_plan": {
+                        "dry_run_only": True,
+                        "funds_moved": False,
+                        "broadcast_allowed": False,
+                        "private_key_required": False,
+                    }
+                },
+            }
+        if url.endswith("/compute/audit/verify"):
+            return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/admin/audit/export"):
+            return 200, {"ok": True, "data": {"immutable": True}}
+        if url.endswith("/admin/storage/diagnostics"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "schema_verification": {
+                        "ok": True,
+                        "missing_tables": [],
+                        "missing_indexes": [],
+                        "advisory_lock_probe": {"acquired": True},
+                    }
+                },
+            }
+        if url.endswith("/admin/redis/diagnostics"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "rate_limit_probe": {"ok": True},
+                    "circuit_breaker_probe": {"ok": True},
+                    "rate_limit_fail_closed": True,
+                    "circuit_breaker_fail_closed": True,
+                },
+            }
+        if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
+            return 200, {"ok": True, "data": {}}
+        raise AssertionError(f"unexpected JSON call: {method} {url}")
+
+    def fake_call_text(method: str, url: str, headers=None):
+        calls.append((method, url, headers, None))
+        return 200, "compute_plan_requests_total 1\n"
+
+    monkeypatch.setattr(render_deploy, "call_json", fake_call_json)
+    monkeypatch.setattr(render_deploy, "call_text", fake_call_text)
+
+    result = render_deploy.smoke_public(
+        "https://api.example.test",
+        "api-key",
+        {
+            "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-jwt-secret-with-at-least-32-characters",
+            "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+            "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+        },
+    )
+
+    jwt_calls = [call for call in calls if call[2] and call[2].get("authorization", "").startswith("Bearer ")]
+    assert result["ok"] is True
+    assert result["statuses"]["jwt_health"] == 200
+    assert result["statuses"]["jwt_wrong_audience"] == 401
+    assert len(jwt_calls) == 2
+    assert jwt_calls[0][2]["x-flow-memory-scopes"] == "compute:read"
 
 
 def test_render_blueprint_preserves_billing_safety_defaults() -> None:
@@ -130,6 +242,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '"alerts": checks["alerts"][0]' in render_script
     assert '"telemetry": checks["telemetry"][0]' in render_script
     assert "deployments/compute-market/prometheus-alerts.yml" in render_script
+    assert 'checks["jwt_health"] = call_json(' in render_script
+    assert 'checks["jwt_wrong_audience"] = call_json(' in render_script
 
 
 def test_public_buildout_validator_requires_observability_endpoints() -> None:
@@ -236,6 +350,10 @@ def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"] == ""
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"] == ""
     assert env_vars["FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST"] == ""
+    assert env_vars["FLOW_MEMORY_API_JWT_HS256_SECRET"] == ""
+    assert env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == ""
+    assert env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == ""
+    assert env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "60"
 
 
 def test_render_env_builder_binds_https_observability_sinks() -> None:
@@ -343,6 +461,79 @@ def test_render_env_builder_propagates_and_validates_provider_callback_ip_allowl
     assert missing.value.code == 30
     assert world_open.value.code == 31
     assert placeholder.value.code == 31
+
+def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_HS256_SECRET", "")
+    monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_ISSUER", "")
+    monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_AUDIENCE", "")
+    monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_LEEWAY_SECONDS", "")
+
+    jwt_secret = "gateway-jwt-secret-with-at-least-32-characters"
+    env_vars = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_s3_region="us-east-1",
+            jwt_hs256_secret=jwt_secret,
+            jwt_issuer="https://issuer.example",
+            jwt_audience="flow-memory-api",
+            jwt_leeway_seconds="45",
+        )
+    }
+    parsed = render_deploy.gateway_jwt_config_from_env(
+        {
+            "FLOW_MEMORY_API_JWT_HS256_SECRET": jwt_secret,
+            "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+            "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+            "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": "45",
+        }
+    )
+
+    assert env_vars["FLOW_MEMORY_API_JWT_HS256_SECRET"] == jwt_secret
+    assert env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == "https://issuer.example"
+    assert env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == "flow-memory-api"
+    assert env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "45"
+    assert parsed["FLOW_MEMORY_API_JWT_HS256_SECRET"] == jwt_secret
+    with pytest.raises(SystemExit) as missing:
+        render_deploy.gateway_jwt_config_from_env(
+            {
+                "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+            }
+        )
+    with pytest.raises(SystemExit) as weak:
+        render_deploy.gateway_jwt_config_from_env(
+            {
+                "FLOW_MEMORY_API_JWT_HS256_SECRET": "short-secret",
+                "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+            }
+        )
+    with pytest.raises(SystemExit) as insecure_issuer:
+        render_deploy.gateway_jwt_config_from_env(
+            {
+                "FLOW_MEMORY_API_JWT_HS256_SECRET": jwt_secret,
+                "FLOW_MEMORY_API_JWT_ISSUER": "http://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+            }
+        )
+    with pytest.raises(SystemExit) as invalid_leeway:
+        render_deploy.gateway_jwt_config_from_env(
+            {
+                "FLOW_MEMORY_API_JWT_HS256_SECRET": jwt_secret,
+                "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+                "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": "-1",
+            }
+        )
+
+    assert missing.value.code == 32
+    assert weak.value.code == 32
+    assert insecure_issuer.value.code == 32
+    assert invalid_leeway.value.code == 32
 
 def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_POSTGRES_PLAN", "free")

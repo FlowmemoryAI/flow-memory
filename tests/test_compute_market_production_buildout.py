@@ -1515,13 +1515,25 @@ def test_compute_job_failure_and_invalid_transitions_are_rejected() -> None:
 
 def test_compute_job_retry_and_cancel_remain_dry_run_safe() -> None:
     service = _service()
-    job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    tenant_id = "tenant_job_state"
+    workspace_id = "workspace_job_state"
+    job_id = str(
+        service.create_job({**_job_payload(), "tenant_id": tenant_id, "workspace_id": workspace_id})["job"][
+            "job_id"
+        ]
+    )
 
-    retried = service.retry_job(job_id, {})
+    retried = service.retry_job(job_id, {"tenant_id": tenant_id})
     assert retried["job"]["attempt"] == 1
-    cancelled = service.cancel_job(job_id, {"reason": "operator test"})
+    cancelled = service.cancel_job(job_id, {"tenant_id": tenant_id, "reason": "operator test"})
+    tenant_jobs = service.store.list_records("compute_job", filters={"tenant_id": tenant_id}).records
+    tenant_events = service.store.list_records("compute_job_event", filters={"tenant_id": tenant_id}).records
+
     assert cancelled["job"]["status"] == "cancelled"
-    assert service.job_events(job_id)["events"]
+    assert service.job_events(job_id, {"tenant_id": tenant_id})["events"]
+    assert len(tenant_jobs) == 1
+    assert tenant_jobs[0]["status"] == "cancelled"
+    assert {event["event_type"] for event in tenant_events} == {"job.queued", "job.retry_queued", "job.cancelled"}
 
 
 def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signature() -> None:
@@ -1539,6 +1551,47 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert webhook["payment_event"]["verified"] is True
     assert webhook["credit_transaction"]["amount"] == 100.0
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
+
+
+def test_billing_webhook_duplicate_delivery_is_idempotent() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_duplicate_delivery",
+        "type": "checkout.session.completed",
+        "amount_total": 4200,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_duplicate"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+
+    first = service.billing_webhook_stripe(
+        {"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature}
+    )
+    replay = service.billing_webhook_stripe(
+        {"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature}
+    )
+    tampered_replay = service.billing_webhook_stripe(
+        {
+            "raw_event": {**raw_event, "amount_total": 9900},
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash({**raw_event, "amount_total": 9900}).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+
+    assert first["ok"] is True
+    assert replay["ok"] is True
+    assert replay["idempotent_replay"] is True
+    assert replay["credit_transaction"]["credit_transaction_id"] == first["credit_transaction"]["credit_transaction_id"]
+    assert tampered_replay["ok"] is False
+    assert tampered_replay["error"]["error_code"] == "billing.webhook.event_id_hash_mismatch"
+    assert service.store.count_records("payment_event") == 1
+    assert service.store.count_records("credit_transaction") == 1
+    assert service.billing_balance({"account_id": "acct_duplicate"})["balance"]["available_credits"] == 42.0
 
 
 def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:

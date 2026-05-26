@@ -1394,7 +1394,17 @@ class ComputeMarketService:
             workspace_id=str(job.get("workspace_id", "")),
         )
         event = _job_event(str(job["job_id"]), "job.queued", status=str(job["status"]), request_id=request_id, details={"dry_run_only": True})
-        self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=provider_id, route_id=route_id, status=str(job["status"]), request_id=request_id)
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=provider_id,
+            route_id=route_id,
+            status=str(job["status"]),
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
         self.telemetry.increment("compute_job_started_total", {"task_type": str(job["task_type"])})
         self._audit("compute.job.queued", payload, request_id=request_id, result="queued", provider_id=provider_id, route_id=route_id)
         return {"ok": True, "job": job, "event": event}
@@ -1604,6 +1614,8 @@ class ComputeMarketService:
             expires_at=str(job.get("lease_expires_at", "")),
             request_id=request_id,
             actor_id=worker_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
         )
         event = _job_event(
             job_id,
@@ -1621,6 +1633,8 @@ class ComputeMarketService:
             status="running",
             request_id=request_id,
             actor_id=worker_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
         )
         self.telemetry.increment("compute_job_started_total", {"task_type": str(job.get("task_type", ""))})
         self._audit(
@@ -1919,9 +1933,31 @@ class ComputeMarketService:
             return {"ok": True, "job": job, "unchanged": True}
         cancelled_at = utc_now_iso()
         job.update({"status": "cancelled", "cancelled_at": cancelled_at, "updated_at": cancelled_at, "lease_expires_at": ""})
-        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="cancelled", expires_at="", request_id=request_id)
+        self.store.put_record(
+            "compute_job",
+            job_id,
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="cancelled",
+            expires_at="",
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
         event = _job_event(job_id, "job.cancelled", status="cancelled", request_id=request_id, details={"reason": str(payload.get("reason", ""))})
-        self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), status="cancelled", request_id=request_id)
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status="cancelled",
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
         self._audit("compute.job.cancelled", payload, request_id=request_id, result="cancelled", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
         return {"ok": True, "job": job, "event": event}
 
@@ -1931,9 +1967,31 @@ class ComputeMarketService:
         retry_at = utc_now_iso()
         attempts = int(job.get("attempt", 0) or 0) + 1
         job.update({"status": "queued", "attempt": attempts, "retried_at": retry_at, "updated_at": retry_at, "claimed_by": "", "lease_expires_at": "", "worker_capabilities": ()})
-        self.store.put_record("compute_job", job_id, job, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), task_type=str(job.get("task_type", "")), status="queued", expires_at="", request_id=request_id)
+        self.store.put_record(
+            "compute_job",
+            job_id,
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="queued",
+            expires_at="",
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
         event = _job_event(job_id, "job.retry_queued", status="queued", request_id=request_id, details={"attempt": attempts})
-        self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")), status="queued", request_id=request_id)
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            status="queued",
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
         self._audit("compute.job.retry_queued", payload, request_id=request_id, result="queued", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
         return {"ok": True, "job": job, "event": event}
 
@@ -1991,6 +2049,8 @@ class ComputeMarketService:
                 expires_at=lease_expires_at,
                 request_id=request_id,
                 actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
             )
             if not claimed:
                 continue
@@ -2016,6 +2076,8 @@ class ComputeMarketService:
                 status="dispatched",
                 request_id=request_id,
                 actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
             )
             self._audit(
                 "compute.job.claimed",
@@ -2285,6 +2347,52 @@ class ComputeMarketService:
         credit_currency = str(credit["currency"])
         failure = _stripe_failure(raw_event)
         status = _stripe_payment_event_status(event_type, verified)
+        raw_event_hash = content_hash(raw_event)
+        existing = self.store.get_record("payment_event", event_id)
+        if existing is not None:
+            if str(existing.get("raw_event_hash", "")) != raw_event_hash:
+                error = compute_error(
+                    "billing.webhook.event_id_hash_mismatch",
+                    "Stripe webhook event_id replay used a different raw event hash.",
+                    details={"payment_event_id": event_id, "provider": "stripe"},
+                    request_id=request_id,
+                )
+                self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
+                self._audit(
+                    "billing.webhook.replay_rejected",
+                    payload,
+                    request_id=request_id,
+                    result="rejected",
+                    reason_codes=("billing.webhook.event_id_hash_mismatch",),
+                )
+                return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": False}
+            if not verified:
+                error = compute_error(
+                    "billing.webhook.signature_required",
+                    "Stripe webhook replay requires a valid webhook signature.",
+                    details={"payment_event_id": event_id, "provider": "stripe"},
+                    request_id=request_id,
+                )
+                self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
+                self._audit(
+                    "billing.webhook.replay_rejected",
+                    payload,
+                    request_id=request_id,
+                    result="rejected",
+                    reason_codes=("billing.webhook.signature_required",),
+                )
+                return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": True}
+            if bool(existing.get("verified", False)):
+                existing_account_id = str(existing.get("account_id", ""))
+                credit_transaction: Mapping[str, Any] = {}
+                if existing_account_id:
+                    credit_transaction_id = deterministic_id(
+                        "credit_transaction",
+                        {"account_id": existing_account_id, "source_event_id": event_id, "type": "credit"},
+                    )
+                    credit_transaction = self.store.get_record("credit_transaction", credit_transaction_id) or {}
+                self._audit("billing.webhook.replayed", payload, request_id=request_id, result=str(existing.get("status", "verified")))
+                return {"ok": True, "payment_event": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
         reason_codes = _stripe_webhook_reason_codes(status, failure)
         record = {
             "payment_event_id": event_id,
@@ -2293,7 +2401,7 @@ class ComputeMarketService:
             "event_type": event_type,
             "verified": verified,
             "status": status,
-            "raw_event_hash": content_hash(raw_event),
+            "raw_event_hash": raw_event_hash,
             "amount": credit_amount,
             "currency": credit_currency,
             "failure_recorded": bool(failure),

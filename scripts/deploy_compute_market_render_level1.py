@@ -170,6 +170,15 @@ def _truthy_env(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _bool_setting(values: dict[str, str], key: str, default: bool) -> bool:
+    raw = values.get(key, "")
+    if not raw:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+
+
 def normalized_bool_text(value: str) -> str:
     lowered = value.strip().lower()
     if lowered in {"1", "true", "yes", "on"}:
@@ -346,15 +355,25 @@ def has_placeholder(value: str) -> bool:
     return any(token in value for token in PLACEHOLDERS)
 
 
-def validate_render_plans() -> None:
-    if ALLOW_FREE_RENDER_PLANS:
+def validate_render_plans(
+    *,
+    postgres_plan: str | None = None,
+    keyvalue_plan: str | None = None,
+    service_plan: str | None = None,
+    allow_free: bool | None = None,
+) -> None:
+    postgres_plan = DEFAULT_POSTGRES_PLAN if postgres_plan is None else postgres_plan
+    keyvalue_plan = DEFAULT_KEYVALUE_PLAN if keyvalue_plan is None else keyvalue_plan
+    service_plan = DEFAULT_SERVICE_PLAN if service_plan is None else service_plan
+    allow_free = ALLOW_FREE_RENDER_PLANS if allow_free is None else allow_free
+    if allow_free:
         return
     free_plans = [
         {"env": env_name, "value": value}
         for env_name, value in (
-            ("RENDER_POSTGRES_PLAN", DEFAULT_POSTGRES_PLAN),
-            ("RENDER_KEYVALUE_PLAN", DEFAULT_KEYVALUE_PLAN),
-            ("RENDER_SERVICE_PLAN", DEFAULT_SERVICE_PLAN),
+            ("RENDER_POSTGRES_PLAN", postgres_plan),
+            ("RENDER_KEYVALUE_PLAN", keyvalue_plan),
+            ("RENDER_SERVICE_PLAN", service_plan),
         )
         if value.strip().lower() == "free"
     ]
@@ -496,14 +515,15 @@ def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
     return wait_deploy_live(api_key, service_id, deploy_id)
 
 
-def ensure_postgres(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
+def ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str | None = None) -> dict[str, Any]:
     existing = find_named(api_key, "/postgres", "postgres", owner_id, POSTGRES_NAME)
     if existing is not None:
         return existing
+    plan = DEFAULT_POSTGRES_PLAN if plan is None else plan
     body = {
         "name": POSTGRES_NAME,
         "ownerId": owner_id,
-        "plan": DEFAULT_POSTGRES_PLAN,
+        "plan": plan,
         "version": "16",
         "databaseName": "flow_memory",
         "databaseUser": "flow_memory",
@@ -551,19 +571,27 @@ def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
     return [{"source": entry, "description": "flow-memory-compute-market-redis-tls"} for entry in entries]
 
 
-def ensure_keyvalue(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
+def ensure_keyvalue(
+    api_key: str,
+    owner_id: str,
+    region: str,
+    *,
+    plan: str | None = None,
+    ip_allowlist: str | None = None,
+) -> dict[str, Any]:
     existing = find_named(api_key, "/key-value", "keyValue", owner_id, KEYVALUE_NAME)
     if existing is not None:
         return existing
+    plan = DEFAULT_KEYVALUE_PLAN if plan is None else plan
     body = {
         "name": KEYVALUE_NAME,
         "ownerId": owner_id,
-        "plan": DEFAULT_KEYVALUE_PLAN,
+        "plan": plan,
         "region": region,
         "maxmemoryPolicy": "noeviction",
-        "ipAllowList": keyvalue_ip_allow_list(),
+        "ipAllowList": keyvalue_ip_allow_list(ip_allowlist),
     }
-    if DEFAULT_KEYVALUE_PLAN != "free":
+    if plan != "free":
         body["persistenceMode"] = "journal_snapshot"
     return render_request(api_key, "POST", "/key-value", body)
 
@@ -765,11 +793,16 @@ def ensure_service(
     repo: str,
     branch: str,
     env_vars: list[dict[str, str]],
+    *,
+    plan: str | None = None,
+    enable_disk: bool | None = None,
 ) -> dict[str, Any]:
+    plan = DEFAULT_SERVICE_PLAN if plan is None else plan
+    enable_disk = ENABLE_RENDER_DISK if enable_disk is None else enable_disk
     existing = find_named(api_key, "/services", "service", owner_id, SERVICE_NAME)
     service_details = {
         "runtime": "docker",
-        "plan": DEFAULT_SERVICE_PLAN,
+        "plan": plan,
         "region": region,
         "numInstances": 1,
         "healthCheckPath": "/healthz",
@@ -779,7 +812,7 @@ def ensure_service(
             "dockerCommand": "flow-memory-api --host 0.0.0.0 --port 8765 --require-scopes",
         },
     }
-    if ENABLE_RENDER_DISK:
+    if enable_disk:
         service_details["disk"] = {"name": "compute-market-audit", "mountPath": "/var/lib/flow-memory/audit", "sizeGB": 10}
     if existing is not None:
         service_id = str(existing["id"])
@@ -1042,17 +1075,34 @@ def infer_owner_id(api_key: str, owner_id: str) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Deploy Flow Memory Compute Market Level 1 to Render")
     parser.add_argument("--env-file", default=".env.compute-market.live")
+    parser.add_argument("--allow-free-plans", action="store_true", default=False)
     parser.add_argument("--api-key", default=os.environ.get("RENDER_API_KEY", ""))
     parser.add_argument("--owner-id", default=os.environ.get("RENDER_OWNER_ID", ""))
-    parser.add_argument("--region", default=os.environ.get("RENDER_REGION", "oregon"))
+    parser.add_argument("--region", default=os.environ.get("RENDER_REGION", ""))
     parser.add_argument("--branch", default=os.environ.get("RENDER_BRANCH", ""))
     parser.add_argument("--repo-url", default=os.environ.get("RENDER_REPO_URL", ""))
     args = parser.parse_args()
-
-    if not args.api_key:
-        emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
-    validate_render_plans()
     env_values = parse_env(Path(args.env_file))
+    render_api_key = args.api_key or env_values.get("RENDER_API_KEY", "")
+    render_owner_id = args.owner_id or env_values.get("RENDER_OWNER_ID", "")
+    render_region = args.region or env_values.get("RENDER_REGION", "oregon")
+    render_branch = args.branch or env_values.get("RENDER_BRANCH", "")
+    render_repo_url = args.repo_url or env_values.get("RENDER_REPO_URL", "")
+    render_postgres_plan = env_values.get("RENDER_POSTGRES_PLAN", "") or DEFAULT_POSTGRES_PLAN
+    render_keyvalue_plan = env_values.get("RENDER_KEYVALUE_PLAN", "") or DEFAULT_KEYVALUE_PLAN
+    render_service_plan = env_values.get("RENDER_SERVICE_PLAN", "") or DEFAULT_SERVICE_PLAN
+    render_keyvalue_ip_allowlist = env_values.get("RENDER_KEYVALUE_IP_ALLOWLIST", "") or DEFAULT_KEYVALUE_IP_ALLOWLIST
+    render_enable_disk = _bool_setting(env_values, "RENDER_ENABLE_DISK", ENABLE_RENDER_DISK)
+    render_allow_free_plans = args.allow_free_plans or _bool_setting(env_values, "RENDER_ALLOW_FREE_PLANS", ALLOW_FREE_RENDER_PLANS)
+
+    if not render_api_key or has_placeholder(render_api_key):
+        emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
+    validate_render_plans(
+        postgres_plan=render_postgres_plan,
+        keyvalue_plan=render_keyvalue_plan,
+        service_plan=render_service_plan,
+        allow_free=render_allow_free_plans,
+    )
     assert_level1_safety_settings(env_values)
     audit_export_uri = audit_export_uri_from_env(env_values)
     audit_export_s3_region = audit_export_s3_region_from_env(env_values)
@@ -1103,23 +1153,29 @@ def main() -> int:
     otlp_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS", "5000")
     provider_callback_ip_allowlist = provider_callback_ip_allowlist_from_env(env_values)
     gateway_jwt = gateway_jwt_config_from_env(env_values)
-    owner_id = infer_owner_id(args.api_key, args.owner_id)
+    owner_id = infer_owner_id(render_api_key, render_owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
     if not api_key_value or has_placeholder(api_key_value):
         api_key_value = "fmk_live_" + secrets.token_urlsafe(48)
 
-    branch = args.branch or current_branch()
-    repo = args.repo_url or public_repo_url()
+    branch = render_branch or current_branch()
+    repo = render_repo_url or public_repo_url()
     assert_branch_is_publishable(branch)
 
     try:
-        postgres = ensure_postgres(args.api_key, owner_id, args.region)
-        keyvalue = ensure_keyvalue(args.api_key, owner_id, args.region)
-        postgres = wait_available(args.api_key, "/postgres", str(postgres["id"]), "postgres")
-        keyvalue = wait_available(args.api_key, "/key-value", str(keyvalue["id"]), "keyvalue")
-        pg_conn = render_request(args.api_key, "GET", f"/postgres/{urllib.parse.quote(str(postgres['id']))}/connection-info")
-        kv_conn = render_request(args.api_key, "GET", f"/key-value/{urllib.parse.quote(str(keyvalue['id']))}/connection-info")
+        postgres = ensure_postgres(render_api_key, owner_id, render_region, plan=render_postgres_plan)
+        keyvalue = ensure_keyvalue(
+            render_api_key,
+            owner_id,
+            render_region,
+            plan=render_keyvalue_plan,
+            ip_allowlist=render_keyvalue_ip_allowlist,
+        )
+        postgres = wait_available(render_api_key, "/postgres", str(postgres["id"]), "postgres")
+        keyvalue = wait_available(render_api_key, "/key-value", str(keyvalue["id"]), "keyvalue")
+        pg_conn = render_request(render_api_key, "GET", f"/postgres/{urllib.parse.quote(str(postgres['id']))}/connection-info")
+        kv_conn = render_request(render_api_key, "GET", f"/key-value/{urllib.parse.quote(str(keyvalue['id']))}/connection-info")
         redis_url = select_managed_redis_url(kv_conn)
         env_vars = build_env_vars(
             api_key_value,
@@ -1146,10 +1202,10 @@ def main() -> int:
             otlp_timeout_ms=otlp_timeout_ms,
             provider_callback_ip_allowlist=provider_callback_ip_allowlist,
         )
-        service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
+        service = ensure_service(render_api_key, owner_id, render_region, repo, branch, env_vars, plan=render_service_plan, enable_disk=render_enable_disk)
         url = public_url(service)
         if not url:
-            service = render_request(args.api_key, "GET", f"/services/{urllib.parse.quote(str(service['id']))}")
+            service = render_request(render_api_key, "GET", f"/services/{urllib.parse.quote(str(service['id']))}")
             url = public_url(service)
         if not url:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
@@ -1180,8 +1236,8 @@ def main() -> int:
             otlp_timeout_ms=otlp_timeout_ms,
             provider_callback_ip_allowlist=provider_callback_ip_allowlist,
         )
-        render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
-        trigger_service_deploy(args.api_key, str(service["id"]))
+        render_request(render_api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
+        trigger_service_deploy(render_api_key, str(service["id"]))
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
             last_smoke = smoke_public(url, api_key_value, gateway_jwt)
@@ -1190,9 +1246,9 @@ def main() -> int:
                     "public_level_1_live",
                     0,
                     public_url=url,
-                    postgres=f"managed_render_postgres:{DEFAULT_POSTGRES_PLAN}",
-                    redis=f"managed_render_keyvalue:{DEFAULT_KEYVALUE_PLAN}",
-                    service_plan=DEFAULT_SERVICE_PLAN,
+                    postgres=f"managed_render_postgres:{render_postgres_plan}",
+                    redis=f"managed_render_keyvalue:{render_keyvalue_plan}",
+                    service_plan=render_service_plan,
                     audit_export_storage="s3_object_lock",
                     smoke="passed",
                     live_settlement_enabled=False,

@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -736,6 +737,135 @@ def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_
         "FLOW_MEMORY_COMPUTE_REDIS_URL",
     ]
     assert payload["missing_values"] == ["RENDER_API_KEY", "RENDER_KEYVALUE_IP_ALLOWLIST"]
+
+
+
+def test_render_deploy_main_uses_env_file_render_provisioning_values(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    env_file = tmp_path / "render.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RENDER_API_KEY=render_live_key_from_env_file",
+                "RENDER_OWNER_ID=owner_from_env_file",
+                "RENDER_REGION=frankfurt",
+                "RENDER_POSTGRES_PLAN=pro",
+                "RENDER_KEYVALUE_PLAN=pro",
+                "RENDER_SERVICE_PLAN=professional",
+                "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                "RENDER_BRANCH=work/squire-v2",
+                "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
+                "RENDER_ENABLE_DISK=true",
+                "FLOW_MEMORY_API_KEY=fmk_live_test_key",
+                "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
+                "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
+                "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED=false",
+                "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    calls: dict[str, object] = {}
+
+    def fake_ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str) -> dict[str, str]:
+        calls["postgres"] = {"api_key": api_key, "owner_id": owner_id, "region": region, "plan": plan}
+        return {"id": "pg_1"}
+
+    def fake_ensure_keyvalue(
+        api_key: str,
+        owner_id: str,
+        region: str,
+        *,
+        plan: str,
+        ip_allowlist: str | None = None,
+    ) -> dict[str, str]:
+        calls["keyvalue"] = {
+            "api_key": api_key,
+            "owner_id": owner_id,
+            "region": region,
+            "plan": plan,
+            "ip_allowlist": ip_allowlist,
+        }
+        return {"id": "kv_1"}
+
+    def fake_wait_available(api_key: str, path: str, resource_id: str, label: str) -> dict[str, str]:
+        return {"id": resource_id, "label": label, "path": path}
+
+    def fake_render_request(api_key: str, method: str, path: str, body=None):
+        if method == "GET" and path == "/postgres/pg_1/connection-info":
+            return {"internalConnectionString": "postgresql://postgres.internal/flow_memory"}
+        if method == "GET" and path == "/key-value/kv_1/connection-info":
+            return {"externalConnectionString": "rediss://redis.external:6379/0"}
+        if method == "PUT" and path == "/services/srv_1/env-vars":
+            calls["env_put"] = {"api_key": api_key, "body": body}
+            return {}
+        raise AssertionError(f"unexpected Render call: {method} {path}")
+
+    def fake_ensure_service(
+        api_key: str,
+        owner_id: str,
+        region: str,
+        repo: str,
+        branch: str,
+        env_vars: list[dict[str, str]],
+        *,
+        plan: str,
+        enable_disk: bool,
+    ) -> dict[str, object]:
+        calls["service"] = {
+            "api_key": api_key,
+            "owner_id": owner_id,
+            "region": region,
+            "repo": repo,
+            "branch": branch,
+            "plan": plan,
+            "enable_disk": enable_disk,
+            "env_vars": env_vars,
+        }
+        return {"id": "srv_1", "serviceDetails": {"url": "flow-memory-api.onrender.com"}}
+
+    monkeypatch.setattr(sys, "argv", ["deploy", "--env-file", str(env_file)])
+    monkeypatch.delenv("RENDER_API_KEY", raising=False)
+    monkeypatch.setattr(render_deploy, "ensure_postgres", fake_ensure_postgres)
+    monkeypatch.setattr(render_deploy, "ensure_keyvalue", fake_ensure_keyvalue)
+    monkeypatch.setattr(render_deploy, "wait_available", fake_wait_available)
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+    monkeypatch.setattr(render_deploy, "ensure_service", fake_ensure_service)
+    monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
+    monkeypatch.setattr(render_deploy, "smoke_public", lambda url, api_key, gateway_jwt=None: {"ok": True})
+    monkeypatch.setattr(render_deploy, "assert_branch_is_publishable", lambda branch: None)
+
+    with pytest.raises(SystemExit) as completed:
+        render_deploy.main()
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert completed.value.code == 0
+    assert payload["status"] == "public_level_1_live"
+    assert payload["postgres"] == "managed_render_postgres:pro"
+    assert payload["redis"] == "managed_render_keyvalue:pro"
+    assert payload["service_plan"] == "professional"
+    assert calls["postgres"] == {
+        "api_key": "render_live_key_from_env_file",
+        "owner_id": "owner_from_env_file",
+        "region": "frankfurt",
+        "plan": "pro",
+    }
+    assert calls["keyvalue"]["ip_allowlist"] == "203.0.113.10/32"
+    assert calls["service"]["plan"] == "professional"
+    assert calls["service"]["enable_disk"] is True
+    assert calls["env_put"]["api_key"] == "render_live_key_from_env_file"
 
 
 

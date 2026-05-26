@@ -33,6 +33,20 @@ class ApiRateLimitTests(unittest.TestCase):
         self.assertEqual(error.status, 429)
         self.assertEqual(error.code, "rate_limit.exceeded")
 
+    def test_tenants_have_isolated_rate_limit_buckets(self) -> None:
+        limiter = LocalRateLimiter(RateLimitRule(limit=1, window_seconds=60))
+        tenant_a = build_request_context("GET", "/agents", principal="alice", client_id="test", tenant_id="tenant_a")
+        tenant_b = build_request_context("GET", "/agents", principal="alice", client_id="test", tenant_id="tenant_b")
+
+        first_a = limiter.check(tenant_a, now=10)
+        second_a = limiter.check(tenant_a, now=11)
+        first_b = limiter.check(tenant_b, now=12)
+
+        self.assertTrue(first_a.ok)
+        self.assertFalse(second_a.ok)
+        self.assertTrue(first_b.ok)
+        self.assertNotEqual(first_a.key, first_b.key)
+
     def test_new_window_resets_count(self) -> None:
         limiter = LocalRateLimiter(RateLimitRule(limit=1, window_seconds=60))
         context = build_request_context("GET", "/agents", principal="alice", client_id="test")

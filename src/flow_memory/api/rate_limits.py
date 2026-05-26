@@ -86,5 +86,6 @@ class LocalRateLimiter:
 
 def _rate_key(context: RequestContext) -> str:
     principal = context.principal or "anonymous"
+    tenant_id = context.tenant_id or "tenant:*"
     client_id = context.client_id or "local"
-    return f"{principal}:{client_id}:{context.method}:{context.path}"
+    return f"{tenant_id}:{principal}:{client_id}:{context.method}:{context.path}"

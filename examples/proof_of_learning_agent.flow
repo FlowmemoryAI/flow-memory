@@ -1,0 +1,24 @@
+agent ProofLearningAgent {
+  goal: "turn local prediction errors into reusable proof of learning"
+
+  cognition {
+    predictive_core_enabled: true
+    prediction_error_learning: true
+    memory_consolidation_enabled: true
+  }
+
+  experience_graph {
+    enabled: true
+    experience_graph_enabled: true
+    proof_of_learning_enabled: true
+    reputation_tracking_enabled: true
+    contribution_edges_enabled: true
+    private_payload_exclusion_required: true
+    policy_edges_required: true
+  }
+
+  policy {
+    autonomy: "supervised"
+    approval_required: true
+  }
+}

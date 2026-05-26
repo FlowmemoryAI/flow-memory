@@ -75,6 +75,13 @@ const fixtureSpecs = [
     path: 'agent-genesis-onboarding.json',
     run_kind: 'genesis',
   },
+  {
+    fixture_id: 'experience-graph-proof-of-learning',
+    label: 'Proof of Learning',
+    description: 'Experience graph, proof-of-learning ledger, reputation, and privacy-preserving contribution replay.',
+    path: 'experience-graph-proof-of-learning.json',
+    run_kind: 'proof_of_learning',
+  },
 ];
 
 const safeLiveReadEndpoints = [
@@ -98,6 +105,10 @@ const safeLiveReadEndpoints = [
   'GET /genesis/agents/{agent_id}/genome',
   'GET /genesis/agents/{agent_id}/mirror',
   'GET /genesis/contributions',
+  'GET /experience-graph',
+  'GET /experience-graph/agents/{agent_id}',
+  'GET /proof-of-learning',
+  'GET /learning-reputation',
 ];
 
 
@@ -552,6 +563,80 @@ function renderAgentGenesisPanel(payload) {
         <article class="genesis-archetypes">
           <h3>Available archetypes</h3>
           <div>${cards}</div>
+        </article>
+      </div>
+    </section>`;
+}
+
+function renderProofOfLearningPanel(payload) {
+  const summary = payload?.summary || {};
+  const graph = payload?.graph || {};
+  const metrics = graph.metrics || {};
+  const proofLedger = payload?.proof_ledger || {};
+  const proofs = Array.isArray(proofLedger.proofs) ? proofLedger.proofs : [];
+  const reputation = payload?.reputation || {};
+  const reputations = Array.isArray(reputation.reputations) ? reputation.reputations : [];
+  const events = Array.isArray(payload?.events) ? payload.events : [];
+  const top = reputations[0] || {};
+  const artifacts = payload?.artifact_paths || {};
+  const scoreText = (value) => Number(value || 0).toFixed(2);
+  const metric = (label, value) => `<div><dt>${text(label)}</dt><dd>${text(value)}</dd></div>`;
+  const proofRows = proofs.slice(0, 4).map((proof) => `
+    <li>
+      <strong>${text(proof.lesson_id || proof.proof_id)}</strong>
+      <span>error ${scoreText(proof.prediction_error_before)} → ${scoreText(proof.prediction_error_after)} · score ${scoreText(proof.score)}</span>
+      <small>${text(proof.agent_id)} · private payload excluded</small>
+    </li>`).join('');
+  const reputationRows = reputations.slice(0, 4).map((item) => `
+    <li>
+      <strong>${text(item.agent_id)}</strong>
+      <span>accuracy ${scoreText(item.prediction_accuracy)} · policy ${scoreText(item.policy_compliance)} · reputation ${scoreText(item.reputation_score)}</span>
+      <small>${text(item.proof_count)} proof records · safety authority ${text(item.safety_authority || 'policy_engine_and_approval_gate')}</small>
+    </li>`).join('');
+  const eventRows = events.slice(0, 5).map((event) => `
+    <li>
+      <strong>${text(event.payload?.event || event.event_type || 'graph event')}</strong>
+      <span>${text(event.payload?.summary || event.run_id || event.event_id || '')}</span>
+    </li>`).join('');
+  return `
+    <section id="proof" class="proof-learning-panel mission-surface mission-surface-wide" aria-label="Proof of Learning and Experience Graph panel">
+      <header class="surface-header">
+        <span>Proof of Learning</span>
+        <strong>${text(summary.headline || 'Every prediction becomes experience')}</strong>
+        <small>Experience Graph connects agents, goals, predictions, actions, outcomes, prediction errors, lessons, policy gates, contributions, and reputation. Private payloads are excluded.</small>
+      </header>
+      <div class="proof-learning-grid">
+        <article class="proof-learning-summary">
+          <p class="cognition-state">Experience Graph</p>
+          <h2>${text(summary.graph_loop || 'agent → predicted → acted → observed → learned → reused → improved')}</h2>
+          <dl>
+            ${metric('nodes', metrics.node_count || summary.node_count || 0)}
+            ${metric('edges', metrics.edge_count || summary.edge_count || 0)}
+            ${metric('proof records', proofLedger.proof_count || summary.proof_count || proofs.length)}
+            ${metric('agents', reputation.agent_count || summary.agent_count || reputations.length)}
+            ${metric('top agent', top.agent_id || summary.top_agent || 'network')}
+            ${metric('private payload', payload?.private_payload_excluded ? 'excluded' : 'not shared')}
+          </dl>
+          <div class="cognition-match" data-matched="${payload?.private_payload_excluded === true}">private payload excluded</div>
+        </article>
+        <article class="proof-learning-ledger">
+          <h3>Proof ledger</h3>
+          <ol>${proofRows}</ol>
+        </article>
+        <article class="proof-learning-reputation">
+          <h3>Learning reputation</h3>
+          <ol>${reputationRows}</ol>
+        </article>
+        <article class="proof-learning-events">
+          <h3>Visual graph events</h3>
+          <ol>${eventRows}</ol>
+        </article>
+        <article class="proof-learning-artifacts">
+          <h3>Artifact paths</h3>
+          <p>${text(artifacts.graphs || 'artifacts/experience_graph/graphs/')}</p>
+          <p>${text(artifacts.proofs || 'artifacts/experience_graph/proofs/')}</p>
+          <p>${text(artifacts.reputation || 'artifacts/experience_graph/reputation/')}</p>
+          <small>PolicyEngine and ApprovalGate remain authoritative. This ledger does not grant autonomous control.</small>
         </article>
       </div>
     </section>`;
@@ -1228,6 +1313,7 @@ function renderMissionControlHtml(payloads, finalizer) {
         <a href="#cognition">Cognition</a>
         <a href="#learning">Learning</a>
         <a href="#genesis">Genesis</a>
+        <a href="#proof">Proof</a>
         <a href="#embodiment">Embodiment</a>
         <a href="#live-3d">Live 3D</a>
       </nav>
@@ -1256,6 +1342,7 @@ function renderMissionControlHtml(payloads, finalizer) {
     ${renderPredictiveCognitionPanel(payloads['predictive-cognitive-core'] || {})}
     ${renderPredictiveLearningPanel(payloads['predictive-learning-benchmark'] || {})}
     ${renderAgentGenesisPanel(payloads['agent-genesis-onboarding'] || {})}
+    ${renderProofOfLearningPanel(payloads['experience-graph-proof-of-learning'] || {})}
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
     ${renderActionFooter()}
@@ -1304,6 +1391,20 @@ export function createMissionControlDevServer() {
         return;
       }
       send(res, 200, 'application/json', fs.readFileSync(filePath));
+      return;
+    }
+    if (url.pathname === '/experience-graph') {
+      send(res, 200, 'application/json', JSON.stringify(readFixture(fixtureSpecs.find((spec) => spec.fixture_id === 'experience-graph-proof-of-learning'))));
+      return;
+    }
+    if (url.pathname === '/proof-of-learning') {
+      const payload = readFixture(fixtureSpecs.find((spec) => spec.fixture_id === 'experience-graph-proof-of-learning'));
+      send(res, 200, 'application/json', JSON.stringify({ ok: Boolean(payload?.ok), proofs: payload?.proof_ledger?.proofs || [], count: payload?.proof_ledger?.proof_count || 0, private_payload_excluded: true }));
+      return;
+    }
+    if (url.pathname === '/learning-reputation') {
+      const payload = readFixture(fixtureSpecs.find((spec) => spec.fixture_id === 'experience-graph-proof-of-learning'));
+      send(res, 200, 'application/json', JSON.stringify({ ok: Boolean(payload?.ok), reputations: payload?.reputation?.reputations || [], count: payload?.reputation?.agent_count || 0, private_payload_excluded: true }));
       return;
     }
     send(res, 404, 'application/json', JSON.stringify({ ok: false, error: 'not_found' }));

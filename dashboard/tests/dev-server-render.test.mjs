@@ -81,6 +81,12 @@ assert.match(html, /Agent Passport/);
 assert.match(html, /Network learning is opt-in/);
 assert.match(html, /raw private payload/);
 assert.match(html, /Node download is optional/);
+assert.match(html, /Proof of Learning/);
+assert.match(html, /Experience Graph/);
+assert.match(html, /Every prediction becomes experience/);
+assert.match(html, /proof-learning-panel/);
+assert.match(html, /private payload excluded/);
+assert.match(html, /GET \/experience-graph/);
 assert.doesNotMatch(html, /production frontend bundling remains a public-alpha next step/);
 assert.doesNotMatch(html, /POST \/launch\//);
 assert.doesNotMatch(html, /POST \/network\/run-scenario/);
@@ -133,6 +139,15 @@ try {
   const threeCoreResponse = await fetch(new URL("/vendor/three.core.js", started.url));
   assert.equal(threeCoreResponse.status, 200);
   assert.match(await threeCoreResponse.text(), /class Vector3/);
+  const graphResponse = await fetch(new URL("/experience-graph", started.url));
+  assert.equal(graphResponse.status, 200);
+  const graphPayload = await graphResponse.json();
+  assert.equal(graphPayload.ok, true);
+  assert.match(JSON.stringify(graphPayload), /Proof of Learning|Experience Graph/);
+  const proofResponse = await fetch(new URL("/proof-of-learning", started.url));
+  assert.equal(proofResponse.status, 200);
+  const proofPayload = await proofResponse.json();
+  assert.equal(proofPayload.private_payload_excluded, true);
 } finally {
   started.server.close();
   occupied.server.close();

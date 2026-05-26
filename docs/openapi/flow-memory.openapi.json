@@ -1277,6 +1277,165 @@
         ]
       }
     },
+    "/experience-graph": {
+      "get": {
+        "operationId": "experience_graph_latest",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "graph": {
+                      "type": "string"
+                    },
+                    "metrics": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect the latest local Experience Graph",
+        "tags": [
+          "experience-graph"
+        ]
+      }
+    },
+    "/experience-graph/agents/{agent_id}": {
+      "get": {
+        "operationId": "experience_graph_agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "edges": {
+                      "type": "string"
+                    },
+                    "nodes": {
+                      "type": "string"
+                    },
+                    "proofs": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one agent's subgraph",
+        "tags": [
+          "experience-graph"
+        ]
+      }
+    },
+    "/experience-graph/build": {
+      "post": {
+        "operationId": "experience_graph_build",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "write_artifacts": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "graph": {
+                      "type": "string"
+                    },
+                    "proof_ledger": {
+                      "type": "string"
+                    },
+                    "reputation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Build the local Experience Graph plus Proof of Learning ledger",
+        "tags": [
+          "experience-graph"
+        ]
+      }
+    },
+    "/experience-graph/{graph_id}": {
+      "get": {
+        "operationId": "experience_graph_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "graph_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "graph": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one Experience Graph artifact",
+        "tags": [
+          "experience-graph"
+        ]
+      }
+    },
     "/flowlang/compile": {
       "post": {
         "operationId": "flowlang_compile",
@@ -2753,6 +2912,70 @@
         ]
       }
     },
+    "/learning-reputation": {
+      "get": {
+        "operationId": "learning_reputations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "reputations": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List prediction-quality based agent reputations",
+        "tags": [
+          "learning-reputation"
+        ]
+      }
+    },
+    "/learning-reputation/{agent_id}": {
+      "get": {
+        "operationId": "learning_reputation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "reputation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one agent's learning reputation",
+        "tags": [
+          "learning-reputation"
+        ]
+      }
+    },
     "/manifest": {
       "get": {
         "operationId": "manifest",
@@ -3509,6 +3732,70 @@
         "summary": "Return neural validation smoke command/status",
         "tags": [
           "neural"
+        ]
+      }
+    },
+    "/proof-of-learning": {
+      "get": {
+        "operationId": "proof_of_learning_records",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "proofs": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local Proof of Learning records",
+        "tags": [
+          "proof-of-learning"
+        ]
+      }
+    },
+    "/proof-of-learning/{proof_id}": {
+      "get": {
+        "operationId": "proof_of_learning_record",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proof_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "proof": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one Proof of Learning record",
+        "tags": [
+          "proof-of-learning"
         ]
       }
     },

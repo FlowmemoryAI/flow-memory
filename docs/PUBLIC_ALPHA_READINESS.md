@@ -1,6 +1,6 @@
 # Public Alpha Readiness
 
-Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory/live launch, predictive cognition, Agent Genesis, network learning consent, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
+Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory/live launch, predictive cognition, Agent Genesis, network learning consent, Experience Graph proof records, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
 
 Run:
 
@@ -16,6 +16,7 @@ python scripts/release_decision.py --target public-alpha-local-launch
 python scripts/release_decision.py --target public-alpha-launch-finalizer
 python scripts/release_decision.py --target public-alpha-cognition
 python scripts/release_decision.py --target public-alpha-genesis
+python scripts/release_decision.py --target public-alpha-proof-of-learning
 ```
 
 ## Current maturity
@@ -35,6 +36,7 @@ python scripts/release_decision.py --target public-alpha-genesis
 | Predictive Cognitive Core | Implemented as local deterministic world-state encoding, candidate prediction, counterfactual scoring, prediction-error records, experience memory, FlowLang cognition blocks, API/CLI commands, and read-only Mission Control telemetry. |
 | Predictive Learning Benchmark | Implemented as deterministic local repeated scenarios, memory consolidation, lesson reuse, before/after accuracy metrics, CLI/API commands, and Mission Control learning trend telemetry. |
 | Agent Genesis + Network Learning Protocol | Implemented for no-download first-agent birth, Agent Genome, private Memory Seed, instincts, boundaries, first prediction, Agent Mirror, Agent Passport, private-only default consent, and sanitized opt-in contribution records. |
+| Experience Graph + Proof of Learning | Implemented for local graph construction, proof records, learning reputation, private payload exclusion, CLI/API inspection, and Mission Control proof telemetry. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
@@ -79,6 +81,7 @@ Local public alpha includes a Mission Control run selector/status card over thes
 - `predictive-learning-benchmark`
 - `live-neural-embodiment`
 - `agent-genesis-onboarding`
+- `experience-graph-proof-of-learning`
 
 Generate the local public-alpha demo bundle:
 
@@ -90,6 +93,7 @@ The bundle is reference-oriented and local-only. It must keep GPU status honest,
 Predictive Cognition is also part of the local evidence path. It writes experience records under `artifacts/cognition/experiences/` and keeps predictions scoped to observable local outcomes.
 Predictive Learning Benchmark is part of the local evidence path. It writes consolidated lessons under `artifacts/cognition/lessons/`, benchmark results under `artifacts/cognition/benchmarks/`, and validates that repeated local mistakes are reduced without bypassing policy.
 Agent Genesis is part of the local evidence path. It writes Agent Genome, Memory Seed, consent, birth certificate, mirror, and passport artifacts under `artifacts/genesis/`; network learning remains private only unless the user opts into sanitized contribution records.
+Experience Graph + Proof of Learning is part of the local evidence path. It writes graph, proof, and reputation artifacts under `artifacts/experience_graph/` and keeps private payloads excluded by default.
 
 
 
@@ -140,6 +144,17 @@ python scripts/release_decision.py --target public-alpha-genesis
 ```
 
 The readiness invariant is consent-backed: the first agent path needs no download, the optional node path is documented, raw private payloads are excluded by default, human teaching events become private lessons first, and sanitized network contribution requires explicit opt-in.
+
+## Experience Graph + Proof of Learning readiness
+
+```bash
+python -m flow_memory graph build --json
+python -m flow_memory graph proofs list --json
+python -m flow_memory graph reputation list --json
+python scripts/release_decision.py --target public-alpha-proof-of-learning
+```
+
+The readiness invariant is graph-backed and privacy-backed: prediction/action/outcome records must produce graph edges, learned lessons must produce proof records, reputation must derive from prediction quality and policy compliance, private payloads must stay excluded, and proof records must never bypass PolicyEngine or ApprovalGate.
 
 ## Mission Control Live 3D Mode and finalizer
 

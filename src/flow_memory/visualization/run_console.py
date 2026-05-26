@@ -76,6 +76,13 @@ FIXTURE_SPECS: tuple[Mapping[str, str], ...] = (
         "path": "dashboard/src/mock-data/agent-genesis-onboarding.json",
         "run_kind": "genesis",
     },
+    {
+        "fixture_id": "experience-graph-proof-of-learning",
+        "label": "Proof of Learning",
+        "description": "Experience graph, proof ledger, reputation, and privacy-preserving learning replay.",
+        "path": "dashboard/src/mock-data/experience-graph-proof-of-learning.json",
+        "run_kind": "proof_of_learning",
+    },
 )
 
 CATEGORY_ALIASES: Mapping[str, str] = {
@@ -368,7 +375,7 @@ def _summary_from_fixture_payload(root: Path, spec: Mapping[str, str], payload: 
         label=str(spec["label"]),
         description=str(spec["description"]),
         fixture_path=_rel(root, path),
-        ok=path.exists() and bool(payload.get("ok", True)) and bool(events or state or payload.get("benchmark") or payload.get("birth") or payload.get("genome")),
+        ok=path.exists() and bool(payload.get("ok", True)) and bool(events or state or payload.get("benchmark") or payload.get("birth") or payload.get("genome") or payload.get("graph") or payload.get("proof_ledger")),
     )
 
 

@@ -39,6 +39,8 @@ GENESIS_READ_SCOPE = "genesis:read"
 GENESIS_CREATE_SCOPE = "genesis:create"
 GENESIS_TEACH_SCOPE = "genesis:teach"
 GENESIS_EXPORT_SCOPE = "genesis:export"
+EXPERIENCE_GRAPH_READ_SCOPE = "experience-graph:read"
+EXPERIENCE_GRAPH_WRITE_SCOPE = "experience-graph:write"
 
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
@@ -71,6 +73,8 @@ KNOWN_SCOPES = frozenset({
     GENESIS_CREATE_SCOPE,
     GENESIS_TEACH_SCOPE,
     GENESIS_EXPORT_SCOPE,
+    EXPERIENCE_GRAPH_READ_SCOPE,
+    EXPERIENCE_GRAPH_WRITE_SCOPE,
 
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -196,6 +200,12 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         if path_key == "/genesis/contributions/export":
             return (GENESIS_EXPORT_SCOPE,)
         return (GENESIS_CREATE_SCOPE,)
+    if path_key.startswith("/experience-graph"):
+        if normalized_method in READ_METHODS:
+            return (EXPERIENCE_GRAPH_READ_SCOPE,)
+        return (EXPERIENCE_GRAPH_WRITE_SCOPE,)
+    if path_key.startswith("/proof-of-learning") or path_key.startswith("/learning-reputation"):
+        return (EXPERIENCE_GRAPH_READ_SCOPE,)
     if path_key.startswith("/visual/embodiment/") and path_key.endswith("/cognition"):
         return (COGNITION_READ_SCOPE,)
     if path_key.startswith("/visual/embodiment/"):

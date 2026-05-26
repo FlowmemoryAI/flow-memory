@@ -1,0 +1,1066 @@
+{
+  "agent_view": {
+    "agent_id": "mira-demo-agent",
+    "edges": [
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_2257a7fdf161a6dd7feec3d0",
+        "edge_type": "policy_applied",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_37a82a701af5aa00a1c0c2e6",
+        "target_id": "graph_node_7d03e0283dd1186b3289c358",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_24b5cfd31b59a8961864db15",
+        "edge_type": "improved",
+        "evidence_ref": "mira-demo-agent",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_b189636ee918af293c7b6134",
+        "weight": 0.86
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_4f2e65bd27ea37a12ce3cf61",
+        "edge_type": "selected_action",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_6b83ea3a0a001259aea0f4ac",
+        "target_id": "graph_node_7d03e0283dd1186b3289c358",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_556e8f484fd2d3648dd6ab06",
+        "edge_type": "predicted",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_e1bbcbbf422e074faf64d730",
+        "target_id": "graph_node_6b83ea3a0a001259aea0f4ac",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_72670c09dc50d97994152435",
+        "edge_type": "failed_because",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_04b65d67387300e4c81bec3c",
+        "target_id": "graph_node_73f6878aae6c03d81b75b0cf",
+        "weight": 0.08
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_98c67b78d3d8a480c8546db2",
+        "edge_type": "has_genome",
+        "evidence_ref": "genome_demo_mira",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_cc7bcad607b96223fb60ed1f",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_9d368ad04eaec30365d5023d",
+        "edge_type": "learned",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_73f6878aae6c03d81b75b0cf",
+        "target_id": "graph_node_fb9f0b7b34aaa6a88dcc242d",
+        "weight": 0.92
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_a6d615c8027649afda6de835",
+        "edge_type": "caused",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_7d03e0283dd1186b3289c358",
+        "target_id": "graph_node_04b65d67387300e4c81bec3c",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.360047+00:00",
+        "edge_id": "graph_edge_b8d0ace003194a25345657b5",
+        "edge_type": "contributed",
+        "evidence_ref": "contribution_demo_lesson",
+        "metadata": {},
+        "source_id": "graph_node_21942c782926d2dc687ca45d",
+        "target_id": "graph_node_8500b3d126e1fff8f198dcc3",
+        "weight": 0.86
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_bd5c92e98e95d8f93f7d6fea",
+        "edge_type": "pursues_goal",
+        "evidence_ref": "birth_demo_mira",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_b21bfc0698bb4e89d73f75b7",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_e238b7f33b423a859fc8ee84",
+        "edge_type": "predicted",
+        "evidence_ref": "birth_demo_mira",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_2172f320ba269d70657c201b",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_f8fe13456396660686eb36c8",
+        "edge_type": "taught",
+        "evidence_ref": "teaching_demo_dashboard",
+        "metadata": {},
+        "source_id": "graph_node_a8e1b81cb564e38296769fa7",
+        "target_id": "graph_node_560e6b1223bc6f630082fa3b",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_fba98d20b20757766500b4f8",
+        "edge_type": "pursues_goal",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_e1bbcbbf422e074faf64d730",
+        "weight": 1.0
+      }
+    ],
+    "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+    "nodes": [
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "state_patch": {},
+          "success": true
+        },
+        "node_id": "graph_node_04b65d67387300e4c81bec3c",
+        "node_type": "outcome",
+        "privacy_mode": "private_only",
+        "ref_id": "outcome_ce58e411764b0a4500615d4d",
+        "summary": "",
+        "title": "served HTML contained Mission Control panels"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "confidence": 0.72,
+          "risk": 0.1
+        },
+        "node_id": "graph_node_2172f320ba269d70657c201b",
+        "node_type": "prediction",
+        "privacy_mode": "private_only",
+        "ref_id": "birth_demo_mira",
+        "summary": "",
+        "title": "I can map project state and verify the next safe step."
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_21942c782926d2dc687ca45d",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_demo_dashboard_stale_server",
+        "summary": "",
+        "title": "Dashboard stale server lesson"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "allowed": true,
+          "authority": "policy_engine_and_approval_gate"
+        },
+        "node_id": "graph_node_37a82a701af5aa00a1c0c2e6",
+        "node_type": "policy",
+        "privacy_mode": "private_only",
+        "ref_id": "policy_018d42e6fe06e2f7b14f9d4d",
+        "summary": "",
+        "title": "policy gate"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "node_type": "agent",
+        "privacy_mode": "private_only",
+        "ref_id": "mira-demo-agent",
+        "summary": "",
+        "title": "mira-demo-agent"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_560e6b1223bc6f630082fa3b",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_77fcd8d240e1a897777a6a9b",
+        "summary": "",
+        "title": "Verify observable dashboard state before claiming success."
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "confidence": 0.82,
+          "risk": 0.14
+        },
+        "node_id": "graph_node_6b83ea3a0a001259aea0f4ac",
+        "node_type": "prediction",
+        "privacy_mode": "private_only",
+        "ref_id": "prediction_demo_dashboard",
+        "summary": "",
+        "title": "Mission Control will show real panels after stale server restart"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "match_score": 0.92,
+          "prediction_error": 0.08
+        },
+        "node_id": "graph_node_73f6878aae6c03d81b75b0cf",
+        "node_type": "prediction_error",
+        "privacy_mode": "private_only",
+        "ref_id": "prediction_error_demo_dashboard",
+        "summary": "",
+        "title": "minor_difference"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "requires_approval": false
+        },
+        "node_id": "graph_node_7d03e0283dd1186b3289c358",
+        "node_type": "action",
+        "privacy_mode": "private_only",
+        "ref_id": "action_restart_dashboard",
+        "summary": "",
+        "title": "restart stale dashboard server and verify served HTML"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "raw_payload_excluded": true,
+          "usefulness_score": 0.86,
+          "validation_status": "accepted"
+        },
+        "node_id": "graph_node_8500b3d126e1fff8f198dcc3",
+        "node_type": "contribution",
+        "privacy_mode": "sanitized_lessons",
+        "ref_id": "contribution_demo_lesson",
+        "summary": "",
+        "title": "consolidated_lesson"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "applies_to_tags": [
+            "dashboard"
+          ],
+          "privacy_mode": "private_only"
+        },
+        "node_id": "graph_node_a8e1b81cb564e38296769fa7",
+        "node_type": "teaching_event",
+        "privacy_mode": "private_only",
+        "ref_id": "teaching_demo_dashboard",
+        "summary": "Verify observable dashboard state before claiming success.",
+        "title": "remember_this"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "policy_compliance": 1.0,
+          "prediction_accuracy": 0.86
+        },
+        "node_id": "graph_node_b189636ee918af293c7b6134",
+        "node_type": "proof",
+        "privacy_mode": "private_only",
+        "ref_id": "mira-demo-agent",
+        "summary": "",
+        "title": "stage apprentice"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_b21bfc0698bb4e89d73f75b7",
+        "node_type": "goal",
+        "privacy_mode": "private_only",
+        "ref_id": "birth_demo_mira",
+        "summary": "",
+        "title": "Help me build Flow Memory"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "boundaries": [
+            "never_share_private_memory",
+            "never_spend_money"
+          ],
+          "instincts": [
+            "careful",
+            "builder"
+          ]
+        },
+        "node_id": "graph_node_cc7bcad607b96223fb60ed1f",
+        "node_type": "genome",
+        "privacy_mode": "private_only",
+        "ref_id": "genome_demo_mira",
+        "summary": "",
+        "title": "research-builder"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_e1bbcbbf422e074faf64d730",
+        "node_type": "goal",
+        "privacy_mode": "private_only",
+        "ref_id": "goal_89e25ff668d883fb2e452514",
+        "summary": "",
+        "title": "verify Mission Control dashboard"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "memory_tags": [
+            "dashboard",
+            "mission-control",
+            "proof-of-learning"
+          ]
+        },
+        "node_id": "graph_node_fb9f0b7b34aaa6a88dcc242d",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_41c51f02983b8e37a715392b",
+        "summary": "",
+        "title": "Check port 4173 and verify served HTML before reporting dashboard success."
+      }
+    ],
+    "ok": true,
+    "raw_private_payload_excluded": true
+  },
+  "artifact_paths": {
+    "graphs": "artifacts/experience_graph/graphs/",
+    "proofs": "artifacts/experience_graph/proofs/",
+    "reputation": "artifacts/experience_graph/reputation/"
+  },
+  "events": [
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_8e4bff63acf0400da248c0905a83b588",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "experience_graph_built",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_2e2e2548787b4b85bd8dd6da91bcd029",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "experience_graph_node_recorded",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_1e970d4ce3cf4e63809003858cade11f",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "experience_graph_edge_recorded",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_132704dbc78547a9a672a80a215d586f",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "proof_of_learning_recorded",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_e8d18c91871d45eb93dc682f42ce66de",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "agent_reputation_updated",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_25f5ac6cae8d4f3caa1bbbcd46622c0a",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "lesson_reuse_linked",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_64603bb671a74fc0a50f3f35b37252b9",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "policy_denial_preserved",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T20:11:40.360047+00:00",
+      "event_id": "visual_event_c72ab33da0a249bb96e8cfb72ae7fc3e",
+      "event_type": "proof_of_learning",
+      "payload": {
+        "agent_count": 2,
+        "edge_count": 14,
+        "event": "private_payload_excluded",
+        "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+        "node_count": 18,
+        "policy_override_rate": 0.0,
+        "proof_count": 2,
+        "raw_private_payload_excluded": true,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "experience_graph_e4a326e6f070a6310cb98aca",
+      "source_event_id": ""
+    }
+  ],
+  "graph": {
+    "created_at": "2026-05-26T20:11:40.360047+00:00",
+    "edges": [
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_2257a7fdf161a6dd7feec3d0",
+        "edge_type": "policy_applied",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_37a82a701af5aa00a1c0c2e6",
+        "target_id": "graph_node_7d03e0283dd1186b3289c358",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_24b5cfd31b59a8961864db15",
+        "edge_type": "improved",
+        "evidence_ref": "mira-demo-agent",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_b189636ee918af293c7b6134",
+        "weight": 0.86
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_4f2e65bd27ea37a12ce3cf61",
+        "edge_type": "selected_action",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_6b83ea3a0a001259aea0f4ac",
+        "target_id": "graph_node_7d03e0283dd1186b3289c358",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_556e8f484fd2d3648dd6ab06",
+        "edge_type": "predicted",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_e1bbcbbf422e074faf64d730",
+        "target_id": "graph_node_6b83ea3a0a001259aea0f4ac",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_72670c09dc50d97994152435",
+        "edge_type": "failed_because",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_04b65d67387300e4c81bec3c",
+        "target_id": "graph_node_73f6878aae6c03d81b75b0cf",
+        "weight": 0.08
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_98c67b78d3d8a480c8546db2",
+        "edge_type": "has_genome",
+        "evidence_ref": "genome_demo_mira",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_cc7bcad607b96223fb60ed1f",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_9d368ad04eaec30365d5023d",
+        "edge_type": "learned",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_73f6878aae6c03d81b75b0cf",
+        "target_id": "graph_node_fb9f0b7b34aaa6a88dcc242d",
+        "weight": 0.92
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_a6d615c8027649afda6de835",
+        "edge_type": "caused",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_7d03e0283dd1186b3289c358",
+        "target_id": "graph_node_04b65d67387300e4c81bec3c",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.360047+00:00",
+        "edge_id": "graph_edge_b8d0ace003194a25345657b5",
+        "edge_type": "contributed",
+        "evidence_ref": "contribution_demo_lesson",
+        "metadata": {},
+        "source_id": "graph_node_21942c782926d2dc687ca45d",
+        "target_id": "graph_node_8500b3d126e1fff8f198dcc3",
+        "weight": 0.86
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_ba47ceaf2ee4e587a3afa9b1",
+        "edge_type": "learned",
+        "evidence_ref": "lesson_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_2baf133ceb8eb6f41ca50b9e",
+        "target_id": "graph_node_5d894f8bffb86328dfad80c8",
+        "weight": 0.86
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_bd5c92e98e95d8f93f7d6fea",
+        "edge_type": "pursues_goal",
+        "evidence_ref": "birth_demo_mira",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_b21bfc0698bb4e89d73f75b7",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_e238b7f33b423a859fc8ee84",
+        "edge_type": "predicted",
+        "evidence_ref": "birth_demo_mira",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_2172f320ba269d70657c201b",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_f8fe13456396660686eb36c8",
+        "edge_type": "taught",
+        "evidence_ref": "teaching_demo_dashboard",
+        "metadata": {},
+        "source_id": "graph_node_a8e1b81cb564e38296769fa7",
+        "target_id": "graph_node_560e6b1223bc6f630082fa3b",
+        "weight": 1.0
+      },
+      {
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "edge_id": "graph_edge_fba98d20b20757766500b4f8",
+        "edge_type": "pursues_goal",
+        "evidence_ref": "experience_demo_dashboard_stale_server",
+        "metadata": {},
+        "source_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "target_id": "graph_node_e1bbcbbf422e074faf64d730",
+        "weight": 1.0
+      }
+    ],
+    "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+    "local_only": true,
+    "metrics": {
+      "contribution_count": 1,
+      "edge_count": 14,
+      "edge_types": {
+        "caused": 1,
+        "contributed": 1,
+        "failed_because": 1,
+        "has_genome": 1,
+        "improved": 1,
+        "learned": 2,
+        "policy_applied": 1,
+        "predicted": 2,
+        "pursues_goal": 2,
+        "selected_action": 1,
+        "taught": 1
+      },
+      "experience_count": 2,
+      "lesson_count": 4,
+      "local_only": true,
+      "node_count": 18,
+      "node_types": {
+        "action": 1,
+        "agent": 1,
+        "contribution": 1,
+        "genome": 1,
+        "goal": 2,
+        "lesson": 4,
+        "outcome": 1,
+        "policy": 1,
+        "prediction": 2,
+        "prediction_error": 2,
+        "proof": 1,
+        "teaching_event": 1
+      },
+      "policy_denial_count": 0,
+      "policy_override_rate": 0.0,
+      "raw_private_payload_excluded": true
+    },
+    "nodes": [
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "state_patch": {},
+          "success": true
+        },
+        "node_id": "graph_node_04b65d67387300e4c81bec3c",
+        "node_type": "outcome",
+        "privacy_mode": "private_only",
+        "ref_id": "outcome_ce58e411764b0a4500615d4d",
+        "summary": "",
+        "title": "served HTML contained Mission Control panels"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "confidence": 0.72,
+          "risk": 0.1
+        },
+        "node_id": "graph_node_2172f320ba269d70657c201b",
+        "node_type": "prediction",
+        "privacy_mode": "private_only",
+        "ref_id": "birth_demo_mira",
+        "summary": "",
+        "title": "I can map project state and verify the next safe step."
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_21942c782926d2dc687ca45d",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_demo_dashboard_stale_server",
+        "summary": "",
+        "title": "Dashboard stale server lesson"
+      },
+      {
+        "agent_id": "",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_2baf133ceb8eb6f41ca50b9e",
+        "node_type": "prediction_error",
+        "privacy_mode": "private_only",
+        "ref_id": "experience_demo_dashboard_stale_server",
+        "summary": "",
+        "title": "source prediction error"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "allowed": true,
+          "authority": "policy_engine_and_approval_gate"
+        },
+        "node_id": "graph_node_37a82a701af5aa00a1c0c2e6",
+        "node_type": "policy",
+        "privacy_mode": "private_only",
+        "ref_id": "policy_018d42e6fe06e2f7b14f9d4d",
+        "summary": "",
+        "title": "policy gate"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_3b52a124e3fe1bd25ae7cbd3",
+        "node_type": "agent",
+        "privacy_mode": "private_only",
+        "ref_id": "mira-demo-agent",
+        "summary": "",
+        "title": "mira-demo-agent"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_560e6b1223bc6f630082fa3b",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_77fcd8d240e1a897777a6a9b",
+        "summary": "",
+        "title": "Verify observable dashboard state before claiming success."
+      },
+      {
+        "agent_id": "",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "domain": "dashboard",
+          "recommended_future_action": "Check port 4173 and verify served HTML before reporting dashboard success.",
+          "usefulness_score": 0.86
+        },
+        "node_id": "graph_node_5d894f8bffb86328dfad80c8",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_demo_dashboard_stale_server",
+        "summary": "Repeated dashboard checks improve after verifying the served HTML.",
+        "title": "Dashboard stale server lesson"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "confidence": 0.82,
+          "risk": 0.14
+        },
+        "node_id": "graph_node_6b83ea3a0a001259aea0f4ac",
+        "node_type": "prediction",
+        "privacy_mode": "private_only",
+        "ref_id": "prediction_demo_dashboard",
+        "summary": "",
+        "title": "Mission Control will show real panels after stale server restart"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "match_score": 0.92,
+          "prediction_error": 0.08
+        },
+        "node_id": "graph_node_73f6878aae6c03d81b75b0cf",
+        "node_type": "prediction_error",
+        "privacy_mode": "private_only",
+        "ref_id": "prediction_error_demo_dashboard",
+        "summary": "",
+        "title": "minor_difference"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "requires_approval": false
+        },
+        "node_id": "graph_node_7d03e0283dd1186b3289c358",
+        "node_type": "action",
+        "privacy_mode": "private_only",
+        "ref_id": "action_restart_dashboard",
+        "summary": "",
+        "title": "restart stale dashboard server and verify served HTML"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "raw_payload_excluded": true,
+          "usefulness_score": 0.86,
+          "validation_status": "accepted"
+        },
+        "node_id": "graph_node_8500b3d126e1fff8f198dcc3",
+        "node_type": "contribution",
+        "privacy_mode": "sanitized_lessons",
+        "ref_id": "contribution_demo_lesson",
+        "summary": "",
+        "title": "consolidated_lesson"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "applies_to_tags": [
+            "dashboard"
+          ],
+          "privacy_mode": "private_only"
+        },
+        "node_id": "graph_node_a8e1b81cb564e38296769fa7",
+        "node_type": "teaching_event",
+        "privacy_mode": "private_only",
+        "ref_id": "teaching_demo_dashboard",
+        "summary": "Verify observable dashboard state before claiming success.",
+        "title": "remember_this"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "policy_compliance": 1.0,
+          "prediction_accuracy": 0.86
+        },
+        "node_id": "graph_node_b189636ee918af293c7b6134",
+        "node_type": "proof",
+        "privacy_mode": "private_only",
+        "ref_id": "mira-demo-agent",
+        "summary": "",
+        "title": "stage apprentice"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_b21bfc0698bb4e89d73f75b7",
+        "node_type": "goal",
+        "privacy_mode": "private_only",
+        "ref_id": "birth_demo_mira",
+        "summary": "",
+        "title": "Help me build Flow Memory"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "boundaries": [
+            "never_share_private_memory",
+            "never_spend_money"
+          ],
+          "instincts": [
+            "careful",
+            "builder"
+          ]
+        },
+        "node_id": "graph_node_cc7bcad607b96223fb60ed1f",
+        "node_type": "genome",
+        "privacy_mode": "private_only",
+        "ref_id": "genome_demo_mira",
+        "summary": "",
+        "title": "research-builder"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {},
+        "node_id": "graph_node_e1bbcbbf422e074faf64d730",
+        "node_type": "goal",
+        "privacy_mode": "private_only",
+        "ref_id": "goal_89e25ff668d883fb2e452514",
+        "summary": "",
+        "title": "verify Mission Control dashboard"
+      },
+      {
+        "agent_id": "mira-demo-agent",
+        "created_at": "2026-05-26T20:11:40.359048+00:00",
+        "metadata": {
+          "memory_tags": [
+            "dashboard",
+            "mission-control",
+            "proof-of-learning"
+          ]
+        },
+        "node_id": "graph_node_fb9f0b7b34aaa6a88dcc242d",
+        "node_type": "lesson",
+        "privacy_mode": "private_only",
+        "ref_id": "lesson_41c51f02983b8e37a715392b",
+        "summary": "",
+        "title": "Check port 4173 and verify served HTML before reporting dashboard success."
+      }
+    ],
+    "raw_private_payload_excluded": true,
+    "safety_authority": "policy_engine_and_approval_gate"
+  },
+  "label": "Experience Graph + Proof of Learning",
+  "local_only": true,
+  "ok": true,
+  "private_payload_excluded": true,
+  "proof_ledger": {
+    "average_score": 0.424,
+    "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+    "local_only": true,
+    "ok": true,
+    "private_payload_excluded": true,
+    "proof_count": 2,
+    "proofs": [
+      {
+        "agent_id": "mira-demo-agent",
+        "contribution_id": "",
+        "created_at": "2026-05-26T20:11:40.360047+00:00",
+        "error_delta": 0.08,
+        "experience_id": "experience_demo_dashboard_stale_server",
+        "helped_agent_id": "",
+        "lesson_id": "lesson_41c51f02983b8e37a715392b",
+        "lesson_reuse_count": 0,
+        "policy_compliance": 1.0,
+        "prediction_error_after": 0.0,
+        "prediction_error_before": 0.08,
+        "prediction_id": "",
+        "private_payload_excluded": true,
+        "proof_id": "proof_of_learning_d7482c8dbc8a47315f2be5d3",
+        "safety_authority": "policy_engine_and_approval_gate",
+        "score": 0.448
+      },
+      {
+        "agent_id": "proof-agent",
+        "contribution_id": "",
+        "created_at": "2026-05-26T20:11:40.360047+00:00",
+        "error_delta": 0.0,
+        "experience_id": "lesson_demo_dashboard_stale_server",
+        "helped_agent_id": "",
+        "lesson_id": "lesson_demo_dashboard_stale_server",
+        "lesson_reuse_count": 0,
+        "policy_compliance": 1.0,
+        "prediction_error_after": 0.0,
+        "prediction_error_before": 0.0,
+        "prediction_id": "",
+        "private_payload_excluded": true,
+        "proof_id": "proof_of_learning_72c31609a78df266950efcf5",
+        "safety_authority": "policy_engine_and_approval_gate",
+        "score": 0.4
+      }
+    ],
+    "safety_authority": "policy_engine_and_approval_gate"
+  },
+  "reputation": {
+    "agent_count": 2,
+    "graph_id": "experience_graph_e4a326e6f070a6310cb98aca",
+    "local_only": true,
+    "ok": true,
+    "private_payload_excluded": true,
+    "reputations": [
+      {
+        "agent_id": "mira-demo-agent",
+        "confidence_calibration": 1.0,
+        "created_at": "2026-05-26T20:11:40.360047+00:00",
+        "lesson_usefulness": 0.448,
+        "policy_compliance": 1.0,
+        "prediction_accuracy": 1.0,
+        "private_payload_excluded": true,
+        "proof_count": 1,
+        "repeated_mistake_reduction": 0.08,
+        "reputation_id": "learning_reputation_44d3d2b48440eb33d36f5c0e",
+        "reputation_score": 0.7424,
+        "safe_contribution_score": 1.0,
+        "safety_authority": "policy_engine_and_approval_gate"
+      },
+      {
+        "agent_id": "proof-agent",
+        "confidence_calibration": 1.0,
+        "created_at": "2026-05-26T20:11:40.360047+00:00",
+        "lesson_usefulness": 0.4,
+        "policy_compliance": 1.0,
+        "prediction_accuracy": 1.0,
+        "private_payload_excluded": true,
+        "proof_count": 1,
+        "repeated_mistake_reduction": 0.0,
+        "reputation_id": "learning_reputation_c6b5270c4a94b7a21baf6fff",
+        "reputation_score": 0.72,
+        "safe_contribution_score": 1.0,
+        "safety_authority": "policy_engine_and_approval_gate"
+      }
+    ]
+  },
+  "safety_authority": "policy_engine_and_approval_gate",
+  "summary": {
+    "agent_count": 2,
+    "edge_count": 14,
+    "graph_loop": "agent \u2192 predicted \u2192 acted \u2192 observed \u2192 learned \u2192 reused \u2192 improved",
+    "headline": "Every prediction becomes experience",
+    "node_count": 18,
+    "policy_gates_authoritative": true,
+    "proof_count": 2,
+    "raw_private_payload_excluded": true,
+    "top_agent": "mira-demo-agent"
+  }
+}

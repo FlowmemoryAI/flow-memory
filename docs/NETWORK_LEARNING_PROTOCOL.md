@@ -2,7 +2,7 @@
 
 The Network Learning Protocol defines how Flow Memory can turn local agent experience into structured, consented learning records.
 
-The network grows from structured experience, not hidden raw data collection. More agents can create more prediction records, outcome records, lessons, benchmark traces, and policy outcomes. Only records allowed by the user's consent mode can become network contributions.
+The network grows from structured experience, not hidden raw data collection. More agents can create more prediction records, outcome records, lessons, benchmark traces, policy outcomes, Experience Graph edges, and Proof of Learning records. Only records allowed by the user's consent mode can become network contributions.
 
 ## Consent modes
 
@@ -37,6 +37,16 @@ Each contribution stores:
 - raw-payload-excluded flag
 - validation status
 - usefulness score
+
+## Experience Graph and Proof of Learning
+
+The Experience Graph links consented/sanitized learning records into a local cause/effect graph. Proof of Learning records are derived from prediction-error-to-lesson edges and preserve the invariant that private payloads are excluded.
+
+```text
+GET /experience-graph
+GET /proof-of-learning
+GET /learning-reputation
+```
 
 ## API
 

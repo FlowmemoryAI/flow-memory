@@ -54,6 +54,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     cognition_data: dict[str, Any] = {}
     genesis_data: dict[str, Any] = {}
     memory_seed_data: dict[str, Any] = {}
+    experience_graph_data: dict[str, Any] = {}
     policies: list[PolicySpec] = []
     skills: list[SkillSpec] = []
     plans: list[PlanSpec] = []
@@ -64,7 +65,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     inside_agent_block = False
 
     def flush_current() -> None:
-        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data, compute_data, cognition_data, genesis_data, memory_seed_data
+        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data, compute_data, cognition_data, genesis_data, memory_seed_data, experience_graph_data
         if not current_kind:
             return
         if current_kind == "memory":
@@ -83,6 +84,8 @@ def parse_flowlang(source: str) -> AgentSpec:
             genesis_data.update(current_data)
         elif current_kind == "memory_seed":
             memory_seed_data.update(current_data)
+        elif current_kind == "experience_graph":
+            experience_graph_data.update(current_data)
         elif current_kind == "policy":
             policies.append(_policy_from_data(current_name, current_data))
         elif current_kind == "skill":
@@ -121,7 +124,7 @@ def parse_flowlang(source: str) -> AgentSpec:
                 agent_name = str(_parse_value(parts[1].strip()))
                 inside_agent_block = True
                 continue
-            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed"} and len(parts) == 1:
+            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed", "experience_graph"} and len(parts) == 1:
                 current_kind = kind
                 current_name = kind
                 current_data = {}
@@ -144,7 +147,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             header = stripped[:-1].strip()
             parts = header.split(maxsplit=1)
             kind = parts[0]
-            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed"} and len(parts) == 1:
+            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed", "experience_graph"} and len(parts) == 1:
                 current_kind = kind
                 current_name = kind
                 current_data = {}
@@ -203,6 +206,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             "cognition": _cognition_config_from_data(cognition_data),
             "genesis": _genesis_config_from_data(genesis_data),
             "memory_seed": _memory_seed_config_from_data(memory_seed_data),
+            "experience_graph": _experience_graph_config_from_data(experience_graph_data),
         },
     )
 
@@ -384,6 +388,25 @@ def _memory_seed_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
         "initial_lessons",
         "privacy_mode",
         "raw_private_content",
+    }
+    record = {key: data[key] for key in data if key in known}
+    extras = _metadata(data, known)
+    if extras:
+        record["metadata"] = extras
+    return record
+
+def _experience_graph_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
+    if not data:
+        return {}
+    known = {
+        "enabled",
+        "experience_graph_enabled",
+        "proof_of_learning_enabled",
+        "reputation_tracking_enabled",
+        "contribution_edges_enabled",
+        "private_payload_exclusion_required",
+        "policy_edges_required",
+        "write_artifacts",
     }
     record = {key: data[key] for key in data if key in known}
     extras = _metadata(data, known)

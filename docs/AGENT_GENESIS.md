@@ -36,6 +36,14 @@ python -m flow_memory genesis teaching add --agent <agent_id> --type correction 
 python -m flow_memory genesis contributions list --agent <agent_id> --json
 ```
 
+After the agent has local experience records, build the proof layer:
+
+```bash
+python -m flow_memory graph build --json
+python -m flow_memory graph agent <agent_id> --json
+python -m flow_memory graph reputation show <agent_id> --json
+```
+
 ## Mission Control
 
 Mission Control shows:
@@ -48,6 +56,7 @@ Mission Control shows:
 - Agent Mirror
 - Agent Passport
 - contribution status
+- optional Experience Graph / Proof of Learning status after the agent has prediction-error records
 
 Dashboard fixture:
 

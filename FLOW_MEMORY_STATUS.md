@@ -4,7 +4,7 @@ Date: 2026-05-26
 
 ## Current status
 
-Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, Predictive Learning Benchmark memory consolidation, Agent Genesis and Network Learning Protocol, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
+Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, Predictive Learning Benchmark memory consolidation, Agent Genesis and Network Learning Protocol, Experience Graph + Proof of Learning ledger, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
 
 It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, API auth remains a seam, and FlowLang remains v0/prototype.
 
@@ -30,6 +30,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Predictive Cognitive Core | Added this slice; focused validation recorded in the final run output |
 | Predictive Learning Benchmark | Added this slice; focused validation recorded in the final run output |
 | Agent Genesis + Network Learning Protocol | Added this slice; focused validation recorded in the final run output |
+| Experience Graph + Proof of Learning | Added this slice; focused validation recorded in the final run output |
 ## Maturity table
 
 | Capability | Status |
@@ -60,6 +61,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Predictive Cognitive Core | Implemented local deterministic world-state/prediction/counterfactual/error/experience-memory loop; advisory only |
 | Predictive Learning Benchmark | Implemented deterministic local repeated scenarios, lesson consolidation, lesson reuse, before/after prediction metrics, CLI/API commands, Mission Control trend fixture, and release evidence. |
 | Agent Genesis + Network Learning Protocol | Implemented private-by-default agent birth, Agent Genome, private Memory Seed, instincts, boundaries, first prediction, Agent Mirror, Agent Passport, human teaching events, sanitized opt-in contributions, CLI/API commands, FlowLang blocks, Mission Control fixture, and public-alpha-genesis evidence. |
+| Experience Graph + Proof of Learning | Implemented local graph construction, proof records, learning reputation, private-payload exclusion, CLI/API commands, FlowLang metadata, Mission Control fixture/panel, and release evidence. |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |
@@ -93,6 +95,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 9. Production-scale trained ML/world-model integration remains future work; local live neural runtime is deterministic/advisory.
 10. Dashboard is a local/public-alpha Mission Control scaffold, not a hosted production console.
 11. Predictive learning metrics are local deterministic benchmark signals, not external forecasting or production model certification.
+12. Proof of Learning reputation is local evidence over structured traces, not a market-wide trust guarantee.
 
 ## Next milestones
 

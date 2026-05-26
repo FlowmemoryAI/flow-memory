@@ -27,6 +27,7 @@ This is not AGI, not unbounded autonomous operation, and not V-JEPA 2 or VideoMA
 - Predictive Cognitive Core telemetry for state encoding, counterfactual prediction, policy-gated outcome observation, prediction-error learning, and experience memory.
 - Predictive learning benchmark telemetry for lesson consolidation, lesson reuse, prediction-accuracy trends, and repeated-mistake reduction in local scenarios.
 - Agent Genesis telemetry for born-agent genome, private memory seed, consent mode, first prediction, mirror, passport, and optional sanitized contribution status.
+- Proof of Learning telemetry for Experience Graph edges, local proof records, learning reputation, and private-payload exclusion.
 
 ## What does not run by default
 

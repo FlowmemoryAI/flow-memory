@@ -12,6 +12,12 @@
         "has_state": false,
         "ok": true
       },
+      "dashboard/src/mock-data/experience-graph-proof-of-learning.json": {
+        "event_count": 8,
+        "exists": true,
+        "has_state": false,
+        "ok": true
+      },
       "dashboard/src/mock-data/live-agent-operations.json": {
         "event_count": 25,
         "exists": true,
@@ -77,6 +83,7 @@
   "mission_control_operations_fixture_validated": true,
   "mission_control_predictive_cognition_fixture_validated": true,
   "mission_control_predictive_learning_fixture_validated": true,
+  "mission_control_proof_of_learning_fixture_validated": true,
   "mission_control_replay_fixture_selector_validated": true,
   "mission_control_run_console_available": true,
   "mission_control_run_selector_available": true,
@@ -92,9 +99,9 @@
   "public_alpha_demo_bundle_no_live_provider_calls": true,
   "public_alpha_demo_bundle_validated": true,
   "sample_bundle": {
-    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpgo50v3su\\public-alpha-local-demo.json",
+    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpjdqjly8l\\public-alpha-local-demo.json",
     "command_count": 16,
-    "fixture_count": 8,
+    "fixture_count": 9,
     "gpu_evidence_status": "artifact_present_not_verified"
   }
 }

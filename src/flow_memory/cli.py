@@ -51,6 +51,14 @@ from flow_memory.agent_genesis import (
     list_instincts,
     write_teaching_event,
 )
+from flow_memory.experience_graph import (
+    agent_graph_view,
+    build_proof_of_learning_bundle,
+    get_proof,
+    get_reputation,
+    list_proofs,
+    list_reputations,
+)
 
 
 def _json_default(value: Any) -> str:
@@ -607,6 +615,61 @@ def _genesis(argv: list[str]) -> int:
     raise AssertionError("unhandled genesis command")
 
 
+def _graph(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory graph", description="Inspect Experience Graph and Proof of Learning artifacts")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    build = sub.add_parser("build")
+    build.add_argument("--no-write", action="store_true")
+    build.add_argument("--json", action="store_true")
+
+    proofs = sub.add_parser("proofs")
+    proof_sub = proofs.add_subparsers(dest="proof_command", required=True)
+    proof_list = proof_sub.add_parser("list")
+    proof_list.add_argument("--json", action="store_true")
+    proof_show = proof_sub.add_parser("show")
+    proof_show.add_argument("proof_id")
+    proof_show.add_argument("--json", action="store_true")
+
+    reputation = sub.add_parser("reputation")
+    reputation_sub = reputation.add_subparsers(dest="reputation_command", required=True)
+    reputation_list = reputation_sub.add_parser("list")
+    reputation_list.add_argument("--json", action="store_true")
+    reputation_show = reputation_sub.add_parser("show")
+    reputation_show.add_argument("agent_id")
+    reputation_show.add_argument("--json", action="store_true")
+
+    agent = sub.add_parser("agent")
+    agent.add_argument("agent_id")
+    agent.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "build":
+        payload = build_proof_of_learning_bundle(write_artifacts=not args.no_write)
+        summary = dict(payload.get("summary", {}))
+        return _print_launch_payload(payload, json_output=args.json, human=f"proof graph {summary.get('node_count', 0)} node(s), {summary.get('proof_count', 0)} proof(s)")
+    if args.command == "proofs":
+        if args.proof_command == "list":
+            records = list_proofs(".")
+            if not records:
+                build_proof_of_learning_bundle(write_artifacts=True)
+                records = list_proofs(".")
+            return _print_launch_payload({"ok": True, "proofs": records, "count": len(records), "private_payload_excluded": True}, json_output=args.json, human=f"{len(records)} proof-of-learning record(s)")
+        record = get_proof(args.proof_id)
+        return _print_launch_payload({"ok": True, "proof": record}, json_output=args.json, human=f"proof {args.proof_id}")
+    if args.command == "reputation":
+        if args.reputation_command == "list":
+            records = list_reputations(".")
+            if not records:
+                build_proof_of_learning_bundle(write_artifacts=True)
+                records = list_reputations(".")
+            return _print_launch_payload({"ok": True, "reputations": records, "count": len(records), "private_payload_excluded": True}, json_output=args.json, human=f"{len(records)} learning reputation record(s)")
+        record = get_reputation(args.agent_id)
+        return _print_launch_payload({"ok": True, "reputation": record}, json_output=args.json, human=f"reputation {args.agent_id}")
+    payload = agent_graph_view(args.agent_id)
+    return _print_launch_payload(payload, json_output=args.json, human=f"agent graph {args.agent_id}")
+
+
 def _compute(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory compute", description="Inspect and simulate the local Compute Market")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -749,6 +812,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cognition(argv[1:])
     if argv and argv[0] == "genesis":
         return _genesis(argv[1:])
+    if argv and argv[0] == "graph":
+        return _graph(argv[1:])
     if argv and argv[0] == "compute":
         return _compute(argv[1:])
     if argv and argv[0] == "neural":

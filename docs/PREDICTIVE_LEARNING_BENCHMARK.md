@@ -28,6 +28,7 @@ The benchmark reports:
 
 The expected public-alpha invariant is practical: repeated local trials should reuse lessons, reduce repeated mistakes, and never let lessons bypass PolicyEngine or ApprovalGate.
 Agent Genesis supplies the first private memory seed and first prediction that later experience records can improve. Network learning remains private only by default; sanitized lesson contribution is opt-in and excludes raw private payloads.
+Consolidated lessons and experience records can also be projected into the Experience Graph. Proof of Learning records show which prediction errors produced reusable lessons while keeping private payloads excluded.
 
 ## Scenarios
 
@@ -65,6 +66,14 @@ Inspect aggregate metrics:
 
 ```powershell
 python -m flow_memory cognition metrics --json
+```
+
+Build the graph/proof layer from those experiences:
+
+```powershell
+python -m flow_memory graph build --json
+python -m flow_memory graph proofs list --json
+python -m flow_memory graph reputation list --json
 ```
 
 Supervised local launch with prediction and post-run consolidation metadata:
@@ -105,6 +114,9 @@ Local records are written under:
 artifacts/cognition/experiences/
 artifacts/cognition/lessons/
 artifacts/cognition/benchmarks/
+artifacts/experience_graph/graphs/
+artifacts/experience_graph/proofs/
+artifacts/experience_graph/reputation/
 ```
 
 A consolidated lesson links back to source experience ids and stores the domain, tags, repeated error type, recommended future action, confidence/risk deltas, and usefulness score.

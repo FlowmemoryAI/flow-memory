@@ -78,6 +78,16 @@ from flow_memory.api.genesis_endpoints import (
     genesis_passport,
     genesis_teaching,
 )
+from flow_memory.api.experience_graph_endpoints import (
+    experience_graph_agent,
+    experience_graph_build,
+    experience_graph_get,
+    experience_graph_latest,
+    learning_reputation,
+    learning_reputations,
+    proof_of_learning_record,
+    proof_of_learning_records,
+)
 from flow_memory.api.compute_endpoints import (
     compute_capacity_windows,
     compute_economic_memory,
@@ -697,6 +707,31 @@ class LocalApiRouter:
 
     def _genesis_contributions_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return genesis_contributions_export(payload)
+
+    def _experience_graph_build(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return experience_graph_build(payload)
+
+    def _experience_graph_latest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return experience_graph_latest()
+
+    def _experience_graph_get(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return experience_graph_get(params["graph_id"])
+
+    def _experience_graph_agent(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return experience_graph_agent(params["agent_id"])
+
+    def _proof_of_learning_records(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return proof_of_learning_records()
+
+    def _proof_of_learning_record(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return proof_of_learning_record(params["proof_id"])
+
+    def _learning_reputations(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return learning_reputations()
+
+    def _learning_reputation(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return learning_reputation(params["agent_id"])
+
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -771,6 +806,14 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/genesis/agents/{agent_id}/teaching", router._genesis_teaching, "genesis_teaching")
     router.register("GET", "/genesis/contributions", router._genesis_contributions, "genesis_contributions")
     router.register("POST", "/genesis/contributions/export", router._genesis_contributions_export, "genesis_contributions_export")
+    router.register("POST", "/experience-graph/build", router._experience_graph_build, "experience_graph_build")
+    router.register("GET", "/experience-graph", router._experience_graph_latest, "experience_graph_latest")
+    router.register("GET", "/experience-graph/{graph_id}", router._experience_graph_get, "experience_graph_get")
+    router.register("GET", "/experience-graph/agents/{agent_id}", router._experience_graph_agent, "experience_graph_agent")
+    router.register("GET", "/proof-of-learning", router._proof_of_learning_records, "proof_of_learning_records")
+    router.register("GET", "/proof-of-learning/{proof_id}", router._proof_of_learning_record, "proof_of_learning_record")
+    router.register("GET", "/learning-reputation", router._learning_reputations, "learning_reputations")
+    router.register("GET", "/learning-reputation/{agent_id}", router._learning_reputation, "learning_reputation")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

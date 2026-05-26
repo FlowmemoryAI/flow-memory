@@ -26,6 +26,7 @@ REQUIRED_FIXTURES = (
     "dashboard/src/mock-data/predictive-cognitive-core.json",
     "dashboard/src/mock-data/predictive-learning-benchmark.json",
     "dashboard/src/mock-data/agent-genesis-onboarding.json",
+    "dashboard/src/mock-data/experience-graph-proof-of-learning.json",
 )
 
 REQUIRED_DOCS = (
@@ -91,6 +92,7 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
         "mission_control_predictive_cognition_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/predictive-cognitive-core.json", {}).get("ok") is True,
         "mission_control_predictive_learning_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/predictive-learning-benchmark.json", {}).get("ok") is True,
         "mission_control_agent_genesis_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/agent-genesis-onboarding.json", {}).get("ok") is True,
+        "mission_control_proof_of_learning_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/experience-graph-proof-of-learning.json", {}).get("ok") is True,
         "public_alpha_demo_bundle_cli_available": _cli_has_bundle(cli_text),
         "public_alpha_demo_bundle_api_available": _api_available(missing_endpoints),
         "public_alpha_demo_bundle_validated": bundle.get("ok") is True and bundle_safe.get("ok") is True,
@@ -128,6 +130,7 @@ def _dev_server_renders_real_dashboard(dev_server: str) -> bool:
         "Visible neural embodiment",
         "Mission Control Live 3D Mode",
         "Public-alpha finalizer status",
+        "Proof of Learning",
         "safeLiveReadEndpoints",
         "method_not_allowed",
     )
@@ -147,7 +150,7 @@ def _fixtures_status(root: Path) -> Mapping[str, Any]:
         payload = _read_json(path)
         events = payload.get("events", payload.get("visual_events", ()))
         state = payload.get("state", {})
-        content = events or state or payload.get("benchmark") or payload.get("birth") or payload.get("genome")
+        content = events or state or payload.get("benchmark") or payload.get("birth") or payload.get("genome") or payload.get("graph") or payload.get("proof_ledger")
         records[relative] = {
             "ok": path.exists() and isinstance(payload, Mapping) and bool(content),
             "exists": path.exists(),

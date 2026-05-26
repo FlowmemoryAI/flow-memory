@@ -16,6 +16,10 @@ This is not production-certified. Contracts remain unaudited, sandboxing is not 
 
 Added Agent Genesis + Network Learning Protocol: private-by-default agent birth, Agent Genome, Memory Seed, instincts, boundaries, first prediction ceremony, Agent Mirror, Agent Passport, human teaching events, sanitized opt-in contribution records, Genesis CLI/API routes, FlowLang genesis/memory_seed blocks, Mission Control genesis fixture/panel, and `public-alpha-genesis` release evidence. First-agent onboarding needs no download; a local node path remains optional for private local tools, private compute, or compute contribution.
 
+### 2026-05-26 Experience Graph + Proof of Learning update
+
+Added local Experience Graph + Proof of Learning: graph construction over agents, genomes, goals, predictions, actions, outcomes, prediction errors, lessons, policy decisions, teaching events, and sanitized contributions; proof records under `artifacts/experience_graph/proofs/`; learning reputation under `artifacts/experience_graph/reputation/`; graph CLI/API routes; FlowLang `experience_graph` metadata; Mission Control Proof of Learning fixture/panel; and `public-alpha-proof-of-learning` release evidence. Private payloads remain excluded by default and policy gates remain authoritative.
+
 ## Major systems added
 
 ### AI agent layer

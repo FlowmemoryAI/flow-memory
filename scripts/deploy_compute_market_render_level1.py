@@ -564,6 +564,17 @@ def public_url(service: dict[str, Any]) -> str:
     return url
 
 
+def assert_https_public_url(url: str) -> None:
+    if not url.startswith("https://"):
+        emit(
+            "failed_deployment",
+            33,
+            public_url=url,
+            reason="public_url_must_use_https_tls",
+            required_action="configure a Render public HTTPS URL or custom domain with TLS before smoke tests",
+        )
+
+
 def call_json(method: str, url: str, headers: dict[str, str] | None = None, body: Any | None = None) -> tuple[int, Any]:
     data = None
     request_headers = dict(headers or {})
@@ -598,6 +609,13 @@ def call_text(method: str, url: str, headers: dict[str, str] | None = None) -> t
 
 def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     base = base_url.rstrip("/")
+    if not base.startswith("https://"):
+        return {
+            "ok": False,
+            "statuses": {},
+            "public_url": base,
+            "reason": "public_url_must_use_https_tls",
+        }
     plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "dry_run": True}
     checks: dict[str, Any] = {}
     headers_read = {"x-flow-memory-api-key": api_key_value, "x-flow-memory-scopes": "compute:read"}
@@ -780,6 +798,7 @@ def main() -> int:
             url = public_url(service)
         if not url:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
+        assert_https_public_url(url)
         env_vars = build_env_vars(
             api_key_value,
             str(pg_conn["internalConnectionString"]),

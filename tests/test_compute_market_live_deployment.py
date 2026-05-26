@@ -92,6 +92,20 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
 
 
+def test_render_deploy_requires_https_public_url_before_smoke() -> None:
+    assert render_deploy.public_url({"serviceDetails": {"url": "flow-memory-api.onrender.com"}}) == (
+        "https://flow-memory-api.onrender.com"
+    )
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.assert_https_public_url("http://flow-memory-api.example.com")
+
+    smoke = render_deploy.smoke_public("http://flow-memory-api.example.com", "api-key")
+
+    assert blocked.value.code == 33
+    assert smoke["ok"] is False
+    assert smoke["reason"] == "public_url_must_use_https_tls"
+
+
 def test_render_blueprint_preserves_billing_safety_defaults() -> None:
     blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
 

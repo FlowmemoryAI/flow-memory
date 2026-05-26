@@ -40,8 +40,8 @@ def compute_providers(payload: Mapping[str, Any] | None = None) -> Mapping[str, 
     return {**result, "registry": metadata_registry()}
 
 
-def compute_provider(provider_id: str) -> Mapping[str, Any]:
-    return default_service().get_provider(provider_id)
+def compute_provider(provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().get_provider(provider_id, payload or {})
 
 
 def compute_provider_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -66,8 +66,8 @@ def market_provider_apply(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().apply_market_provider(payload)
 
 
-def market_provider(provider_id: str) -> Mapping[str, Any]:
-    return default_service().market_provider(provider_id)
+def market_provider(provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().market_provider(provider_id, payload or {})
 
 
 def market_provider_verify(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -81,8 +81,8 @@ def market_provider_disable(provider_id: str, payload: Mapping[str, Any]) -> Map
     return default_service().disable_market_provider(provider_id, payload)
 
 
-def market_provider_reputation(provider_id: str) -> Mapping[str, Any]:
-    return default_service().provider_reputation(provider_id)
+def market_provider_reputation(provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().provider_reputation(provider_id, payload or {})
 
 
 def market_quote_ingest(payload: Mapping[str, Any]) -> Mapping[str, Any]:

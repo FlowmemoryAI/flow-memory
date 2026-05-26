@@ -524,8 +524,8 @@ class LocalApiRouter:
     def _compute_providers(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_providers(payload)
 
-    def _compute_provider(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_provider(params["provider_id"])
+    def _compute_provider(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider(params["provider_id"], payload)
 
     def _compute_provider_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_provider_create(payload)
@@ -545,8 +545,8 @@ class LocalApiRouter:
     def _market_provider_apply(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_provider_apply(payload)
 
-    def _market_provider(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return market_provider(params["provider_id"])
+    def _market_provider(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider(params["provider_id"], payload)
 
     def _market_provider_verify(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_provider_verify(params["provider_id"], payload)
@@ -554,8 +554,8 @@ class LocalApiRouter:
     def _market_provider_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_provider_disable(params["provider_id"], payload)
 
-    def _market_provider_reputation(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return market_provider_reputation(params["provider_id"])
+    def _market_provider_reputation(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_reputation(params["provider_id"], payload)
 
     def _market_quote_ingest(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_quote_ingest(payload)

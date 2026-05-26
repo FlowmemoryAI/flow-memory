@@ -245,9 +245,9 @@ class ComputeMarketService:
         page = self.store.list_records("compute_provider", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
         return {"ok": True, "providers": page.records, "next_cursor": page.next_cursor}
 
-    def get_provider(self, provider_id: str) -> Mapping[str, Any]:
+    def get_provider(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         provider = self.store.get_record("compute_provider", provider_id)
-        if provider is None:
+        if provider is None or not _tenant_can_access_catalog_record(payload or {}, provider):
             raise KeyError(f"Unknown compute provider: {provider_id}")
         return {"ok": True, "provider": provider}
 
@@ -275,7 +275,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "PATCH /compute/providers/{provider_id}", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
-        current = dict(self.get_provider(provider_id)["provider"])
+        current = dict(self.get_provider(provider_id, payload)["provider"])
         updated = {**current, **_provider_admin_payload(payload), "provider_id": provider_id}
         for key in ("credentials", *_CREDENTIAL_VALUE_KEYS):
             updated.pop(key, None)
@@ -292,7 +292,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /compute/providers/{provider_id}/disable", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
-        current = dict(self.get_provider(provider_id)["provider"])
+        current = dict(self.get_provider(provider_id, payload)["provider"])
         current["status"] = "disabled"
         current["disabled_at"] = utc_now_iso()
         self.store.put_record("compute_provider", provider_id, current, provider_id=provider_id, status="disabled", request_id=request_id)
@@ -306,6 +306,9 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /compute/providers/{provider_id}/health-check", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
+        provider_record = self.store.get_record("compute_provider", provider_id)
+        if provider_record is not None and not _tenant_can_access_catalog_record(payload, provider_record):
+            raise KeyError(f"Unknown compute provider: {provider_id}")
         circuit = self.circuit_breaker.allow_request(provider_id, adapter_type="health_check")
         if not circuit.ok:
             self._audit("compute.provider.circuit_open", payload, request_id=request_id, result="skipped", reason_codes=("circuit_open",), provider_id=provider_id)
@@ -318,7 +321,7 @@ class ComputeMarketService:
                     "circuit": circuit.as_record(),
                 },
             }
-        provider = self.get_provider(provider_id)["provider"]
+        provider = self.get_provider(provider_id, payload)["provider"]
         routes = tuple(route for route in self.store.list_records("compute_route", filters={"provider_id": provider_id}).records)
         snapshot = ProviderHealthSnapshot(
             health_snapshot_id=deterministic_id("provider_health", {"provider_id": provider_id, "created_at": utc_now_iso()}),
@@ -330,7 +333,15 @@ class ComputeMarketService:
             rate_limits=provider.get("rate_limit_profile", {}) if isinstance(provider.get("rate_limit_profile"), Mapping) else {},
         )
         record = snapshot.as_record()
-        self.store.put_record("provider_health_snapshot", snapshot.health_snapshot_id, record, provider_id=provider_id, status=snapshot.status)
+        self.store.put_record(
+            "provider_health_snapshot",
+            snapshot.health_snapshot_id,
+            record,
+            tenant_id=str(provider.get("tenant_id", payload.get("tenant_id", ""))),
+            workspace_id=str(provider.get("workspace_id", payload.get("workspace_id", ""))),
+            provider_id=provider_id,
+            status=snapshot.status,
+        )
         return {"ok": True, "provider_health": record}
 
     def apply_market_provider(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -370,16 +381,22 @@ class ComputeMarketService:
             "inline_secrets_stored": False,
         }
 
-    def market_provider(self, provider_id: str) -> Mapping[str, Any]:
-        application_page = self.store.list_records("market_provider_application", filters={"provider_id": provider_id}, limit=1)
+    def market_provider(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        try:
+            application = self._latest_provider_application(provider_id, payload)
+        except KeyError:
+            application = {}
         provider = self.store.get_record("compute_provider", provider_id)
-        if not application_page.records and provider is None:
+        if provider is not None and not _tenant_can_access_catalog_record(payload, provider):
+            provider = None
+        if not application and provider is None:
             raise KeyError(f"Unknown market provider: {provider_id}")
         return {
             "ok": True,
-            "provider_application": application_page.records[0] if application_page.records else {},
+            "provider_application": application,
             "provider": provider or {},
-            "reputation": self.provider_reputation(provider_id)["reputation"],
+            "reputation": self.provider_reputation(provider_id, payload)["reputation"],
         }
 
     def verify_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -388,7 +405,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/verify", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
-        application = self._latest_provider_application(provider_id)
+        application = self._latest_provider_application(provider_id, payload)
         verified_at = utc_now_iso()
         updated_application = {
             **application,
@@ -405,11 +422,31 @@ class ComputeMarketService:
             provider_id=provider_id,
             status="verified",
             request_id=request_id,
+            tenant_id=str(updated_application.get("tenant_id", "")),
+            workspace_id=str(updated_application.get("workspace_id", "")),
         )
         provider = _provider_from_application(updated_application)
-        self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status="active", request_id=request_id)
+        self.store.put_record(
+            "compute_provider",
+            provider_id,
+            provider,
+            tenant_id=str(provider.get("tenant_id", "")),
+            workspace_id=str(provider.get("workspace_id", "")),
+            provider_id=provider_id,
+            status="active",
+            request_id=request_id,
+        )
         reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=(), fraud_signals=(), provider=provider)
-        self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status="active", request_id=request_id)
+        self.store.put_record(
+            "provider_reputation",
+            provider_id,
+            reputation,
+            tenant_id=str(provider.get("tenant_id", "")),
+            workspace_id=str(provider.get("workspace_id", "")),
+            provider_id=provider_id,
+            status="active",
+            request_id=request_id,
+        )
         self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
 
@@ -419,6 +456,10 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/conformance", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
+        try:
+            self._latest_provider_application(provider_id, payload)
+        except KeyError:
+            self.get_provider(provider_id, payload)
         quote = payload.get("sample_quote", payload.get("quote", {}))
         if not isinstance(quote, Mapping):
             raise ValueError("sample_quote must be an object")
@@ -447,7 +488,16 @@ class ComputeMarketService:
             "error_codes": validation.error_codes,
             "warnings": validation.warnings,
         }
-        self.store.put_record("provider_health_snapshot", str(snapshot["health_snapshot_id"]), snapshot, provider_id=provider_id, status=status, request_id=request_id)
+        self.store.put_record(
+            "provider_health_snapshot",
+            str(snapshot["health_snapshot_id"]),
+            snapshot,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
+            provider_id=provider_id,
+            status=status,
+            request_id=request_id,
+        )
         self._audit("market.provider.conformance_checked", payload, request_id=request_id, result=status, reason_codes=validation.error_codes, provider_id=provider_id)
         return {"ok": validation.ok, "provider_id": provider_id, "validation": validation.as_record(), "signed_quote_valid": signed_quote_valid, "conformance": snapshot}
 
@@ -457,7 +507,7 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         disabled_at = utc_now_iso()
-        application = self._latest_provider_application(provider_id)
+        application = self._latest_provider_application(provider_id, payload)
         updated_application = {**application, "status": "disabled", "disabled_at": disabled_at, "updated_at": disabled_at}
         self.store.put_record(
             "market_provider_application",
@@ -466,31 +516,53 @@ class ComputeMarketService:
             provider_id=provider_id,
             status="disabled",
             request_id=request_id,
+            tenant_id=str(updated_application.get("tenant_id", "")),
+            workspace_id=str(updated_application.get("workspace_id", "")),
         )
         provider = self.store.get_record("compute_provider", provider_id)
         if provider is not None:
             disabled_provider = {**dict(provider), "status": "disabled", "disabled_at": disabled_at, "updated_at": disabled_at}
-            self.store.put_record("compute_provider", provider_id, disabled_provider, provider_id=provider_id, status="disabled", request_id=request_id)
+            if not _tenant_can_access_catalog_record(payload, disabled_provider):
+                raise KeyError(f"Unknown market provider: {provider_id}")
+            self.store.put_record(
+                "compute_provider",
+                provider_id,
+                disabled_provider,
+                tenant_id=str(disabled_provider.get("tenant_id", "")),
+                workspace_id=str(disabled_provider.get("workspace_id", "")),
+                provider_id=provider_id,
+                status="disabled",
+                request_id=request_id,
+            )
         invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": provider_id, "reason": "provider_disabled"}, request_id=request_id)
         self._audit("market.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "invalidated_quote_cache_entries": invalidated_cache}
 
-    def provider_reputation(self, provider_id: str) -> Mapping[str, Any]:
-        jobs = tuple(self.store.list_records("compute_job", filters={"provider_id": provider_id}, limit=500).records)
-        quotes = tuple(self.store.list_records("compute_quote", filters={"provider_id": provider_id}, limit=500).records)
-        health = tuple(self.store.list_records("provider_health_snapshot", filters={"provider_id": provider_id}, limit=100).records)
-        fraud_signals = tuple(self.store.list_records("provider_fraud_signal", filters={"provider_id": provider_id}, limit=500).records)
-        refunds = tuple(self.store.list_records("refund", filters={"provider_id": provider_id}, limit=500).records)
+    def provider_reputation(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        filters: dict[str, Any] = {"provider_id": provider_id}
+        tenant_id = _payload_tenant_id(payload)
+        if tenant_id:
+            filters["tenant_id"] = tenant_id
+        jobs = tuple(self.store.list_records("compute_job", filters=filters, limit=500).records)
+        quotes = tuple(self.store.list_records("compute_quote", filters=filters, limit=500).records)
+        health = tuple(self.store.list_records("provider_health_snapshot", filters=filters, limit=100).records)
+        fraud_signals = tuple(self.store.list_records("provider_fraud_signal", filters=filters, limit=500).records)
+        refunds = tuple(self.store.list_records("refund", filters=filters, limit=500).records)
         provider = self.store.get_record("compute_provider", provider_id) or {}
+        if isinstance(provider, Mapping) and provider and not _tenant_can_access_catalog_record(payload, provider):
+            raise KeyError(f"Unknown compute provider: {provider_id}")
         reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals, refunds=refunds, provider=provider if isinstance(provider, Mapping) else {})
-        self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
+        if not tenant_id:
+            self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
         return {"ok": True, "reputation": reputation}
 
-    def _latest_provider_application(self, provider_id: str) -> Mapping[str, Any]:
-        applications = self.store.list_records("market_provider_application", filters={"provider_id": provider_id}, limit=1).records
-        if not applications:
-            raise KeyError(f"Unknown market provider application: {provider_id}")
-        return applications[0]
+    def _latest_provider_application(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        applications = self.store.list_records("market_provider_application", filters={"provider_id": provider_id}, limit=500).records
+        for application in applications:
+            if _tenant_can_access_catalog_record(payload or {}, application):
+                return application
+        raise KeyError(f"Unknown market provider application: {provider_id}")
 
     def list_routes(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         page = self.store.list_records("compute_route", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
@@ -3599,6 +3671,8 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
         "execution_endpoint": execution_endpoint,
         "public_key": str(payload.get("public_key", "")),
         "sla": dict(payload.get("sla", {})) if isinstance(payload.get("sla"), Mapping) else {},
+        "tenant_id": str(payload.get("tenant_id", "")),
+        "workspace_id": str(payload.get("workspace_id", "")),
         "configured_by": str(payload.get("configured_by", "provider-admin")),
         "created_at": now,
         "updated_at": now,
@@ -3619,6 +3693,8 @@ def _provider_secret_reference(payload: Mapping[str, Any], *, provider_id: str, 
         "secret_ref": secret_ref,
         "secret_ref_hash": content_hash({"provider_id": provider_id, "secret_ref": secret_ref}),
         "storage": "external_secret_manager",
+        "tenant_id": str(payload.get("tenant_id", "")),
+        "workspace_id": str(payload.get("workspace_id", "")),
         "created_at": utc_now_iso(),
         "request_id": request_id,
     }
@@ -3647,6 +3723,8 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "dry_run_only": True,
         "capacity_available": True,
         "metadata": metadata,
+        "tenant_id": str(application.get("tenant_id", "")),
+        "workspace_id": str(application.get("workspace_id", "")),
         "public_key": public_key,
         "created_at": str(application.get("created_at", now)),
         "updated_at": now,
@@ -4572,6 +4650,14 @@ def _tenant_can_access_record(payload: Mapping[str, Any], record: Mapping[str, A
     if not tenant_id:
         return True
     return str(record.get("tenant_id", "")).strip() == tenant_id
+
+
+def _tenant_can_access_catalog_record(payload: Mapping[str, Any], record: Mapping[str, Any]) -> bool:
+    tenant_id = _payload_tenant_id(payload)
+    if not tenant_id:
+        return True
+    record_tenant_id = str(record.get("tenant_id", "")).strip()
+    return not record_tenant_id or record_tenant_id == tenant_id
 
 def _payload_worker_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("worker_id", "")).strip()

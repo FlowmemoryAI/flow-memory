@@ -227,6 +227,93 @@ def test_http_gateway_provider_health_store_audit_keeps_tenant_context() -> None
     assert all(event["tenant_id"] == "tenant_provider" for event in audit_events)
 
 
+def test_http_gateway_provider_market_records_are_tenant_isolated() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    key_a = "fmk_tenant_provider_a"
+    key_b = "fmk_tenant_provider_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-provider-a-key",
+                    "key_prefix": "fmk_tenant_provider_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_provider_a",
+                    "principal": "svc-provider-a",
+                    "scopes": ("compute:provider-admin", "compute:read"),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "tenant-provider-b-key",
+                    "key_prefix": "fmk_tenant_provider_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_provider_b",
+                    "principal": "svc-provider-b",
+                    "scopes": ("compute:provider-admin", "compute:read"),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    provider_application = {
+        "provider_id": "tenant-provider-a",
+        "provider_name": "Tenant Provider A",
+        "provider_type": "gpu",
+        "supported_unit_types": ["gpu_minute"],
+        "supported_assets": ["USDC"],
+        "supported_networks": ["offchain"],
+        "quote_endpoint": "https://provider-a.example/quote",
+        "health_endpoint": "https://provider-a.example/health",
+        "sla": {"uptime_target": 0.99, "max_latency_ms": 1000, "refund_policy": "credit"},
+    }
+
+    try:
+        applied = gateway.handle(
+            "POST",
+            "/market/providers/apply",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps(provider_application).encode("utf-8"),
+        )
+        tenant_a_market = gateway.handle("GET", "/market/providers/tenant-provider-a", {"x-flow-memory-api-key": key_a})
+        tenant_b_market = gateway.handle("GET", "/market/providers/tenant-provider-a", {"x-flow-memory-api-key": key_b})
+        tenant_b_verify = gateway.handle(
+            "POST",
+            "/market/providers/tenant-provider-a/verify",
+            {"x-flow-memory-api-key": key_b},
+            b"{}",
+        )
+        tenant_a_verify = gateway.handle(
+            "POST",
+            "/market/providers/tenant-provider-a/verify",
+            {"x-flow-memory-api-key": key_a},
+            b"{}",
+        )
+        tenant_b_compute = gateway.handle("GET", "/compute/providers/tenant-provider-a", {"x-flow-memory-api-key": key_b})
+        tenant_b_reputation = gateway.handle(
+            "GET",
+            "/market/providers/tenant-provider-a/reputation",
+            {"x-flow-memory-api-key": key_b},
+        )
+    finally:
+        reset_default_service(None)
+
+    assert applied.status == 200
+    assert applied.body["data"]["provider_application"]["tenant_id"] == "tenant_provider_a"
+    assert tenant_a_market.status == 200
+    assert tenant_a_market.body["data"]["provider_application"]["provider_id"] == "tenant-provider-a"
+    assert tenant_b_market.status == 404
+    assert tenant_b_verify.status == 404
+    assert tenant_a_verify.status == 200
+    assert tenant_b_compute.status == 404
+    assert tenant_b_reputation.status == 404
+
+
 def test_http_gateway_rejects_scope_header_escalation_for_scoped_key() -> None:
     key = "fmk_tenant_read"
     gateway = HttpApiGateway(

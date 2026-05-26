@@ -19,6 +19,7 @@ RUFF_TARGETS: tuple[str, ...] = (
     "scripts/validate_compute_market_public_buildout.py",
     "scripts/run_compute_market_provider_sandbox.py",
     "scripts/validate_compute_market_live_infra.py",
+    "scripts/validate_compute_market_provider_conformance.py",
     "tests/test_compute_market_audit.py",
     "tests/test_compute_market_provider_contracts.py",
     "tests/test_compute_market_production_buildout.py",
@@ -40,6 +41,7 @@ RUFF_TARGETS: tuple[str, ...] = (
     "tests/test_compute_market_public_validation_script.py",
     "tests/test_compute_market_live_integration.py",
     "tests/test_compute_market_live_infra_script.py",
+    "tests/test_compute_market_provider_conformance_script.py",
     "tests/test_cli.py",
 )
 
@@ -71,6 +73,7 @@ PYTEST_TARGETS: tuple[str, ...] = (
     "tests/test_compute_market_public_validation_script.py",
     "tests/test_compute_market_live_integration.py",
     "tests/test_compute_market_live_infra_script.py",
+    "tests/test_compute_market_provider_conformance_script.py",
     "tests/test_cli.py",
 )
 

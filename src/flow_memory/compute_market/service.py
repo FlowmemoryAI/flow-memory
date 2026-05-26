@@ -3862,6 +3862,9 @@ def _contract_quote_from_normalized(quote: Mapping[str, Any]) -> dict[str, Any]:
     original = quote.get("original_quote", {})
     record = dict(original) if isinstance(original, Mapping) else {}
     record.update(dict(quote))
+    for unsafe_key in ("broadcast", "broadcast_allowed", "broadcast_required", "sendTransaction", "signTransaction", "private_key", "private_key_required"):
+        record.pop(unsafe_key, None)
+    record.pop("original_quote", None)
     record.setdefault("currency_or_asset", record.get("payment_asset", "USD"))
     record.setdefault("settlement_modes", record.get("settlement_options", ("generic_dry_run",)))
     record.setdefault("dry_run_supported", bool(record.get("dry_run_only", True)))

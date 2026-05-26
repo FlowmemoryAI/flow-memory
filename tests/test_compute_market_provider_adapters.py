@@ -310,7 +310,7 @@ def test_external_provider_adapter_factory_and_service_quote_flow() -> None:
     try:
         adapter = build_external_provider_adapter(provider_record, (), config)
         direct_quotes = adapter.quote(build_task_profile({"task": "factory"}), ComputeMarketPolicy())
-        store = ComputeMarketStore()
+        store = ComputeMarketStore(":memory:")
         service = ComputeMarketService(store=store, config=config)
         service.create_provider(provider_record)
         response = service.request_external_provider_quote(
@@ -335,7 +335,7 @@ def test_external_provider_adapter_factory_and_service_quote_flow() -> None:
 
 
 def test_external_provider_quote_flow_fails_closed_when_disabled() -> None:
-    store = ComputeMarketStore()
+    store = ComputeMarketStore(":memory:")
     service = ComputeMarketService(
         store=store,
         config=ComputeMarketConfig(compute_market_mode="test", rate_limits_enabled=False, external_provider_quotes_enabled=False),

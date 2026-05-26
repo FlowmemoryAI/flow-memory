@@ -2048,7 +2048,8 @@ class ComputeMarketService:
         if not secret and self.config.compute_market_mode == "test":
             secret = str(payload.get("webhook_secret", ""))
         signature = str(payload.get("stripe_signature", ""))
-        verified = bool(secret) and _verify_webhook_signature(raw_event, secret, signature)
+        raw_event_body = str(payload.get("raw_event_body", ""))
+        verified = bool(secret) and _verify_webhook_signature(raw_event, secret, signature, raw_event_body=raw_event_body)
         event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
         event_type = str(raw_event.get("type", ""))
         account_id = _stripe_account_id(raw_event, payload)
@@ -5338,10 +5339,26 @@ def _billing_account(account_id: str, payload: Mapping[str, Any]) -> dict[str, A
     }
 
 
-def _verify_webhook_signature(raw_event: Mapping[str, Any], secret: str, signature: str) -> bool:
+def _verify_webhook_signature(raw_event: Mapping[str, Any], secret: str, signature: str, *, raw_event_body: str = "") -> bool:
     if not secret or not signature:
         return False
-    expected = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    secret_bytes = secret.encode("utf-8")
+    if "v1=" in signature:
+        timestamp = ""
+        candidates: list[str] = []
+        for item in signature.split(","):
+            key, separator, value = item.partition("=")
+            if not separator:
+                continue
+            if key == "t":
+                timestamp = value
+            elif key == "v1" and value:
+                candidates.append(value)
+        if not timestamp or not candidates or not raw_event_body:
+            return False
+        expected = hmac.new(secret_bytes, f"{timestamp}.{raw_event_body}".encode("utf-8"), "sha256").hexdigest()
+        return any(hmac.compare_digest(expected, candidate) for candidate in candidates)
+    expected = hmac.new(secret_bytes, content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
     return hmac.compare_digest(expected, signature)
 
 

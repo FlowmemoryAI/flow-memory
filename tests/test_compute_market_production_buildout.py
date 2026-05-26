@@ -1084,6 +1084,38 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
 
 
+def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:
+    service = _service()
+    raw_event = {"id": "evt_stripe_header", "type": "checkout.session.completed", "amount_total": 2500, "currency": "usd", "metadata": {"account_id": "acct_header"}}
+    raw_event_body = json.dumps(raw_event, separators=(",", ":"), sort_keys=True)
+    secret = "whsec_test_secret"
+    timestamp = "1770000000"
+    digest = hmac.new(secret.encode("utf-8"), f"{timestamp}.{raw_event_body}".encode("utf-8"), "sha256").hexdigest()
+    stripe_signature = f"t={timestamp},v1=bad-signature,v1={digest}"
+
+    webhook = service.billing_webhook_stripe(
+        {
+            "raw_event": raw_event,
+            "raw_event_body": raw_event_body,
+            "webhook_secret": secret,
+            "stripe_signature": stripe_signature,
+        }
+    )
+    missing_body = service.billing_webhook_stripe(
+        {
+            "raw_event": {**raw_event, "id": "evt_stripe_header_missing_body"},
+            "webhook_secret": secret,
+            "stripe_signature": stripe_signature,
+        }
+    )
+
+    assert webhook["ok"] is True
+    assert webhook["payment_event"]["verified"] is True
+    assert webhook["credit_transaction"]["amount"] == 25.0
+    assert missing_body["ok"] is False
+    assert missing_body["payment_event"]["status"] == "rejected_unverified"
+
+
 def test_billing_webhook_records_verified_payment_failure_without_crediting_balance() -> None:
     service = _service()
     raw_event = {

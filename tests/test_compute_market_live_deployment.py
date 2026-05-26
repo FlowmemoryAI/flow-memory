@@ -120,6 +120,19 @@ def test_render_deploy_requires_https_public_url_before_smoke() -> None:
     assert local_smoke["ok"] is False
     assert local_smoke["reason"] == "public_url_must_not_use_localhost"
 
+
+def test_render_deploy_blocks_unsafe_level1_env_overrides() -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.assert_level1_safety_settings(
+            {
+                "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED": "false",
+                "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED": "true",
+                "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "true",
+            }
+        )
+
+    assert blocked.value.code == 38
+
 def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []
     jwt_health_calls = 0
@@ -232,6 +245,8 @@ def test_render_blueprint_preserves_billing_safety_defaults() -> None:
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS\n        value: 300" in blueprint
+    public_script = (ROOT / "scripts" / "deploy_compute_market_public_level1.ps1").read_text(encoding="utf-8")
+    assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'" in public_script
 
 
 def test_public_smoke_scripts_verify_observability_endpoints() -> None:

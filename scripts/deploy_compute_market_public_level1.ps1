@@ -248,6 +248,7 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'
+    FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'
 }
 
 $badSafety = New-Object System.Collections.Generic.List[string]

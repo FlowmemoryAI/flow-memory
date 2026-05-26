@@ -37,6 +37,18 @@ DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
 DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
 DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
 DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = os.environ.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300")
+LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
+    "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
+    "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
+    "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED": "true",
+    "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED": "false",
+    "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED": "true",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED": "true",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": "true",
+    "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
+}
 DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST = os.environ.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "").strip()
 DEFAULT_API_JWT_HS256_SECRET = os.environ.get("FLOW_MEMORY_API_JWT_HS256_SECRET", "").strip()
 DEFAULT_API_JWT_ISSUER = os.environ.get("FLOW_MEMORY_API_JWT_ISSUER", "").strip()
@@ -156,6 +168,30 @@ def _env_setting(values: dict[str, str], key: str, default: str = "") -> str:
 
 def _truthy_env(value: str) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def normalized_bool_text(value: str) -> str:
+    lowered = value.strip().lower()
+    if lowered in {"1", "true", "yes", "on"}:
+        return "true"
+    if lowered in {"0", "false", "no", "off"}:
+        return "false"
+    return lowered
+
+
+def assert_level1_safety_settings(values: dict[str, str]) -> None:
+    invalid = [
+        {"key": key, "expected": expected, "actual": values[key]}
+        for key, expected in LEVEL1_EXPECTED_BOOLEAN_SETTINGS.items()
+        if key in values and values[key].strip() and normalized_bool_text(values[key]) != expected
+    ]
+    if invalid:
+        emit(
+            "blocked_unsafe_level1_config",
+            38,
+            invalid_values=invalid,
+            required_action="Level 1 Render deployment is planning-only: keep dry-run, audit, immutable export, managed backend, and no-custody billing safety settings intact.",
+        )
 
 
 def assert_https_observability_sink_url(url: str, key: str) -> None:
@@ -1017,6 +1053,7 @@ def main() -> int:
         emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
     validate_render_plans()
     env_values = parse_env(Path(args.env_file))
+    assert_level1_safety_settings(env_values)
     audit_export_uri = audit_export_uri_from_env(env_values)
     audit_export_s3_region = audit_export_s3_region_from_env(env_values)
     audit_export_object_lock_mode = _audit_export_setting(

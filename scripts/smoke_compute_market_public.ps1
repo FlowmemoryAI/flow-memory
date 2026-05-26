@@ -167,6 +167,10 @@ $alerts = Invoke-ComputeMarketRequest -Method GET -Path '/compute/alerts' -Scope
 Assert-Status -Response $alerts -Expected 200 -Name 'alerts'
 Assert-True ($alerts.Json.ok -eq $true) 'alerts endpoint did not return ok=true.'
 
+$telemetry = Invoke-ComputeMarketRequest -Method GET -Path '/compute/telemetry' -Scopes 'compute:read'
+Assert-Status -Response $telemetry -Expected 200 -Name 'telemetry'
+Assert-True ($telemetry.Json.ok -eq $true) 'telemetry endpoint did not return ok=true.'
+
 $auditVerify = Invoke-ComputeMarketRequest -Method GET -Path '/compute/audit/verify' -Scopes 'compute:audit'
 Assert-Status -Response $auditVerify -Expected 200 -Name 'audit verify'
 Assert-True (($auditVerify.Json.ok -eq $true) -and ($auditVerify.Json.data.ok -eq $true)) 'audit verify did not return ok=true.'

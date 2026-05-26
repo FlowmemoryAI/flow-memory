@@ -122,10 +122,13 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert 'Invoke-WebRequest -Uri "$baseUrl/metrics"' in smoke_script
     assert "compute_plan_requests_total" in smoke_script
     assert "Path '/compute/alerts'" in smoke_script
+    assert "Path '/compute/telemetry'" in smoke_script
     assert 'checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)' in render_script
     assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in render_script
+    assert 'checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
     assert '"alerts": checks["alerts"][0]' in render_script
+    assert '"telemetry": checks["telemetry"][0]' in render_script
     assert "deployments/compute-market/prometheus-alerts.yml" in render_script
 
 
@@ -134,6 +137,7 @@ def test_public_buildout_validator_requires_observability_endpoints() -> None:
 
     assert 'checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)' in validator_script
     assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in validator_script
+    assert 'checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)' in validator_script
     assert '"compute_plan_requests_total" in checks["metrics"][1]' in validator_script
     assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
 
@@ -230,6 +234,73 @@ def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"] == "300"
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"] == ""
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"] == ""
+
+def test_render_env_builder_binds_https_observability_sinks() -> None:
+    env_vars = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_s3_region="us-east-1",
+            alert_webhook_url="https://alerts.example.test/flow-memory",
+            alert_webhook_secret="alert-secret",
+            alert_webhook_timeout_ms="2500",
+            error_tracking_webhook_url="https://errors.example.test/flow-memory",
+            error_tracking_webhook_secret="error-secret",
+            error_tracking_timeout_ms="3000",
+            otlp_endpoint_url="https://otel.example.test/v1/traces",
+            otlp_headers="authorization: Bearer otlp-secret",
+            otlp_timeout_ms="4000",
+        )
+    }
+
+    assert env_vars["FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"] == "true"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL"] == "https://alerts.example.test/flow-memory"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET"] == "alert-secret"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS"] == "2500"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED"] == "true"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL"] == "https://errors.example.test/flow-memory"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET"] == "error-secret"
+    assert env_vars["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS"] == "3000"
+    assert env_vars["FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED"] == "true"
+    assert env_vars["FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL"] == "https://otel.example.test/v1/traces"
+    assert env_vars["FLOW_MEMORY_COMPUTE_OTLP_HEADERS"] == "authorization: Bearer otlp-secret"
+    assert env_vars["FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS"] == "4000"
+
+    baseline_env_vars = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_s3_region="us-east-1",
+        )
+    }
+    assert baseline_env_vars["FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"] == "false"
+    assert baseline_env_vars["FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL"] == ""
+    assert baseline_env_vars["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED"] == "false"
+    assert baseline_env_vars["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL"] == ""
+    assert baseline_env_vars["FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED"] == "false"
+    assert baseline_env_vars["FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL"] == ""
+
+    with pytest.raises(SystemExit) as missing:
+        render_deploy.observability_sink_url_from_env(
+            {"FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED": "true"},
+            "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
+            "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED",
+        )
+    with pytest.raises(SystemExit) as insecure:
+        render_deploy.observability_sink_url_from_env(
+            {"FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL": "http://otel.example.test/v1/traces"},
+            "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+            "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED",
+        )
+
+    assert missing.value.code == 29
+    assert insecure.value.code == 29
 
 def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_POSTGRES_PLAN", "free")

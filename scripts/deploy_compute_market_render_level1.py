@@ -143,6 +143,40 @@ def _audit_export_setting(values: dict[str, str], key: str, default: str) -> str
     return values.get(key) or default
 
 
+def _env_setting(values: dict[str, str], key: str, default: str = "") -> str:
+    return values.get(key) or default
+
+
+def _truthy_env(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def assert_https_observability_sink_url(url: str, key: str) -> None:
+    if url and url_scheme(url) != "https":
+        emit(
+            "blocked_insecure_observability_sink",
+            29,
+            invalid_value=key,
+            url_scheme=url_scheme(url),
+            required_scheme="https",
+            required_action=f"{key} must be an https:// public observability sink URL",
+        )
+
+
+def observability_sink_url_from_env(values: dict[str, str], url_key: str, enabled_key: str) -> str:
+    url = values.get(url_key, "").strip()
+    enabled = _truthy_env(values.get(enabled_key, ""))
+    if enabled and not url:
+        emit(
+            "blocked_missing_observability_sink",
+            29,
+            missing_values=[url_key],
+            required_action=f"configure {url_key} or disable {enabled_key} before public deployment",
+        )
+    assert_https_observability_sink_url(url, url_key)
+    return url
+
+
 def has_placeholder(value: str) -> bool:
     return any(token in value for token in PLACEHOLDERS)
 
@@ -415,6 +449,15 @@ def build_env_vars(
     audit_export_immutable_required: str = DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
     audit_export_s3_region: str = DEFAULT_AUDIT_EXPORT_S3_REGION,
     audit_export_s3_endpoint_url: str = DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
+    alert_webhook_url: str = "",
+    alert_webhook_secret: str = "",
+    alert_webhook_timeout_ms: str = "2000",
+    error_tracking_webhook_url: str = "",
+    error_tracking_webhook_secret: str = "",
+    error_tracking_timeout_ms: str = "2000",
+    otlp_endpoint_url: str = "",
+    otlp_headers: str = "",
+    otlp_timeout_ms: str = "5000",
 ) -> list[dict[str, str]]:
     if url_scheme(redis_url) != "rediss":
         emit(
@@ -432,6 +475,12 @@ def build_env_vars(
             required_scheme="postgresql",
             required_action="FLOW_MEMORY_COMPUTE_DATABASE_URL must be a managed PostgreSQL URL.",
         )
+    for key, value in (
+        ("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL", alert_webhook_url),
+        ("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL", error_tracking_webhook_url),
+        ("FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL", otlp_endpoint_url),
+    ):
+        assert_https_observability_sink_url(value, key)
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
@@ -486,18 +535,18 @@ def build_env_vars(
         "FLOW_MEMORY_BILLING_STRIPE_PRODUCT_NAME": "Flow Memory compute credits",
         "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET": "",
         "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS": DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS,
-        "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED": "false",
-        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL": "",
-        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET": "",
-        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS": "2000",
-        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED": "false",
-        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL": "",
-        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET": "",
-        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS": "2000",
-        "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED": "false",
-        "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL": "",
-        "FLOW_MEMORY_COMPUTE_OTLP_HEADERS": "",
-        "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS": "5000",
+        "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED": "true" if alert_webhook_url else "false",
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL": alert_webhook_url,
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET": alert_webhook_secret,
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS": alert_webhook_timeout_ms,
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED": "true" if error_tracking_webhook_url else "false",
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL": error_tracking_webhook_url,
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET": error_tracking_webhook_secret,
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS": error_tracking_timeout_ms,
+        "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED": "true" if otlp_endpoint_url else "false",
+        "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL": otlp_endpoint_url,
+        "FLOW_MEMORY_COMPUTE_OTLP_HEADERS": otlp_headers,
+        "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS": otlp_timeout_ms,
         "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "false",
         "FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST": "",
         "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "",
@@ -630,6 +679,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
     checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
+    checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
@@ -669,6 +719,8 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             "compute_plan_requests_total" in str(checks["metrics"][1]),
             checks["alerts"][0] == 200,
             checks["alerts"][1].get("ok") is True,
+            checks["telemetry"][0] == 200,
+            checks["telemetry"][1].get("ok") is True,
             audit_ok,
             checks["admin_audit_export"][0] == 200,
             checks["admin_storage_diagnostics"][0] == 200,
@@ -706,6 +758,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
         "redis_url_scheme": safety.get("redis_url_scheme"),
         "metrics": checks["metrics"][0],
         "alerts": checks["alerts"][0],
+        "telemetry": checks["telemetry"][0],
     }
 
 
@@ -764,6 +817,31 @@ def main() -> int:
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL",
         DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
     )
+    alert_webhook_url = observability_sink_url_from_env(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
+        "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED",
+    )
+    error_tracking_webhook_url = observability_sink_url_from_env(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED",
+    )
+    otlp_endpoint_url = observability_sink_url_from_env(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+        "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED",
+    )
+    alert_webhook_secret = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET")
+    error_tracking_webhook_secret = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET")
+    otlp_headers = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_HEADERS")
+    alert_webhook_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS", "2000")
+    error_tracking_timeout_ms = _env_setting(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS",
+        "2000",
+    )
+    otlp_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS", "5000")
     owner_id = infer_owner_id(args.api_key, args.owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
@@ -792,6 +870,15 @@ def main() -> int:
             audit_export_retention_days=audit_export_retention_days,
             audit_export_immutable_required=audit_export_immutable_required,
             audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
+            alert_webhook_url=alert_webhook_url,
+            alert_webhook_secret=alert_webhook_secret,
+            alert_webhook_timeout_ms=alert_webhook_timeout_ms,
+            error_tracking_webhook_url=error_tracking_webhook_url,
+            error_tracking_webhook_secret=error_tracking_webhook_secret,
+            error_tracking_timeout_ms=error_tracking_timeout_ms,
+            otlp_endpoint_url=otlp_endpoint_url,
+            otlp_headers=otlp_headers,
+            otlp_timeout_ms=otlp_timeout_ms,
         )
         service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
         url = public_url(service)
@@ -812,6 +899,15 @@ def main() -> int:
             audit_export_retention_days=audit_export_retention_days,
             audit_export_immutable_required=audit_export_immutable_required,
             audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
+            alert_webhook_url=alert_webhook_url,
+            alert_webhook_secret=alert_webhook_secret,
+            alert_webhook_timeout_ms=alert_webhook_timeout_ms,
+            error_tracking_webhook_url=error_tracking_webhook_url,
+            error_tracking_webhook_secret=error_tracking_webhook_secret,
+            error_tracking_timeout_ms=error_tracking_timeout_ms,
+            otlp_endpoint_url=otlp_endpoint_url,
+            otlp_headers=otlp_headers,
+            otlp_timeout_ms=otlp_timeout_ms,
         )
         render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
         trigger_service_deploy(args.api_key, str(service["id"]))

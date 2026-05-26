@@ -119,6 +119,44 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header():
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
 
 
+def test_http_gateway_rejects_scope_header_escalation_for_scoped_key() -> None:
+    key = "fmk_tenant_read"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-read-key",
+                    "key_prefix": "fmk_tenant_",
+                    "key_hash": api_key_hash(key),
+                    "tenant_id": "tenant_read",
+                    "principal": "svc-read",
+                    "scopes": "compute:read",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    escalated = gateway.handle(
+        "GET",
+        "/admin/storage/diagnostics",
+        {"x-flow-memory-api-key": key, "x-flow-memory-scopes": "compute:admin"},
+    )
+    allowed_subset = gateway.handle(
+        "GET",
+        "/compute/health",
+        {"x-flow-memory-api-key": key, "x-flow-memory-scopes": "compute:read"},
+    )
+
+    assert escalated.status == 403
+    assert escalated.body["error"]["code"] == "auth.forbidden"
+    assert escalated.body["error"]["details"]["unauthorized"] == ("compute:admin",)
+    assert escalated.body["error"]["details"]["granted"] == ("compute:read",)
+    assert allowed_subset.status == 200
+
+
 def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),

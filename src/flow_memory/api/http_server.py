@@ -161,6 +161,18 @@ class HttpApiGateway:
                 path=context.path,
                 payload=payload,
             )
+            if auth.ok and auth.scopes and context.scopes:
+                unauthorized_scopes = tuple(sorted(set(context.scopes) - set(auth.scopes)))
+                if unauthorized_scopes:
+                    raise forbidden_error(
+                        "Requested API scopes are not granted to this credential",
+                        details={
+                            "requested": tuple(sorted(context.scopes)),
+                            "granted": tuple(sorted(auth.scopes)),
+                            "unauthorized": unauthorized_scopes,
+                            "key_id": auth.key_id,
+                        },
+                    )
             if auth.ok and (auth.scopes or auth.tenant_id or auth.principal):
                 context = context.__class__(
                     method=context.method,

@@ -623,3 +623,46 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
     assert len(panels) >= 8
     for metric in required_metrics:
         assert metric in expressions
+
+
+def test_prometheus_alert_rules_cover_public_production_failures() -> None:
+    rules_path = Path("deployments/compute-market/prometheus-alerts.yml")
+    rules = rules_path.read_text(encoding="utf-8")
+
+    required_alerts = {
+        "FlowMemoryComputeMarketReadinessUnavailable",
+        "FlowMemoryComputeMarketAuditChainBreak",
+        "FlowMemoryComputeMarketProviderQuoteErrorSpike",
+        "FlowMemoryComputeMarketProviderCircuitOpen",
+        "FlowMemoryComputeMarketStaleQuotes",
+        "FlowMemoryComputeMarketBillingWebhookFailures",
+        "FlowMemoryComputeMarketPolicyDenialSpike",
+        "FlowMemoryComputeMarketUnexpectedSettlementConfig",
+        "FlowMemoryComputeMarketProviderAllowlistMissing",
+        "FlowMemoryComputeMarketComputeJobFailures",
+        "FlowMemoryComputeMarketAlertDeliveryFailure",
+    }
+    required_metrics = {
+        "postgres_unavailable_total",
+        "redis_unavailable_total",
+        "audit_chain_verify_fail_total",
+        "provider_quote_failure_total",
+        "provider_circuit_open_total",
+        "quote_stale_total",
+        "billing_webhook_failures_total",
+        "compute_policy_denials_total",
+        "policy_denied_total",
+        "unexpected_live_settlement_config_total",
+        "settlement_attempt_total",
+        "external_provider_allowlist_missing_total",
+        "compute_job_failed_total",
+        "alert_delivery_failed_total",
+        "error_tracking_failed_total",
+        "otlp_export_failed_total",
+    }
+
+    assert "flow-memory-compute-market-public-production" in rules
+    for alert_name in required_alerts:
+        assert f"alert: {alert_name}" in rules
+    for metric_name in required_metrics:
+        assert metric_name in rules

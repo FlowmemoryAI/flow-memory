@@ -155,6 +155,7 @@ Use `flow-memory compute audit export --chain-id all --out <path> --json` and `f
 ## Metrics and tracing
 
 Enable metrics and tracing in production planning mode. See `docs/COMPUTE_MARKET.md` for metric and span names.
+Import `deployments/compute-market/grafana-dashboard.json` into Grafana and load `deployments/compute-market/prometheus-alerts.yml` into Prometheus/Alertmanager for public production alerting.
 
 Rate limiting and circuit breakers are local by default. Multi-node deployments should use the Redis-backed `RateLimiter` and `CircuitBreaker` implementations or enforce equivalent limits at the API gateway.
 Redis-backed implementations are available through `RedisRateLimiter` and `RedisCircuitBreaker`. They are optional-dependency paths and fail closed by default when Redis is required but unavailable. Set fail-open only for explicitly accepted degraded-mode operations.

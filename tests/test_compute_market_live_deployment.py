@@ -126,6 +126,7 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
     assert '"alerts": checks["alerts"][0]' in render_script
+    assert "deployments/compute-market/prometheus-alerts.yml" in render_script
 
 
 def test_public_buildout_validator_requires_observability_endpoints() -> None:

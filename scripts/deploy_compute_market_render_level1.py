@@ -59,6 +59,8 @@ DEPLOY_PATHS = (
     "scripts/deploy_compute_market_render_level1.py",
     "scripts/smoke_compute_market_public.ps1",
     "scripts/validate_compute_market_public_buildout.py",
+    "deployments/compute-market/grafana-dashboard.json",
+    "deployments/compute-market/prometheus-alerts.yml",
 )
 PLACEHOLDERS = (
     "CHANGEME",

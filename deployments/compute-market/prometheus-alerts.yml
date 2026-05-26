@@ -1,0 +1,113 @@
+groups:
+  - name: flow-memory-compute-market-public-production
+    interval: 30s
+    rules:
+      - alert: FlowMemoryComputeMarketReadinessUnavailable
+        expr: postgres_unavailable_total > 0 or redis_unavailable_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: readiness
+        annotations:
+          summary: Managed PostgreSQL or Redis is unavailable for Compute Market.
+          description: Public Level 1 readiness must fail closed when managed Postgres or Redis cannot be reached.
+
+      - alert: FlowMemoryComputeMarketAuditChainBreak
+        expr: audit_chain_verify_fail_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: audit
+        annotations:
+          summary: Compute Market audit chain verification failed.
+          description: Stop traffic, export affected audit events, and investigate hash-chain integrity before resuming writes.
+
+      - alert: FlowMemoryComputeMarketProviderQuoteErrorSpike
+        expr: rate(provider_quote_failure_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: providers
+        annotations:
+          summary: Provider quote failures spiked.
+          description: Check provider health, external allowlists, provider credentials, and circuit-breaker state.
+
+      - alert: FlowMemoryComputeMarketProviderCircuitOpen
+        expr: provider_circuit_open_total > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: providers
+        annotations:
+          summary: A provider circuit breaker is open.
+          description: Verify provider availability and keep route selection away from degraded supply.
+
+      - alert: FlowMemoryComputeMarketStaleQuotes
+        expr: rate(quote_stale_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: quotes
+        annotations:
+          summary: Stale quotes are being rejected.
+          description: Confirm quote TTLs, clock sync, provider quote freshness, and quote cache invalidation.
+
+      - alert: FlowMemoryComputeMarketBillingWebhookFailures
+        expr: billing_webhook_failures_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: billing
+        annotations:
+          summary: Stripe billing webhook verification failed.
+          description: Verify Stripe-Signature, webhook secret, replay window, and raw body preservation at the gateway.
+
+      - alert: FlowMemoryComputeMarketPolicyDenialSpike
+        expr: rate(compute_policy_denials_total[5m]) > 10 or rate(policy_denied_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: policy
+        annotations:
+          summary: Compute policy denials spiked.
+          description: Review budget, tenant quota, provider allowlist, stale quote, and dry-run safety decisions.
+
+      - alert: FlowMemoryComputeMarketUnexpectedSettlementConfig
+        expr: unexpected_live_settlement_config_total > 0 or settlement_attempt_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: settlement
+        annotations:
+          summary: Live settlement safety gate was touched.
+          description: Level 1 must remain dry-run-only with live settlement, broadcast, and private-key inputs disabled.
+
+      - alert: FlowMemoryComputeMarketProviderAllowlistMissing
+        expr: external_provider_allowlist_missing_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: providers
+        annotations:
+          summary: External provider quotes are enabled without an allowlist.
+          description: Disable external quotes or configure a strict provider allowlist before accepting provider supply.
+
+      - alert: FlowMemoryComputeMarketComputeJobFailures
+        expr: rate(compute_job_failed_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: execution
+        annotations:
+          summary: Compute job failures exceeded the public production threshold.
+          description: Inspect provider dispatch, job state transitions, usage metering, and artifact/result storage.
+
+      - alert: FlowMemoryComputeMarketAlertDeliveryFailure
+        expr: alert_delivery_failed_total > 0 or error_tracking_failed_total > 0 or otlp_export_failed_total > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: observability
+        annotations:
+          summary: Observability sink delivery is failing.
+          description: Check alert routing, error tracking, and OTLP exporter credentials, endpoints, and network access.

@@ -183,7 +183,8 @@ def test_alert_routing_delivers_configured_webhook_and_records_evidence() -> Non
     assert service.store.count_records("alert_delivery") == 1
     assert _ALERT_WEBHOOK_POSTS[0]["path"] == "/alerts"
     assert _ALERT_WEBHOOK_POSTS[0]["signature"]
-    assert _ALERT_WEBHOOK_POSTS[0]["body"]["alert"]["rule_name"] == "audit-chain-verify-failure"
+    alert_body = cast(Any, _ALERT_WEBHOOK_POSTS[0]["body"])
+    assert alert_body["alert"]["rule_name"] == "audit-chain-verify-failure"
     assert "alert-routing-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
     metric_totals = service.telemetry.summary()["metric_totals"]
     assert metric_totals["alert_delivery_pending_total"] == 1.0
@@ -287,8 +288,9 @@ def test_error_tracking_records_delivery_and_metrics() -> None:
     event = tracked["event"]
     assert event["details"]["password"] == "[redacted]"
     assert "error-track-secret" not in json.dumps(event)
-    assert _ALERT_WEBHOOK_POSTS[0]["body"]["type"] == "flow_memory.compute_market.error"
-    assert _ALERT_WEBHOOK_POSTS[0]["body"]["details"]["password"] == "[redacted]"
+    error_body = cast(Any, _ALERT_WEBHOOK_POSTS[0]["body"])
+    assert error_body["type"] == "flow_memory.compute_market.error"
+    assert error_body["details"]["password"] == "[redacted]"
     assert _ALERT_WEBHOOK_POSTS[0]["signature"]
     assert "error-track-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
     metric_totals = service.telemetry.summary()["metric_totals"]
@@ -423,8 +425,9 @@ def test_otlp_export_delivers_to_collector_and_records_evidence() -> None:
     assert "otlp-secret" not in json.dumps(delivery)
     assert service.store.count_records("otlp_export_delivery") == 1
     assert _ALERT_WEBHOOK_POSTS[0]["authorization"] == "Bearer otlp-secret"
-    assert _ALERT_WEBHOOK_POSTS[0]["body"]["resourceMetrics"][0]["scopeMetrics"][0]["metrics"][0]["name"] == "compute_plan_requests_total"
-    assert _ALERT_WEBHOOK_POSTS[0]["body"]["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["name"] == "compute.plan_request"
+    otlp_body = cast(Any, _ALERT_WEBHOOK_POSTS[0]["body"])
+    assert otlp_body["resourceMetrics"][0]["scopeMetrics"][0]["metrics"][0]["name"] == "compute_plan_requests_total"
+    assert otlp_body["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["name"] == "compute.plan_request"
     assert "otlp-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
     metric_totals = service.telemetry.summary()["metric_totals"]
     assert metric_totals["otlp_export_attempt_total"] == 1.0

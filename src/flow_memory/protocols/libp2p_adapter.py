@@ -5,5 +5,5 @@ class Libp2pNotConfigured(RuntimeError):
 
 
 class Libp2pAdapter:
-    def publish(self, _topic: str, _payload: bytes):
+    def publish(self, _topic: str, _payload: bytes) -> None:
         raise Libp2pNotConfigured("libp2p transport is not configured")

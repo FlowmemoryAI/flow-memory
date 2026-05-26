@@ -725,6 +725,56 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     replacement = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 10})
     assert replacement["reservation"]["status"] == "held"
 
+
+def test_capacity_listing_expires_stale_holds_before_publishing_inventory() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    stale_hold = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 4,
+            "hold_expires_at": "2000-01-01T00:00:00Z",
+        }
+    )
+
+    relisted = service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    expired = service.store.get_record("compute_reservation", str(stale_hold["reservation"]["reservation_id"]))
+
+    assert relisted["expired_reservations"][0]["status"] == "expired"
+    assert expired is not None
+    assert expired["status"] == "expired"
+    assert _metric_total(
+        service,
+        "capacity_hold_expired_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 4.0
+
+
 def test_capacity_reservation_confirm_creates_dry_run_commitment() -> None:
     service = _service()
     service.list_capacity(

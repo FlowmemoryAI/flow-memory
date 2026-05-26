@@ -1037,6 +1037,7 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         _assert_provider_catalog_access(self.store, str(payload.get("provider_id", "")), payload)
+        expired_reservations = self._expire_capacity_holds(payload, request_id=request_id)
         window = _capacity_window(payload)
         self.store.put_record(
             "compute_capacity_window",
@@ -1051,7 +1052,7 @@ class ComputeMarketService:
             workspace_id=str(payload.get("workspace_id", "")),
         )
         self._audit("market.capacity.listed", payload, request_id=request_id, result="listed", provider_id=str(window["provider_id"]), route_id=str(window["route_id"]))
-        return {"ok": True, "capacity_window": window}
+        return {"ok": True, "capacity_window": window, "expired_reservations": expired_reservations}
 
     def capacity_order_book(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         filters = payload or {}

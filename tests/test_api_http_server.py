@@ -37,6 +37,8 @@ def test_http_gateway_api_key_auth_blocks_missing_key():
     assert root.status == 200
     assert root.body["data"]["service"] == "Flow Memory Compute Market"
     assert root.body["data"]["auth"] == "API key or JWT bearer required for /compute/* endpoints"
+    assert root.body["data"]["endpoints"]["metrics"] == "/metrics"
+    assert root.body["data"]["endpoints"]["alerts"] == "/compute/alerts"
 
 
 def test_http_gateway_nonce_check_blocks_replay_when_enabled():

@@ -134,6 +134,8 @@ class HttpApiGateway:
                             "readiness": "/compute/readiness",
                             "plan": "/compute/plan",
                             "audit_verify": "/compute/audit/verify",
+                            "metrics": "/metrics",
+                            "alerts": "/compute/alerts",
                         },
                     },
                     "request_id": request_id,

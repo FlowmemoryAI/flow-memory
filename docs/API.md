@@ -48,6 +48,11 @@ router.dispatch("GET", "/health")
 - `/launch/agent`
 - `/launch/agent/from-flow`
 - `/network/run-scenario`
+- `/cognition/predict`
+- `/cognition/tick`
+- `/cognition/benchmarks/run`
+- `/cognition/lessons`
+- `/cognition/metrics`
 
 ## OpenAPI
 
@@ -115,7 +120,7 @@ See `docs/API_AGENT_LAUNCH.md` for the local public-alpha launch endpoints. Thes
 The local API exposes read-only release metadata for public-alpha tooling:
 
 - `GET /release/evidence` returns the committed release evidence bundle index metadata and never exposes raw artifacts.
-- `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, `public-alpha-launch`, and `public-alpha-launch-finalizer`.
+- `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, `public-alpha-launch`, `public-alpha-launch-finalizer`, and `public-alpha-cognition`.
 
 When scope checks are enabled these endpoints require `release:read`.
 
@@ -154,3 +159,21 @@ These endpoints expose local supervisor metadata and heartbeat artifacts only. T
 - `POST /launch/finalize/public-alpha`
 
 Console read endpoints require `launch:read`; demo bundle and finalizer exports require `launch:export` when scope checks are enabled. They expose local replay/run metadata, a compact public-alpha bundle with fixture references, docs references, commands, release evidence summary, GPU evidence status, Mission Control Live 3D Mode readiness, final release decisions, and honest limitations.
+
+## Predictive cognition endpoints
+
+- `POST /cognition/predict`
+- `POST /cognition/tick`
+- `GET /cognition/experiences`
+- `GET /cognition/experiences/{experience_id}`
+- `GET /cognition/prediction-errors`
+- `POST /cognition/memory/query`
+- `POST /cognition/benchmarks/run`
+- `GET /cognition/benchmarks`
+- `GET /cognition/benchmarks/{benchmark_id}`
+- `POST /cognition/lessons/consolidate`
+- `GET /cognition/lessons`
+- `GET /cognition/lessons/{lesson_id}`
+- `GET /cognition/metrics`
+
+Prediction reads require `cognition:read`; bounded ticks and benchmark runs require `cognition:run cognition:write`; lesson consolidation requires `cognition:write`. These endpoints are local public-alpha seams for deterministic predictive cognition, lesson consolidation, and benchmark metrics. They do not authorize actions or bypass PolicyEngine/ApprovalGate.

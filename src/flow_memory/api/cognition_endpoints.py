@@ -6,6 +6,9 @@ from typing import Any, Mapping
 
 from flow_memory.agents.profile import AgentProfile
 from flow_memory.agents.runner import AgentRunner
+from flow_memory.cognition.benchmarks import get_benchmark, latest_benchmark_metrics, list_benchmarks, run_predictive_learning_benchmark
+from flow_memory.cognition.consolidation import consolidate_experiences, get_lesson, list_lessons
+from flow_memory.cognition.metrics import cognition_metrics
 from flow_memory.cognition.experience import get_experience, list_experiences, prediction_error_records, query_experiences
 from flow_memory.cognition.world_model import DeterministicWorldModel
 from flow_memory.visualization.embodiment import neural_embodiment_state
@@ -56,6 +59,40 @@ def cognition_memory_query(payload: Mapping[str, Any], root: str | Path = ROOT) 
     tags = tuple(str(item) for item in tags_raw) if isinstance(tags_raw, (list, tuple)) else tuple(str(tags_raw).split()) if tags_raw else ()
     records = query_experiences(str(payload.get("query", "")), agent_id=str(payload.get("agent_id", "")), tags=tags, root=root, limit=int(payload.get("limit", 10) or 10))
     return {"ok": True, "experiences": records, "count": len(records), "local_only": True}
+
+def cognition_benchmark_run(payload: Mapping[str, Any], root: str | Path = ROOT) -> Mapping[str, Any]:
+    return run_predictive_learning_benchmark(
+        scenario=str(payload.get("scenario", "all")),
+        trials=int(payload.get("trials", 5) or 5),
+        root=root,
+    )
+
+
+def cognition_benchmarks(root: str | Path = ROOT) -> Mapping[str, Any]:
+    records = list_benchmarks(root)
+    return {"ok": True, "benchmarks": records, "count": len(records), "latest_metrics": latest_benchmark_metrics(root), "local_only": True}
+
+
+def cognition_benchmark(benchmark_id: str, root: str | Path = ROOT) -> Mapping[str, Any]:
+    return {"ok": True, "benchmark": get_benchmark(benchmark_id, root), "local_only": True}
+
+
+def cognition_lessons_consolidate(payload: Mapping[str, Any] | None = None, root: str | Path = ROOT) -> Mapping[str, Any]:
+    payload = dict(payload or {})
+    return consolidate_experiences(root, min_repetitions=int(payload.get("min_repetitions", 1) or 1))
+
+
+def cognition_lessons(root: str | Path = ROOT) -> Mapping[str, Any]:
+    records = list_lessons(root)
+    return {"ok": True, "lessons": records, "count": len(records), "local_only": True}
+
+
+def cognition_lesson(lesson_id: str, root: str | Path = ROOT) -> Mapping[str, Any]:
+    return {"ok": True, "lesson": get_lesson(lesson_id, root), "local_only": True}
+
+
+def cognition_metrics_endpoint(root: str | Path = ROOT) -> Mapping[str, Any]:
+    return cognition_metrics(str(root))
 
 
 def launch_run_predictions(run_id: str, root: str | Path = ROOT) -> Mapping[str, Any]:

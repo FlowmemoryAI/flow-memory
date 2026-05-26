@@ -333,6 +333,8 @@ def _cognition_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
         "experience_memory_enabled",
         "retrieve_similar_experiences",
         "confidence_calibration_enabled",
+        "memory_consolidation_enabled",
+        "predictive_benchmarks_enabled",
         "explain_predictions",
         "policy_fallback",
     }

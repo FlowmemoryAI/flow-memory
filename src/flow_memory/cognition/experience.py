@@ -145,7 +145,7 @@ def query_experiences(query: str = "", *, agent_id: str = "", tags: tuple[str, .
         if tag_set and not tag_set.intersection(memory_tags):
             continue
         text = json.dumps(record, sort_keys=True).lower()
-        if lowered and lowered not in text:
+        if lowered and not _query_matches(lowered, text):
             continue
         matches.append(record)
     return tuple(matches[-limit:])
@@ -185,6 +185,16 @@ def _tags(goal: str, state: Mapping[str, Any], error: Mapping[str, Any]) -> tupl
     if float(error.get("prediction_error", 0.0) or 0.0) > 0.5:
         tags.append("high-error")
     return tuple(dict.fromkeys(tags))
+
+
+def _query_matches(query: str, text: str) -> bool:
+    if query in text:
+        return True
+    tokens = tuple(token for token in query.replace("-", " ").split() if len(token) > 4)
+    if not tokens:
+        return False
+    overlap = sum(1 for token in tokens if token in text)
+    return overlap >= min(2, len(tokens))
 
 
 def _rel(root: Path, path: Path) -> str:

@@ -89,9 +89,13 @@ Predictive cognition adds a local deterministic loop for prediction, counterfact
 python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json
 python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json
 python -m flow_memory cognition experiences list --json
+python -m flow_memory cognition benchmark run --scenario dashboard-stale-server --trials 5 --json
+python -m flow_memory cognition benchmark run --scenario all --trials 5 --json
+python -m flow_memory cognition lessons consolidate --json
+python -m flow_memory cognition metrics --json
 ```
 
-Records are stored under `artifacts/cognition/experiences/` and remain scoped to observable local Flow Memory outcomes.
+Records are stored under `artifacts/cognition/experiences/`, `artifacts/cognition/lessons/`, and `artifacts/cognition/benchmarks/` and remain scoped to observable local Flow Memory outcomes.
 
 
 ## Local alpha evidence
@@ -111,9 +115,10 @@ GPU-gated targets remain blocked until the real RunPod artifact is imported.
 ```bash
 python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 5 --tick-interval-ms 10 --emit-visual --json
 python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --ticks 5 --emit-visual --json
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --consolidate-lessons --ticks 5 --emit-visual --json
 python -m flow_memory launch supervisor status --json
 python -m flow_memory launch supervisor heartbeat <run_id> --json
 ```
 
 Supervisor runs are local-only, finite, and policy-gated.
-The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, `predictive-cognitive-core`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural/predictive outputs advisory.
+The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, `predictive-cognitive-core`, `predictive-learning-benchmark`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural/predictive outputs advisory.

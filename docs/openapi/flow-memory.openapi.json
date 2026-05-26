@@ -328,6 +328,125 @@
         ]
       }
     },
+    "/cognition/benchmarks": {
+      "get": {
+        "operationId": "cognition_benchmarks",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "benchmarks": {
+                      "type": "string"
+                    },
+                    "latest_metrics": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local predictive learning benchmark records",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/benchmarks/run": {
+      "post": {
+        "operationId": "cognition_benchmark_run",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "scenario": {
+                    "type": "string"
+                  },
+                  "trials": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "consolidated_lessons": {
+                      "type": "string"
+                    },
+                    "metrics": {
+                      "type": "string"
+                    },
+                    "scenario_results": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run deterministic predictive learning benchmark scenarios",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/benchmarks/{benchmark_id}": {
+      "get": {
+        "operationId": "cognition_benchmark",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "benchmark_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "benchmark": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one predictive learning benchmark record",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
     "/cognition/experiences": {
       "get": {
         "operationId": "cognition_experiences",
@@ -392,6 +511,116 @@
         ]
       }
     },
+    "/cognition/lessons": {
+      "get": {
+        "operationId": "cognition_lessons",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "lessons": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List consolidated predictive cognition lessons",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/lessons/consolidate": {
+      "post": {
+        "operationId": "cognition_lessons_consolidate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "min_repetitions": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "consolidated_lesson_count": {
+                      "type": "string"
+                    },
+                    "lessons": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Consolidate prediction-error experiences into reusable lessons",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/lessons/{lesson_id}": {
+      "get": {
+        "operationId": "cognition_lesson",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lesson_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "lesson": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one consolidated predictive cognition lesson",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
     "/cognition/memory/query": {
       "post": {
         "operationId": "cognition_memory_query",
@@ -436,6 +665,39 @@
           }
         },
         "summary": "Query local predictive cognition experience memory",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/metrics": {
+      "get": {
+        "operationId": "cognition_metrics",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "lesson_reuse_rate": {
+                      "type": "string"
+                    },
+                    "prediction_accuracy_after": {
+                      "type": "string"
+                    },
+                    "prediction_error_mean_after": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return aggregate predictive cognition learning metrics",
         "tags": [
           "cognition"
         ]

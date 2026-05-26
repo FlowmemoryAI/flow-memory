@@ -41,6 +41,7 @@ def start_supervised_run(
     goal: str = "",
     parent_run_id: str = "",
     predictive_core: bool = False,
+    consolidate_lessons: bool = False,
 ) -> Mapping[str, Any]:
     """Run a finite supervised local neural-live launch and persist supervisor state."""
 
@@ -90,6 +91,7 @@ def start_supervised_run(
             continuation_of=parent_run_id,
             gpu_evidence_status=str(summary.get("gpu_evidence_status", "blocked_missing_artifact")),
             predictive_core_enabled=bool(predictive_core),
+            consolidate_lessons_enabled=bool(consolidate_lessons),
         )
         heartbeat = _heartbeat_payload(record, status="completed", ticks=ticks)
         _write_heartbeat(root_path, run_id, heartbeat)
@@ -102,16 +104,19 @@ def start_supervised_run(
                 "parent_run_id": parent_run_id,
                 "continuation_of": parent_run_id,
                 "predictive_core_enabled": bool(predictive_core),
+                "consolidate_lessons_enabled": bool(consolidate_lessons),
             },
             "visual_events_emitted": int(dict(launch.get("summary", {})).get("visual_events_emitted", record["ticks_completed"])),
         })
         _save_supervisor_record(root_path, record)
+        lesson_consolidation = _consolidate_lessons_if_requested(root_path, consolidate_lessons)
         return {
             "ok": True,
             "supervisor": record,
             "run": get_run_record(root_path, run_id),
             "heartbeat": heartbeat,
             "launch": launch,
+            "lesson_consolidation": lesson_consolidation,
             "replay_artifact_path": record["replay_artifact_path"],
             "local_only": True,
             "safety_authority": "policy_engine_and_approval_gate",
@@ -142,6 +147,7 @@ def start_supervised_run(
             gpu_evidence_status=_gpu_evidence_status(root_path),
             predictive_core_enabled=bool(predictive_core),
             last_error=type(exc).__name__,
+            consolidate_lessons_enabled=bool(consolidate_lessons),
         )
         heartbeat = _heartbeat_payload(record, status="failed", ticks=0)
         _write_heartbeat(root_path, run_id, heartbeat)
@@ -228,6 +234,8 @@ def resume_supervisor_run(
         root=root_path,
         goal=f"Continue supervised run {run_id}",
         parent_run_id=run_id,
+        predictive_core=bool(prior.get("predictive_core_enabled", False)),
+        consolidate_lessons=bool(prior.get("consolidate_lessons_enabled", False)),
     )
     supervisor = dict(resumed.get("supervisor", {}))
     _append_heartbeat(root_path, str(supervisor.get("run_id", "")), "live_supervisor_continuation_created", supervisor)
@@ -280,6 +288,7 @@ def _supervisor_record(
     continuation_of: str,
     gpu_evidence_status: str,
     predictive_core_enabled: bool = False,
+    consolidate_lessons_enabled: bool = False,
     last_error: str = "",
 ) -> dict[str, Any]:
     if status not in SUPERVISOR_STATUSES:
@@ -308,6 +317,7 @@ def _supervisor_record(
         "continuation_of": continuation_of,
         "gpu_evidence_status": gpu_evidence_status,
         "predictive_core_enabled": bool(predictive_core_enabled),
+        "consolidate_lessons_enabled": bool(consolidate_lessons_enabled),
         "local_only": True,
         "no_external_calls": True,
         "no_live_provider_calls": True,
@@ -358,6 +368,14 @@ def _heartbeat_event(record: Mapping[str, Any], event: str, tick: int, status: s
         "local_only": True,
         "safety_authority": "policy_engine_and_approval_gate",
     }
+
+def _consolidate_lessons_if_requested(root: Path, enabled: bool) -> Mapping[str, Any]:
+    if not enabled:
+        return {"ok": True, "enabled": False, "consolidated_lesson_count": 0}
+    from flow_memory.cognition.consolidation import consolidate_experiences
+
+    payload = consolidate_experiences(root)
+    return {**dict(payload), "enabled": True}
 
 
 def _write_heartbeat(root: Path, run_id: str, payload: Mapping[str, Any]) -> None:

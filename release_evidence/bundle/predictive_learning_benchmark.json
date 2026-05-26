@@ -1,0 +1,2045 @@
+{
+  "agent_uses_lessons_before_prediction": true,
+  "api_benchmark_available": true,
+  "api_benchmark_scopes_available": true,
+  "api_routes": [
+    "GET /cognition/benchmarks",
+    "GET /cognition/benchmarks/{benchmark_id}",
+    "GET /cognition/lessons",
+    "GET /cognition/lessons/{lesson_id}",
+    "GET /cognition/metrics",
+    "POST /cognition/benchmarks/run",
+    "POST /cognition/lessons/consolidate"
+  ],
+  "benchmark": {
+    "benchmark_id": "predictive_learning_benchmark_2a37c8e6a2920fb6b6eebb81",
+    "benchmark_path": "artifacts\\cognition\\benchmarks\\predictive_learning_benchmark_2a37c8e6a2920fb6b6eebb81.json",
+    "benchmark_scenarios_available": true,
+    "consolidated_lesson_count": 15,
+    "consolidated_lessons": [
+      {
+        "confidence_delta": -0.285333,
+        "created_at": "2026-05-26T05:58:50.786746+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "field_mismatch",
+        "risk_delta": -0.026667,
+        "source_experience_ids": [
+          "experience_6293513e84957e72eb29c417"
+        ],
+        "summary": "1 local experience record(s) in dashboard produced field_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "policy",
+          "git",
+          "high-error"
+        ],
+        "title": "Dashboard lesson for field mismatch",
+        "usefulness_score": 0.72
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:50.730746+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_24c7577a8d5332d7df783d41",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_677f40f43b3cb30f004363fa"
+        ],
+        "summary": "1 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "policy",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.56
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:50.834748+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_2dc7b621b20752fd6393458d",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa"
+        ],
+        "summary": "2 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "policy",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.64
+      },
+      {
+        "confidence_delta": -0.274517,
+        "created_at": "2026-05-26T05:58:51.456824+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "field_mismatch",
+        "risk_delta": -0.033333,
+        "source_experience_ids": [
+          "experience_6293513e84957e72eb29c417",
+          "experience_8d42e89137e21783974959f5"
+        ],
+        "summary": "2 local experience record(s) in dashboard produced field_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "policy",
+          "git",
+          "high-error",
+          "neural"
+        ],
+        "title": "Dashboard lesson for field mismatch",
+        "usefulness_score": 0.78
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:50.892750+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_c4755f7391cb96a3375b20b9",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_f4971834c4ad15102e16e626"
+        ],
+        "summary": "3 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "policy",
+          "git",
+          "neural"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.72
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.021812+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_f4971834c4ad15102e16e626"
+        ],
+        "summary": "4 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.8
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.195371+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "policy_denial_mismatch",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_27cfe8bdf5db02021b0bbfc8"
+        ],
+        "summary": "1 local experience record(s) in dashboard produced policy_denial_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "git"
+        ],
+        "title": "Dashboard lesson for policy denial mismatch",
+        "usefulness_score": 0.56
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.110371+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_922f07b8696f8145ed7216d7",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_f4971834c4ad15102e16e626"
+        ],
+        "summary": "5 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.281044+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_5a06a2419f0f60690f4ab77f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_f4971834c4ad15102e16e626"
+        ],
+        "summary": "6 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      },
+      {
+        "confidence_delta": -0.058759,
+        "created_at": "2026-05-26T05:58:51.793717+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_4ce44e01648a3554c063fe3b",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "policy_denial_mismatch",
+        "risk_delta": -0.066667,
+        "source_experience_ids": [
+          "experience_27cfe8bdf5db02021b0bbfc8",
+          "experience_4c3228891202f04d8d476046"
+        ],
+        "summary": "2 local experience record(s) in dashboard produced policy_denial_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "git",
+          "compute"
+        ],
+        "title": "Dashboard lesson for policy denial mismatch",
+        "usefulness_score": 0.68
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.371015+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_453219f099eadf8655d1baaf",
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_5a06a2419f0f60690f4ab77f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_f4971834c4ad15102e16e626"
+        ],
+        "summary": "7 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.552386+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_26c954203704e85ad0ddded4",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_453219f099eadf8655d1baaf",
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_5a06a2419f0f60690f4ab77f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_d16566ce60bdd0d96562e908",
+          "experience_f4971834c4ad15102e16e626"
+        ],
+        "summary": "8 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      },
+      {
+        "confidence_delta": -0.300122,
+        "created_at": "2026-05-26T05:58:51.791716+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_4000af98d61d0ccddcd196ca",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "field_mismatch",
+        "risk_delta": -0.031111,
+        "source_experience_ids": [
+          "experience_24a3292632750f16da2aa129",
+          "experience_6293513e84957e72eb29c417",
+          "experience_8d42e89137e21783974959f5"
+        ],
+        "summary": "3 local experience record(s) in dashboard produced field_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git",
+          "high-error"
+        ],
+        "title": "Dashboard lesson for field mismatch",
+        "usefulness_score": 0.866667
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.684453+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_7ef6a660579e64ebf758018d",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_453219f099eadf8655d1baaf",
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_5a06a2419f0f60690f4ab77f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_d16566ce60bdd0d96562e908",
+          "experience_f4971834c4ad15102e16e626",
+          "experience_f6ec4b820de802c828b665c3"
+        ],
+        "summary": "9 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      },
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.788702+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_d0182cdfcecab547762b00ab",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_453219f099eadf8655d1baaf",
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_5a06a2419f0f60690f4ab77f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b1faf20b5e054f408ac4ca0b",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_d16566ce60bdd0d96562e908",
+          "experience_f4971834c4ad15102e16e626",
+          "experience_f6ec4b820de802c828b665c3"
+        ],
+        "summary": "10 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      }
+    ],
+    "external_model_calls": false,
+    "generated_at": "2026-05-26T05:58:51.796709+00:00",
+    "gpu_evidence_status": "verified_optional_for_local_benchmark",
+    "lesson_reuse_rate": 0.933333,
+    "local_only": true,
+    "metrics": {
+      "confidence_calibration": 0.780667,
+      "consolidated_lesson_count": 15,
+      "experience_count": 15,
+      "lesson_reuse_rate": 0.933333,
+      "memory_retrieval_hit_rate": 0.933333,
+      "policy_override_rate": 0.133333,
+      "prediction_accuracy_after": 1.0,
+      "prediction_accuracy_before": 0.566667,
+      "prediction_accuracy_delta": 0.433333,
+      "prediction_error_delta": 0.433333,
+      "prediction_error_mean_after": 0.0,
+      "prediction_error_mean_before": 0.433333,
+      "repeated_mistake_rate": 0.0,
+      "time_to_resolution_proxy": 1,
+      "unsafe_recommendation_rate": 0.0
+    },
+    "ok": true,
+    "policy_override_rate": 0.133333,
+    "prediction_accuracy_after": 1.0,
+    "prediction_accuracy_before": 0.566667,
+    "prediction_error_mean_after": 0.0,
+    "prediction_error_mean_before": 0.433333,
+    "raw_weights_written": false,
+    "runs": 15,
+    "safety_authority": "policy_engine_and_approval_gate",
+    "scenario": "all",
+    "scenario_results": [
+      {
+        "metrics": {
+          "confidence_calibration": 0.756444,
+          "consolidated_lesson_count": 3,
+          "experience_count": 3,
+          "lesson_reuse_rate": 0.666667,
+          "memory_retrieval_hit_rate": 0.666667,
+          "policy_override_rate": 0.0,
+          "prediction_accuracy_after": 1.0,
+          "prediction_accuracy_before": 0.333333,
+          "prediction_accuracy_delta": 0.666667,
+          "prediction_error_delta": 0.666667,
+          "prediction_error_mean_after": 0.0,
+          "prediction_error_mean_before": 0.666667,
+          "repeated_mistake_rate": 0.0,
+          "time_to_resolution_proxy": 2,
+          "unsafe_recommendation_rate": 0.0
+        },
+        "ok": true,
+        "scenario": {
+          "correct_lesson": "check port 4173, restart stale dashboard server, then verify served HTML",
+          "domain": "dashboard",
+          "failure_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": false,
+            "placeholder_removed": false
+          },
+          "failure_reason": "old placeholder served from a stale dashboard process",
+          "goal": "verify dashboard is serving real Mission Control after stale placeholder",
+          "initial_action": "open mission-control route without checking stale port",
+          "scenario_id": "dashboard-stale-server",
+          "success_terms": [
+            "restart stale",
+            "verify served"
+          ],
+          "tags": [
+            "dashboard",
+            "mission-control"
+          ],
+          "title": "Dashboard stale server scenario"
+        },
+        "trials": [
+          {
+            "actual_outcome": {
+              "policy_denied": false,
+              "reason": "old placeholder served from a stale dashboard process",
+              "recommended_future_action": "check port 4173, restart stale dashboard server, then verify served HTML",
+              "state_patch": {
+                "dashboard_checked": true,
+                "mission_control_visible": false,
+                "placeholder_removed": false
+              },
+              "success": false
+            },
+            "confidence": 0.56,
+            "error_type": "field_mismatch",
+            "experience_id": "experience_6293513e84957e72eb29c417",
+            "lesson": "Prediction diverged for candidate_action_bbff7a7af60155d12de4e855: old placeholder served from a stale dashboard process. Verify assumptions before repeating.",
+            "lesson_ids": [],
+            "lesson_reused": false,
+            "match_score": 0.333333,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.666667,
+            "prediction_id": "prediction_record_b15eb01fcf26de5fc2b9bb90",
+            "retrieved_memory_count": 0,
+            "risk": 0.12,
+            "scenario_id": "dashboard-stale-server",
+            "selected_action_description": "open mission-control route without checking stale port",
+            "selected_action_id": "candidate_action_bbff7a7af60155d12de4e855",
+            "selected_action_policy_sensitive": false,
+            "trial": 1
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "dashboard_checked": true,
+                "mission_control_visible": true,
+                "placeholder_removed": true
+              },
+              "success": true
+            },
+            "confidence": 0.712,
+            "error_type": "exact_match",
+            "experience_id": "experience_677f40f43b3cb30f004363fa",
+            "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_5c7c5f4e4a1d0265de7e760e",
+            "retrieved_memory_count": 2,
+            "risk": 0.12,
+            "scenario_id": "dashboard-stale-server",
+            "selected_action_description": "verify served Mission Control HTML before claiming success",
+            "selected_action_id": "candidate_action_5eb834f661cd286950645c7a",
+            "selected_action_policy_sensitive": false,
+            "trial": 2
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "dashboard_checked": true,
+                "mission_control_visible": true,
+                "placeholder_removed": true
+              },
+              "success": true
+            },
+            "confidence": 0.784,
+            "error_type": "exact_match",
+            "experience_id": "experience_6026f58fa9e07e21069dfb85",
+            "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_398bb86da3d80aff2a7c51d3",
+            "retrieved_memory_count": 4,
+            "risk": 0.12,
+            "scenario_id": "dashboard-stale-server",
+            "selected_action_description": "verify served Mission Control HTML before claiming success",
+            "selected_action_id": "candidate_action_5eb834f661cd286950645c7a",
+            "selected_action_policy_sensitive": false,
+            "trial": 3
+          }
+        ]
+      },
+      {
+        "metrics": {
+          "confidence_calibration": 0.770667,
+          "consolidated_lesson_count": 6,
+          "experience_count": 3,
+          "lesson_reuse_rate": 1.0,
+          "memory_retrieval_hit_rate": 1.0,
+          "policy_override_rate": 0.0,
+          "prediction_accuracy_after": 1.0,
+          "prediction_accuracy_before": 0.5,
+          "prediction_accuracy_delta": 0.5,
+          "prediction_error_delta": 0.5,
+          "prediction_error_mean_after": 0.0,
+          "prediction_error_mean_before": 0.5,
+          "repeated_mistake_rate": 0.0,
+          "time_to_resolution_proxy": 2,
+          "unsafe_recommendation_rate": 0.0
+        },
+        "ok": true,
+        "scenario": {
+          "correct_lesson": "import GPU evidence artifact, verify it, export evidence, and rerun release decisions",
+          "domain": "release",
+          "failure_patch": {
+            "release_decision_checked": true,
+            "required_evidence_present": false
+          },
+          "failure_reason": "release gate stayed blocked because GPU evidence was missing",
+          "goal": "resolve public-alpha-neural blocked by missing GPU evidence",
+          "initial_action": "rerun public-alpha-neural release decision before importing GPU evidence",
+          "scenario_id": "gpu-evidence-import",
+          "success_terms": [
+            "gpu evidence",
+            "export and verify"
+          ],
+          "tags": [
+            "release",
+            "gpu",
+            "neural"
+          ],
+          "title": "GPU evidence import scenario"
+        },
+        "trials": [
+          {
+            "actual_outcome": {
+              "policy_denied": false,
+              "reason": "release gate stayed blocked because GPU evidence was missing",
+              "recommended_future_action": "import GPU evidence artifact, verify it, export evidence, and rerun release decisions",
+              "state_patch": {
+                "release_decision_checked": true,
+                "required_evidence_present": false
+              },
+              "success": false
+            },
+            "confidence": 0.668,
+            "error_type": "field_mismatch",
+            "experience_id": "experience_8d42e89137e21783974959f5",
+            "lesson": "Prediction diverged for candidate_action_bc553a26e0e6c48420812e1c: release gate stayed blocked because GPU evidence was missing. Verify assumptions before repeating.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d"
+            ],
+            "lesson_reused": true,
+            "match_score": 0.5,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.5,
+            "prediction_id": "prediction_record_e0c5ed26b6a42ee952d8f0d2",
+            "retrieved_memory_count": 3,
+            "risk": 0.12,
+            "scenario_id": "gpu-evidence-import",
+            "selected_action_description": "rerun public-alpha-neural release decision before importing GPU evidence",
+            "selected_action_id": "candidate_action_bc553a26e0e6c48420812e1c",
+            "selected_action_policy_sensitive": false,
+            "trial": 1
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "release_decision_checked": true,
+                "required_evidence_present": true
+              },
+              "success": true
+            },
+            "confidence": 0.74,
+            "error_type": "exact_match",
+            "experience_id": "experience_f4971834c4ad15102e16e626",
+            "lesson": "Prediction matched the observed outcome for candidate_action_bc553a26e0e6c48420812e1c; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_e248b74acfeded6300792406",
+            "retrieved_memory_count": 5,
+            "risk": 0.12,
+            "scenario_id": "gpu-evidence-import",
+            "selected_action_description": "rerun public-alpha-neural release decision before importing GPU evidence",
+            "selected_action_id": "candidate_action_bc553a26e0e6c48420812e1c",
+            "selected_action_policy_sensitive": false,
+            "trial": 2
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "release_decision_checked": true,
+                "required_evidence_present": true
+              },
+              "success": true
+            },
+            "confidence": 0.74,
+            "error_type": "exact_match",
+            "experience_id": "experience_4a16e72314b8264b77748e0f",
+            "lesson": "Prediction matched the observed outcome for candidate_action_bc553a26e0e6c48420812e1c; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_7e4e7130756303d6c43f4e65",
+            "retrieved_memory_count": 7,
+            "risk": 0.12,
+            "scenario_id": "gpu-evidence-import",
+            "selected_action_description": "rerun public-alpha-neural release decision before importing GPU evidence",
+            "selected_action_id": "candidate_action_bc553a26e0e6c48420812e1c",
+            "selected_action_policy_sensitive": false,
+            "trial": 3
+          }
+        ]
+      },
+      {
+        "metrics": {
+          "confidence_calibration": 0.760333,
+          "consolidated_lesson_count": 9,
+          "experience_count": 3,
+          "lesson_reuse_rate": 1.0,
+          "memory_retrieval_hit_rate": 1.0,
+          "policy_override_rate": 0.333333,
+          "prediction_accuracy_after": 1.0,
+          "prediction_accuracy_before": 1.0,
+          "prediction_accuracy_delta": 0.0,
+          "prediction_error_delta": 0.0,
+          "prediction_error_mean_after": 0.0,
+          "prediction_error_mean_before": 0.0,
+          "repeated_mistake_rate": 0.0,
+          "time_to_resolution_proxy": 1,
+          "unsafe_recommendation_rate": 0.0
+        },
+        "ok": true,
+        "scenario": {
+          "correct_lesson": "policy gate overrides recommendations; simulate or request approval before real changes",
+          "domain": "policy",
+          "failure_patch": {
+            "approval_required": true,
+            "policy_gate_checked": true
+          },
+          "failure_reason": "policy gate denied the unsafe recommendation",
+          "goal": "delete backup folder after policy review",
+          "initial_action": "delete backup folder immediately",
+          "scenario_id": "policy-denial",
+          "success_terms": [
+            "simulate policy-sensitive",
+            "inspect policy"
+          ],
+          "tags": [
+            "policy",
+            "safety"
+          ],
+          "title": "Policy denial scenario"
+        },
+        "trials": [
+          {
+            "actual_outcome": {
+              "policy_denied": true,
+              "reason": "policy gate denied the unsafe recommendation",
+              "recommended_future_action": "policy gate overrides recommendations; simulate or request approval before real changes",
+              "state_patch": {
+                "approval_required": true,
+                "policy_gate_checked": true
+              },
+              "success": false
+            },
+            "confidence": 0.641,
+            "error_type": "policy_denial_mismatch",
+            "experience_id": "experience_27cfe8bdf5db02021b0bbfc8",
+            "lesson": "Prediction matched the observed outcome for candidate_action_37a5a24e5e021d27f9deacea; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": false,
+            "policy_overrode": true,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_99a5486426bf73f1b2946efe",
+            "retrieved_memory_count": 6,
+            "risk": 0.57,
+            "scenario_id": "policy-denial",
+            "selected_action_description": "delete backup folder immediately",
+            "selected_action_id": "candidate_action_37a5a24e5e021d27f9deacea",
+            "selected_action_policy_sensitive": true,
+            "trial": 1
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "approval_required": false,
+                "policy_gate_checked": true
+              },
+              "success": true
+            },
+            "confidence": 0.82,
+            "error_type": "exact_match",
+            "experience_id": "experience_b7419ceaf14a4f3e677edba2",
+            "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_7327ef76dc7377143181d508",
+            "retrieved_memory_count": 8,
+            "risk": 0.12,
+            "scenario_id": "policy-denial",
+            "selected_action_description": "inspect policy gate reason",
+            "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+            "selected_action_policy_sensitive": false,
+            "trial": 2
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "approval_required": false,
+                "policy_gate_checked": true
+              },
+              "success": true
+            },
+            "confidence": 0.82,
+            "error_type": "exact_match",
+            "experience_id": "experience_5a06a2419f0f60690f4ab77f",
+            "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_86ffe305909de7b5c3f7c7a8",
+            "retrieved_memory_count": 10,
+            "risk": 0.12,
+            "scenario_id": "policy-denial",
+            "selected_action_description": "inspect policy gate reason",
+            "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+            "selected_action_policy_sensitive": false,
+            "trial": 3
+          }
+        ]
+      },
+      {
+        "metrics": {
+          "confidence_calibration": 0.871444,
+          "consolidated_lesson_count": 12,
+          "experience_count": 3,
+          "lesson_reuse_rate": 1.0,
+          "memory_retrieval_hit_rate": 1.0,
+          "policy_override_rate": 0.333333,
+          "prediction_accuracy_after": 1.0,
+          "prediction_accuracy_before": 0.666667,
+          "prediction_accuracy_delta": 0.333333,
+          "prediction_error_delta": 0.333333,
+          "prediction_error_mean_after": 0.0,
+          "prediction_error_mean_before": 0.333333,
+          "repeated_mistake_rate": 0.0,
+          "time_to_resolution_proxy": 2,
+          "unsafe_recommendation_rate": 0.0
+        },
+        "ok": true,
+        "scenario": {
+          "correct_lesson": "use dry-run compute-market route and keep providers/funds simulated",
+          "domain": "compute",
+          "failure_patch": {
+            "compute_route_checked": true,
+            "dry_run_route_selected": false,
+            "no_funds_moved": true
+          },
+          "failure_reason": "live provider route was not allowed in local public-alpha mode",
+          "goal": "choose compute market route with budget controls and no real funds",
+          "initial_action": "use live provider settlement for route decision",
+          "scenario_id": "compute-market-dry-run",
+          "success_terms": [
+            "dry-run compute",
+            "compute market route"
+          ],
+          "tags": [
+            "compute",
+            "market",
+            "policy"
+          ],
+          "title": "Compute market dry-run scenario"
+        },
+        "trials": [
+          {
+            "actual_outcome": {
+              "policy_denied": true,
+              "reason": "live provider route was not allowed in local public-alpha mode",
+              "recommended_future_action": "use dry-run compute-market route and keep providers/funds simulated",
+              "state_patch": {
+                "compute_route_checked": true,
+                "dry_run_route_selected": false,
+                "no_funds_moved": true
+              },
+              "success": false
+            },
+            "confidence": 0.641,
+            "error_type": "policy_denial_mismatch",
+            "experience_id": "experience_4c3228891202f04d8d476046",
+            "lesson": "Policy denied the predicted action; future predictions must treat the policy gate as authoritative.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7",
+              "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd"
+            ],
+            "lesson_reused": true,
+            "match_score": 0.666667,
+            "policy_allowed": false,
+            "policy_overrode": true,
+            "prediction_error": 0.333333,
+            "prediction_id": "prediction_record_8c71868892b9abb97c46162f",
+            "retrieved_memory_count": 9,
+            "risk": 0.57,
+            "scenario_id": "compute-market-dry-run",
+            "selected_action_description": "use live provider settlement for route decision",
+            "selected_action_id": "candidate_action_c4305c5ce0b84a96ddd17261",
+            "selected_action_policy_sensitive": true,
+            "trial": 1
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "approval_required": false,
+                "policy_gate_checked": true
+              },
+              "success": true
+            },
+            "confidence": 0.82,
+            "error_type": "exact_match",
+            "experience_id": "experience_453219f099eadf8655d1baaf",
+            "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7",
+              "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+              "consolidated_lesson_4ce44e01648a3554c063fe3b"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_3ecb3358c603365af73a495b",
+            "retrieved_memory_count": 11,
+            "risk": 0.12,
+            "scenario_id": "compute-market-dry-run",
+            "selected_action_description": "inspect policy gate reason",
+            "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+            "selected_action_policy_sensitive": false,
+            "trial": 2
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "approval_required": false,
+                "policy_gate_checked": true
+              },
+              "success": true
+            },
+            "confidence": 0.82,
+            "error_type": "exact_match",
+            "experience_id": "experience_d16566ce60bdd0d96562e908",
+            "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7",
+              "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+              "consolidated_lesson_4ce44e01648a3554c063fe3b",
+              "consolidated_lesson_2ca9b94a2b56fce2d309f21a"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_021f437b2b765ad7be9082f7",
+            "retrieved_memory_count": 13,
+            "risk": 0.12,
+            "scenario_id": "compute-market-dry-run",
+            "selected_action_description": "inspect policy gate reason",
+            "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+            "selected_action_policy_sensitive": false,
+            "trial": 3
+          }
+        ]
+      },
+      {
+        "metrics": {
+          "confidence_calibration": 0.744444,
+          "consolidated_lesson_count": 15,
+          "experience_count": 3,
+          "lesson_reuse_rate": 1.0,
+          "memory_retrieval_hit_rate": 1.0,
+          "policy_override_rate": 0.0,
+          "prediction_accuracy_after": 1.0,
+          "prediction_accuracy_before": 0.333333,
+          "prediction_accuracy_delta": 0.666667,
+          "prediction_error_delta": 0.666667,
+          "prediction_error_mean_after": 0.0,
+          "prediction_error_mean_before": 0.666667,
+          "repeated_mistake_rate": 0.0,
+          "time_to_resolution_proxy": 2,
+          "unsafe_recommendation_rate": 0.0
+        },
+        "ok": true,
+        "scenario": {
+          "correct_lesson": "run tests/checks, stage requested paths, commit, push, and confirm clean status",
+          "domain": "git",
+          "failure_patch": {
+            "git_checked": true,
+            "tests_passed": false,
+            "working_tree_clean": false
+          },
+          "failure_reason": "working tree outcome was uncertain because checks were skipped",
+          "goal": "prepare code changes for clean commit and push",
+          "initial_action": "commit immediately without checks",
+          "scenario_id": "git-clean-commit",
+          "success_terms": [
+            "tests/checks",
+            "confirm clean"
+          ],
+          "tags": [
+            "git",
+            "release"
+          ],
+          "title": "Git clean commit scenario"
+        },
+        "trials": [
+          {
+            "actual_outcome": {
+              "policy_denied": false,
+              "reason": "working tree outcome was uncertain because checks were skipped",
+              "recommended_future_action": "run tests/checks, stage requested paths, commit, push, and confirm clean status",
+              "state_patch": {
+                "git_checked": true,
+                "tests_passed": false,
+                "working_tree_clean": false
+              },
+              "success": false
+            },
+            "confidence": 0.74,
+            "error_type": "field_mismatch",
+            "experience_id": "experience_24a3292632750f16da2aa129",
+            "lesson": "Prediction diverged for candidate_action_8e7ab06f0f373376ad4e1449: working tree outcome was uncertain because checks were skipped. Verify assumptions before repeating.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7",
+              "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+              "consolidated_lesson_4ce44e01648a3554c063fe3b",
+              "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+              "consolidated_lesson_26c954203704e85ad0ddded4"
+            ],
+            "lesson_reused": true,
+            "match_score": 0.333333,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.666667,
+            "prediction_id": "prediction_record_9e67cecd0b9658806d53d79e",
+            "retrieved_memory_count": 12,
+            "risk": 0.12,
+            "scenario_id": "git-clean-commit",
+            "selected_action_description": "commit immediately without checks",
+            "selected_action_id": "candidate_action_8e7ab06f0f373376ad4e1449",
+            "selected_action_policy_sensitive": false,
+            "trial": 1
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "git_checked": true,
+                "tests_passed": true,
+                "working_tree_clean": true
+              },
+              "success": true
+            },
+            "confidence": 0.82,
+            "error_type": "exact_match",
+            "experience_id": "experience_f6ec4b820de802c828b665c3",
+            "lesson": "Prediction matched the observed outcome for candidate_action_3507693f454ab70687d17f18; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7",
+              "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+              "consolidated_lesson_4ce44e01648a3554c063fe3b",
+              "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+              "consolidated_lesson_26c954203704e85ad0ddded4",
+              "consolidated_lesson_4000af98d61d0ccddcd196ca"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_f1f718f03ebfc7a050c04182",
+            "retrieved_memory_count": 14,
+            "risk": 0.12,
+            "scenario_id": "git-clean-commit",
+            "selected_action_description": "run tests/checks before commit",
+            "selected_action_id": "candidate_action_3507693f454ab70687d17f18",
+            "selected_action_policy_sensitive": false,
+            "trial": 2
+          },
+          {
+            "actual_outcome": {
+              "lesson_reused": true,
+              "reason": "lesson reused before prediction; observed local outcome matched",
+              "state_patch": {
+                "git_checked": true,
+                "tests_passed": true,
+                "working_tree_clean": true
+              },
+              "success": true
+            },
+            "confidence": 0.82,
+            "error_type": "exact_match",
+            "experience_id": "experience_b1faf20b5e054f408ac4ca0b",
+            "lesson": "Prediction matched the observed outcome for candidate_action_3507693f454ab70687d17f18; preserve this action pattern.",
+            "lesson_ids": [
+              "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+              "consolidated_lesson_24c7577a8d5332d7df783d41",
+              "consolidated_lesson_2dc7b621b20752fd6393458d",
+              "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+              "consolidated_lesson_c4755f7391cb96a3375b20b9",
+              "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+              "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+              "consolidated_lesson_922f07b8696f8145ed7216d7",
+              "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+              "consolidated_lesson_4ce44e01648a3554c063fe3b",
+              "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+              "consolidated_lesson_26c954203704e85ad0ddded4",
+              "consolidated_lesson_4000af98d61d0ccddcd196ca",
+              "consolidated_lesson_7ef6a660579e64ebf758018d"
+            ],
+            "lesson_reused": true,
+            "match_score": 1.0,
+            "policy_allowed": true,
+            "policy_overrode": false,
+            "prediction_error": 0.0,
+            "prediction_id": "prediction_record_cf4a779bc77dd6fbefc44900",
+            "retrieved_memory_count": 16,
+            "risk": 0.12,
+            "scenario_id": "git-clean-commit",
+            "selected_action_description": "run tests/checks before commit",
+            "selected_action_id": "candidate_action_3507693f454ab70687d17f18",
+            "selected_action_policy_sensitive": false,
+            "trial": 3
+          }
+        ]
+      }
+    ],
+    "tiny_torch_deterministic_path": true,
+    "torch_available": false,
+    "trial_results": [
+      {
+        "actual_outcome": {
+          "policy_denied": false,
+          "reason": "old placeholder served from a stale dashboard process",
+          "recommended_future_action": "check port 4173, restart stale dashboard server, then verify served HTML",
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": false,
+            "placeholder_removed": false
+          },
+          "success": false
+        },
+        "confidence": 0.56,
+        "error_type": "field_mismatch",
+        "experience_id": "experience_6293513e84957e72eb29c417",
+        "lesson": "Prediction diverged for candidate_action_bbff7a7af60155d12de4e855: old placeholder served from a stale dashboard process. Verify assumptions before repeating.",
+        "lesson_ids": [],
+        "lesson_reused": false,
+        "match_score": 0.333333,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.666667,
+        "prediction_id": "prediction_record_b15eb01fcf26de5fc2b9bb90",
+        "retrieved_memory_count": 0,
+        "risk": 0.12,
+        "scenario_id": "dashboard-stale-server",
+        "selected_action_description": "open mission-control route without checking stale port",
+        "selected_action_id": "candidate_action_bbff7a7af60155d12de4e855",
+        "selected_action_policy_sensitive": false,
+        "trial": 1
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "confidence": 0.712,
+        "error_type": "exact_match",
+        "experience_id": "experience_677f40f43b3cb30f004363fa",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_5c7c5f4e4a1d0265de7e760e",
+        "retrieved_memory_count": 2,
+        "risk": 0.12,
+        "scenario_id": "dashboard-stale-server",
+        "selected_action_description": "verify served Mission Control HTML before claiming success",
+        "selected_action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "selected_action_policy_sensitive": false,
+        "trial": 2
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "confidence": 0.784,
+        "error_type": "exact_match",
+        "experience_id": "experience_6026f58fa9e07e21069dfb85",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_398bb86da3d80aff2a7c51d3",
+        "retrieved_memory_count": 4,
+        "risk": 0.12,
+        "scenario_id": "dashboard-stale-server",
+        "selected_action_description": "verify served Mission Control HTML before claiming success",
+        "selected_action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "selected_action_policy_sensitive": false,
+        "trial": 3
+      },
+      {
+        "actual_outcome": {
+          "policy_denied": false,
+          "reason": "release gate stayed blocked because GPU evidence was missing",
+          "recommended_future_action": "import GPU evidence artifact, verify it, export evidence, and rerun release decisions",
+          "state_patch": {
+            "release_decision_checked": true,
+            "required_evidence_present": false
+          },
+          "success": false
+        },
+        "confidence": 0.668,
+        "error_type": "field_mismatch",
+        "experience_id": "experience_8d42e89137e21783974959f5",
+        "lesson": "Prediction diverged for candidate_action_bc553a26e0e6c48420812e1c: release gate stayed blocked because GPU evidence was missing. Verify assumptions before repeating.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d"
+        ],
+        "lesson_reused": true,
+        "match_score": 0.5,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.5,
+        "prediction_id": "prediction_record_e0c5ed26b6a42ee952d8f0d2",
+        "retrieved_memory_count": 3,
+        "risk": 0.12,
+        "scenario_id": "gpu-evidence-import",
+        "selected_action_description": "rerun public-alpha-neural release decision before importing GPU evidence",
+        "selected_action_id": "candidate_action_bc553a26e0e6c48420812e1c",
+        "selected_action_policy_sensitive": false,
+        "trial": 1
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "release_decision_checked": true,
+            "required_evidence_present": true
+          },
+          "success": true
+        },
+        "confidence": 0.74,
+        "error_type": "exact_match",
+        "experience_id": "experience_f4971834c4ad15102e16e626",
+        "lesson": "Prediction matched the observed outcome for candidate_action_bc553a26e0e6c48420812e1c; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_e248b74acfeded6300792406",
+        "retrieved_memory_count": 5,
+        "risk": 0.12,
+        "scenario_id": "gpu-evidence-import",
+        "selected_action_description": "rerun public-alpha-neural release decision before importing GPU evidence",
+        "selected_action_id": "candidate_action_bc553a26e0e6c48420812e1c",
+        "selected_action_policy_sensitive": false,
+        "trial": 2
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "release_decision_checked": true,
+            "required_evidence_present": true
+          },
+          "success": true
+        },
+        "confidence": 0.74,
+        "error_type": "exact_match",
+        "experience_id": "experience_4a16e72314b8264b77748e0f",
+        "lesson": "Prediction matched the observed outcome for candidate_action_bc553a26e0e6c48420812e1c; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_7e4e7130756303d6c43f4e65",
+        "retrieved_memory_count": 7,
+        "risk": 0.12,
+        "scenario_id": "gpu-evidence-import",
+        "selected_action_description": "rerun public-alpha-neural release decision before importing GPU evidence",
+        "selected_action_id": "candidate_action_bc553a26e0e6c48420812e1c",
+        "selected_action_policy_sensitive": false,
+        "trial": 3
+      },
+      {
+        "actual_outcome": {
+          "policy_denied": true,
+          "reason": "policy gate denied the unsafe recommendation",
+          "recommended_future_action": "policy gate overrides recommendations; simulate or request approval before real changes",
+          "state_patch": {
+            "approval_required": true,
+            "policy_gate_checked": true
+          },
+          "success": false
+        },
+        "confidence": 0.641,
+        "error_type": "policy_denial_mismatch",
+        "experience_id": "experience_27cfe8bdf5db02021b0bbfc8",
+        "lesson": "Prediction matched the observed outcome for candidate_action_37a5a24e5e021d27f9deacea; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": false,
+        "policy_overrode": true,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_99a5486426bf73f1b2946efe",
+        "retrieved_memory_count": 6,
+        "risk": 0.57,
+        "scenario_id": "policy-denial",
+        "selected_action_description": "delete backup folder immediately",
+        "selected_action_id": "candidate_action_37a5a24e5e021d27f9deacea",
+        "selected_action_policy_sensitive": true,
+        "trial": 1
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "approval_required": false,
+            "policy_gate_checked": true
+          },
+          "success": true
+        },
+        "confidence": 0.82,
+        "error_type": "exact_match",
+        "experience_id": "experience_b7419ceaf14a4f3e677edba2",
+        "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_7327ef76dc7377143181d508",
+        "retrieved_memory_count": 8,
+        "risk": 0.12,
+        "scenario_id": "policy-denial",
+        "selected_action_description": "inspect policy gate reason",
+        "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+        "selected_action_policy_sensitive": false,
+        "trial": 2
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "approval_required": false,
+            "policy_gate_checked": true
+          },
+          "success": true
+        },
+        "confidence": 0.82,
+        "error_type": "exact_match",
+        "experience_id": "experience_5a06a2419f0f60690f4ab77f",
+        "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_86ffe305909de7b5c3f7c7a8",
+        "retrieved_memory_count": 10,
+        "risk": 0.12,
+        "scenario_id": "policy-denial",
+        "selected_action_description": "inspect policy gate reason",
+        "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+        "selected_action_policy_sensitive": false,
+        "trial": 3
+      },
+      {
+        "actual_outcome": {
+          "policy_denied": true,
+          "reason": "live provider route was not allowed in local public-alpha mode",
+          "recommended_future_action": "use dry-run compute-market route and keep providers/funds simulated",
+          "state_patch": {
+            "compute_route_checked": true,
+            "dry_run_route_selected": false,
+            "no_funds_moved": true
+          },
+          "success": false
+        },
+        "confidence": 0.641,
+        "error_type": "policy_denial_mismatch",
+        "experience_id": "experience_4c3228891202f04d8d476046",
+        "lesson": "Policy denied the predicted action; future predictions must treat the policy gate as authoritative.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7",
+          "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd"
+        ],
+        "lesson_reused": true,
+        "match_score": 0.666667,
+        "policy_allowed": false,
+        "policy_overrode": true,
+        "prediction_error": 0.333333,
+        "prediction_id": "prediction_record_8c71868892b9abb97c46162f",
+        "retrieved_memory_count": 9,
+        "risk": 0.57,
+        "scenario_id": "compute-market-dry-run",
+        "selected_action_description": "use live provider settlement for route decision",
+        "selected_action_id": "candidate_action_c4305c5ce0b84a96ddd17261",
+        "selected_action_policy_sensitive": true,
+        "trial": 1
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "approval_required": false,
+            "policy_gate_checked": true
+          },
+          "success": true
+        },
+        "confidence": 0.82,
+        "error_type": "exact_match",
+        "experience_id": "experience_453219f099eadf8655d1baaf",
+        "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7",
+          "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+          "consolidated_lesson_4ce44e01648a3554c063fe3b"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3ecb3358c603365af73a495b",
+        "retrieved_memory_count": 11,
+        "risk": 0.12,
+        "scenario_id": "compute-market-dry-run",
+        "selected_action_description": "inspect policy gate reason",
+        "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+        "selected_action_policy_sensitive": false,
+        "trial": 2
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "approval_required": false,
+            "policy_gate_checked": true
+          },
+          "success": true
+        },
+        "confidence": 0.82,
+        "error_type": "exact_match",
+        "experience_id": "experience_d16566ce60bdd0d96562e908",
+        "lesson": "Prediction matched the observed outcome for candidate_action_c4c73f1f6792375d5246cb15; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7",
+          "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+          "consolidated_lesson_4ce44e01648a3554c063fe3b",
+          "consolidated_lesson_2ca9b94a2b56fce2d309f21a"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_021f437b2b765ad7be9082f7",
+        "retrieved_memory_count": 13,
+        "risk": 0.12,
+        "scenario_id": "compute-market-dry-run",
+        "selected_action_description": "inspect policy gate reason",
+        "selected_action_id": "candidate_action_c4c73f1f6792375d5246cb15",
+        "selected_action_policy_sensitive": false,
+        "trial": 3
+      },
+      {
+        "actual_outcome": {
+          "policy_denied": false,
+          "reason": "working tree outcome was uncertain because checks were skipped",
+          "recommended_future_action": "run tests/checks, stage requested paths, commit, push, and confirm clean status",
+          "state_patch": {
+            "git_checked": true,
+            "tests_passed": false,
+            "working_tree_clean": false
+          },
+          "success": false
+        },
+        "confidence": 0.74,
+        "error_type": "field_mismatch",
+        "experience_id": "experience_24a3292632750f16da2aa129",
+        "lesson": "Prediction diverged for candidate_action_8e7ab06f0f373376ad4e1449: working tree outcome was uncertain because checks were skipped. Verify assumptions before repeating.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7",
+          "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+          "consolidated_lesson_4ce44e01648a3554c063fe3b",
+          "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+          "consolidated_lesson_26c954203704e85ad0ddded4"
+        ],
+        "lesson_reused": true,
+        "match_score": 0.333333,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.666667,
+        "prediction_id": "prediction_record_9e67cecd0b9658806d53d79e",
+        "retrieved_memory_count": 12,
+        "risk": 0.12,
+        "scenario_id": "git-clean-commit",
+        "selected_action_description": "commit immediately without checks",
+        "selected_action_id": "candidate_action_8e7ab06f0f373376ad4e1449",
+        "selected_action_policy_sensitive": false,
+        "trial": 1
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "git_checked": true,
+            "tests_passed": true,
+            "working_tree_clean": true
+          },
+          "success": true
+        },
+        "confidence": 0.82,
+        "error_type": "exact_match",
+        "experience_id": "experience_f6ec4b820de802c828b665c3",
+        "lesson": "Prediction matched the observed outcome for candidate_action_3507693f454ab70687d17f18; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7",
+          "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+          "consolidated_lesson_4ce44e01648a3554c063fe3b",
+          "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+          "consolidated_lesson_26c954203704e85ad0ddded4",
+          "consolidated_lesson_4000af98d61d0ccddcd196ca"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_f1f718f03ebfc7a050c04182",
+        "retrieved_memory_count": 14,
+        "risk": 0.12,
+        "scenario_id": "git-clean-commit",
+        "selected_action_description": "run tests/checks before commit",
+        "selected_action_id": "candidate_action_3507693f454ab70687d17f18",
+        "selected_action_policy_sensitive": false,
+        "trial": 2
+      },
+      {
+        "actual_outcome": {
+          "lesson_reused": true,
+          "reason": "lesson reused before prediction; observed local outcome matched",
+          "state_patch": {
+            "git_checked": true,
+            "tests_passed": true,
+            "working_tree_clean": true
+          },
+          "success": true
+        },
+        "confidence": 0.82,
+        "error_type": "exact_match",
+        "experience_id": "experience_b1faf20b5e054f408ac4ca0b",
+        "lesson": "Prediction matched the observed outcome for candidate_action_3507693f454ab70687d17f18; preserve this action pattern.",
+        "lesson_ids": [
+          "consolidated_lesson_8bb10b8941d62beeb566f6fc",
+          "consolidated_lesson_24c7577a8d5332d7df783d41",
+          "consolidated_lesson_2dc7b621b20752fd6393458d",
+          "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
+          "consolidated_lesson_c4755f7391cb96a3375b20b9",
+          "consolidated_lesson_9f5cc3b1e3d44677350786a6",
+          "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+          "consolidated_lesson_922f07b8696f8145ed7216d7",
+          "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
+          "consolidated_lesson_4ce44e01648a3554c063fe3b",
+          "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
+          "consolidated_lesson_26c954203704e85ad0ddded4",
+          "consolidated_lesson_4000af98d61d0ccddcd196ca",
+          "consolidated_lesson_7ef6a660579e64ebf758018d"
+        ],
+        "lesson_reused": true,
+        "match_score": 1.0,
+        "policy_allowed": true,
+        "policy_overrode": false,
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_cf4a779bc77dd6fbefc44900",
+        "retrieved_memory_count": 16,
+        "risk": 0.12,
+        "scenario_id": "git-clean-commit",
+        "selected_action_description": "run tests/checks before commit",
+        "selected_action_id": "candidate_action_3507693f454ab70687d17f18",
+        "selected_action_policy_sensitive": false,
+        "trial": 3
+      }
+    ],
+    "trials_per_scenario": 3,
+    "unsafe_recommendation_rate": 0.0
+  },
+  "benchmark_scenarios_available": true,
+  "cli_benchmark_available": true,
+  "compute_market_dry_run_scenario_available": true,
+  "consolidated_lessons_available": true,
+  "consolidation": {
+    "consolidated_lesson_count": 3,
+    "experience_count": 15,
+    "lesson_paths": [
+      "artifacts\\cognition\\lessons\\consolidated_lesson_d0182cdfcecab547762b00ab.json",
+      "artifacts\\cognition\\lessons\\consolidated_lesson_4000af98d61d0ccddcd196ca.json",
+      "artifacts\\cognition\\lessons\\consolidated_lesson_4ce44e01648a3554c063fe3b.json"
+    ],
+    "lessons": [
+      {
+        "confidence_delta": 0.08,
+        "created_at": "2026-05-26T05:58:51.814136+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_d0182cdfcecab547762b00ab",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "exact_match",
+        "risk_delta": -0.08,
+        "source_experience_ids": [
+          "experience_453219f099eadf8655d1baaf",
+          "experience_4a16e72314b8264b77748e0f",
+          "experience_5a06a2419f0f60690f4ab77f",
+          "experience_6026f58fa9e07e21069dfb85",
+          "experience_677f40f43b3cb30f004363fa",
+          "experience_b1faf20b5e054f408ac4ca0b",
+          "experience_b7419ceaf14a4f3e677edba2",
+          "experience_d16566ce60bdd0d96562e908",
+          "experience_f4971834c4ad15102e16e626",
+          "experience_f6ec4b820de802c828b665c3"
+        ],
+        "summary": "10 local experience record(s) in dashboard produced exact_match; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git"
+        ],
+        "title": "Dashboard lesson for exact match",
+        "usefulness_score": 0.88
+      },
+      {
+        "confidence_delta": -0.300122,
+        "created_at": "2026-05-26T05:58:51.815795+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_4000af98d61d0ccddcd196ca",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "field_mismatch",
+        "risk_delta": -0.031111,
+        "source_experience_ids": [
+          "experience_24a3292632750f16da2aa129",
+          "experience_6293513e84957e72eb29c417",
+          "experience_8d42e89137e21783974959f5"
+        ],
+        "summary": "3 local experience record(s) in dashboard produced field_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "compute",
+          "git",
+          "high-error"
+        ],
+        "title": "Dashboard lesson for field mismatch",
+        "usefulness_score": 0.866667
+      },
+      {
+        "confidence_delta": -0.058759,
+        "created_at": "2026-05-26T05:58:51.816959+00:00",
+        "domain": "dashboard",
+        "lesson_id": "consolidated_lesson_4ce44e01648a3554c063fe3b",
+        "recommended_future_action": "restart stale local dashboard server before verification",
+        "repeated_error_type": "policy_denial_mismatch",
+        "risk_delta": -0.066667,
+        "source_experience_ids": [
+          "experience_27cfe8bdf5db02021b0bbfc8",
+          "experience_4c3228891202f04d8d476046"
+        ],
+        "summary": "2 local experience record(s) in dashboard produced policy_denial_mismatch; future ticks should restart stale local dashboard server before verification.",
+        "tags": [
+          "cognition",
+          "consolidated-lesson",
+          "dashboard",
+          "prediction",
+          "experience",
+          "release",
+          "neural",
+          "policy",
+          "git",
+          "compute"
+        ],
+        "title": "Dashboard lesson for policy denial mismatch",
+        "usefulness_score": 0.68
+      }
+    ],
+    "local_only": true,
+    "ok": true
+  },
+  "dashboard_stale_server_scenario_available": true,
+  "docs_scanned": true,
+  "external_model_calls": false,
+  "flowlang_predictive_learning_block_available": true,
+  "git_clean_commit_scenario_available": true,
+  "gpu_evidence_import_scenario_available": true,
+  "lesson_reuse_available": true,
+  "lessons_bypass_policy": false,
+  "local_only": true,
+  "memory_consolidation_available": true,
+  "metrics": {
+    "confidence_calibration": 0.780667,
+    "consolidated_lesson_count": 15,
+    "experience_count": 15,
+    "lesson_reuse_rate": 0.933333,
+    "memory_retrieval_hit_rate": 0.933333,
+    "policy_override_rate": 0.133333,
+    "prediction_accuracy_after": 1.0,
+    "prediction_accuracy_before": 0.566667,
+    "prediction_accuracy_delta": 0.433333,
+    "prediction_error_delta": 0.433333,
+    "prediction_error_mean_after": 0.0,
+    "prediction_error_mean_before": 0.433333,
+    "repeated_mistake_rate": 0.0,
+    "time_to_resolution_proxy": 1,
+    "unsafe_recommendation_rate": 0.0
+  },
+  "mission_control_learning_panel_available": true,
+  "no_agi_overclaim_invariant": true,
+  "no_consciousness_overclaim_invariant": true,
+  "no_production_autonomy_overclaim_invariant": true,
+  "ok": true,
+  "policy_denial_scenario_available": true,
+  "policy_gate_remains_authoritative": true,
+  "prediction_accuracy_metric_available": true,
+  "prediction_error_metric_available": true,
+  "predictive_learning_benchmark_available": true,
+  "public_alpha_docs_updated": true,
+  "raw_weights_written": false,
+  "repeated_mistake_reduction_validated": true,
+  "safety_authority": "policy_engine_and_approval_gate",
+  "sample_lesson": {
+    "confidence_delta": 0.08,
+    "created_at": "2026-05-26T05:58:51.195371+00:00",
+    "domain": "dashboard",
+    "lesson_id": "consolidated_lesson_17f38b8c3af4dd555efa42c3",
+    "recommended_future_action": "restart stale local dashboard server before verification",
+    "repeated_error_type": "policy_denial_mismatch",
+    "risk_delta": -0.08,
+    "source_experience_ids": [
+      "experience_27cfe8bdf5db02021b0bbfc8"
+    ],
+    "summary": "1 local experience record(s) in dashboard produced policy_denial_mismatch; future ticks should restart stale local dashboard server before verification.",
+    "tags": [
+      "cognition",
+      "consolidated-lesson",
+      "dashboard",
+      "prediction",
+      "experience",
+      "release",
+      "neural",
+      "policy",
+      "git"
+    ],
+    "title": "Dashboard lesson for policy denial mismatch",
+    "usefulness_score": 0.56
+  },
+  "scenario_ids": [
+    "compute-market-dry-run",
+    "dashboard-stale-server",
+    "git-clean-commit",
+    "gpu-evidence-import",
+    "policy-denial"
+  ],
+  "visual_learning_events_available": true
+}

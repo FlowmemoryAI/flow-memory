@@ -858,3 +858,21 @@ Implemented the Predictive Cognitive Core slice for local prediction-driven agen
 - Expanded release evidence with Predictive Cognitive Core availability, policy override validation, CLI/API/FlowLang/dashboard coverage, visual cognition telemetry, and public-alpha honesty invariants.
 
 Safety posture remains unchanged: predictions are scoped to observable local Flow Memory outcomes, neural outputs remain advisory, and PolicyEngine/ApprovalGate remain authoritative.
+
+## Predictive Learning Benchmark + Memory Consolidation update
+
+Implemented the deterministic predictive learning benchmark and local lesson consolidation slice.
+
+- Added benchmark, consolidation, metrics, and evaluation modules under `src/flow_memory/cognition/`.
+- Added five local scenarios: dashboard stale server, GPU evidence import, policy denial, compute-market dry-run, and git clean commit.
+- Added CLI commands:
+  - `python -m flow_memory cognition benchmark run --scenario dashboard-stale-server --trials 5 --json`
+  - `python -m flow_memory cognition benchmark run --scenario all --trials 5 --json`
+  - `python -m flow_memory cognition lessons consolidate --json`
+  - `python -m flow_memory cognition metrics --json`
+- Added local API routes for benchmark execution, benchmark inspection, lesson consolidation/list/show, and aggregate cognition metrics.
+- Extended FlowLang cognition config with `memory_consolidation_enabled` and `predictive_benchmarks_enabled`.
+- Added Mission Control predictive learning fixture and panel coverage for accuracy/error trends, lesson reuse, repeated mistakes reduced, unsafe recommendation rate, policy overrides, and selected lesson details.
+- Added release evidence `predictive_learning_benchmark.json` and the `public-alpha-cognition` readiness target.
+
+Safety posture remains unchanged: benchmark outputs and lessons are advisory, local, deterministic, and scoped to observable Flow Memory domains. PolicyEngine and ApprovalGate remain authoritative.

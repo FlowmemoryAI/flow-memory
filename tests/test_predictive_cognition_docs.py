@@ -4,6 +4,7 @@ from pathlib import Path
 DOC_PATHS = (
     Path("README.md"),
     Path("docs/PREDICTIVE_COGNITIVE_CORE.md"),
+    Path("docs/PREDICTIVE_LEARNING_BENCHMARK.md"),
     Path("docs/NEURAL_LIVE_AGENTS.md"),
     Path("docs/MISSION_CONTROL_QUICKSTART.md"),
     Path("docs/PUBLIC_ALPHA_READINESS.md"),
@@ -21,6 +22,11 @@ def test_predictive_cognition_docs_contain_commands_and_limits():
     assert "post /cognition/predict" in text
     assert "get /cognition/experiences" in text
     assert "dashboard/src/mock-data/predictive-cognitive-core.json" in text
+    assert "python -m flow_memory cognition benchmark run" in text
+    assert "python -m flow_memory cognition lessons consolidate" in text
+    assert "post /cognition/benchmarks/run" in text
+    assert "get /cognition/metrics" in text
+    assert "dashboard/src/mock-data/predictive-learning-benchmark.json" in text
     assert "policyengine" in text.lower()
     assert "approvalgate" in text.lower()
 

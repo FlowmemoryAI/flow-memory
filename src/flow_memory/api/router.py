@@ -50,9 +50,16 @@ from flow_memory.api.release_endpoints import release_decision_status, release_e
 from flow_memory.api.dashboard_endpoints import dashboard_snapshot
 from flow_memory.api.visual_endpoints import current_visual_events, current_visual_state, network_state, start_visual_replay, visual_replay, visual_schema_endpoint
 from flow_memory.api.cognition_endpoints import (
+    cognition_benchmark,
+    cognition_benchmark_run,
+    cognition_benchmarks,
     cognition_experience,
     cognition_experiences,
     cognition_memory_query,
+    cognition_lesson,
+    cognition_lessons,
+    cognition_lessons_consolidate,
+    cognition_metrics_endpoint,
     cognition_predict,
     cognition_prediction_errors,
     cognition_tick,
@@ -259,6 +266,7 @@ class LocalApiRouter:
             emit_visual=bool(payload.get("emit_visual", True)),
             goal=str(payload.get("goal", "")),
             predictive_core=bool(payload.get("predictive_core", payload.get("predictive-core", False))),
+            consolidate_lessons=bool(payload.get("consolidate_lessons", payload.get("consolidate-lessons", False))),
         )
 
     def _launch_supervisor_status(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -318,6 +326,27 @@ class LocalApiRouter:
 
     def _cognition_memory_query(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return cognition_memory_query(payload)
+
+    def _cognition_benchmark_run(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_benchmark_run(payload)
+
+    def _cognition_benchmarks(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_benchmarks()
+
+    def _cognition_benchmark(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_benchmark(params["benchmark_id"])
+
+    def _cognition_lessons_consolidate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_lessons_consolidate(payload)
+
+    def _cognition_lessons(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_lessons()
+
+    def _cognition_lesson(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_lesson(params["lesson_id"])
+
+    def _cognition_metrics(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return cognition_metrics_endpoint()
 
     def _launch_console_run_predictions(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return launch_run_predictions(params["run_id"])
@@ -682,6 +711,13 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/cognition/experiences/{experience_id}", router._cognition_experience, "cognition_experience")
     router.register("GET", "/cognition/prediction-errors", router._cognition_prediction_errors, "cognition_prediction_errors")
     router.register("POST", "/cognition/memory/query", router._cognition_memory_query, "cognition_memory_query")
+    router.register("POST", "/cognition/benchmarks/run", router._cognition_benchmark_run, "cognition_benchmark_run")
+    router.register("GET", "/cognition/benchmarks", router._cognition_benchmarks, "cognition_benchmarks")
+    router.register("GET", "/cognition/benchmarks/{benchmark_id}", router._cognition_benchmark, "cognition_benchmark")
+    router.register("POST", "/cognition/lessons/consolidate", router._cognition_lessons_consolidate, "cognition_lessons_consolidate")
+    router.register("GET", "/cognition/lessons", router._cognition_lessons, "cognition_lessons")
+    router.register("GET", "/cognition/lessons/{lesson_id}", router._cognition_lesson, "cognition_lesson")
+    router.register("GET", "/cognition/metrics", router._cognition_metrics, "cognition_metrics")
     router.register("GET", "/launch/console/runs/{run_id}/predictions", router._launch_console_run_predictions, "launch_console_run_predictions")
     router.register("GET", "/visual/embodiment/{run_id}/cognition", router._visual_embodiment_cognition, "visual_embodiment_cognition")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")

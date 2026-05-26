@@ -1,7 +1,7 @@
 {
-  "bundle_hash": "0731f5b059ca73b1dfc69ceeb056bf3e2c07ee2bb141d81d54323101a32d7f0e",
+  "bundle_hash": "d424ef8b76de91112ea99088c957c319d5055bcb6b1d9b3684d4f7c31ec1da5d",
   "file_hashes": {
-    "api_snapshot.json": "6be75235416b7d7bb7db8c9d94d297b80e8ba29ee88f30f34ccccac8164209dc",
+    "api_snapshot.json": "610c642feffc5dda94caba8c66d39d1ba2fe7165428cd4c18ef832148216f6d5",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
@@ -12,15 +12,16 @@
     "live_agent_operations.json": "c74e844b06b995108405853fd255c097db62115f872743b75df0277e77b611ae",
     "live_agent_supervisor.json": "cdcaad4f556dd098f6ccd1db283d12f79730f8ac358121e17d9cd570eea3caa2",
     "mission_control_live_3d.json": "56566b409be1209013b859a2056fa50f5a21414ee387a086e202ce701fe68ab8",
-    "mission_control_run_console.json": "873d68a06b657e8813b7e5cc1c2bfb172ab3ea188e3ae2102df2a0f16c325466",
+    "mission_control_run_console.json": "8c27d1bf9a1a208ecf2d78cef9c68a1cc3335ebdaf908e00ce2a6aa7014cbee2",
     "neural_embodiment.json": "187d7621581eacc2658ee67c460dc32479ac0ddeeb347dce19399515af201f4f",
-    "neural_live_agents.json": "17fb6a28a3ad8f0fc93bfaf49074cde1e2df7993017d6b8a4e299d0232d5fb18",
-    "predictive_cognitive_core.json": "357a29b36ef74b41f263fcf2eea36591bead57ce10afab8f8076aaef94b5dc10",
+    "neural_live_agents.json": "4ac1a6e38c16fabf5e0293979728b1c16f8095ebcd636792301aa7336096df8f",
+    "predictive_cognitive_core.json": "91a84fee703c13d03b30476633b8a543ed3a5d46fb9840e4374afae13b03fc32",
+    "predictive_learning_benchmark.json": "f33b6fc026c936e107c2c34a84f95c28e0e3a4ed01ebb8ef23b42a92066c4723",
     "release_gates.json": "cfbc21bf43137a08f1c7253dc63b63d56dcef7034994bb4ce03ebe9fc1ec6826",
-    "release_manifest.json": "4ea0bebd997feedd3e416bdedc52861ed987fc24f6b9161e2dc58d24f4471e95",
+    "release_manifest.json": "cb5fb5d0bd850202f09601b83e40219b39c082f46dcff017b746620e2cb961ac",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "ee1f68b3e80bfacc4e51a2dcde6d1a0390b3715b416fba8e79c50b390cc81c12"
+    "visual_system.json": "1769b0ce094e05b0e5d8cc578b0ca8d541debb989c6bdbd746fb56088fcda8bb"
   },
   "files": [
     "api_snapshot.json",
@@ -38,6 +39,7 @@
     "neural_embodiment.json",
     "neural_live_agents.json",
     "predictive_cognitive_core.json",
+    "predictive_learning_benchmark.json",
     "release_gates.json",
     "release_manifest.json",
     "rl_benchmarks.json",

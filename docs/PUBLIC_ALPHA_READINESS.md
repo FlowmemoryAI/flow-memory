@@ -14,6 +14,7 @@ python scripts/verify_public_alpha_launch_finalizer.py
 python scripts/release_decision.py --target local-public-alpha
 python scripts/release_decision.py --target public-alpha-local-launch
 python scripts/release_decision.py --target public-alpha-launch-finalizer
+python scripts/release_decision.py --target public-alpha-cognition
 ```
 
 ## Current maturity
@@ -31,6 +32,7 @@ python scripts/release_decision.py --target public-alpha-launch-finalizer
 | Mission Control Live 3D Mode | Implemented as a read-only CSS 3D/WebGL-ready view over local/replay neural embodiment telemetry; no agent launch, provider calls, settlement, or policy bypass. |
 | Public Alpha Launch Finalizer | Implemented as evidence-only handoff for launch evidence, Live 3D mode, demo bundle, release decisions, and C:\tmp backup exclusion. |
 | Predictive Cognitive Core | Implemented as local deterministic world-state encoding, candidate prediction, counterfactual scoring, prediction-error records, experience memory, FlowLang cognition blocks, API/CLI commands, and read-only Mission Control telemetry. |
+| Predictive Learning Benchmark | Implemented as deterministic local repeated scenarios, memory consolidation, lesson reuse, before/after accuracy metrics, CLI/API commands, and Mission Control learning trend telemetry. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
@@ -72,6 +74,7 @@ Local public alpha includes a Mission Control run selector/status card over thes
 - `live-agent-supervisor`
 - `local-network-replay`
 - `predictive-cognitive-core`
+- `predictive-learning-benchmark`
 - `live-neural-embodiment`
 
 Generate the local public-alpha demo bundle:
@@ -82,6 +85,7 @@ python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/
 
 The bundle is reference-oriented and local-only. It must keep GPU status honest, neural outputs advisory, policy gates authoritative, and real-funds/provider behavior disabled.
 Predictive Cognition is also part of the local evidence path. It writes experience records under `artifacts/cognition/experiences/` and keeps predictions scoped to observable local outcomes.
+Predictive Learning Benchmark is part of the local evidence path. It writes consolidated lessons under `artifacts/cognition/lessons/`, benchmark results under `artifacts/cognition/benchmarks/`, and validates that repeated local mistakes are reduced without bypassing policy.
 
 
 ## Visible neural embodiment readiness
@@ -108,6 +112,18 @@ python -m flow_memory cognition prediction-errors list --json
 ```
 
 The readiness invariant is prediction-first and evidence-backed: candidate actions are scored before observation, actual outcomes are recorded after observation, prediction error creates a lesson, and policy gates remain authoritative.
+
+## Predictive Learning Benchmark readiness
+
+```bash
+python -m flow_memory cognition benchmark run --scenario dashboard-stale-server --trials 5 --json
+python -m flow_memory cognition benchmark run --scenario all --trials 5 --json
+python -m flow_memory cognition lessons consolidate --json
+python -m flow_memory cognition metrics --json
+python scripts/release_decision.py --target public-alpha-cognition
+```
+
+The readiness invariant is before/after and policy-backed: benchmark scenarios must exist, experience records must consolidate into lessons, later trials must reuse lessons, prediction error must drop, repeated mistakes must decrease, and PolicyEngine/ApprovalGate must stay authoritative.
 
 ## Mission Control Live 3D Mode and finalizer
 

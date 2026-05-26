@@ -13,6 +13,7 @@ from flow_memory.agents.executor import AgentExecutor
 from flow_memory.agents.memory_binding import AgentMemoryBinding
 from flow_memory.agents.neural_binding import AgentNeuralBinding
 from flow_memory.agents.predictive_core import PredictiveCognitiveCore
+
 from flow_memory.agents.rl_binding import AgentRlBinding
 from flow_memory.agents.policy_binding import AgentPolicyBinding
 from flow_memory.agents.profile import AgentProfile
@@ -63,7 +64,7 @@ class AgentRunner:
         self.state.lifecycle_status = "running"
         goal = user_input or (self.profile.goals[0] if self.profile.goals else "Explore and report")
         self.state.current_goal = goal
-        context = self.memory.load_context(goal)
+        context = self._context_with_consolidated_lessons(goal)
         discovered_agents = self.swarm.discover(self.profile.capabilities[0]) if self.profile.capabilities else ()
         plan = self.cognition.plan(self.profile, goal)
         graph = graph_from_steps(tuple(step.action for step in plan.steps))
@@ -198,6 +199,17 @@ class AgentRunner:
             tuple(audit_events),
             tuple(self.memory.records),
         )
+
+    def _context_with_consolidated_lessons(self, goal: str) -> tuple[Mapping[str, Any], ...]:
+        context = tuple(self.memory.load_context(goal))
+        cognition_config = dict(self.profile.cognition_config)
+        if not cognition_config.get("memory_consolidation_enabled", cognition_config.get("predictive_core_enabled", False)):
+            return context
+        from flow_memory.cognition.consolidation import retrieve_similar_lessons
+        lessons = tuple({"kind": "consolidated_lesson", "payload": lesson} for lesson in retrieve_similar_lessons(goal, root=".", limit=5))
+        if not lessons:
+            return context
+        return tuple(context) + lessons
 
 
 def run_agent_cycle(agent: AgentProfile, user_input: str) -> AgentRunResult:

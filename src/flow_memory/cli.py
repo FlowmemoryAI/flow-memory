@@ -32,6 +32,9 @@ from flow_memory.launch_supervisor import (
 from flow_memory.visualization.run_console import build_public_alpha_demo_bundle
 from flow_memory.visualization.embodiment import build_neural_embodiment_fixture
 from flow_memory.release.launch_finalizer import finalize_public_alpha_launch
+from flow_memory.cognition.benchmarks import get_benchmark, list_benchmarks, run_predictive_learning_benchmark
+from flow_memory.cognition.consolidation import consolidate_experiences, get_lesson, list_lessons
+from flow_memory.cognition.metrics import cognition_metrics
 from flow_memory.cognition.experience import get_experience, list_experiences, prediction_error_records
 from flow_memory.cognition.world_model import DeterministicWorldModel
 
@@ -138,6 +141,7 @@ def _launch(argv: list[str]) -> int:
     supervisor_start.add_argument("--tick-interval-ms", type=int, default=250)
     supervisor_start.add_argument("--emit-visual", action="store_true")
     supervisor_start.add_argument("--predictive-core", action="store_true", help="Enable predictive cognition metadata for this supervised launch")
+    supervisor_start.add_argument("--consolidate-lessons", action="store_true", help="Consolidate predictive cognition lessons after the bounded run")
     supervisor_start.add_argument("--json", action="store_true")
     supervisor_status_cmd = supervisor_sub.add_parser("status")
     supervisor_status_cmd.add_argument("--json", action="store_true")
@@ -232,6 +236,7 @@ def _launch(argv: list[str]) -> int:
                     tick_interval_ms=args.tick_interval_ms,
                     emit_visual=args.emit_visual,
                     predictive_core=args.predictive_core,
+                    consolidate_lessons=args.consolidate_lessons,
                 )
                 return _print_launch_payload(payload, json_output=args.json, human=f"supervisor run {payload['supervisor']['run_id']}: {payload['supervisor']['status']}")
             if args.supervisor_command == "status":
@@ -394,11 +399,36 @@ def _cognition(argv: list[str]) -> int:
     err_list = err_sub.add_parser("list")
     err_list.add_argument("--json", action="store_true")
 
+    benchmark = sub.add_parser("benchmark")
+    benchmark_sub = benchmark.add_subparsers(dest="benchmark_command", required=True)
+    benchmark_run = benchmark_sub.add_parser("run")
+    benchmark_run.add_argument("--scenario", default="all")
+    benchmark_run.add_argument("--trials", type=int, default=5)
+    benchmark_run.add_argument("--json", action="store_true")
+    benchmark_list = benchmark_sub.add_parser("list")
+    benchmark_list.add_argument("--json", action="store_true")
+    benchmark_show = benchmark_sub.add_parser("show")
+    benchmark_show.add_argument("benchmark_id")
+    benchmark_show.add_argument("--json", action="store_true")
+
+    lessons = sub.add_parser("lessons")
+    lesson_sub = lessons.add_subparsers(dest="lesson_command", required=True)
+    lesson_consolidate = lesson_sub.add_parser("consolidate")
+    lesson_consolidate.add_argument("--json", action="store_true")
+    lesson_list = lesson_sub.add_parser("list")
+    lesson_list.add_argument("--json", action="store_true")
+    lesson_show = lesson_sub.add_parser("show")
+    lesson_show.add_argument("lesson_id")
+    lesson_show.add_argument("--json", action="store_true")
+
+    metrics = sub.add_parser("metrics")
+    metrics.add_argument("--json", action="store_true")
+
     args = parser.parse_args(argv)
     model = DeterministicWorldModel()
     if args.command == "predict":
         payload = model.tick({"agent_id": args.agent_id, "goal": args.goal, "action": args.action, "write_experience": False})
-        payload = {key: payload[key] for key in ("ok", "state", "candidate_actions", "counterfactuals", "scores", "selected_action", "prediction", "policy_decision") if key in payload}
+        payload = {key: payload[key] for key in ("ok", "state", "candidate_actions", "counterfactuals", "scores", "selected_action", "prediction", "policy_decision", "lesson_reuse") if key in payload}
         return _print_launch_payload(payload, json_output=args.json, human=f"prediction {payload['prediction']['prediction_id']}: {payload['prediction']['predicted_result']}")
     if args.command == "tick":
         payload = model.tick({"agent_id": args.agent, "goal": args.goal, "action": args.action})
@@ -409,8 +439,29 @@ def _cognition(argv: list[str]) -> int:
             return _print_launch_payload({"ok": True, "experiences": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} cognition experience(s)")
         record = get_experience(args.experience_id, ".")
         return _print_launch_payload({"ok": True, "experience": record}, json_output=args.json, human=f"experience {args.experience_id}")
-    records = prediction_error_records(".")
-    return _print_launch_payload({"ok": True, "prediction_errors": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} prediction error(s)")
+    if args.command == "prediction-errors":
+        records = prediction_error_records(".")
+        return _print_launch_payload({"ok": True, "prediction_errors": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} prediction error(s)")
+    if args.command == "benchmark":
+        if args.benchmark_command == "run":
+            payload = run_predictive_learning_benchmark(scenario=args.scenario, trials=args.trials)
+            return _print_launch_payload(payload, json_output=args.json, human=f"benchmark {payload['benchmark_id']}: accuracy {payload['prediction_accuracy_before']:.2f} -> {payload['prediction_accuracy_after']:.2f}")
+        if args.benchmark_command == "list":
+            records = list_benchmarks(".")
+            return _print_launch_payload({"ok": True, "benchmarks": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} cognition benchmark(s)")
+        record = get_benchmark(args.benchmark_id, ".")
+        return _print_launch_payload({"ok": True, "benchmark": record}, json_output=args.json, human=f"benchmark {args.benchmark_id}")
+    if args.command == "lessons":
+        if args.lesson_command == "consolidate":
+            payload = consolidate_experiences(".")
+            return _print_launch_payload(payload, json_output=args.json, human=f"{payload['consolidated_lesson_count']} lesson(s) consolidated")
+        if args.lesson_command == "list":
+            records = list_lessons(".")
+            return _print_launch_payload({"ok": True, "lessons": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} cognition lesson(s)")
+        record = get_lesson(args.lesson_id, ".")
+        return _print_launch_payload({"ok": True, "lesson": record}, json_output=args.json, human=f"lesson {args.lesson_id}")
+    payload = cognition_metrics(".")
+    return _print_launch_payload(payload, json_output=args.json, human=f"accuracy {payload['prediction_accuracy_before']:.2f} -> {payload['prediction_accuracy_after']:.2f}")
 
 
 def _compute(argv: list[str]) -> int:

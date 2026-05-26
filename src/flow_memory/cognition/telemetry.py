@@ -19,6 +19,15 @@ COGNITION_EVENT_TYPES = (
     "cognition_experience_written",
     "cognition_lesson_learned",
     "cognition_learning_update_completed",
+    "cognition_benchmark_started",
+    "cognition_benchmark_trial_started",
+    "cognition_benchmark_trial_completed",
+    "cognition_metric_updated",
+    "cognition_lesson_consolidated",
+    "cognition_lesson_reused",
+    "cognition_prediction_accuracy_improved",
+    "cognition_repeated_mistake_detected",
+    "cognition_repeated_mistake_reduced",
 )
 
 

@@ -61,6 +61,13 @@ const fixtureSpecs = [
     path: 'predictive-cognitive-core.json',
     run_kind: 'cognition',
   },
+  {
+    fixture_id: 'predictive-learning-benchmark',
+    label: 'Predictive Learning Benchmark',
+    description: 'Repeated local scenarios proving prediction error drops after lesson consolidation.',
+    path: 'predictive-learning-benchmark.json',
+    run_kind: 'cognition_benchmark',
+  },
 ];
 
 const safeLiveReadEndpoints = [
@@ -74,6 +81,9 @@ const safeLiveReadEndpoints = [
   'GET /cognition/experiences',
   'GET /cognition/prediction-errors',
   'GET /launch/console/runs/{run_id}/predictions',
+  'GET /cognition/benchmarks',
+  'GET /cognition/lessons',
+  'GET /cognition/metrics',
 ];
 
 
@@ -347,6 +357,75 @@ function renderPredictiveCognitionPanel(payload) {
         <article class="cognition-list cognition-memory">
           <h3>Retrieved memories</h3>
           <ol>${memoryRows}</ol>
+        </article>
+      </div>
+    </section>`;
+}
+
+function renderPredictiveLearningPanel(payload) {
+  const benchmark = payload?.benchmark || payload || {};
+  const metrics = benchmark.metrics || {};
+  const scenarios = Array.isArray(benchmark.scenario_results) ? benchmark.scenario_results : [];
+  const trials = Array.isArray(benchmark.trial_results) ? benchmark.trial_results : [];
+  const lessons = Array.isArray(benchmark.consolidated_lessons) ? benchmark.consolidated_lessons : [];
+  const scoreText = (value) => Number(value || 0).toFixed(2);
+  const metric = (label, value) => `<div><dt>${text(label)}</dt><dd>${text(value)}</dd></div>`;
+  const scenarioRows = scenarios.map((item) => {
+    const scenario = item.scenario || {};
+    const itemMetrics = item.metrics || {};
+    return `
+      <li>
+        <strong>${text(scenario.title || scenario.scenario_id || 'benchmark scenario')}</strong>
+        <span>accuracy ${scoreText(itemMetrics.prediction_accuracy_before)} → ${scoreText(itemMetrics.prediction_accuracy_after)} · error ${scoreText(itemMetrics.prediction_error_mean_before)} → ${scoreText(itemMetrics.prediction_error_mean_after)}</span>
+        <small>${text(scenario.correct_lesson || '')}</small>
+      </li>`;
+  }).join('');
+  const trendRows = trials.slice(0, 10).map((trial) => `
+    <li style="--accuracy:${Number(trial.match_score || 0)}; --error:${Number(trial.prediction_error || 0)}">
+      <strong>${text(trial.scenario_id)} · trial ${text(trial.trial)}</strong>
+      <span><i class="trend-accuracy"></i><b>${scoreText(trial.match_score)}</b><i class="trend-error"></i><b>${scoreText(trial.prediction_error)}</b></span>
+      <small>${text(trial.lesson_reused ? 'lesson reused before prediction' : 'fresh prediction')}</small>
+    </li>`).join('');
+  const lessonRows = lessons.slice(0, 4).map((lesson) => `
+    <li>
+      <strong>${text(lesson.title || lesson.lesson_id)}</strong>
+      <span>${text(lesson.recommended_future_action || '')}</span>
+      <small>usefulness ${scoreText(lesson.usefulness_score)} · sources ${(lesson.source_experience_ids || []).length}</small>
+    </li>`).join('');
+  return `
+    <section id="learning" class="predictive-learning-panel mission-surface mission-surface-wide" aria-label="Predictive Learning Benchmark panel">
+      <header class="surface-header">
+        <span>Predictive Learning Benchmark</span>
+        <strong>Prediction error drops after lessons consolidate</strong>
+        <small>Five deterministic local scenarios repeat the predict → observe → consolidate → reuse loop. Lessons never bypass PolicyEngine or ApprovalGate.</small>
+      </header>
+      <div class="learning-grid">
+        <article class="learning-summary">
+          <p class="cognition-state">${text(benchmark.benchmark_id || 'predictive_learning_smoke')}</p>
+          <h2>${scoreText(metrics.prediction_accuracy_before)} → ${scoreText(metrics.prediction_accuracy_after)} accuracy</h2>
+          <dl>
+            ${metric('trials', benchmark.runs || trials.length)}
+            ${metric('error mean', `${scoreText(metrics.prediction_error_mean_before)} → ${scoreText(metrics.prediction_error_mean_after)}`)}
+            ${metric('lessons consolidated', metrics.consolidated_lesson_count || benchmark.consolidated_lesson_count || lessons.length)}
+            ${metric('lesson reuse', scoreText(metrics.lesson_reuse_rate))}
+            ${metric('repeated mistakes', scoreText(metrics.repeated_mistake_rate))}
+            ${metric('policy overrides', scoreText(metrics.policy_override_rate))}
+            ${metric('unsafe recommendations', scoreText(metrics.unsafe_recommendation_rate))}
+            ${metric('experiences', metrics.experience_count || trials.length)}
+          </dl>
+          <div class="cognition-match" data-matched="${Number(metrics.prediction_error_delta || 0) >= 0}">repeated mistakes reduced</div>
+        </article>
+        <article class="learning-list">
+          <h3>Benchmark scenarios</h3>
+          <ol>${scenarioRows}</ol>
+        </article>
+        <article class="learning-list">
+          <h3>Accuracy and error trend</h3>
+          <ol class="learning-trend">${trendRows}</ol>
+        </article>
+        <article class="learning-list learning-lessons">
+          <h3>Selected lesson details</h3>
+          <ol>${lessonRows}</ol>
         </article>
       </div>
     </section>`;
@@ -1021,6 +1100,7 @@ function renderMissionControlHtml(payloads, finalizer) {
         <a href="#runs">Runs</a>
         <a href="#replay">Replay</a>
         <a href="#cognition">Cognition</a>
+        <a href="#learning">Learning</a>
         <a href="#embodiment">Embodiment</a>
         <a href="#live-3d">Live 3D</a>
       </nav>
@@ -1047,6 +1127,7 @@ function renderMissionControlHtml(payloads, finalizer) {
       ${renderFinalizerStatus(finalizer)}
     </div>
     ${renderPredictiveCognitionPanel(payloads['predictive-cognitive-core'] || {})}
+    ${renderPredictiveLearningPanel(payloads['predictive-learning-benchmark'] || {})}
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
     ${renderActionFooter()}

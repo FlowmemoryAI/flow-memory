@@ -46,6 +46,10 @@ python -m flow_memory launch finalize public-alpha --out release_evidence/public
 python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json
 python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json
 python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --ticks 5 --emit-visual --json
+python -m flow_memory cognition benchmark run --scenario dashboard-stale-server --trials 5 --json
+python -m flow_memory cognition benchmark run --scenario all --trials 5 --json
+python -m flow_memory cognition lessons consolidate --json
+python -m flow_memory cognition metrics --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -74,6 +78,7 @@ Mission Control is connected to local state/replay/API data, with mock fallback 
 Live 3D Mode renders the neural embodiment as read-only local/replay telemetry; it is not an agent launcher, provider connector, settlement console, or policy bypass.
 `cd dashboard && npm run dev` serves the real Mission Control replay UI at `/mission-control` with the run selector, neural embodiment panel, Live 3D Mode, GPU evidence status, and public-alpha finalizer status from local fixtures. It does not expose unsafe write/control endpoints.
 Predictive Cognition is available in CLI/API/replay mode: agents encode current state, retrieve similar experience records, predict candidate outcomes, score counterfactuals, observe actual results, compute prediction error, and write lessons under `artifacts/cognition/experiences/`.
+Predictive Learning Benchmark and memory consolidation are available in CLI/API/replay mode: repeated local scenarios write experience records, consolidate reusable lessons under `artifacts/cognition/lessons/`, reuse those lessons before later predictions, and export benchmark records under `artifacts/cognition/benchmarks/`.
 
 The project now combines:
 
@@ -100,6 +105,7 @@ The project now combines:
 - Mission Control Live 3D Mode for read-only CSS 3D/WebGL-ready local neural embodiment telemetry with policy/approval authority intact
 - Public Alpha Launch Finalizer evidence for local demo bundle, Live 3D mode, launch evidence, release decisions, and C:\\tmp backup exclusion checks
 - Predictive Cognitive Core for local deterministic world-state encoding, candidate action prediction, counterfactual scoring, prediction-error records, experience memory, FlowLang cognition blocks, read-only Mission Control cognition telemetry, and policy-gated learning metadata
+- Predictive Learning Benchmark and memory consolidation for deterministic local scenario replay, before/after prediction-accuracy metrics, consolidated lessons, lesson reuse, repeated-mistake reduction, and policy-authoritative benchmark evidence
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
@@ -207,6 +213,8 @@ Observed during the public-alpha RC1 preflight build:
 - `BUILD_REPORT.md`
 - `FLOW_MEMORY_STATUS.md`
 - `docs/MISSION_CONTROL_QUICKSTART.md`
+- `docs/PREDICTIVE_COGNITIVE_CORE.md`
+- `docs/PREDICTIVE_LEARNING_BENCHMARK.md`
 
 ## Honest limitations
 
@@ -219,6 +227,7 @@ Observed during the public-alpha RC1 preflight build:
 - Protocol gateways are local/offline-safe seams, not production transports.
 - Dashboard is a typed mock API scaffold, not a live operator console.
 - Compute Market integration is local dry-run planning/routing only; it does not move funds, broadcast transactions, call providers, or imply settlement execution.
+- Predictive learning benchmarks are scoped to deterministic local Flow Memory scenarios and do not provide broad external forecasting.
 
 
 ## Neural Agent Layer v1
@@ -254,3 +263,4 @@ python -m flow_memory launch finalize public-alpha --out release_evidence/public
 
 The dashboard run selector can inspect Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Live Neural Embodiment, and Local Network Replay fixtures. The bundle is local-only and does not move funds, use private keys, broadcast transactions, or claim production ML certification.
 Mission Control Live 3D Mode reads the same visible embodiment fixture and keeps it read-only/local-only; the finalizer records Live 3D readiness, public-alpha launch evidence, release decisions, demo bundle status, and the invariant that the C:\tmp backup is not tracked.
+Predictive Learning Benchmark adds deterministic local scenarios for dashboard stale-server recovery, GPU evidence import, policy denial, compute-market dry-run, and git clean-commit behavior. It writes experience, lesson, and benchmark artifacts under `artifacts/cognition/` and exposes Mission Control trend data through `dashboard/src/mock-data/predictive-learning-benchmark.json`.

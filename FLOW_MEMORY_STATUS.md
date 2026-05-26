@@ -1,10 +1,10 @@
 # Flow Memory Status
 
-Date: 2026-05-24
+Date: 2026-05-26
 
 ## Current status
 
-Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
+Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, Predictive Learning Benchmark memory consolidation, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
 
 It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, API auth remains a seam, and FlowLang remains v0/prototype.
 
@@ -28,6 +28,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 
 | Mission Control run console + demo bundle | Pass: targeted tests added; full validation pending this slice |
 | Predictive Cognitive Core | Added this slice; focused validation recorded in the final run output |
+| Predictive Learning Benchmark | Added this slice; focused validation recorded in the final run output |
 ## Maturity table
 
 | Capability | Status |
@@ -56,6 +57,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Flow Memory Compute Market | Implemented local dry-run subsystem; quotes/routes/payment intents/settlement simulations only |
 | Live neural agent runtime | Implemented local deterministic prototype; optional PyTorch backend, fail-closed policy fallback, metadata-only checkpoints |
 | Predictive Cognitive Core | Implemented local deterministic world-state/prediction/counterfactual/error/experience-memory loop; advisory only |
+| Predictive Learning Benchmark | Implemented deterministic local repeated scenarios, lesson consolidation, lesson reuse, before/after prediction metrics, CLI/API commands, Mission Control trend fixture, and release evidence. |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |
@@ -88,6 +90,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 8. Protocol gateways are not live network transports.
 9. Production-scale trained ML/world-model integration remains future work; local live neural runtime is deterministic/advisory.
 10. Dashboard is a local/public-alpha Mission Control scaffold, not a hosted production console.
+11. Predictive learning metrics are local deterministic benchmark signals, not external forecasting or production model certification.
 
 ## Next milestones
 
@@ -332,3 +335,17 @@ The finalizer remains evidence-only. It does not start agents, contact providers
 | Release evidence | implemented | `predictive_cognitive_core.json` validates model records, policy override, CLI/API/FlowLang/dashboard coverage, visual telemetry, and public-alpha honesty invariants. |
 
 Predictive cognition is not a production autonomy claim. It is a bounded local loop for observable state prediction, outcome comparison, prediction-error learning, and lesson memory. PolicyEngine and ApprovalGate remain authoritative.
+
+## Predictive Learning Benchmark + Memory Consolidation status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Benchmark scenarios | implemented local deterministic suite | Dashboard stale server, GPU evidence import, policy denial, compute-market dry-run, and git clean commit scenarios repeat the predict/observe/consolidate/reuse loop. |
+| Memory consolidation | implemented local artifacts | Experiences group into lessons under `artifacts/cognition/lessons/` with source ids, repeated error type, recommended future action, and usefulness score. |
+| Metrics | implemented JSON metrics | Accuracy before/after, prediction error before/after, calibration, lesson reuse, policy override, unsafe recommendation, repeated mistake, experience, and lesson counts. |
+| CLI | implemented | `python -m flow_memory cognition benchmark run --scenario all --trials 5 --json`; `python -m flow_memory cognition lessons consolidate --json`; `python -m flow_memory cognition metrics --json`. |
+| API | implemented local seam | `/cognition/benchmarks/run`, `/cognition/benchmarks`, `/cognition/lessons/consolidate`, `/cognition/lessons`, and `/cognition/metrics` with cognition scopes. |
+| Mission Control | implemented read-only panel | `dashboard/src/mock-data/predictive-learning-benchmark.json` powers the benchmark trend/lesson panel. |
+| Release evidence | implemented | `predictive_learning_benchmark.json` validates scenarios, metrics, lesson reuse, policy authority, CLI/API/FlowLang/dashboard coverage, and public-alpha limits. |
+
+Predictive learning remains bounded to observable local Flow Memory scenarios. It does not make lessons executable authority; PolicyEngine and ApprovalGate remain authoritative.

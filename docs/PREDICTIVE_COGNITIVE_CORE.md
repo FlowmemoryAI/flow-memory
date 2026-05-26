@@ -39,6 +39,16 @@ python -m flow_memory cognition experiences show <experience_id> --json
 python -m flow_memory cognition prediction-errors list --json
 ```
 
+Benchmark and lesson commands:
+
+```powershell
+python -m flow_memory cognition benchmark run --scenario dashboard-stale-server --trials 5 --json
+python -m flow_memory cognition benchmark run --scenario all --trials 5 --json
+python -m flow_memory cognition lessons consolidate --json
+python -m flow_memory cognition lessons list --json
+python -m flow_memory cognition metrics --json
+```
+
 Supervised launch metadata with predictive cognition enabled:
 
 ```powershell
@@ -49,6 +59,8 @@ Artifacts are written under:
 
 ```text
 artifacts/cognition/experiences/
+artifacts/cognition/lessons/
+artifacts/cognition/benchmarks/
 ```
 
 Each record includes world state, retrieved memories, candidate actions, selected action, prediction, policy decision, actual outcome, prediction error, lesson, confidence/risk movement, and local deterministic learning metadata.
@@ -76,6 +88,18 @@ GET /cognition/prediction-errors
 POST /cognition/memory/query
 GET /launch/console/runs/{run_id}/predictions
 GET /visual/embodiment/{run_id}/cognition
+```
+
+Predictive learning endpoints:
+
+```text
+POST /cognition/benchmarks/run
+GET /cognition/benchmarks
+GET /cognition/benchmarks/{benchmark_id}
+POST /cognition/lessons/consolidate
+GET /cognition/lessons
+GET /cognition/lessons/{lesson_id}
+GET /cognition/metrics
 ```
 
 Scopes:
@@ -110,6 +134,8 @@ agent PredictiveResearchAgent {
     prediction_error_learning: true
     experience_memory_enabled: true
     retrieve_similar_experiences: true
+    memory_consolidation_enabled: true
+    predictive_benchmarks_enabled: true
     confidence_calibration_enabled: true
     explain_predictions: true
   }
@@ -129,6 +155,12 @@ The dashboard fixture is:
 dashboard/src/mock-data/predictive-cognitive-core.json
 ```
 
+The predictive learning fixture is:
+
+```text
+dashboard/src/mock-data/predictive-learning-benchmark.json
+```
+
 Mission Control renders a Predictive Cognition panel showing:
 
 - current state summary
@@ -144,6 +176,7 @@ Mission Control renders a Predictive Cognition panel showing:
 - learning update metadata
 
 The panel is read-only. Replay/mock mode works without the local API, and local API mode remains optional.
+The Predictive Learning panel shows benchmark scenario, trial count, prediction accuracy before/after, prediction error before/after, consolidated lessons, lesson reuse, repeated mistakes reduced, unsafe recommendations avoided, policy overrides, experience records written, selected lesson details, and trend rows.
 
 ## Public-alpha limits
 
@@ -155,3 +188,4 @@ The panel is read-only. Replay/mock mode works without the local API, and local 
 - No unsafe write/control endpoints are exposed in the dashboard.
 - GPU evidence is imported and verified as release evidence, not as production ML certification.
 - Predictions are confidence-scored hypotheses that must be verified against actual observations.
+- Predictive learning benchmark results are deterministic local measurements, not broad external forecasts.

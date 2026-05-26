@@ -25,6 +25,7 @@ This is not AGI, not unbounded autonomous operation, and not V-JEPA 2 or VideoMA
 - Metadata-only checkpoint records.
 - Mission Control visual/replay telemetry for neural live sessions.
 - Predictive Cognitive Core telemetry for state encoding, counterfactual prediction, policy-gated outcome observation, prediction-error learning, and experience memory.
+- Predictive learning benchmark telemetry for lesson consolidation, lesson reuse, prediction-accuracy trends, and repeated-mistake reduction in local scenarios.
 
 ## What does not run by default
 
@@ -63,6 +64,7 @@ Predictive cognition can be attached to supervised launch metadata without chang
 
 ```bash
 python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --ticks 5 --emit-visual --json
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --consolidate-lessons --ticks 5 --emit-visual --json
 ```
 
 
@@ -138,7 +140,18 @@ GET /cognition/experiences
 GET /cognition/prediction-errors
 ```
 
+Predictive learning benchmark API examples:
+
+```text
+POST /cognition/benchmarks/run
+GET /cognition/benchmarks
+POST /cognition/lessons/consolidate
+GET /cognition/lessons
+GET /cognition/metrics
+```
+
 These endpoints use `cognition:read`, `cognition:run`, and `cognition:write` scopes. They keep predictions advisory and record lessons only after observed outcomes.
+Benchmark execution uses `cognition:run cognition:write`; lesson consolidation uses `cognition:write`; read-only benchmark/lesson/metric inspection uses `cognition:read`.
 
 
 ## FlowLang example
@@ -187,6 +200,7 @@ The visual telemetry path emits neural state suitable for Mission Control:
 
 Replay and live dashboard modes can render this as a neural activity halo, policy gate state, confidence/risk panel, and learning tick count.
 Predictive Cognition adds Mission Control telemetry for prediction, actual outcome, prediction error, lesson learned, selected action, and local deterministic learning metadata.
+Predictive Learning adds Mission Control telemetry and fixtures for benchmark scenario, accuracy/error trends, lesson consolidation, lesson reuse, repeated mistakes reduced, unsafe recommendations avoided, and policy overrides.
 
 ## Mission Control neural embodiment
 

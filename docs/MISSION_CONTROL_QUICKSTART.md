@@ -75,6 +75,13 @@ Useful endpoints:
 - `GET /cognition/prediction-errors`
 - `GET /launch/console/runs/{run_id}/predictions`
 - `GET /visual/embodiment/{run_id}/cognition`
+- `POST /cognition/benchmarks/run`
+- `GET /cognition/benchmarks`
+- `GET /cognition/benchmarks/{benchmark_id}`
+- `POST /cognition/lessons/consolidate`
+- `GET /cognition/lessons`
+- `GET /cognition/lessons/{lesson_id}`
+- `GET /cognition/metrics`
 With local auth/scopes:
 
 ```bash
@@ -83,7 +90,7 @@ python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765 --api-key de
 
 Read visual endpoints with `x-flow-memory-scopes: visual:read`; run network scenarios with `x-flow-memory-scopes: network:run`.
 Launch console read endpoints require `x-flow-memory-scopes: launch:read`; public-alpha demo bundle export requires `x-flow-memory-scopes: launch:export`.
-Cognition read endpoints require `x-flow-memory-scopes: cognition:read`; cognition ticks require `x-flow-memory-scopes: cognition:run cognition:write`.
+Cognition read endpoints require `x-flow-memory-scopes: cognition:read`; cognition ticks and benchmark runs require `x-flow-memory-scopes: cognition:run cognition:write`; lesson consolidation requires `x-flow-memory-scopes: cognition:write`.
 Public-alpha finalizer export also requires `x-flow-memory-scopes: launch:export`.
 
 ## 4. Run dashboard checks
@@ -96,7 +103,7 @@ npm run build
 npm run dev
 ```
 
-For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
+For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Predictive Learning Benchmark panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
 
 The dev server exposes fixture JSON and read-only page rendering only. It does not expose launch, network-run, compute, settlement, or control POST endpoints. Optional local API mode remains a separate read-only polling path through `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`.
 
@@ -111,6 +118,7 @@ The dashboard includes a scoped run selector for these replay/demo fixtures:
 - **Live Neural Embodiment** — `dashboard/src/mock-data/live-neural-embodiment.json`
 - **Local Network Replay** — `dashboard/src/mock-data/local-network-replay.json`
 - **Predictive Cognitive Core** — `dashboard/src/mock-data/predictive-cognitive-core.json`
+- **Predictive Learning Benchmark** — `dashboard/src/mock-data/predictive-learning-benchmark.json`
 
 The selected run status card shows run id, kind, agent id, backend, status, current phase, ticks, policy gate state, risk/confidence, memory writes, visual event count, GPU evidence status, replay artifact path, and run record path.
 
@@ -173,6 +181,25 @@ dashboard/src/mock-data/predictive-cognitive-core.json
 ```
 
 The panel shows current state summary, retrieved memories, candidate actions, counterfactual predictions, selected action, policy gate result, actual outcome, prediction error, lesson learned, experience id, and local deterministic learning metadata. It is read-only and keeps predictions scoped to observable Flow Memory outcomes.
+
+## Predictive Learning Benchmark panel
+
+Run deterministic local benchmark scenarios and consolidate lessons:
+
+```bash
+python -m flow_memory cognition benchmark run --scenario dashboard-stale-server --trials 5 --json
+python -m flow_memory cognition benchmark run --scenario all --trials 5 --json
+python -m flow_memory cognition lessons consolidate --json
+python -m flow_memory cognition metrics --json
+```
+
+Mission Control can load the stable predictive learning fixture:
+
+```text
+dashboard/src/mock-data/predictive-learning-benchmark.json
+```
+
+The panel shows benchmark scenario, trial count, prediction accuracy before/after, prediction error before/after, lessons consolidated, lesson reuse, repeated mistakes reduced, unsafe recommendations avoided, policy overrides, experience records written, selected lesson details, and trend rows. It is read-only and keeps lessons advisory; PolicyEngine and ApprovalGate remain authoritative.
 
 ## Neural embodiment view
 

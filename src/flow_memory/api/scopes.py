@@ -173,8 +173,10 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
     if path_key.startswith("/cognition/"):
         if normalized_method in READ_METHODS or path_key in {"/cognition/predict", "/cognition/memory/query"}:
             return (COGNITION_READ_SCOPE,)
-        if path_key == "/cognition/tick":
+        if path_key in {"/cognition/tick", "/cognition/benchmarks/run"}:
             return (COGNITION_RUN_SCOPE, COGNITION_WRITE_SCOPE)
+        if path_key == "/cognition/lessons/consolidate":
+            return (COGNITION_WRITE_SCOPE,)
         return (COGNITION_WRITE_SCOPE,)
     if path_key.startswith("/visual/embodiment/") and path_key.endswith("/cognition"):
         return (COGNITION_READ_SCOPE,)

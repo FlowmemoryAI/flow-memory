@@ -30,7 +30,7 @@ PUBLIC_ALPHA_EVIDENCE = (
 )
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
-LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "predictive_cognitive_core", "live_agent_launchpad", "live_agent_operations", "live_agent_supervisor", "mission_control_run_console", "neural_embodiment")
+LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "predictive_cognitive_core", "predictive_learning_benchmark", "live_agent_launchpad", "live_agent_operations", "live_agent_supervisor", "mission_control_run_console", "neural_embodiment")
 PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE = LOCAL_PUBLIC_ALPHA_EVIDENCE + (
     "public_alpha_launch_test",
     "public_alpha_launch_evidence",
@@ -109,6 +109,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_launch_finalizer_blockers(root_path, gates.ok)
         classification = "public_alpha_launch_finalizer_candidate" if not blockers else "blocked_public_alpha_launch_finalizer"
         evidence = PUBLIC_ALPHA_LAUNCH_FINALIZER_EVIDENCE
+    elif target == "public-alpha-cognition":
+        blockers = _public_alpha_cognition_blockers(root_path, gates.ok)
+        classification = "public_alpha_cognition_candidate" if not blockers else "blocked_public_alpha_cognition"
+        evidence = LOCAL_PUBLIC_ALPHA_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -289,6 +293,13 @@ def _local_public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     except Exception:
         blockers.append("predictive_cognitive_core_evidence_missing_or_invalid")
     try:
+        from flow_memory.release.predictive_learning_evidence import predictive_learning_benchmark_evidence
+
+        if not predictive_learning_benchmark_evidence(root).get("ok"):
+            blockers.append("predictive_learning_benchmark_evidence_missing_or_invalid")
+    except Exception:
+        blockers.append("predictive_learning_benchmark_evidence_missing_or_invalid")
+    try:
         from flow_memory.release.launchpad_evidence import live_agent_launchpad_evidence
 
         if not live_agent_launchpad_evidence(root).get("ok"):
@@ -362,6 +373,18 @@ def _public_alpha_local_launch_blockers(root: Path, gate_ok: bool) -> tuple[str,
                 blockers.extend(f"public_alpha_launch_evidence_{blocker}" for blocker in decision.blockers)
         except Exception:
             blockers.append("public_alpha_launch_evidence_invalid")
+    return tuple(dict.fromkeys(blockers))
+
+def _public_alpha_cognition_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_local_public_alpha_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.predictive_learning_evidence import predictive_learning_benchmark_evidence, verify_predictive_learning_benchmark_evidence
+
+        decision = verify_predictive_learning_benchmark_evidence(predictive_learning_benchmark_evidence(root))
+        if not decision.get("ok"):
+            blockers.extend(f"predictive_learning_{blocker}" for blocker in decision.get("blockers", ()))
+    except Exception:
+        blockers.append("predictive_learning_benchmark_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_launch_finalizer_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

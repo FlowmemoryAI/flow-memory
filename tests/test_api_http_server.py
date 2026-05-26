@@ -393,6 +393,24 @@ def test_http_gateway_tenant_bound_admin_cannot_manage_other_tenant() -> None:
             ),
         )
     )
+    gateway.router.api_key_records["tenant-b-existing"] = {
+        "key_id": "tenant-b-existing",
+        "key_prefix": "fmk_tenant_b_",
+        "key_hash": api_key_hash("fmk_existing_tenant_b"),
+        "tenant_id": "tenant_b",
+        "principal": "svc-tenant-b-existing",
+        "scopes": "compute:read",
+        "enabled": True,
+    }
+    gateway.router.api_key_records["tenant-a-existing"] = {
+        "key_id": "tenant-a-existing",
+        "key_prefix": "fmk_tenant_a_",
+        "key_hash": api_key_hash("fmk_existing_tenant_a"),
+        "tenant_id": "tenant_a",
+        "principal": "svc-tenant-a-existing",
+        "scopes": "compute:read",
+        "enabled": True,
+    }
 
     denied = gateway.handle(
         "POST",
@@ -421,6 +439,19 @@ def test_http_gateway_tenant_bound_admin_cannot_manage_other_tenant() -> None:
             }
         ).encode("utf-8"),
     )
+    listed = gateway.handle("GET", "/auth/api-keys", {"x-flow-memory-api-key": admin_key})
+    rotate_other = gateway.handle(
+        "POST",
+        "/auth/api-keys/tenant-b-existing/rotate",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps({"key_id": "tenant-b-rotated"}).encode("utf-8"),
+    )
+    disable_other = gateway.handle(
+        "POST",
+        "/auth/api-keys/tenant-b-existing/disable",
+        {"x-flow-memory-api-key": admin_key},
+        json.dumps({"reason": "tenant_boundary_test"}).encode("utf-8"),
+    )
 
     assert denied.status == 403
     assert denied.body["error"]["code"] == "auth.forbidden"
@@ -428,6 +459,17 @@ def test_http_gateway_tenant_bound_admin_cannot_manage_other_tenant() -> None:
     assert denied.body["error"]["details"]["requested_tenant_id"] == "tenant_b"
     assert allowed.status == 200
     assert allowed.body["data"]["record"]["tenant_id"] == "tenant_a"
+    listed_key_ids = {record["key_id"] for record in listed.body["data"]["api_keys"]}
+    assert listed.status == 200
+    assert "tenant-a-existing" in listed_key_ids
+    assert "tenant-a-key" in listed_key_ids
+    assert "tenant-b-existing" not in listed_key_ids
+    assert rotate_other.status == 403
+    assert rotate_other.body["error"]["details"]["tenant_id"] == "tenant_a"
+    assert rotate_other.body["error"]["details"]["requested_tenant_id"] == "tenant_b"
+    assert disable_other.status == 403
+    assert disable_other.body["error"]["details"]["tenant_id"] == "tenant_a"
+    assert disable_other.body["error"]["details"]["requested_tenant_id"] == "tenant_b"
 
 
 def test_http_gateway_injects_provider_receipt_client_ip(monkeypatch: Any) -> None:

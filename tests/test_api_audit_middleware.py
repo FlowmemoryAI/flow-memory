@@ -15,6 +15,7 @@ class ApiAuditMiddlewareTests(unittest.TestCase):
             request_id="req-1",
             principal="alice",
             client_id="test",
+            tenant_id="tenant_a",
         )
 
         def handler(received_context: RequestContext, payload: Mapping[str, object]) -> Mapping[str, object]:
@@ -30,6 +31,7 @@ class ApiAuditMiddlewareTests(unittest.TestCase):
                     "method": "POST",
                     "path": "/agents/a/run",
                     "principal": "alice",
+                    "tenant_id": "tenant_a",
                     "request_id": "req-1",
                     "ok": True,
                     "status": 200,

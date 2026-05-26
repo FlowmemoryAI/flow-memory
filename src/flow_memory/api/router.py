@@ -21,6 +21,7 @@ from flow_memory.api.auth import (
     update_user_record,
     update_workspace_record,
 )
+from flow_memory.api.errors import forbidden_error
 from flow_memory.api.manifest import API_ENDPOINTS, endpoint_manifest
 from flow_memory.core.types import new_id
 from flow_memory.economy.attestations import Attestation
@@ -785,9 +786,15 @@ class LocalApiRouter:
 
 
     def _auth_api_keys(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        tenant_id = _payload_tenant_id(_payload)
+        records = tuple(
+            public_api_key_record(record)
+            for record in self.api_key_records.values()
+            if _tenant_can_access_auth_record(tenant_id, record)
+        )
         return {
             "ok": True,
-            "api_keys": tuple(public_api_key_record(record) for record in self.api_key_records.values()),
+            "api_keys": records,
         }
 
     def _auth_api_key_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -804,6 +811,7 @@ class LocalApiRouter:
         existing = self.api_key_records.get(key_id)
         if existing is None:
             raise KeyError(f"Unknown API key: {key_id}")
+        _assert_auth_record_tenant_access(payload, existing, "rotate")
         rotated = rotate_api_key_record(existing, payload)
         previous_record = rotated["previous_record"]
         record = rotated["record"]
@@ -825,6 +833,7 @@ class LocalApiRouter:
         existing = self.api_key_records.get(key_id)
         if existing is None:
             raise KeyError(f"Unknown API key: {key_id}")
+        _assert_auth_record_tenant_access(payload, existing, "disable")
         disabled = disable_api_key_record(existing, reason=str(payload.get("reason", "operator_requested")))
         self.api_key_records[key_id] = disabled
         return {"ok": True, "record": public_api_key_record(disabled)}
@@ -1109,6 +1118,24 @@ def manifest() -> Mapping[str, Any]:
 
 def _membership_key(workspace_id: str, user_id: str) -> str:
     return f"{workspace_id}:{user_id}"
+
+
+def _payload_tenant_id(payload: Mapping[str, Any]) -> str:
+    return str(payload.get("tenant_id", "")).strip()
+
+
+def _tenant_can_access_auth_record(tenant_id: str, record: Mapping[str, Any]) -> bool:
+    return not tenant_id or str(record.get("tenant_id", "")).strip() == tenant_id
+
+
+def _assert_auth_record_tenant_access(payload: Mapping[str, Any], record: Mapping[str, Any], action: str) -> None:
+    tenant_id = _payload_tenant_id(payload)
+    record_tenant_id = str(record.get("tenant_id", "")).strip()
+    if tenant_id and record_tenant_id != tenant_id:
+        raise forbidden_error(
+            f"Tenant-scoped admin cannot {action} another tenant's API key",
+            details={"tenant_id": tenant_id, "requested_tenant_id": record_tenant_id},
+        )
 
 def _normalize_path(path: str) -> str:
     if not path:

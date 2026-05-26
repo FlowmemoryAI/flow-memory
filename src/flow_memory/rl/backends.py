@@ -6,11 +6,17 @@ backends are explicit adapter seams and must fail clearly when unavailable.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol
+from typing import Any, Mapping, Protocol, cast
 
+from flow_memory.rl.env import FlowEnv
 from flow_memory.rl.evaluator import RLEvaluator
 from flow_memory.rl.policies import HeuristicPolicy, RandomPolicy, TabularQPolicy
 from flow_memory.rl.registry import make_env
+
+
+
+class Policy(Protocol):
+    def act(self, observation: Mapping[str, Any], env: FlowEnv) -> int: ...
 
 
 @dataclass(frozen=True)
@@ -23,7 +29,7 @@ class RLBackendConfig:
 class RlBackend(Protocol):
     name: str
 
-    def make_env(self, env_id: str, **kwargs: Any): ...
+    def make_env(self, env_id: str, **kwargs: Any) -> FlowEnv: ...
 
 
 class LocalRlBackend:
@@ -32,19 +38,19 @@ class LocalRlBackend:
     def __init__(self, config: RLBackendConfig | None = None) -> None:
         self.config = config or RLBackendConfig()
 
-    def make_env(self, env_id: str, **kwargs: Any):
+    def make_env(self, env_id: str, **kwargs: Any) -> FlowEnv:
         return make_env(env_id, **kwargs)
 
-    def policy(self):
+    def policy(self) -> Policy:
         if self.config.policy == "random":
-            return RandomPolicy(seed=self.config.seed)
+            return cast(Policy, RandomPolicy(seed=self.config.seed))
         if self.config.policy in {"tabular", "tabular_q"}:
-            return TabularQPolicy(seed=self.config.seed)
-        return HeuristicPolicy()
+            return cast(Policy, TabularQPolicy(seed=self.config.seed))
+        return cast(Policy, HeuristicPolicy())
 
     def evaluate(self, *, episodes: int = 5) -> Mapping[str, float]:
         env = self.make_env(self.config.env_id, seed=self.config.seed)
-        metrics = dict(RLEvaluator().evaluate(env, self.policy(), episodes=episodes))
+        metrics = dict(cast(Mapping[str, float], RLEvaluator().evaluate(env, self.policy(), episodes=episodes)))
         metrics["success_rate"] = metrics.get("mean_success_rate", 0.0)
         return metrics
 
@@ -59,5 +65,5 @@ def create_rl_backend(name: str = "local", config: RLBackendConfig | None = None
     if name == "pufferlib":
         from flow_memory.rl.puffer_adapter import PufferLibAdapter
 
-        return PufferLibAdapter()
+        return cast(RlBackend, PufferLibAdapter())
     raise ValueError(f"unknown RL backend: {name}")

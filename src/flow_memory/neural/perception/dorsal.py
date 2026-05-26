@@ -1,6 +1,7 @@
 """Tiny dorsal motion encoder with appearance-suppressed trajectory signatures."""
 
 from __future__ import annotations
+from typing import Any
 
 from flow_memory.neural.features import DorsalFeatures
 from flow_memory.neural.perception.appearance_free import AppearanceFreeTransform
@@ -13,7 +14,7 @@ class TinyDorsalMotionEncoder:
         self.latent_dim = latent_dim
         self.transform = AppearanceFreeTransform()
 
-    def encode(self, video):
+    def encode(self, video: Any) -> DorsalFeatures:
         torch = self.torch
         views = self.transform(video)
         silhouette = views.silhouette
@@ -42,5 +43,5 @@ class TinyDorsalMotionEncoder:
             metadata={"latent_dim": self.latent_dim, "trajectory_shape": tuple(centroid.shape)},
         )
 
-    def __call__(self, video):
+    def __call__(self, video: Any) -> DorsalFeatures:
         return self.encode(video)

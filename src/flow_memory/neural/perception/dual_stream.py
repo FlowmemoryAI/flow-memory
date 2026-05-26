@@ -1,6 +1,7 @@
 """Tiny dual-stream neural perception encoder."""
 
 from __future__ import annotations
+from typing import Any
 
 from flow_memory.neural.features import DualStreamFeatures
 from flow_memory.neural.perception.dorsal import TinyDorsalMotionEncoder
@@ -15,11 +16,11 @@ class TinyDualStreamEncoder:
         self.dorsal = TinyDorsalMotionEncoder(latent_dim=latent_dim)
         self.latent_dim = latent_dim
 
-    def encode(self, video):
+    def encode(self, video: Any) -> DualStreamFeatures:
         ventral = self.ventral(video)
         dorsal = self.dorsal(video)
         fused = self.torch.cat([ventral.semantic_tokens, dorsal.motion_tokens], dim=1)
         return DualStreamFeatures(ventral=ventral, dorsal=dorsal, fused_tokens=fused, metadata={"latent_dim": self.latent_dim})
 
-    def __call__(self, video):
+    def __call__(self, video: Any) -> DualStreamFeatures:
         return self.encode(video)

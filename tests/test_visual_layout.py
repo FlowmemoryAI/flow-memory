@@ -1,7 +1,7 @@
 from flow_memory.visualization.layout import apply_layout_to_state, deterministic_agent_layout
 
 
-def test_visual_layout_is_deterministic_and_role_grouped():
+def test_visual_layout_is_deterministic_and_role_grouped() -> None:
     agents = (
         {"agent_id": "did:flow:worker", "role": "worker"},
         {"agent_id": "did:flow:requester", "role": "requester"},
@@ -14,7 +14,7 @@ def test_visual_layout_is_deterministic_and_role_grouped():
     assert first["positions"]["did:flow:verifier"][0] > first["positions"]["did:flow:worker"][0]
 
 
-def test_apply_layout_to_state_adds_positions():
+def test_apply_layout_to_state_adds_positions() -> None:
     state = {"agents": ({"agent_id": "did:flow:a", "role": "agent"},)}
     positioned = apply_layout_to_state(state)
     assert positioned["agents"][0]["position"] == positioned["layout"]["positions"]["did:flow:a"]

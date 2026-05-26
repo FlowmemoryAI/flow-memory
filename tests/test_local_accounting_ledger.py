@@ -3,7 +3,7 @@ from flow_memory.economy.fees import FeeSchedule
 from flow_memory.economy.payment_model import PaymentTerms
 
 
-def test_local_accounting_ledger_settles_worker_verifier_and_treasury():
+def test_local_accounting_ledger_settles_worker_verifier_and_treasury() -> None:
     ledger = LocalAccountingLedger()
     ledger.credit("requester", 100.0)
     escrow = "escrow-1"
@@ -21,7 +21,7 @@ def test_local_accounting_ledger_settles_worker_verifier_and_treasury():
     assert ledger.as_record()["real_funds_used"] is False
 
 
-def test_local_accounting_ledger_rejects_insufficient_balance():
+def test_local_accounting_ledger_rejects_insufficient_balance() -> None:
     ledger = LocalAccountingLedger()
     try:
         ledger.lock_escrow("escrow-1", "requester", 1.0)

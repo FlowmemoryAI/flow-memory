@@ -45,9 +45,11 @@ class ApiScopeTests(unittest.TestCase):
 
         self.assertFalse(decision.ok)
         self.assertEqual(decision.missing, (WRITE_SCOPE,))
-        self.assertIsNotNone(decision.error)
-        self.assertEqual(decision.error.status, 403)
-        self.assertEqual(decision.error.code, "auth.forbidden")
+        error = decision.error
+        self.assertIsNotNone(error)
+        assert error is not None
+        self.assertEqual(error.status, 403)
+        self.assertEqual(error.code, "auth.forbidden")
 
     def test_invalid_scope_returns_auth_error(self) -> None:
         context = build_request_context("GET", "/agents", scopes=("unknown", READ_SCOPE))
@@ -55,9 +57,11 @@ class ApiScopeTests(unittest.TestCase):
 
         self.assertFalse(decision.ok)
         self.assertEqual(decision.invalid, ("unknown",))
-        self.assertIsNotNone(decision.error)
-        self.assertEqual(decision.error.status, 401)
-        self.assertEqual(decision.error.code, "auth.invalid_scope")
+        error = decision.error
+        self.assertIsNotNone(error)
+        assert error is not None
+        self.assertEqual(error.status, 401)
+        self.assertEqual(error.code, "auth.invalid_scope")
 
     def test_context_from_headers_extracts_scopes(self) -> None:
         context = context_from_headers("GET", "agents", {"X-Flow-Memory-Scopes": "api:read"})

@@ -8,7 +8,7 @@ from benchmarks.rl_adversarial_env_benchmark import ADVERSARIAL_ENVS, run_advers
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_adversarial_benchmark_covers_all_adversarial_envs():
+def test_adversarial_benchmark_covers_all_adversarial_envs() -> None:
     result = run_adversarial_benchmark(episodes=4)
     assert result["ok"] is True
     assert tuple(result["envs"]) == ADVERSARIAL_ENVS
@@ -19,7 +19,7 @@ def test_adversarial_benchmark_covers_all_adversarial_envs():
         assert "heuristic_reward_delta" in env_result
 
 
-def test_adversarial_benchmark_script_writes_artifact():
+def test_adversarial_benchmark_script_writes_artifact() -> None:
     completed = subprocess.run(
         [sys.executable, "benchmarks/rl_adversarial_env_benchmark.py"],
         cwd=ROOT,

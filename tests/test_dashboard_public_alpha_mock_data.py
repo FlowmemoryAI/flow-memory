@@ -1,16 +1,18 @@
+from typing import Any
 import json
 from pathlib import Path
+
 
 
 ROOT = Path(__file__).resolve().parents[1]
 MOCK_DATA = ROOT / "dashboard" / "src" / "mock-data"
 
 
-def load(name: str):
+def load(name: str) -> Any:
     return json.loads((MOCK_DATA / name).read_text(encoding="utf-8"))
 
 
-def test_dashboard_public_alpha_mock_data_files_are_parseable():
+def test_dashboard_public_alpha_mock_data_files_are_parseable() -> None:
     required = {
         "runtime.json",
         "neural-status.json",
@@ -24,7 +26,7 @@ def test_dashboard_public_alpha_mock_data_files_are_parseable():
         assert load(name)["source"] == "mock-data-only"
 
 
-def test_dashboard_mocks_preserve_safety_and_no_real_funds_claims():
+def test_dashboard_mocks_preserve_safety_and_no_real_funds_claims() -> None:
     neural = load("neural-status.json")
     payments = load("payments.json")
     network = load("local-network.json")

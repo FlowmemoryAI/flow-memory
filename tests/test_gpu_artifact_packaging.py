@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_gpu_artifact_packaging_records_checkpoint_hash(tmp_path: Path):
+def test_gpu_artifact_packaging_records_checkpoint_hash(tmp_path: Path) -> None:
     input_dir = tmp_path / "run"
     input_dir.mkdir()
     (input_dir / "validation.json").write_text(json.dumps({"ok": True}), encoding="utf-8")
@@ -19,7 +19,7 @@ def test_gpu_artifact_packaging_records_checkpoint_hash(tmp_path: Path):
     assert checkpoint_manifest["checkpoints"][0]["path"] == "dummy.pt"
 
 
-def test_gitignore_blocks_model_artifacts():
+def test_gitignore_blocks_model_artifacts() -> None:
     text = (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "artifacts/" in text
     assert "*.pt" in text

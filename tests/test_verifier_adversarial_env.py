@@ -2,7 +2,7 @@ from flow_memory.rl.envs.verifier_env import VerifierEnv
 from flow_memory.rl.policies import HeuristicPolicy
 
 
-def test_verifier_rejects_bad_work_successfully():
+def test_verifier_rejects_bad_work_successfully() -> None:
     env = VerifierEnv(work_quality="bad", collusion=False)
     step = env.step(env.action_labels.index("reject"))
     assert step.reward > 0
@@ -10,7 +10,7 @@ def test_verifier_rejects_bad_work_successfully():
     assert step.done is True
 
 
-def test_verifier_collusion_penalizes_false_approval_and_flags_slashing():
+def test_verifier_collusion_penalizes_false_approval_and_flags_slashing() -> None:
     env = VerifierEnv(work_quality="bad", collusion=True)
     step = env.step(env.action_labels.index("approve"))
     assert step.reward < 0
@@ -19,7 +19,7 @@ def test_verifier_collusion_penalizes_false_approval_and_flags_slashing():
     assert step.observation["verification"]["collusion_risk"] == 1.0
 
 
-def test_heuristic_policy_requests_evidence_for_unknown_work():
+def test_heuristic_policy_requests_evidence_for_unknown_work() -> None:
     env = VerifierEnv(work_quality="unknown")
     action = HeuristicPolicy().act(env.reset(), env)
     assert env.action_space.label(action) == "request_evidence"

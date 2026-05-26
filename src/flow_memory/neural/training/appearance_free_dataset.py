@@ -4,17 +4,22 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping, TypeAlias
 
 from flow_memory.neural.training.synthetic_motion_dataset import SyntheticMotionDataset
+
+Channel: TypeAlias = list[list[float]]
+Frame: TypeAlias = list[Channel]
+Video: TypeAlias = list[Frame]
+PixelTransform: TypeAlias = Callable[[float, int, int, int], float]
 
 
 @dataclass(frozen=True)
 class AppearanceFreeSample:
-    rgb: list[list[list[list[float]]]]
-    randomized: list[list[list[list[float]]]]
-    silhouette: list[list[list[list[float]]]]
-    flow_like: list[list[list[list[float]]]]
+    rgb: Video
+    randomized: Video
+    silhouette: Video
+    flow_like: Video
     trajectory: tuple[tuple[float, float], ...]
     direction: str
     metadata: Mapping[str, Any]
@@ -48,7 +53,7 @@ class AppearanceFreeMotionDataset:
             metadata=sample.metadata,
         )
 
-    def as_torch_pair(self, index: int):
+    def as_torch_pair(self, index: int) -> tuple[Any, Any, AppearanceFreeSample]:
         from flow_memory.neural.torch_optional import require_torch
 
         torch = require_torch()
@@ -56,8 +61,8 @@ class AppearanceFreeMotionDataset:
         return torch.tensor(sample.rgb, dtype=torch.float32).unsqueeze(0), torch.tensor(sample.randomized, dtype=torch.float32).unsqueeze(0), sample
 
 
-def _map_video(video, fn):
-    out = []
+def _map_video(video: Video, fn: PixelTransform) -> Video:
+    out: Video = []
     for frame in video:
         channels = []
         for channel_idx, channel in enumerate(frame):
@@ -69,8 +74,8 @@ def _map_video(video, fn):
     return out
 
 
-def _silhouette(video):
-    out = []
+def _silhouette(video: Video) -> Video:
+    out: Video = []
     for frame in video:
         height = len(frame[0])
         width = len(frame[0][0])
@@ -83,8 +88,8 @@ def _silhouette(video):
     return out
 
 
-def _flow_like(video):
-    out = []
+def _flow_like(video: Video) -> Video:
+    out: Video = []
     previous = video[0]
     out.append(previous)
     for frame in video[1:]:

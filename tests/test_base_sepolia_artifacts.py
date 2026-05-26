@@ -3,31 +3,38 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from collections.abc import Mapping
 from pathlib import Path
+from typing import TypeAlias, cast
 
 from flow_memory.web3 import CONTRACTS, dependency_graph, dry_run_transactions, generate_deployment_plan
 from flow_memory.web3.erc4337 import UserOperationDraft
 from flow_memory.web3.verification import validate_base_sepolia_artifacts
 
 
+ObjectMap: TypeAlias = Mapping[str, object]
+TransactionRecord: TypeAlias = Mapping[str, object]
+
 class BaseSepoliaArtifactTests(unittest.TestCase):
     def test_deployment_plan_contains_preflight_fields(self) -> None:
         plan = generate_deployment_plan()
+        deployment_order = cast(tuple[str, ...], plan["deployment_order"])
+        dependency_graph_record = cast(ObjectMap, plan["dependency_graph"])
         self.assertEqual(84532, plan["chain_id"])
-        self.assertEqual(CONTRACTS, tuple(plan["deployment_order"]))
+        self.assertEqual(CONTRACTS, deployment_order)
         self.assertFalse(plan["requires_private_key"])
-        self.assertIn("TaskEscrow", plan["dependency_graph"])
+        self.assertIn("TaskEscrow", dependency_graph_record)
 
     def test_dependency_order_places_dependencies_first(self) -> None:
-        order = tuple(generate_deployment_plan()["deployment_order"])
+        order = cast(tuple[str, ...], generate_deployment_plan()["deployment_order"])
         positions = {name: index for index, name in enumerate(order)}
         for name, dependencies in dependency_graph().items():
             for dependency in dependencies:
                 self.assertLess(positions[dependency], positions[name])
 
     def test_dry_run_transaction_payloads_match_contracts(self) -> None:
-        txs = dry_run_transactions()["transactions"]
-        self.assertEqual(CONTRACTS, tuple(tx["contract"] for tx in txs))
+        txs = cast(tuple[TransactionRecord, ...], dry_run_transactions()["transactions"])
+        self.assertEqual(CONTRACTS, tuple(cast(str, tx["contract"]) for tx in txs))
         self.assertTrue(all(tx["dry_run"] for tx in txs))
         self.assertTrue(all(tx["chain_id"] == 84532 for tx in txs))
 
@@ -63,8 +70,8 @@ class BaseSepoliaArtifactTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
             )
-            plan = json.loads((base / "deployment-plan.json").read_text(encoding="utf-8"))
-            dry = json.loads(dry_run.stdout)
+            plan = cast(ObjectMap, json.loads((base / "deployment-plan.json").read_text(encoding="utf-8")))
+            dry = cast(ObjectMap, json.loads(dry_run.stdout))
             (base / "dry-run-transactions.json").write_text(
                 json.dumps(dry["transactions"], indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",

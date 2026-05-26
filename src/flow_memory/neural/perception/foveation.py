@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence, TypeVar
 
 from flow_memory.neural.torch_optional import tensor_shape
+
+_T = TypeVar("_T")
+_ListVideo = Sequence[Sequence[Sequence[Sequence[Sequence[_T]]]]]
+_CroppedListVideo = list[list[list[list[Sequence[_T]]]]]
 
 
 @dataclass(frozen=True)
@@ -45,9 +49,11 @@ class FoveatedVideoProcessor:
         return FoveatedVideo(center=center, peripheral=peripheral, metadata={"center_fraction": self.center_fraction, "peripheral_stride": self.peripheral_stride})
 
 
-def _crop_list_video(video, y0: int, x0: int, crop_h: int, crop_w: int):
+def _crop_list_video(
+    video: _ListVideo[_T], y0: int, x0: int, crop_h: int, crop_w: int
+) -> _CroppedListVideo[_T]:
     return [[[[row[x0 : x0 + crop_w] for row in channel[y0 : y0 + crop_h]] for channel in frame] for frame in batch] for batch in video]
 
 
-def _stride_list_video(video, stride: int):
+def _stride_list_video(video: _ListVideo[_T], stride: int) -> _CroppedListVideo[_T]:
     return [[[[row[::stride] for row in channel[::stride]] for channel in frame] for frame in batch] for batch in video]

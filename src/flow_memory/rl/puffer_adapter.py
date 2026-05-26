@@ -6,10 +6,23 @@ integration boundary.
 """
 from __future__ import annotations
 
-from flow_memory.rl.optional import OptionalRlDependencyError, is_pufferlib_available, require_pufferlib
+from types import ModuleType
+from typing import TYPE_CHECKING, NoReturn
+
+from flow_memory.rl.optional import (
+    OptionalRlDependencyError as _OptionalRlDependencyError,
+    is_pufferlib_available as _is_pufferlib_available,
+    require_pufferlib as _require_pufferlib,
+)
+
+if TYPE_CHECKING:
+    class _PufferLibUnavailableBase(ImportError):
+        pass
+else:
+    _PufferLibUnavailableBase = _OptionalRlDependencyError
 
 
-class PufferLibUnavailable(OptionalRlDependencyError):
+class PufferLibUnavailable(_PufferLibUnavailableBase):
     """Raised when the optional PufferLib backend is requested but unavailable."""
 
 
@@ -18,15 +31,15 @@ class PufferLibAdapter:
 
     @property
     def available(self) -> bool:
-        return is_pufferlib_available()
+        return bool(_is_pufferlib_available())
 
-    def load(self):
+    def load(self) -> ModuleType:
         try:
-            return require_pufferlib()
-        except OptionalRlDependencyError as exc:
+            return _require_pufferlib()
+        except _OptionalRlDependencyError as exc:
             raise PufferLibUnavailable(str(exc)) from exc
 
-    def make_env(self, env_id: str, **kwargs):
+    def make_env(self, env_id: str, **kwargs: object) -> NoReturn:
         self.load()
         raise NotImplementedError(
             "PufferLib mapping is a future adapter seam; no Puffer code is vendored"

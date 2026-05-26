@@ -1,7 +1,7 @@
 from flow_memory.api.router import create_default_router
 
 
-def test_rl_router_envs_and_benchmarks():
+def test_rl_router_envs_and_benchmarks() -> None:
     router = create_default_router()
     envs = router.dispatch("GET", "/rl/envs")
     assert "safety_gate" in envs["envs"]
@@ -9,7 +9,7 @@ def test_rl_router_envs_and_benchmarks():
     assert "benchmarks" in benchmarks
 
 
-def test_rl_router_evaluate_and_train_smoke():
+def test_rl_router_evaluate_and_train_smoke() -> None:
     router = create_default_router()
     evaluation = router.dispatch("POST", "/rl/evaluate", {"env_id": "safety_gate", "policy": "heuristic", "episodes": 2})
     assert evaluation["ok"] is True

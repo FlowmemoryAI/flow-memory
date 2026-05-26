@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_recover_gpu_artifact_instructions_reports_expected_path():
+def test_recover_gpu_artifact_instructions_reports_expected_path() -> None:
     completed = subprocess.run([sys.executable, "scripts/recover_gpu_artifact_instructions.py", "--json"], cwd=ROOT, check=True, capture_output=True, text=True)
     payload = json.loads(completed.stdout)
     assert payload["expected_path"].endswith("artifacts\\incoming\\flow-memory-cloud-gpu-run-001.tar.gz") or payload["expected_path"].endswith("artifacts/incoming/flow-memory-cloud-gpu-run-001.tar.gz")
@@ -14,7 +14,7 @@ def test_recover_gpu_artifact_instructions_reports_expected_path():
     assert payload["do_not_fake_evidence"] is True
 
 
-def test_neural_gpu_smoke_cannot_pass_without_verified_artifact():
+def test_neural_gpu_smoke_cannot_pass_without_verified_artifact() -> None:
     completed = subprocess.run([sys.executable, "scripts/release_decision.py", "--target", "neural-gpu-smoke"], cwd=ROOT, capture_output=True, text=True)
     payload = json.loads(completed.stdout)
     if not payload["ok"]:

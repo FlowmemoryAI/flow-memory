@@ -19,5 +19,5 @@ class RewardSpec:
             value=signals.get(key, 0.0)
             total += float(value) * float(weight)
         return total
-    def as_record(self):
+    def as_record(self) -> dict[str, float]:
         return {"task_success":self.task_success,"safety_compliance":self.safety_compliance,"policy_violation_penalty":self.policy_violation_penalty,"reputation_gain":self.reputation_gain,"dispute_penalty":self.dispute_penalty,"slashing_penalty":self.slashing_penalty,"memory_usefulness":self.memory_usefulness,"delegation_success":self.delegation_success}

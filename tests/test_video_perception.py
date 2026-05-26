@@ -1,11 +1,14 @@
+from typing import Any, Mapping, cast
+
+from flow_memory.core.types import PerceptionOutput
 from flow_memory.perception import DualStreamPerception
 
 
-def _motion_signature(perception):
-    return perception.motion_geometry.spatial_relations[0]["appearance_invariant_signature"]
+def _motion_signature(perception: PerceptionOutput) -> Mapping[str, Any]:
+    return cast(Mapping[str, Any], perception.motion_geometry.spatial_relations[0]["appearance_invariant_signature"])
 
 
-def _moving_dot_video(foreground, background):
+def _moving_dot_video(foreground: float | list[float], background: float | list[float]) -> list[list[list[float | list[float]]]]:
     frames = []
     for x in (0, 1, 2):
         frame = [[background for _ in range(4)] for _ in range(4)]

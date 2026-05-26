@@ -2,7 +2,7 @@ from flow_memory.rl.envs.economy_market_env import EconomyMarketEnv
 from flow_memory.rl.vector_env import FlowVectorEnv
 
 
-def test_economy_market_long_episode_success_lifecycle():
+def test_economy_market_long_episode_success_lifecycle() -> None:
     env = EconomyMarketEnv(seed=9, episode_mode="long")
     assert env.reset()["economy"]["phase"] == "open"
     first = env.step(env.action_labels.index("bid_fair"))
@@ -18,7 +18,7 @@ def test_economy_market_long_episode_success_lifecycle():
     assert final.observation["agent"]["reputation"] > 0
 
 
-def test_economy_market_long_episode_dispute_path():
+def test_economy_market_long_episode_dispute_path() -> None:
     env = EconomyMarketEnv(seed=9, episode_mode="long")
     env.reset()
     step = env.step(env.action_labels.index("bid_high"))
@@ -26,7 +26,7 @@ def test_economy_market_long_episode_dispute_path():
     assert step.observation["economy"]["open_disputes"] == 1
 
 
-def test_economy_market_long_episode_vectorizes():
+def test_economy_market_long_episode_vectorizes() -> None:
     vec = FlowVectorEnv((lambda: EconomyMarketEnv(seed=1, episode_mode="long"), lambda: EconomyMarketEnv(seed=2, episode_mode="long")))
     obs = vec.reset(seed=20)
     assert len(obs) == 2

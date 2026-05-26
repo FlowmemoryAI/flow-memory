@@ -1,11 +1,12 @@
 import io
 import tarfile
+from pathlib import Path
 
 from flow_memory.neural.gpu_evidence import import_gpu_run_artifact
 from flow_memory.release.readiness import decide_release_readiness
 
 
-def _write_real_gpu_tarball(path):
+def _write_real_gpu_tarball(path: Path) -> None:
     with tarfile.open(path, "w:gz") as tar:
         members = {
             "gpu_info.txt": b"python: 3.10\ntorch: 2.12.0+cu130\ncuda available: True\ncuda version: 13.0\ngpu: NVIDIA GeForce RTX 4090\n",
@@ -19,7 +20,7 @@ def _write_real_gpu_tarball(path):
             tar.addfile(info, io.BytesIO(data))
 
 
-def test_neural_gpu_smoke_release_target_declares_gpu_evidence(tmp_path):
+def test_neural_gpu_smoke_release_target_declares_gpu_evidence(tmp_path: Path) -> None:
     import_gpu_run_artifact(tmp_path / "missing.tar.gz", tmp_path / "release_evidence" / "gpu_runs")
     decision = decide_release_readiness(tmp_path, target="neural-gpu-smoke")
     assert decision.target == "neural-gpu-smoke"
@@ -27,7 +28,7 @@ def test_neural_gpu_smoke_release_target_declares_gpu_evidence(tmp_path):
     assert "gpu_evidence_verified_run_missing" in decision.blockers
 
 
-def test_neural_gpu_smoke_release_target_accepts_verified_gpu_run(tmp_path):
+def test_neural_gpu_smoke_release_target_accepts_verified_gpu_run(tmp_path: Path) -> None:
     tarball = tmp_path / "flow-memory-cloud-gpu-run-001.tar.gz"
     _write_real_gpu_tarball(tarball)
     import_gpu_run_artifact(tarball, tmp_path / "release_evidence" / "gpu_runs")

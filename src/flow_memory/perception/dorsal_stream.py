@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field, replace
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, Protocol, Sequence, cast
 
 from flow_memory.core.types import MotionGeometry, Observation
 
@@ -240,20 +240,25 @@ class MotionEncoder:
         )
 
 
-@dataclass
-class AppearanceInvariantDorsalStream:
-    """Motion/spatial encoder that enforces dorsal-stream invariance constraints."""
-
-    motion_encoder: MotionEncoder = field(default_factory=MotionEncoder)
-    invariance_constraints: Sequence[InvarianceConstraint] = field(
-        default_factory=lambda: (
+def _default_invariance_constraints() -> tuple[InvarianceConstraint, ...]:
+    return cast(
+        tuple[InvarianceConstraint, ...],
+        (
             TemporalConsistency(),
             OpticalFlowInvariance(),
             DepthConsistency(),
             EgomotionCompensation(),
             AppearanceSuppression(),
-        )
+        ),
     )
+
+
+@dataclass
+class AppearanceInvariantDorsalStream:
+    """Motion/spatial encoder that enforces dorsal-stream invariance constraints."""
+
+    motion_encoder: MotionEncoder = field(default_factory=MotionEncoder)
+    invariance_constraints: Sequence[InvarianceConstraint] = field(default_factory=_default_invariance_constraints)
 
     def encode(self, observation: Observation | str | Mapping[str, Any]) -> MotionGeometry:
         if isinstance(observation, str):
@@ -302,9 +307,9 @@ def _extract_requested_affordances(content: Any) -> list[str]:
 
 
 def _extract_frames(content: Any) -> list[Any]:
-    if isinstance(content, Mapping) and isinstance(content.get("frames"), Sequence):
+    if isinstance(content, Mapping):
         frames = content.get("frames")
-        if not isinstance(frames, (str, bytes)):
+        if isinstance(frames, Sequence) and not isinstance(frames, (str, bytes)):
             return list(frames)
     if isinstance(content, Sequence) and not isinstance(content, (str, bytes)) and content:
         first = content[0]

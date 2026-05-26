@@ -1,15 +1,16 @@
 """Flow Arena environment registry."""
 from __future__ import annotations
-from typing import Callable
+from typing import Any, Callable, cast
 from flow_memory.rl.env import FlowEnv
 _FACTORIES: dict[str, Callable[..., FlowEnv]] = {}
 
 def register_env(name: str, factory: Callable[..., FlowEnv]) -> None:
     _FACTORIES[name]=factory
 
-def make_env(name: str, **kwargs) -> FlowEnv:
+def make_env(name: str, **kwargs: Any) -> FlowEnv:
     register_default_envs()
-    if name not in _FACTORIES: raise KeyError(f"unknown Flow Arena env: {name}")
+    if name not in _FACTORIES:
+        raise KeyError(f"unknown Flow Arena env: {name}")
     return _FACTORIES[name](**kwargs)
 
 def env_names() -> tuple[str,...]:
@@ -29,4 +30,4 @@ def register_default_envs() -> None:
     from flow_memory.rl.envs.sybil_risk_env import SybilRiskEnv
     from flow_memory.rl.envs.colluding_verifier_env import ColludingVerifierEnv
     for cls in (ToolUseEnv, MemoryRetrievalEnv, EconomyMarketEnv, VerifierEnv, SwarmDelegationEnv, SafetyGateEnv, SelfRepairEnv, GridWorld, ReputationGamingEnv, SybilRiskEnv, ColludingVerifierEnv):
-        register_env(cls.env_id, cls)
+        register_env(cls.env_id, cast(Callable[..., FlowEnv], cls))

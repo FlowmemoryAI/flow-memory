@@ -2,7 +2,7 @@ from flow_memory.rl.envs.reputation_gaming_env import ReputationGamingEnv
 from flow_memory.rl.policies import HeuristicPolicy
 
 
-def test_reputation_gaming_env_penalizes_wash_trading():
+def test_reputation_gaming_env_penalizes_wash_trading() -> None:
     env = ReputationGamingEnv(seed=7)
     step = env.step(env.action_labels.index("wash_trade"))
     assert step.reward < 0
@@ -10,7 +10,7 @@ def test_reputation_gaming_env_penalizes_wash_trading():
     assert step.observation["economy"]["slashing_events"] == 1
 
 
-def test_reputation_gaming_heuristic_declines_suspicious_task():
+def test_reputation_gaming_heuristic_declines_suspicious_task() -> None:
     env = ReputationGamingEnv(seed=7)
     action = HeuristicPolicy().act(env.reset(), env)
     assert env.action_space.label(action) == "decline_suspicious_task"

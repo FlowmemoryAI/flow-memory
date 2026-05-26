@@ -10,7 +10,7 @@ from flow_memory.visualization.adapters import (
 )
 
 
-def test_visual_adapters_emit_typed_events():
+def test_visual_adapters_emit_typed_events() -> None:
     events = []
     events += list(agent_participants_to_visual_events(({"role": "worker", "card": {"did": "did:flow:w", "name": "Worker", "capabilities": ("work",), "reputation": 3.0}},)))
     events += list(economy_records_to_visual_events(({"task_id": "task-1", "status": "settled", "amount": 2.0, "requester_id": "did:flow:r", "worker_id": "did:flow:w"},)))
@@ -23,7 +23,7 @@ def test_visual_adapters_emit_typed_events():
     assert {"agent", "task", "economy", "memory", "neural", "rl", "safety", "audit"} <= types
     assert all(event.provenance == "live" for event in events)
 
-def test_economy_receipts_emit_lifecycle_edges():
+def test_economy_receipts_emit_lifecycle_edges() -> None:
     receipts = (
         {"receipt_id": "r1", "receipt_type": "task_created", "task_id": "task-1", "actor": "did:flow:requester", "payload": {"title": "demo", "reward": 3.0}},
         {"receipt_id": "r2", "receipt_type": "bid_submitted", "task_id": "task-1", "actor": "did:flow:worker", "payload": {"price": 3.0}},

@@ -8,7 +8,7 @@ from benchmarks.rl_policy_comparison_benchmark import compare_policies
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_compare_policies_includes_random_heuristic_and_tabular_q():
+def test_compare_policies_includes_random_heuristic_and_tabular_q() -> None:
     result = compare_policies("safety_gate", episodes=6)
     assert result["ok"] is True
     assert set(("random", "heuristic", "tabular_q", "torch_actor_critic")).issubset(result)
@@ -16,7 +16,7 @@ def test_compare_policies_includes_random_heuristic_and_tabular_q():
     assert result["torch_actor_critic"]["backend"] == "torch_actor_critic"
 
 
-def test_policy_comparison_benchmark_script_writes_artifact():
+def test_policy_comparison_benchmark_script_writes_artifact() -> None:
     completed = subprocess.run(
         [sys.executable, "benchmarks/rl_policy_comparison_benchmark.py"],
         cwd=ROOT,

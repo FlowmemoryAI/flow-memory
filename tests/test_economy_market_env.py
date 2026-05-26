@@ -1,7 +1,7 @@
 from flow_memory.rl.envs.economy_market_env import EconomyMarketEnv
 
 
-def test_economy_market_env_deterministic_success_action():
+def test_economy_market_env_deterministic_success_action() -> None:
     env=EconomyMarketEnv(seed=3)
     first=env.step(env.action_labels.index("bid_fair"))
     env.reset(seed=3)
@@ -10,7 +10,7 @@ def test_economy_market_env_deterministic_success_action():
     assert first.info
 
 
-def test_economy_market_multi_round_settles_after_verifier_selection():
+def test_economy_market_multi_round_settles_after_verifier_selection() -> None:
     env = EconomyMarketEnv(seed=5, episode_mode="multi_round", max_steps=5)
     obs = env.reset(seed=5)
     assert obs["economy"]["phase"] == "open"
@@ -27,7 +27,7 @@ def test_economy_market_multi_round_settles_after_verifier_selection():
     assert settle.info["metrics"]["settlement"] is True
 
 
-def test_economy_market_multi_round_overpriced_bid_disputes():
+def test_economy_market_multi_round_overpriced_bid_disputes() -> None:
     env = EconomyMarketEnv(seed=5, episode_mode="multi_round", max_steps=5)
     env.step(env.action_labels.index("bid_low"))
     disputed = env.step(env.action_labels.index("bid_high"))

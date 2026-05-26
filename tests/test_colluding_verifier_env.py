@@ -2,7 +2,7 @@ from flow_memory.rl.envs.colluding_verifier_env import ColludingVerifierEnv
 from flow_memory.rl.policies import HeuristicPolicy
 
 
-def test_colluding_verifier_env_penalizes_single_false_approval():
+def test_colluding_verifier_env_penalizes_single_false_approval() -> None:
     env = ColludingVerifierEnv(seed=13)
     step = env.step(env.action_labels.index("single_verifier_approve"))
     assert step.reward < 0
@@ -10,7 +10,7 @@ def test_colluding_verifier_env_penalizes_single_false_approval():
     assert step.info["metrics"]["false_approval"] is True
 
 
-def test_colluding_verifier_heuristic_uses_multi_verifier_vote():
+def test_colluding_verifier_heuristic_uses_multi_verifier_vote() -> None:
     env = ColludingVerifierEnv(seed=13)
     action = HeuristicPolicy().act(env.reset(), env)
     assert env.action_space.label(action) == "multi_verifier_vote"

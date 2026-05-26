@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import random
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 from flow_memory.rl.env import FlowEnv
 
 class RandomPolicy:
@@ -31,10 +31,20 @@ class TabularQPolicy:
         if rng.random() < self.epsilon: return rng.randrange(env.action_space.n)
         values=self.values(observation, env)
         return max(range(len(values)), key=lambda i: values[i])
-    def update(self, observation, action:int, reward:float, next_observation, env:FlowEnv, *, alpha:float=0.5, gamma:float=0.9):
+    def update(
+        self,
+        observation: Mapping[str, Any],
+        action: int,
+        reward: float,
+        next_observation: Mapping[str, Any],
+        env: FlowEnv,
+        *,
+        alpha: float = 0.5,
+        gamma: float = 0.9,
+    ) -> None:
         values=self.values(observation, env)
         next_values=self.values(next_observation, env)
         values[action] = values[action] + alpha*(reward + gamma*max(next_values) - values[action])
-    def as_record(self): return {"q": self.q, "epsilon": self.epsilon, "seed": self.seed}
+    def as_record(self) -> dict[str, Any]: return {"q": self.q, "epsilon": self.epsilon, "seed": self.seed}
     @classmethod
-    def from_record(cls, record:Mapping[str,Any])->"TabularQPolicy": return cls(q={str(k):list(v) for k,v in dict(record.get('q',{})).items()}, epsilon=float(record.get('epsilon',0.1)), seed=int(record.get('seed',0)))
+    def from_record(cls, record:Mapping[str,Any])->"TabularQPolicy": return cls(q={str(k):list(cast(list[float], v)) for k,v in dict(record.get('q',{})).items()}, epsilon=float(record.get('epsilon',0.1)), seed=int(record.get('seed',0)))

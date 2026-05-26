@@ -75,14 +75,14 @@ def test_telemetry_snapshot_reset_and_prometheus_text() -> None:
     with telemetry.span("compute.plan_request", {"request_id": "req_1"}):
         pass
 
-    snapshot = telemetry.snapshot(reset=False)
+    snapshot = cast(dict[str, Any], telemetry.snapshot(reset=False))
     assert len(snapshot["metrics"]) == 1
     assert len(snapshot["traces"]) == 1
     text = telemetry.prometheus_text()
     assert "# TYPE compute_plan_requests_total gauge" in text
     assert 'strategy="balanced"' in text
 
-    drained = telemetry.snapshot(reset=True)
+    drained = cast(dict[str, Any], telemetry.snapshot(reset=True))
     assert len(drained["metrics"]) == 1
     assert telemetry.summary()["metric_sample_count"] == 0
 
@@ -121,10 +121,10 @@ def test_alert_evaluator_fires_on_audit_failures_and_acknowledges_route() -> Non
     router = create_default_router()
     try:
         service.telemetry.increment("audit_chain_verify_fail_total")
-        evaluation = AlertEvaluator().evaluate(service.telemetry).as_record()
-        alerts = router.dispatch("GET", "/compute/alerts")
-        ack = router.dispatch("POST", "/compute/alerts/audit-chain-verify-failure/ack", {"acknowledged_by": "test"})
-        acknowledged = router.dispatch("GET", "/compute/alerts")
+        evaluation = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
+        alerts = cast(dict[str, Any], router.dispatch("GET", "/compute/alerts"))
+        ack = cast(dict[str, Any], router.dispatch("POST", "/compute/alerts/audit-chain-verify-failure/ack", {"acknowledged_by": "test"}))
+        acknowledged = cast(dict[str, Any], router.dispatch("GET", "/compute/alerts"))
     finally:
         reset_default_service(None)
 
@@ -186,7 +186,7 @@ def test_alert_routing_delivers_configured_webhook_and_records_evidence() -> Non
     alert_body = cast(Any, _ALERT_WEBHOOK_POSTS[0]["body"])
     assert alert_body["alert"]["rule_name"] == "audit-chain-verify-failure"
     assert "alert-routing-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
-    metric_totals = service.telemetry.summary()["metric_totals"]
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["alert_delivery_pending_total"] == 1.0
     assert metric_totals["alert_delivery_sent_total"] == 1.0
 
@@ -218,7 +218,7 @@ def test_alert_routing_records_failed_webhook_without_leaking_secret() -> None:
     assert delivery["status"] == "failed"
     assert delivery["http_status"] == 503
     assert "alert-routing-secret" not in json.dumps(delivery)
-    metric_totals = service.telemetry.summary()["metric_totals"]
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["alert_delivery_failed_total"] == 1.0
 
 
@@ -293,7 +293,7 @@ def test_error_tracking_records_delivery_and_metrics() -> None:
     assert error_body["details"]["password"] == "[redacted]"
     assert _ALERT_WEBHOOK_POSTS[0]["signature"]
     assert "error-track-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
-    metric_totals = service.telemetry.summary()["metric_totals"]
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["error_tracking_pending_total"] == 1.0
     assert metric_totals["error_tracking_sent_total"] == 1.0
 
@@ -322,7 +322,7 @@ def test_error_tracking_records_failed_webhook_without_leaking_secret() -> None:
     assert tracked["status"] == "failed"
     assert tracked["event"]["http_status"] == 503
     assert "error-track-secret" not in json.dumps(tracked)
-    metric_totals = service.telemetry.summary()["metric_totals"]
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["error_tracking_failed_total"] == 1.0
 
 
@@ -429,7 +429,7 @@ def test_otlp_export_delivers_to_collector_and_records_evidence() -> None:
     assert otlp_body["resourceMetrics"][0]["scopeMetrics"][0]["metrics"][0]["name"] == "compute_plan_requests_total"
     assert otlp_body["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["name"] == "compute.plan_request"
     assert "otlp-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
-    metric_totals = service.telemetry.summary()["metric_totals"]
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["otlp_export_attempt_total"] == 1.0
     assert metric_totals["otlp_export_sent_total"] == 1.0
 
@@ -459,7 +459,7 @@ def test_otlp_export_records_failed_collector_without_leaking_headers() -> None:
     assert exported["status"] == "failed"
     assert exported["delivery"]["http_status"] == 503
     assert "otlp-secret" not in json.dumps(exported["delivery"])
-    metric_totals = service.telemetry.summary()["metric_totals"]
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["otlp_export_failed_total"] == 1.0
 
 
@@ -549,11 +549,11 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     readiness = allowlist_service.readiness()
 
     assert "external_provider_allowlist_missing" in readiness["readiness_failures"]
-    assert service.telemetry.summary()["metric_totals"]["billing_webhook_failures_total"] == 1.0
-    assert allowlist_service.telemetry.summary()["metric_totals"]["external_provider_allowlist_missing_total"] == 1.0
+    assert cast(dict[str, float], service.telemetry.summary()["metric_totals"])["billing_webhook_failures_total"] == 1.0
+    assert cast(dict[str, float], allowlist_service.telemetry.summary()["metric_totals"])["external_provider_allowlist_missing_total"] == 1.0
 
     service.telemetry.increment("redis_unavailable_total")
-    alerts = AlertEvaluator().evaluate(service.telemetry).as_record()
+    alerts = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
     rule_names = {item["rule_name"] for item in alerts["firing"]}
     assert "billing-webhook-failures" in rule_names
     assert "redis-unavailable" in rule_names

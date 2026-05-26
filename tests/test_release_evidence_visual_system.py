@@ -4,7 +4,7 @@ from flow_memory.release.evidence import build_evidence_documents
 from flow_memory.release.visual_evidence import verify_visual_system_evidence, visual_system_evidence
 
 
-def test_visual_system_evidence_detects_mission_control_assets():
+def test_visual_system_evidence_detects_mission_control_assets() -> None:
     root = Path(__file__).resolve().parents[1]
     evidence = visual_system_evidence(root)
 
@@ -16,7 +16,7 @@ def test_visual_system_evidence_detects_mission_control_assets():
     assert verify_visual_system_evidence(evidence)["ok"] is True
 
 
-def test_visual_system_evidence_reports_missing_replay(tmp_path):
+def test_visual_system_evidence_reports_missing_replay(tmp_path: Path) -> None:
     evidence = visual_system_evidence(tmp_path)
 
     assert evidence["ok"] is False
@@ -25,7 +25,7 @@ def test_visual_system_evidence_reports_missing_replay(tmp_path):
     assert "dashboard/src/mock-data/local-network-replay.json" in verification["missing_files"]
 
 
-def test_release_evidence_includes_visual_system_document():
+def test_release_evidence_includes_visual_system_document() -> None:
     root = Path(__file__).resolve().parents[1]
     documents = build_evidence_documents(root)
 

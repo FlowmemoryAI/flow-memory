@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import Any, Mapping, Protocol
+from typing import TYPE_CHECKING, Any, Mapping, Protocol, cast
 
 from flow_memory.agents.cognition import AgentCognition
 from flow_memory.agents.economy_binding import AgentEconomyBinding
@@ -18,6 +18,25 @@ from flow_memory.economy.economy_v3 import EconomyV3
 from flow_memory.flowlang import profile_from_flowlang
 from flow_memory.swarm.agent_card import AgentCard
 from flow_memory.swarm.discovery import AgentDiscoveryRegistry
+
+if TYPE_CHECKING:
+    class _CognitivePlannerBase:
+        def create_plan(
+            self,
+            goal: str,
+            *,
+            allowed_skills: tuple[str, ...] = (),
+            allowed_tools: tuple[str, ...] = (),
+        ) -> Plan:
+            ...
+
+    class _AgentSkillBindingBase:
+        def run_skill(self, skill_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+            ...
+else:
+    _CognitivePlannerBase = CognitivePlanner
+    _AgentSkillBindingBase = AgentSkillBinding
+
 
 
 _ID_KEYS = frozenset({"plan_id", "step_id", "task_id", "bid_id", "submission_id", "receipt_id"})
@@ -68,7 +87,7 @@ class ReliabilityScenario(Protocol):
         ...
 
 
-class StaticPlanner(CognitivePlanner):
+class StaticPlanner(_CognitivePlannerBase):
     def __init__(self, plan: Plan) -> None:
         self.plan = plan
 
@@ -76,12 +95,12 @@ class StaticPlanner(CognitivePlanner):
         return self.plan
 
 
-class FailingSkillBinding(AgentSkillBinding):
+class FailingSkillBinding(_AgentSkillBindingBase):
     def run_skill(self, skill_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return {"success": False, "skill_id": skill_id, "error": "deterministic skill failure", "output": {}}
 
 
-class RecoveringSkillBinding(AgentSkillBinding):
+class RecoveringSkillBinding(_AgentSkillBindingBase):
     def run_skill(self, skill_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return {"success": True, "skill_id": skill_id, "output": {"recovered": True, "source": "fallback"}}
 
@@ -167,7 +186,7 @@ class RiskyActionBlockedScenario:
             steps=(PlanStep(action="risky_action", required_permissions=("system.mutate",), risk_level="high"),),
             success_criteria=("blocked before execution",),
         )
-        result = AgentRunner(profile, cognition=AgentCognition(StaticPlanner(plan))).run_cycle("attempt high-risk local action")
+        result = AgentRunner(profile, cognition=AgentCognition(cast(CognitivePlanner, StaticPlanner(plan)))).run_cycle("attempt high-risk local action")
         return _report_from_run(
             self.name,
             profile,
@@ -216,8 +235,8 @@ class SkillFailureRecoveryScenario:
 
     def run(self) -> ScenarioReport:
         profile = _profile(self.name)
-        failed = AgentRunner(profile, executor=AgentExecutor(skills=FailingSkillBinding())).run_cycle("run unstable skill")
-        recovered = AgentRunner(profile, executor=AgentExecutor(skills=RecoveringSkillBinding())).run_cycle("run fallback skill")
+        failed = AgentRunner(profile, executor=AgentExecutor(skills=cast(AgentSkillBinding, FailingSkillBinding()))).run_cycle("run unstable skill")
+        recovered = AgentRunner(profile, executor=AgentExecutor(skills=cast(AgentSkillBinding, RecoveringSkillBinding()))).run_cycle("run fallback skill")
         failures = ({"kind": "skill_failure", "detail": "deterministic skill failure"},)
         recovery_actions = ({"action": "fallback_skill", "success": recovered.output["execution"]["success"]},)
         return ScenarioReport(
@@ -284,11 +303,11 @@ class ReputationRoutingScenario:
     name = "ReputationRoutingScenario"
 
     def run(self) -> ScenarioReport:
-        candidates = (
+        candidates: tuple[Mapping[str, str | float], ...] = (
             {"agent_id": "worker-low", "reputation": 0.1},
             {"agent_id": "worker-high", "reputation": 0.9},
         )
-        selected = max(candidates, key=lambda item: item["reputation"])
+        selected = max(candidates, key=lambda item: cast(float, item["reputation"]))
         profile = _profile(self.name, capabilities=("routing",), reputation=0.5)
         return ScenarioReport(
             scenario_name=self.name,
@@ -323,7 +342,7 @@ class RepeatedFailureCooldownScenario:
         cooldown = {"action": "cooldown_started", "threshold": 3, "blocked_next_attempt": True}
         return ScenarioReport(
             scenario_name=self.name,
-            passed=cooldown["blocked_next_attempt"],
+            passed=bool(cooldown["blocked_next_attempt"]),
             agent_id=profile.agent_id,
             autonomy_mode=profile.autonomy_mode,
             policy_decisions=({"allowed": False, "requires_approval": True, "reason": "repeated failures cooldown"},),

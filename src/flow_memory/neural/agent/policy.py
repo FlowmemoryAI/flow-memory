@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
+from typing import Any, Mapping
 
 from flow_memory.neural.torch_optional import require_torch
 
@@ -24,7 +24,7 @@ class TinyAgentPolicyNetwork:
     def __init__(self) -> None:
         self.torch = require_torch()
 
-    def score(self, agent_state_embedding, goal_embedding, memory_context_embedding, candidate_plan_embedding) -> AgentPolicyScores:
+    def score(self, agent_state_embedding: Any, goal_embedding: Any, memory_context_embedding: Any, candidate_plan_embedding: Any) -> AgentPolicyScores:
         torch = self.torch
         stacked = torch.stack([
             agent_state_embedding.float().mean(),

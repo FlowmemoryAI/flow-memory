@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_dorsal_more_stable_than_ventral_under_color_change():
+def test_dorsal_more_stable_than_ventral_under_color_change() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.perception.dual_stream import TinyDualStreamEncoder
     from flow_memory.neural.training.appearance_free_dataset import AppearanceFreeMotionDataset

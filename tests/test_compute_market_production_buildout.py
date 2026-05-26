@@ -6,6 +6,7 @@ import time
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
+from collections.abc import Callable
 from typing import Any, Mapping, cast
 
 from flow_memory.api.router import create_default_router
@@ -78,7 +79,7 @@ def _job_payload() -> dict[str, object]:
 def _metric_total(service: ComputeMarketService, name: str, labels: Mapping[str, str] | None = None) -> float:
     expected = dict(labels or {})
     total = 0.0
-    for sample in service.telemetry.snapshot(reset=False)["metrics"]:
+    for sample in cast(dict[str, Any], service.telemetry.snapshot(reset=False))["metrics"]:
         if not isinstance(sample, Mapping) or sample.get("name") != name:
             continue
         sample_labels = sample.get("labels", {})
@@ -1441,10 +1442,11 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
     assert after_reconciliation["provider_payout_summary"]["settled_count"] == 1
     assert after_reconciliation["ledger_balanced"] is True
 
-    for operation, expected in (
+    operations: tuple[tuple[Callable[[], Any], str], ...] = (
         (lambda: service.settle_provider_payout(payout_id, {}), "not accrued"),
         (lambda: service.settle_provider_payout("payout_missing", {}), "Unknown provider payout"),
-    ):
+    )
+    for operation, expected in operations:
         try:
             operation()
         except (KeyError, ValueError) as exc:

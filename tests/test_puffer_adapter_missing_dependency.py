@@ -1,7 +1,7 @@
 import pytest
 from flow_memory.rl.puffer_adapter import PufferLibAdapter, PufferLibUnavailable
 
-def test_puffer_adapter_missing_dependency_fails_clearly():
+def test_puffer_adapter_missing_dependency_fails_clearly() -> None:
     adapter=PufferLibAdapter()
     if adapter.available:
         pytest.skip("pufferlib installed locally")

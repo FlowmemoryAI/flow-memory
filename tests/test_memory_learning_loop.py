@@ -3,7 +3,7 @@ from flow_memory.learning.memory_learning import MemoryLearningStore
 from flow_memory.learning.trace_collector import TraceCollector
 
 
-def test_memory_learning_retrieves_related_trace():
+def test_memory_learning_retrieves_related_trace() -> None:
     profile = AgentProfile(name="memory", identity="did:flow:memory", allowed_tools=("observe_environment", "respond"), autonomy_mode="autonomous_local")
     result = AgentRunner(profile).run_cycle("Investigate safety incident")
     trace = TraceCollector().collect(agent_id=profile.agent_id, goal="Investigate safety incident", result_record=result.as_record())

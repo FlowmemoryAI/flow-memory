@@ -19,9 +19,15 @@ class StorageBackupTests(unittest.TestCase):
         target = SQLiteStore()
         restored = restore_backup(bundle, target)
 
+        agent_record = target.get("agents", "agent-1")
+        audit_record = target.get("audit_events", "audit-1")
+        self.assertIsNotNone(agent_record)
+        self.assertIsNotNone(audit_record)
+        assert agent_record is not None
+        assert audit_record is not None
         self.assertEqual(manifest.root_hash, restored.root_hash)
-        self.assertEqual("alpha", target.get("agents", "agent-1")["name"])
-        self.assertEqual("created", target.get("audit_events", "audit-1")["event"])
+        self.assertEqual("alpha", agent_record["name"])
+        self.assertEqual("created", audit_record["event"])
 
     def test_restore_refuses_non_empty_target_without_overwrite(self) -> None:
         source = SQLiteStore()
@@ -66,8 +72,11 @@ class StorageBackupTests(unittest.TestCase):
             )
 
             payload = json.loads(completed.stdout)
+            restored_agent = SQLiteStore(restored_db).get("agents", "agent-1")
+            self.assertIsNotNone(restored_agent)
+            assert restored_agent is not None
             self.assertTrue(payload["ok"])
-            self.assertEqual("alpha", SQLiteStore(restored_db).get("agents", "agent-1")["name"])
+            self.assertEqual("alpha", restored_agent["name"])
 
 
 if __name__ == "__main__":

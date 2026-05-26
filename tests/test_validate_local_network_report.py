@@ -8,7 +8,8 @@ from scripts.validate_local_network_report import validate_local_network_report
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_validate_local_network_report_accepts_generated_report(tmp_path):
+def test_validate_local_network_report_accepts_generated_report(tmp_path: Path) -> None:
+
     out = tmp_path / "network.json"
     subprocess.run(
         [sys.executable, "scripts/run_local_network.py", "--scenario", "all", "--json-out", str(out)],
@@ -23,7 +24,7 @@ def test_validate_local_network_report_accepts_generated_report(tmp_path):
     assert result["participant_count"] >= 3
 
 
-def test_validate_local_network_report_rejects_missing_scenarios(tmp_path):
+def test_validate_local_network_report_rejects_missing_scenarios(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"ok": True, "scenarios": [], "topology": {"participants": []}}), encoding="utf-8")
     result = validate_local_network_report(bad)

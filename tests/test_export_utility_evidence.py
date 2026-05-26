@@ -8,7 +8,7 @@ from scripts.export_utility_evidence import build_utility_evidence
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_build_utility_evidence_collects_public_alpha_utilities():
+def test_build_utility_evidence_collects_public_alpha_utilities() -> None:
     payload = build_utility_evidence(ROOT)
     assert payload["ok"] is True
     assert payload["dashboard_api"]["ok"] is True
@@ -17,7 +17,7 @@ def test_build_utility_evidence_collects_public_alpha_utilities():
     assert payload["hash"]
 
 
-def test_export_utility_evidence_script_writes_json(tmp_path):
+def test_export_utility_evidence_script_writes_json(tmp_path: Path) -> None:
     out = tmp_path / "utility_evidence.json"
     completed = subprocess.run(
         [sys.executable, "scripts/export_utility_evidence.py", "--out", str(out)],

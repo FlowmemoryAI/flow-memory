@@ -29,15 +29,15 @@ class AgentNeuralBinding:
     def annotate_plan(self, profile: Any, goal: str, plan: Any, context: tuple[Any, ...] = ()) -> Mapping[str, Any]:
         config = neural_config_from_mapping(getattr(profile, "neural_config", {}))
         records = tuple(context)
-        for record in records:
-            self.retriever.add(record)
+        for memory_record in records:
+            self.retriever.add(memory_record)
         memory_hits = self.retriever.search(goal, top_k=3) if records else ()
         plan_score = self.plan_scorer.score_plan(plan, successful_memory_similarity=(memory_hits[0].score if memory_hits else 0.0))
         skills = ({"id": skill, "description": skill, "risk": 0.1} for skill in getattr(profile, "allowed_skills", ()))
         skill_scores = self.skill_router.rank_skills(goal, tuple(skills))
         risk_score = self.risk_model.score(plan.as_record() if hasattr(plan, "as_record") else plan)
         evaluation = self.evaluator.evaluate(goal, policy_allowed=True, memory_hits=len(memory_hits), economic_value=float(getattr(plan, "economic_value", 0.0)))
-        record: dict[str, Any] = {
+        annotation: dict[str, Any] = {
             "backend": config.backend,
             "status": "disabled" if config.backend == "none" else "available",
             "plan_scores": (plan_score.as_record(),),
@@ -48,12 +48,12 @@ class AgentNeuralBinding:
             "safety_authority": "policy_engine_and_approval_gate",
         }
         if config.backend == "tiny_torch" and not is_torch_available():
-            record["status"] = "skipped"
-            record["reason"] = "tiny_torch requested but torch is not installed"
+            annotation["status"] = "skipped"
+            annotation["reason"] = "tiny_torch requested but torch is not installed"
         elif config.backend in {"vjepa2", "videomae"}:
-            record["status"] = "adapter_seam"
-            record["reason"] = f"{config.backend} requires local dependencies and checkpoint_path"
-        return record
+            annotation["status"] = "adapter_seam"
+            annotation["reason"] = f"{config.backend} requires local dependencies and checkpoint_path"
+        return annotation
 
     def attach_perception_metadata(self, profile: Any, video: Any | None = None) -> Mapping[str, Any]:
         config = neural_config_from_mapping(getattr(profile, "neural_config", {}))

@@ -14,7 +14,7 @@ class Neo4jSemanticAdapter:
 
     def _driver(self) -> Any:
         try:
-            from neo4j import GraphDatabase  # type: ignore
+            from neo4j import GraphDatabase
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Install flow-memory[memory] to use Neo4jSemanticAdapter") from exc
         return GraphDatabase.driver(self.uri, auth=(self.user, self.password))

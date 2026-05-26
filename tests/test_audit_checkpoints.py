@@ -1,4 +1,5 @@
 import unittest
+from typing import Any, cast
 
 from flow_memory.crypto.keys import generate_local_keypair
 from flow_memory.storage import AuditStore, SQLiteStore, create_audit_checkpoint, verify_audit_checkpoint
@@ -28,7 +29,7 @@ class AuditCheckpointTests(unittest.TestCase):
         audit = AuditStore(SQLiteStore())
         audit.append_chained({"event": "started"})
         replay = audit.verify_chained()
-        checkpoint = create_audit_checkpoint(replay, key).as_record()
+        checkpoint = cast(dict[str, Any], create_audit_checkpoint(replay, key).as_record())
         checkpoint["latest_hash"] = "forged"
 
         self.assertFalse(verify_audit_checkpoint(checkpoint, key))

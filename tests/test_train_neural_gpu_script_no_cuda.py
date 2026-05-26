@@ -8,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_train_neural_gpu_fails_clearly_without_cuda(tmp_path: Path):
+def test_train_neural_gpu_fails_clearly_without_cuda(tmp_path: Path) -> None:
     try:
         import torch
         if torch.cuda.is_available():

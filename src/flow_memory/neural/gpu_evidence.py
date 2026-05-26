@@ -56,12 +56,12 @@ def summarize_gpu_run(run_dir: str | Path, *, run_id: str | None = None, source_
 def verify_gpu_run(run_root: str | Path) -> Mapping[str, Any]:
     root=Path(run_root)
     if root.is_dir() and (root/"summary.json").exists():
-        dirs=(root,)
+        dirs: tuple[Path, ...] = (root,)
     elif root.is_dir():
         dirs=tuple(sorted(path for path in root.iterdir() if path.is_dir()))
     else:
         dirs=()
-    records=[]
+    records: list[dict[str, Any]] = []
     for directory in dirs:
         summary=load_json_if_present(directory/"summary.json")
         hashes=load_json_if_present(directory/"hashes.json")

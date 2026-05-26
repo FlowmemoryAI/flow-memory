@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from flow_memory.agents.runner import AgentRunner
 
@@ -11,6 +11,7 @@ from flow_memory.network.receipts import NetworkReceipt
 from flow_memory.network.reports import LocalNetworkReport, ScenarioReport
 from flow_memory.network.topology import LocalNetworkTopology, default_topology
 from flow_memory.rl.envs.safety_gate_env import SafetyGateEnv
+from flow_memory.rl.env import FlowEnv
 from flow_memory.rl.trainer import SimpleQLearningTrainer
 from flow_memory.visualization import VisualEvent, reduce_visual_events, visual_event
 from flow_memory.visualization.adapters import agent_participants_to_visual_events, economy_receipts_to_visual_events, neural_record_to_visual_events, rl_record_to_visual_events, safety_record_to_visual_events
@@ -50,7 +51,7 @@ class LocalFlowMemoryNetwork:
 
     def run_rl_training(self) -> ScenarioReport:
         env = SafetyGateEnv(seed=11, max_steps=3)
-        trainer = SimpleQLearningTrainer(env)
+        trainer = SimpleQLearningTrainer(cast(FlowEnv, env))
         result = trainer.train(episodes=16)
         data = {**dict(result.as_record()), "advisory_only": True, "safety_authority": "policy_engine_and_approval_gate"}
         self._extend_visual(rl_record_to_visual_events({"episode_id": "rl-safety-gate", "env_id": "safety_gate", "metrics": data}, agent_id="did:flow:worker"))

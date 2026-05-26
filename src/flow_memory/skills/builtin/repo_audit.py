@@ -1,4 +1,6 @@
 """Built-in local repo audit skill."""
+from typing import Any, Mapping
+
 from flow_memory.skills.manifest import SkillManifest
 
 manifest = SkillManifest(
@@ -12,6 +14,6 @@ manifest = SkillManifest(
 )
 
 
-def run(payload):
+def run(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     findings = payload["findings"]
     return {"summary": f"Repo audit summary: {findings[:320]}"}

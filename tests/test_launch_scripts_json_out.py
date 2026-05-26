@@ -1,6 +1,7 @@
 import json
 import subprocess
 import sys
+import typing
 from pathlib import Path
 
 
@@ -15,13 +16,13 @@ def run_script(args: list[str], out: Path) -> dict[str, object]:
         capture_output=True,
         text=True,
     )
-    stdout_payload = json.loads(completed.stdout)
-    file_payload = json.loads(out.read_text(encoding="utf-8"))
+    stdout_payload: dict[str, object] = typing.cast(dict[str, object], json.loads(completed.stdout))
+    file_payload: dict[str, object] = typing.cast(dict[str, object], json.loads(out.read_text(encoding="utf-8")))
     assert stdout_payload == file_payload
     return file_payload
 
 
-def test_launch_scripts_write_json_out(tmp_path):
+def test_launch_scripts_write_json_out(tmp_path: Path) -> None:
     local = run_script(["scripts/launch_local_agent.py", "--goal", "Explore and report"], tmp_path / "local.json")
     flow = run_script(["scripts/launch_flowlang_agent.py", "examples/flowlang_agent.flow", "--goal", "Run the declared agent"], tmp_path / "flowlang.json")
     neural = run_script(["scripts/launch_neural_agent.py", "--backend", "tiny_torch", "--goal", "Explore and report"], tmp_path / "neural.json")

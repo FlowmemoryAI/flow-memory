@@ -18,7 +18,7 @@ class NeuralTrainingStatus:
 
 def neural_training_status(backend: str = "tiny_torch") -> NeuralTrainingStatus:
     try:
-        import torch  # type: ignore
+        import torch
     except Exception:
         return NeuralTrainingStatus(False, backend, "skipped", "torch is not installed")
     return NeuralTrainingStatus(True, backend, "available", f"torch {torch.__version__} import succeeded")

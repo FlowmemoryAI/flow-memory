@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_tiny_agent_policy_network_scores():
+def test_tiny_agent_policy_network_scores() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.agent.policy import TinyAgentPolicyNetwork
 

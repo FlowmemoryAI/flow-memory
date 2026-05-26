@@ -51,7 +51,7 @@ class ReleaseManifest:
 
 def build_release_manifest(root: str | Path = ".", *, signing_key: LocalKeyPair | None = None) -> ReleaseManifest:
     root_path = Path(root).resolve()
-    payload_without_hash = {
+    payload_without_hash: dict[str, Any] = {
         "format": MANIFEST_FORMAT,
         "git_commit": _git(root_path, "rev-parse", "--short", "HEAD"),
         "git_branch": _public_release_branch(_git(root_path, "branch", "--show-current")),

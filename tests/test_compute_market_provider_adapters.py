@@ -333,7 +333,9 @@ def test_external_provider_adapter_factory_and_service_quote_flow() -> None:
     assert response["ok"] is True
     assert response["provider_id"] == "market-token-provider"
     assert response["quotes"][0]["source"] == "live_provider"
-    assert store.get_record("compute_quote", "http-quote")["source"] == "live_provider"
+    quote_record = store.get_record("compute_quote", "http-quote")
+    assert quote_record is not None
+    assert quote_record["source"] == "live_provider"
     assert store.count_records("quote_cache_entry") == 1
 
 

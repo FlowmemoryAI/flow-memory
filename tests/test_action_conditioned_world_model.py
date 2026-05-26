@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_action_conditioned_world_model_shape():
+def test_action_conditioned_world_model_shape() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.world_model.action_conditioned import TinyActionConditionedWorldModel
 

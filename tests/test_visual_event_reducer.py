@@ -1,7 +1,7 @@
 from flow_memory.visualization import reduce_visual_events, visual_event
 
 
-def test_visual_event_reducer_builds_network_state():
+def test_visual_event_reducer_builds_network_state() -> None:
     state = reduce_visual_events(
         (
             visual_event("agent", "did:flow:worker", {"agent_id": "did:flow:worker", "label": "Worker", "role": "worker", "reputation": 7.0}),

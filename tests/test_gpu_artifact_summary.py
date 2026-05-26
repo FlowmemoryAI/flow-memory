@@ -8,7 +8,8 @@ from flow_memory.neural.gpu_evidence import summarize_gpu_run
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_gpu_artifact_summary_is_human_readable(tmp_path: Path):
+def test_gpu_artifact_summary_is_human_readable(tmp_path: Path) -> None:
+
     input_dir = tmp_path / "run"
     input_dir.mkdir()
     (input_dir / "validation.json").write_text(json.dumps({"ok": True, "mode": "smoke", "results": [1, 2]}), encoding="utf-8")
@@ -18,7 +19,7 @@ def test_gpu_artifact_summary_is_human_readable(tmp_path: Path):
     assert "validation ok: True" in result.stdout
 
 
-def test_gpu_summary_parses_run_metadata(tmp_path):
+def test_gpu_summary_parses_run_metadata(tmp_path: Path) -> None:
     (tmp_path / "gpu_info.txt").write_text("python: 3.12\ntorch: 2.12.0\ncuda available: True\ncuda version: 13.0\ngpu: NVIDIA GeForce RTX 4090\n")
     (tmp_path / "git_commit.txt").write_text("abc123\n")
     (tmp_path / "validation_summary.txt").write_text("339 passed, 3 skipped")

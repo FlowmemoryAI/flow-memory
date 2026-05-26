@@ -6,13 +6,14 @@ import unittest
 from pathlib import Path
 
 from flow_memory.web3.contract_registry import CONTRACTS, ZERO_ADDRESS, ContractRegistry, is_address, write_registry
+from typing import Any, Mapping, cast
 
 
 class ContractRegistryTests(unittest.TestCase):
     def test_registry_records_addresses(self) -> None:
         registry = ContractRegistry()
         registry.register("AgentRegistry", ZERO_ADDRESS)
-        self.assertIn("AgentRegistry", registry.as_record()["addresses"])
+        self.assertIn("AgentRegistry", cast(Mapping[str, Any], registry.as_record()["addresses"]))
 
     def test_rejects_invalid_address_and_unknown_contract(self) -> None:
         registry = ContractRegistry()

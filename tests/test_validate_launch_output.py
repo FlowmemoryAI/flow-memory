@@ -8,7 +8,8 @@ from scripts.validate_launch_output import validate_launch_output
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_validate_launch_output_accepts_launch_script_json(tmp_path):
+def test_validate_launch_output_accepts_launch_script_json(tmp_path: Path) -> None:
+
     out = tmp_path / "launch.json"
     subprocess.run(
         [sys.executable, "scripts/launch_local_agent.py", "--goal", "Explore and report", "--json-out", str(out)],
@@ -22,7 +23,7 @@ def test_validate_launch_output_accepts_launch_script_json(tmp_path):
     assert result["launch_mode"] == "cli"
 
 
-def test_validate_launch_output_rejects_missing_safety_authority(tmp_path):
+def test_validate_launch_output_rejects_missing_safety_authority(tmp_path: Path) -> None:
     bad = tmp_path / "bad.json"
     bad.write_text(json.dumps({"ok": True, "launch_mode": "neural", "neural": {}}), encoding="utf-8")
     result = validate_launch_output(bad)

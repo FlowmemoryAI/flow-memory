@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import subprocess
 import sys
@@ -7,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 from scripts.test_full_system import ROOT as SCRIPT_ROOT, full_checks  # noqa: E402
 
 
-def test_full_system_quick_report_passes(tmp_path):
+def test_full_system_quick_report_passes(tmp_path: Path) -> None:
     out = tmp_path / "quick_report.json"
     completed = subprocess.run(
         [sys.executable, "scripts/test_full_system.py", "--quick", "--json-out", str(out)],
@@ -25,7 +27,7 @@ def test_full_system_quick_report_passes(tmp_path):
     assert out.with_suffix(".md").exists()
 
 
-def test_full_system_full_checks_include_cargo_workspace_cwd():
+def test_full_system_full_checks_include_cargo_workspace_cwd() -> None:
     checks = {check.name: check for check in full_checks()}
     assert "cargo_test" in checks
     assert checks["cargo_test"].command == ("cargo", "test")

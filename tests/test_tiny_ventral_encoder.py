@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_tiny_ventral_encoder_shape():
+def test_tiny_ventral_encoder_shape() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.perception.ventral import TinyVentralEncoder
 

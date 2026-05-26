@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_launch_neural_agent_script_runs_or_skips_torch_clearly():
+def test_launch_neural_agent_script_runs_or_skips_torch_clearly() -> None:
     completed = subprocess.run(
         [sys.executable, "scripts/launch_neural_agent.py", "--backend", "tiny_torch", "--goal", "Explore and report"],
         cwd=ROOT,

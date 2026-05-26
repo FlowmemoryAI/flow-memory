@@ -1,6 +1,6 @@
 from flow_memory.rl.spaces import BoxSpace, DictSpace, DiscreteSpace
 
-def test_discrete_and_dict_space_contains():
+def test_discrete_and_dict_space_contains() -> None:
     space=DiscreteSpace(3, ("a","b","c"))
     assert space.contains(2)
     assert not space.contains(3)

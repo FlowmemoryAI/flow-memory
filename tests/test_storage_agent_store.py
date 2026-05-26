@@ -12,7 +12,10 @@ class StorageAgentStoreTests(unittest.TestCase):
             agents = AgentStore(SQLiteStore(path))
             agents.save_state("a", {"status": "idle"})
             reopened = AgentStore(SQLiteStore(path))
-            self.assertEqual(reopened.load_state("a")["status"], "idle")
+            state = reopened.load_state("a")
+            self.assertIsNotNone(state)
+            assert state is not None
+            self.assertEqual(state["status"], "idle")
 
 
 if __name__ == "__main__":

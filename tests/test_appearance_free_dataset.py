@@ -1,7 +1,7 @@
 from flow_memory.neural.training.appearance_free_dataset import AppearanceFreeMotionDataset
 
 
-def test_appearance_free_pairs_preserve_labels():
+def test_appearance_free_pairs_preserve_labels() -> None:
     sample = AppearanceFreeMotionDataset(size=1, seed=3)[0]
     assert sample.direction
     assert sample.trajectory

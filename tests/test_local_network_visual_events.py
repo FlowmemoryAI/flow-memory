@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import subprocess
 import sys
@@ -8,7 +10,7 @@ from flow_memory.network import LocalNetworkOrchestrator
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_network_report_contains_reduced_visual_state_when_enabled():
+def test_network_report_contains_reduced_visual_state_when_enabled() -> None:
     report = LocalNetworkOrchestrator().run("all", emit_visual_events=True)
     record = report.as_record()
     assert record["visual_state"]["runtime"]["events"] >= 6
@@ -19,7 +21,7 @@ def test_network_report_contains_reduced_visual_state_when_enabled():
     assert {"bid", "escrow", "verification", "settlement", "dispute", "slashing"} <= economy_kinds
 
 
-def test_run_local_network_visual_script_writes_events(tmp_path):
+def test_run_local_network_visual_script_writes_events(tmp_path: Path) -> None:
     report_path = tmp_path / "network.json"
     visual_path = tmp_path / "visual.json"
     completed = subprocess.run(

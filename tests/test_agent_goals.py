@@ -9,7 +9,10 @@ class AgentGoalsTests(unittest.TestCase):
         stack.push(Goal("write memory", priority=GoalPriority.LOW))
         stack.push(Goal("urgent", priority=GoalPriority.CRITICAL))
         stack.push(Goal("do not write memory"))
-        self.assertEqual(stack.active().description, "urgent")
+        active = stack.active()
+        self.assertIsNotNone(active)
+        assert active is not None
+        self.assertEqual(active.description, "urgent")
         self.assertTrue(stack.conflicts())
 
 

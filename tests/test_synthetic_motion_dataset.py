@@ -1,7 +1,7 @@
 from flow_memory.neural.training.synthetic_motion_dataset import SyntheticMotionDataset
 
 
-def test_synthetic_motion_dataset_deterministic():
+def test_synthetic_motion_dataset_deterministic() -> None:
     a = SyntheticMotionDataset(size=2, seed=7)[0]
     b = SyntheticMotionDataset(size=2, seed=7)[0]
     assert a.direction == b.direction

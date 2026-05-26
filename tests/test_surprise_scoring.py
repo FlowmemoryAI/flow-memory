@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_surprise_increases_for_mismatch():
+def test_surprise_increases_for_mismatch() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.features import WorldModelPrediction
     from flow_memory.neural.world_model.surprise import compute_surprise_score

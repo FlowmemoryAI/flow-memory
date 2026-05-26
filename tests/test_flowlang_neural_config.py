@@ -2,7 +2,7 @@ from flow_memory.flowlang.parser import parse_flowlang
 from flow_memory.ir.agent_adapter import agent_profile_from_ir
 
 
-def test_flowlang_neural_block_compiles_to_profile():
+def test_flowlang_neural_block_compiles_to_profile() -> None:
     source = """
 agent NeuralAgent
 identity did:flow:neural

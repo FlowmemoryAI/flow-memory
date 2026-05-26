@@ -13,7 +13,7 @@ class QdrantEpisodicAdapter:
 
     def _client(self) -> Any:
         try:
-            from qdrant_client import QdrantClient  # type: ignore
+            from qdrant_client import QdrantClient
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Install flow-memory[memory] to use QdrantEpisodicAdapter") from exc
         return QdrantClient(url=self.url)
@@ -21,7 +21,7 @@ class QdrantEpisodicAdapter:
     def upsert_embedding(self, record_id: str, vector: Sequence[float], payload: Mapping[str, Any]) -> None:
         client = self._client()
         try:
-            from qdrant_client.models import PointStruct  # type: ignore
+            from qdrant_client.models import PointStruct
         except Exception as exc:  # pragma: no cover
             raise RuntimeError("qdrant-client models are unavailable") from exc
         client.upsert(collection_name=self.collection, points=[PointStruct(id=record_id, vector=list(vector), payload=dict(payload))])

@@ -10,6 +10,8 @@ from typing import Mapping
 
 from flow_memory.web3.deployment_plan import CONTRACTS
 
+__all__ = ["CONTRACTS", "ZERO_ADDRESS", "ContractRegistry", "is_address", "write_registry"]
+
 _ADDRESS_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 

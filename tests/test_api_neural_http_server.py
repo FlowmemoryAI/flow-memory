@@ -3,7 +3,7 @@ import threading
 import urllib.request
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
 
-def test_neural_http_server_endpoint():
+def test_neural_http_server_endpoint() -> None:
     gateway=HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server=create_http_server(gateway, host="127.0.0.1", port=0)
     thread=threading.Thread(target=server.serve_forever, daemon=True)

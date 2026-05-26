@@ -7,7 +7,10 @@ class StorageSQLiteStoreTests(unittest.TestCase):
     def test_put_get_and_schema(self) -> None:
         store = SQLiteStore()
         store.put("agents", "a", {"name": "alpha"})
-        self.assertEqual(store.get("agents", "a")["name"], "alpha")
+        record = store.get("agents", "a")
+        self.assertIsNotNone(record)
+        assert record is not None
+        self.assertEqual(record["name"], "alpha")
         self.assertTrue(store.conn.execute("select version from schema_version").fetchone())
 
 

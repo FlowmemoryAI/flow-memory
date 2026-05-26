@@ -2,7 +2,7 @@ from flow_memory.agents import AgentProfile, AgentRunner
 from flow_memory.learning.trace_collector import TraceCollector
 
 
-def test_learning_trace_collector_records_agent_cycle():
+def test_learning_trace_collector_records_agent_cycle() -> None:
     profile = AgentProfile(name="trace", identity="did:flow:trace", allowed_tools=("observe_environment", "respond"), autonomy_mode="autonomous_local")
     result = AgentRunner(profile).run_cycle("Explore and report")
     collector = TraceCollector()

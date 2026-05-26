@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_neural_losses_run_with_torch():
+def test_neural_losses_run_with_torch() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.training.losses import predictive_latent_loss, temporal_consistency_loss
 

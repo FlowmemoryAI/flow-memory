@@ -1,4 +1,6 @@
 """Built-in local economic task skill."""
+from typing import Any, Mapping
+
 from flow_memory.skills.manifest import SkillManifest
 
 manifest = SkillManifest(
@@ -14,5 +16,5 @@ manifest = SkillManifest(
 )
 
 
-def run(payload):
+def run(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return {"proposal": f"Local economic task: {payload['title']} reward={payload.get('reward', 0)}"}

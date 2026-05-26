@@ -1,4 +1,6 @@
 """Built-in local research brief skill."""
+from typing import Any, Mapping
+
 from flow_memory.skills.manifest import SkillManifest
 
 manifest = SkillManifest(
@@ -12,7 +14,7 @@ manifest = SkillManifest(
 )
 
 
-def run(payload):
+def run(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     topic = payload["topic"]
     notes = payload.get("notes", "")
     return {"brief": f"Research brief for {topic}: {notes[:240] or 'no notes supplied'}"}

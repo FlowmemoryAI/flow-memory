@@ -30,7 +30,7 @@ class TorchPolicy:
             self.torch.nn.Linear(self.config.hidden_dim, env.action_space.n),
         )
 
-    def encode_observation(self, observation: Mapping[str, Any]):
+    def encode_observation(self, observation: Mapping[str, Any]) -> Any:
         agent = dict(observation.get("agent", {}))
         economy = dict(observation.get("economy", {}))
         safety = dict(observation.get("safety", {}))
@@ -43,7 +43,7 @@ class TorchPolicy:
         ]
         return self.torch.tensor(values, dtype=self.torch.float32)
 
-    def logits(self, observation: Mapping[str, Any]):
+    def logits(self, observation: Mapping[str, Any]) -> Any:
         with self.torch.no_grad():
             return self.model(self.encode_observation(observation))
 

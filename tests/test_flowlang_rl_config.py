@@ -1,7 +1,7 @@
 from flow_memory.flowlang.parser import parse_flowlang
 from flow_memory.ir.agent_adapter import agent_profile_from_ir
 
-def test_flowlang_rl_config_compiles_to_agent_profile():
+def test_flowlang_rl_config_compiles_to_agent_profile() -> None:
     source = "agent RlAgent\nidentity did:example:rl\ngoal Learn safe routing\nrl:\n  enabled: true\n  backend: local_tabular\n  training_envs: [safety_gate, economy_market]\n  max_training_steps: 100\n"
     spec=parse_flowlang(source)
     profile=agent_profile_from_ir(spec)

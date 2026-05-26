@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_tiny_torch_backend_encodes_when_torch_available():
+def test_tiny_torch_backend_encodes_when_torch_available() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.backends.tiny_torch import TinyTorchBackend
 

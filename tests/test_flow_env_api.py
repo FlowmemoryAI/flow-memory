@@ -1,6 +1,6 @@
 from flow_memory.rl.registry import make_env
 
-def test_flow_env_reset_step_render_close():
+def test_flow_env_reset_step_render_close() -> None:
     env=make_env("tool_use", seed=7)
     obs=env.reset()
     step=env.step(env.action_labels.index("use_safe_tool"))

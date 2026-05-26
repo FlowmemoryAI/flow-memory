@@ -82,8 +82,10 @@ class SkillsRunnerTests(unittest.TestCase):
         denied = runner.run("write_file", {})
 
         self.assertFalse(denied.success)
-        self.assertIsNotNone(denied.policy_decision)
-        self.assertTrue(denied.policy_decision.requires_human)
+        decision = denied.policy_decision
+        self.assertIsNotNone(decision)
+        assert decision is not None
+        self.assertTrue(decision.requires_human)
         self.assertIn("Human approval defer", denied.error or "")
         self.assertTrue(safety.audit.verify())
 
@@ -106,7 +108,10 @@ class SkillsRunnerTests(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertEqual(result.output, {"written": True})
-        self.assertTrue(result.policy_decision.requires_human)
+        decision = result.policy_decision
+        self.assertIsNotNone(decision)
+        assert decision is not None
+        self.assertTrue(decision.requires_human)
 
     def test_economic_value_skill_metadata_triggers_review(self) -> None:
         safety = SafetySystem()

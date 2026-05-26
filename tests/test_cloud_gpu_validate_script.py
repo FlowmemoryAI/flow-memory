@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_cloud_gpu_validate_smoke_writes_json(tmp_path: Path):
+def test_cloud_gpu_validate_smoke_writes_json(tmp_path: Path) -> None:
     out = tmp_path / "validation.json"
     result = subprocess.run(
         [sys.executable, "scripts/cloud_gpu_validate.py", "--smoke", "--json-out", str(out)],

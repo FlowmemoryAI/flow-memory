@@ -5,7 +5,7 @@ import pytest
 from flow_memory.neural.checkpoints import CheckpointRegistry
 
 
-def test_checkpoint_registry_local_only(tmp_path: Path):
+def test_checkpoint_registry_local_only(tmp_path: Path) -> None:
     checkpoint = tmp_path / "model.pt"
     checkpoint.write_text("stub", encoding="utf-8")
     registry = CheckpointRegistry()

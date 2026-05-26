@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_mission_control_visual_event_demo_runs():
+def test_mission_control_visual_event_demo_runs() -> None:
     completed = subprocess.run([sys.executable, "examples/mission_control_visual_event_demo.py"], cwd=ROOT, check=True, capture_output=True, text=True)
     payload = json.loads(completed.stdout)
     assert payload["ok"] is True

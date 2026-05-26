@@ -1,6 +1,7 @@
-import unittest
 import json
+import unittest
 from pathlib import Path
+from typing import Any, cast
 
 from flow_memory.api.openapi import openapi_schema
 from flow_memory.api.snapshot import api_snapshot, validate_api_snapshot
@@ -34,9 +35,10 @@ class ApiSnapshotTests(unittest.TestCase):
         self.assertIn("endpoint_count mismatch", " ".join(validation.errors))
 
     def test_openapi_includes_request_bodies_and_path_parameters(self) -> None:
-        schema = openapi_schema()
-        flowlang_compile = schema["paths"]["/flowlang/compile"]["post"]
-        agent_get = schema["paths"]["/agents/{did}"]["get"]
+        schema = cast(dict[str, Any], openapi_schema())
+        paths = cast(dict[str, Any], schema["paths"])
+        flowlang_compile = paths["/flowlang/compile"]["post"]
+        agent_get = paths["/agents/{did}"]["get"]
 
         self.assertIn("requestBody", flowlang_compile)
         self.assertEqual("flowlang", flowlang_compile["tags"][0])

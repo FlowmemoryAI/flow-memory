@@ -81,7 +81,7 @@ class SyntheticMotionDataset:
             metadata={"shape": shape, "camera_motion": self.camera_motion, "index": index},
         )
 
-    def as_torch(self, index: int):
+    def as_torch(self, index: int) -> tuple[Any, SyntheticMotionSample]:
         from flow_memory.neural.torch_optional import require_torch
 
         torch = require_torch()

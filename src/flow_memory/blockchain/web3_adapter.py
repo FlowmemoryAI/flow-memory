@@ -17,7 +17,7 @@ class Web3ContractAdapter:
 
     def connect(self) -> Any:
         try:
-            from web3 import Web3  # type: ignore
+            from web3 import Web3
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Install flow-memory[web3] to use Web3ContractAdapter") from exc
         web3 = Web3(Web3.HTTPProvider(self.rpc_url))

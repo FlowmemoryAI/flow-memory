@@ -1,7 +1,7 @@
 from flow_memory.rl.policies import TabularQPolicy
 from flow_memory.rl.registry import make_env
 
-def test_tabular_q_policy_updates_values():
+def test_tabular_q_policy_updates_values() -> None:
     env=make_env("tool_use")
     policy=TabularQPolicy(epsilon=0)
     obs=env.reset()

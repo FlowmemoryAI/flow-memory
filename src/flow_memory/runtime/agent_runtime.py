@@ -2,13 +2,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Mapping
+from typing import TYPE_CHECKING, Mapping
 
-from flow_memory.runtime.manager import BaseRuntimeManager
+from flow_memory.runtime.events import RuntimeHealth
+from flow_memory.runtime.manager import BaseRuntimeManager as _RuntimeBaseRuntimeManager
+
+
+if TYPE_CHECKING:
+
+    @dataclass
+    class _AgentRuntimeBase:
+        name: str
+
+        def health(self) -> RuntimeHealth: ...
+else:
+    _AgentRuntimeBase = _RuntimeBaseRuntimeManager
 
 
 @dataclass
-class AgentRuntimeManager(BaseRuntimeManager):
+class AgentRuntimeManager(_AgentRuntimeBase):
     """Tracks local agent runtime state without network dependencies."""
 
     name: str = "agent"
@@ -19,7 +31,7 @@ class AgentRuntimeManager(BaseRuntimeManager):
             raise ValueError("agent_id is required")
         self.active_agents.add(agent_id)
 
-    def health(self):
+    def health(self) -> RuntimeHealth:
         health = super().health()
         return type(health)(
             name=health.name,

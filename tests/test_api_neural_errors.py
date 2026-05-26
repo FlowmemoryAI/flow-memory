@@ -1,6 +1,6 @@
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 
-def test_neural_unknown_gpu_run_returns_structured_error():
+def test_neural_unknown_gpu_run_returns_structured_error() -> None:
     gateway=HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     response=gateway.handle("GET", "/neural/gpu-runs/does-not-exist", {"x-flow-memory-scopes":"neural:evidence"})
     assert response.status == 404

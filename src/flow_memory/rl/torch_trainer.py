@@ -39,7 +39,7 @@ class TorchActorCriticPolicy:
         self.actor = self.torch.nn.Linear(hidden_dim, env.action_space.n).to(self.device)
         self.critic = self.torch.nn.Linear(hidden_dim, 1).to(self.device)
 
-    def encode_observation(self, observation: Mapping[str, Any]):
+    def encode_observation(self, observation: Mapping[str, Any]) -> Any:
         agent = dict(observation.get("agent", {}))
         economy = dict(observation.get("economy", {}))
         safety = dict(observation.get("safety", {}))
@@ -54,7 +54,7 @@ class TorchActorCriticPolicy:
         ]
         return self.torch.tensor(values, dtype=self.torch.float32, device=self.device)
 
-    def forward(self, observation: Mapping[str, Any]):
+    def forward(self, observation: Mapping[str, Any]) -> tuple[Any, Any]:
         hidden = self.body(self.encode_observation(observation))
         return self.actor(hidden), self.critic(hidden).squeeze(-1)
 

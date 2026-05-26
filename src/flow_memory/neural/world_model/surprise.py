@@ -1,12 +1,13 @@
 """Prediction-error and free-energy proxy scoring."""
 
 from __future__ import annotations
+from typing import Any
 
 from flow_memory.neural.features import SurpriseScore, WorldModelPrediction
 from flow_memory.neural.torch_optional import require_torch
 
 
-def compute_surprise_score(prediction: WorldModelPrediction, actual_latent, actual_dorsal=None) -> SurpriseScore:
+def compute_surprise_score(prediction: WorldModelPrediction, actual_latent: Any, actual_dorsal: Any = None) -> SurpriseScore:
     torch = require_torch()
     prediction_error = torch.mean((prediction.predicted_latent - actual_latent) ** 2).item()
     if actual_dorsal is None:

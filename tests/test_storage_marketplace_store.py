@@ -11,7 +11,10 @@ class StorageMarketplaceStoreTests(unittest.TestCase):
             path = Path(tmp) / "db.sqlite"
             market = MarketplaceStore(SQLiteStore(path))
             market.save_task("t", {"status": "open"})
-            self.assertEqual(MarketplaceStore(SQLiteStore(path)).load_task("t")["status"], "open")
+            task = MarketplaceStore(SQLiteStore(path)).load_task("t")
+            self.assertIsNotNone(task)
+            assert task is not None
+            self.assertEqual(task["status"], "open")
 
 
 if __name__ == "__main__":

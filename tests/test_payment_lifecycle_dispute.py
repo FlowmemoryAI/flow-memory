@@ -1,7 +1,7 @@
 from flow_memory.economy.accounting import LocalAccountingLedger
 
 
-def test_payment_lifecycle_dispute_refund_and_slash():
+def test_payment_lifecycle_dispute_refund_and_slash() -> None:
     ledger = LocalAccountingLedger()
     ledger.credit("requester", 8.0)
     ledger.credit("worker", 3.0)

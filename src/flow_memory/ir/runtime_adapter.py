@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from flow_memory.agents.profile import AgentProfile
 from flow_memory.runtime import (
     AgentRuntimeManager,
+    BaseRuntimeManager,
     EconomyRuntimeManager,
     MemoryRuntimeManager,
     PolicyRuntimeManager,
@@ -16,8 +17,8 @@ from flow_memory.runtime import (
 
 
 def runtime_for_agent(_profile: AgentProfile) -> RuntimeOrchestrator:
-    managers = {
-        "agent": AgentRuntimeManager(),
+    managers: Mapping[str, BaseRuntimeManager] = {
+        "agent": cast(BaseRuntimeManager, AgentRuntimeManager()),
         "skills": SkillRuntimeManager(),
         "memory": MemoryRuntimeManager(),
         "economy": EconomyRuntimeManager(),

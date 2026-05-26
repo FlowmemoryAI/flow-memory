@@ -1,5 +1,6 @@
 """Optional Neo4j memory adapter seam."""
 from __future__ import annotations
+from typing import Any
 
 
 class Neo4jMemoryAdapter:
@@ -8,9 +9,9 @@ class Neo4jMemoryAdapter:
         self.user = user
         self.password = password
 
-    def _driver(self):
+    def _driver(self) -> Any:
         try:
-            from neo4j import GraphDatabase  # type: ignore
+            from neo4j import GraphDatabase
         except Exception as exc:
             raise RuntimeError("Neo4j adapter requires optional dependency: neo4j") from exc
         return GraphDatabase.driver(self.uri, auth=(self.user, self.password))

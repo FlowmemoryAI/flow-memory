@@ -9,7 +9,8 @@ from flow_memory.network import LocalNetworkOrchestrator
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_export_visual_replay_from_network_report(tmp_path):
+def test_export_visual_replay_from_network_report(tmp_path: Path) -> None:
+
     report_path = tmp_path / "network.json"
     replay_path = tmp_path / "replay.json"
     report = LocalNetworkOrchestrator().run("all", emit_visual_events=True).as_record()
@@ -23,7 +24,7 @@ def test_export_visual_replay_from_network_report(tmp_path):
     assert {"bid", "escrow", "verification", "settlement", "dispute", "slashing"} <= economy_kinds
 
 
-def test_export_visual_replay_script(tmp_path):
+def test_export_visual_replay_script(tmp_path: Path) -> None:
     report_path = tmp_path / "network.json"
     replay_path = tmp_path / "replay.json"
     report = LocalNetworkOrchestrator().run("all", emit_visual_events=True).as_record()

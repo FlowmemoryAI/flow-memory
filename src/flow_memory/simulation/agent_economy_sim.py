@@ -7,7 +7,7 @@ private keys, chain state, or funds.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence, cast
 
 from flow_memory.simulation.adversaries import (
     ADVERSARY_RULES,
@@ -144,7 +144,7 @@ class AgentEconomySimulation:
     def _task_agents(self, value: object) -> tuple[AgentProfile, ...]:
         if value is None:
             return tuple(self.agents)
-        requested = {str(agent_id) for agent_id in value}
+        requested = {str(agent_id) for agent_id in cast(Iterable[object], value)}
         return tuple(agent for agent in self.agents if agent.agent_id in requested)
 
     def _agent(self, agent_id: str) -> AgentProfile:

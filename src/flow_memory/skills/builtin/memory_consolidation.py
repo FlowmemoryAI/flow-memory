@@ -1,4 +1,6 @@
 """Built-in local memory consolidation skill."""
+from typing import Any, Mapping
+
 from flow_memory.skills.manifest import SkillManifest
 
 manifest = SkillManifest(
@@ -12,6 +14,6 @@ manifest = SkillManifest(
 )
 
 
-def run(payload):
+def run(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     memories = payload.get("memories") or []
     return {"summary": f"Consolidated {len(memories)} memory record(s)."}

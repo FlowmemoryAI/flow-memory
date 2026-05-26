@@ -2,7 +2,7 @@ from flow_memory.economy.accounting import LocalAccountingLedger
 from flow_memory.economy.payment_model import PaymentTerms
 
 
-def test_payment_lifecycle_success():
+def test_payment_lifecycle_success() -> None:
     ledger = LocalAccountingLedger()
     ledger.credit("requester", 12.0)
     ledger.lock_escrow("escrow-success", "requester", 12.0, task_id="task-success")

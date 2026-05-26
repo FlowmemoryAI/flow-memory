@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json
 import tarfile
@@ -5,7 +7,7 @@ from pathlib import Path
 from flow_memory.neural.gpu_evidence import DEFAULT_RUN_ID, import_gpu_run_artifact
 
 
-def _tar(path: Path):
+def _tar(path: Path) -> None:
     with tarfile.open(path, "w:gz") as tar:
         members = {
             "artifacts/cloud_gpu_run_001/gpu_info.txt": b"python: 3.12\ntorch: 2.12.0+cu130\ncuda available: True\ncuda version: 13.0\ngpu: NVIDIA GeForce RTX 4090\n",
@@ -21,7 +23,7 @@ def _tar(path: Path):
             tar.addfile(info, io.BytesIO(data))
 
 
-def test_import_gpu_run_artifact_extracts_safe_metadata(tmp_path):
+def test_import_gpu_run_artifact_extracts_safe_metadata(tmp_path: Path) -> None:
     tarball = tmp_path / "flow-memory-cloud-gpu-run-001.tar.gz"
     _tar(tarball)
     summary = import_gpu_run_artifact(tarball, tmp_path / "runs")
@@ -33,7 +35,7 @@ def test_import_gpu_run_artifact_extracts_safe_metadata(tmp_path):
     assert not (out / "model.pt").exists()
 
 
-def test_missing_gpu_artifact_is_explicitly_skipped(tmp_path):
+def test_missing_gpu_artifact_is_explicitly_skipped(tmp_path: Path) -> None:
     summary = import_gpu_run_artifact(tmp_path / "missing.tar.gz", tmp_path / "runs")
     record = json.loads((tmp_path / "runs" / DEFAULT_RUN_ID / "summary.json").read_text())
     assert summary.skipped is True

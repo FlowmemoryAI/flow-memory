@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from flow_memory.neural.memory.embedder import TinyMemoryEmbedder
 
@@ -27,7 +27,7 @@ class NeuralMemoryRetriever:
         self._items.append(item)
         self._vectors.append(self.embedder.embed(item))
 
-    def extend(self, items) -> None:
+    def extend(self, items: Iterable[Any]) -> None:
         for item in items:
             self.add(item)
 

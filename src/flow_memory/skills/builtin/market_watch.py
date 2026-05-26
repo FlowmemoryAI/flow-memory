@@ -1,4 +1,6 @@
 """Built-in local market watch skill."""
+from typing import Any, Mapping
+
 from flow_memory.skills.manifest import SkillManifest
 
 manifest = SkillManifest(
@@ -13,6 +15,6 @@ manifest = SkillManifest(
 )
 
 
-def run(payload):
+def run(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     signals = payload.get("signals") or []
     return {"signals_seen": len(signals), "mode": "local_only"}

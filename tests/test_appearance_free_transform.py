@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_appearance_free_transform_shapes():
+def test_appearance_free_transform_shapes() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.perception.appearance_free import AppearanceFreeTransform
 

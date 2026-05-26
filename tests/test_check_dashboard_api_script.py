@@ -8,7 +8,7 @@ from scripts.check_dashboard_api import check_dashboard_api
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_check_dashboard_api_helper_reports_mock_snapshot():
+def test_check_dashboard_api_helper_reports_mock_snapshot() -> None:
     payload = check_dashboard_api(require_scopes=True)
     assert payload["ok"] is True
     assert payload["mock_data_only"] is True
@@ -16,7 +16,7 @@ def test_check_dashboard_api_helper_reports_mock_snapshot():
     assert "payments" in payload["records"]
 
 
-def test_check_dashboard_api_script_writes_json(tmp_path):
+def test_check_dashboard_api_script_writes_json(tmp_path: Path) -> None:
     out = tmp_path / "dashboard_api.json"
     completed = subprocess.run(
         [sys.executable, "scripts/check_dashboard_api.py", "--require-scopes", "--json-out", str(out)],

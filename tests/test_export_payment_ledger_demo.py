@@ -8,7 +8,7 @@ from scripts.export_payment_ledger_demo import build_payment_ledger_demo
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_payment_ledger_demo_is_local_and_settled():
+def test_payment_ledger_demo_is_local_and_settled() -> None:
     payload = build_payment_ledger_demo()
     assert payload["ok"] is True
     assert payload["real_funds_used"] is False
@@ -18,7 +18,7 @@ def test_payment_ledger_demo_is_local_and_settled():
     assert balances["treasury"] == 0.5
 
 
-def test_payment_ledger_demo_script_writes_json(tmp_path):
+def test_payment_ledger_demo_script_writes_json(tmp_path: Path) -> None:
     out = tmp_path / "payment.json"
     completed = subprocess.run(
         [sys.executable, "scripts/export_payment_ledger_demo.py", "--out", str(out)],

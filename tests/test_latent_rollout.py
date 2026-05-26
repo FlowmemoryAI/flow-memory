@@ -1,7 +1,7 @@
 import pytest
 
 
-def test_latent_rollout_returns_predictions():
+def test_latent_rollout_returns_predictions() -> None:
     torch = pytest.importorskip("torch")
     from flow_memory.neural.perception.dual_stream import TinyDualStreamEncoder
     from flow_memory.neural.world_model.jepa import TinyJEPAWorldModel

@@ -27,9 +27,11 @@ class ApiRateLimitTests(unittest.TestCase):
         self.assertFalse(denied.ok)
         self.assertEqual(denied.remaining, 0)
         self.assertEqual(denied.reset_at, 60)
-        self.assertIsNotNone(denied.error)
-        self.assertEqual(denied.error.status, 429)
-        self.assertEqual(denied.error.code, "rate_limit.exceeded")
+        error = denied.error
+        self.assertIsNotNone(error)
+        assert error is not None
+        self.assertEqual(error.status, 429)
+        self.assertEqual(error.code, "rate_limit.exceeded")
 
     def test_new_window_resets_count(self) -> None:
         limiter = LocalRateLimiter(RateLimitRule(limit=1, window_seconds=60))

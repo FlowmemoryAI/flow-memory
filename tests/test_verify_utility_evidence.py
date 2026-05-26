@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 from scripts.export_utility_evidence import build_utility_evidence
 from scripts.verify_utility_evidence import verify_utility_evidence
@@ -9,26 +12,26 @@ from scripts.verify_utility_evidence import verify_utility_evidence
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_verify_utility_evidence_accepts_export(tmp_path):
+def test_verify_utility_evidence_accepts_export(tmp_path: Path) -> None:
     path = tmp_path / "utility.json"
     path.write_text(json.dumps(build_utility_evidence(ROOT), indent=2, sort_keys=True), encoding="utf-8")
-    result = verify_utility_evidence(path)
+    result: Any = verify_utility_evidence(path)
     assert result["ok"] is True
     assert result["blockers"] == ()
 
 
-def test_verify_utility_evidence_detects_tampering(tmp_path):
+def test_verify_utility_evidence_detects_tampering(tmp_path: Path) -> None:
     payload = dict(build_utility_evidence(ROOT))
     payload["real_funds_used"] = True
     path = tmp_path / "tampered.json"
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    result = verify_utility_evidence(path)
+    result: Any = verify_utility_evidence(path)
     assert result["ok"] is False
     assert "utility_evidence_hash_mismatch" in result["blockers"]
     assert "real_funds_flag_not_false" in result["blockers"]
 
 
-def test_verify_utility_evidence_script(tmp_path):
+def test_verify_utility_evidence_script(tmp_path: Path) -> None:
     out = tmp_path / "utility.json"
     subprocess.run([sys.executable, "scripts/export_utility_evidence.py", "--out", str(out)], cwd=ROOT, check=True, capture_output=True, text=True)
     completed = subprocess.run([sys.executable, "scripts/verify_utility_evidence.py", str(out)], cwd=ROOT, check=True, capture_output=True, text=True)

@@ -1,5 +1,6 @@
 """Optional Qdrant memory adapter seam."""
 from __future__ import annotations
+from typing import Any
 
 
 class QdrantMemoryAdapter:
@@ -7,9 +8,9 @@ class QdrantMemoryAdapter:
         self.url = url
         self.collection = collection
 
-    def _client(self):
+    def _client(self) -> Any:
         try:
-            from qdrant_client import QdrantClient  # type: ignore
+            from qdrant_client import QdrantClient
         except Exception as exc:
             raise RuntimeError("Qdrant adapter requires optional dependency: qdrant-client") from exc
         return QdrantClient(url=self.url)

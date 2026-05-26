@@ -14,7 +14,7 @@ class LangGraphLoopAdapter:
 
     def build_graph(self) -> Any:
         try:
-            from langgraph.graph import StateGraph  # type: ignore
+            from langgraph.graph import StateGraph
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Install flow-memory[langgraph] to use LangGraphLoopAdapter") from exc
         # The concrete graph is intentionally small; production users can expand each

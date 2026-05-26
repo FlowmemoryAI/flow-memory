@@ -16,7 +16,7 @@ class RedisWorkingMemoryAdapter:
 
     def _client(self) -> Any:
         try:
-            import redis  # type: ignore
+            import redis
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Install flow-memory[memory] to use RedisWorkingMemoryAdapter") from exc
         return redis.Redis.from_url(self.url, decode_responses=True)

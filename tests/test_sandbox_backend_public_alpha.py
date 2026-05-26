@@ -1,4 +1,5 @@
 import unittest
+from typing import Any, Mapping, cast
 
 from flow_memory.action.docker_sandbox import DockerSandbox, DockerSandboxConfig, DockerSandboxUnavailable
 from flow_memory.action.sandbox_backends import describe_sandbox_backend, select_sandbox_backend
@@ -24,7 +25,8 @@ class SandboxBackendPublicAlphaTests(unittest.TestCase):
     def test_receipt_includes_metadata(self) -> None:
         profile = SandboxProfile(network="deny")
         receipt = SandboxReceipt(status="planned", profile_hash=content_hash(profile.as_record()), metadata={"backend": "local"})
-        self.assertEqual("local", receipt.as_record()["metadata"]["backend"])
+        metadata = cast(Mapping[str, Any], receipt.as_record()["metadata"])
+        self.assertEqual("local", metadata["backend"])
 
     def test_docker_backend_disabled_by_default(self) -> None:
         sandbox = DockerSandbox(DockerSandboxConfig(enabled=False))

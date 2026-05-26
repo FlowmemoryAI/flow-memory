@@ -6,7 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_public_alpha_launch_evidence_export_and_verify(tmp_path):
+def test_public_alpha_launch_evidence_export_and_verify(tmp_path: Path) -> None:
+
     quick = ROOT / "artifacts" / "full_system" / "quick_report.json"
     network = ROOT / "artifacts" / "network" / "local_network_report.json"
     if not quick.exists() or not network.exists() or json.loads(quick.read_text(encoding="utf-8")).get("ok") is not True:
@@ -23,7 +24,7 @@ def test_public_alpha_launch_evidence_export_and_verify(tmp_path):
     assert verify_payload["evidence"]["dashboard_mock_snapshot"]["mock_data_only"] is True
 
 
-def test_public_alpha_launch_evidence_tamper_detection(tmp_path):
+def test_public_alpha_launch_evidence_tamper_detection(tmp_path: Path) -> None:
     evidence = {"git_commit": "abc", "full_system_quick": {"ok": True}, "docs": {}, "secret_scan": "no obvious secret patterns found", "real_funds_used": False, "hash": "bad"}
     path = tmp_path / "bad.json"
     path.write_text(json.dumps(evidence), encoding="utf-8")

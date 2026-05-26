@@ -2,7 +2,7 @@ from flow_memory.agents.profile import AgentProfile, RiskBudget
 from flow_memory.agents.runner import AgentRunner
 
 
-def test_neural_metadata_does_not_bypass_economic_approval():
+def test_neural_metadata_does_not_bypass_economic_approval() -> None:
     profile = AgentProfile(
         name="n",
         identity="did:flow:n",

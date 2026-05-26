@@ -14,13 +14,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
 
-from flow_memory.api.auth import ApiAuthConfig, authorize_request
+from flow_memory.api.auth import ApiAuthConfig, ApiAuthDecision, authorize_request
 from flow_memory.api.audit_middleware import AuditEvent, LocalAuditSink
 from flow_memory.api.errors import ApiError, auth_error, error_response, forbidden_error, validation_error
 from flow_memory.api.rate_limits import LocalRateLimiter, RateLimitRule
 from flow_memory.api.router import LocalApiRouter, create_default_router
 from flow_memory.api.request_context import RequestContext
-from flow_memory.api.scopes import context_from_headers, require_scopes
+from flow_memory.api.scopes import COMPUTE_BILLING_SCOPE, context_from_headers, require_scopes
 from flow_memory.core.types import new_id
 
 
@@ -150,7 +150,14 @@ class HttpApiGateway:
             api_key_records = self.config.api_key_records
             if self.router.api_key_records:
                 api_key_records = (*api_key_records, *tuple(self.router.api_key_records.values()))
-            auth = authorize_request(
+            stripe_webhook_auth = _stripe_webhook_signature_auth_decision(
+                context.method,
+                context.path,
+                payload,
+                header_map,
+                body,
+            )
+            auth = stripe_webhook_auth or authorize_request(
                 header_map,
                 ApiAuthConfig(
                     api_key=self.config.api_key,
@@ -326,6 +333,56 @@ def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, A
         return payload
     return {**dict(payload), "_flow_memory_client_ip": client_ip}
 
+
+def _stripe_webhook_signature_auth_decision(
+    method: str,
+    path: str,
+    payload: Mapping[str, Any],
+    headers: Mapping[str, str],
+    body: bytes,
+) -> ApiAuthDecision | None:
+    if method.upper() != "POST" or path != "/billing/webhooks/stripe":
+        return None
+    signature = _header(headers, "stripe-signature")
+    if "t=" not in signature or "v1=" not in signature:
+        return None
+    try:
+        from flow_memory.compute_market.service import _verify_webhook_signature, default_service
+    except Exception:
+        return None
+    service = default_service()
+    secret = service.config.stripe_webhook_secret
+    if not secret:
+        return None
+    raw_event = payload.get("raw_event")
+    if not isinstance(raw_event, Mapping) and payload.get("id") and payload.get("type"):
+        excluded = {
+            "stripe_signature",
+            "raw_event_body",
+            "webhook_secret",
+            "tenant_id",
+            "_flow_memory_principal",
+        }
+        raw_event = {key: value for key, value in payload.items() if key not in excluded}
+    if not isinstance(raw_event, Mapping):
+        return None
+    raw_event_body = str(payload.get("raw_event_body") or body.decode("utf-8", "replace"))
+    if not raw_event_body:
+        return None
+    if not _verify_webhook_signature(
+        raw_event,
+        secret,
+        signature,
+        raw_event_body=raw_event_body,
+        tolerance_seconds=service.config.stripe_webhook_tolerance_seconds,
+    ):
+        return None
+    return ApiAuthDecision(
+        ok=True,
+        principal="stripe-webhook",
+        scopes=(COMPUTE_BILLING_SCOPE,),
+        key_id="stripe-signature",
+    )
 
 def _inject_stripe_webhook_context(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str], body: bytes) -> Mapping[str, Any]:
     if method.upper() != "POST" or path != "/billing/webhooks/stripe":

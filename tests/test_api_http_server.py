@@ -257,6 +257,58 @@ def test_http_gateway_accepts_direct_stripe_webhook_body_with_signature_header()
     assert response.body["data"]["credit_transaction"]["amount"] == 33.0
 
 
+def test_http_gateway_accepts_stripe_signature_auth_when_scopes_required() -> None:
+    secret = "whsec_http_gateway_scoped_secret"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            stripe_webhook_secret=secret,
+        ),
+    )
+    reset_default_service(service)
+    raw_event = {
+        "id": "evt_http_stripe_scoped",
+        "type": "checkout.session.completed",
+        "amount_total": 1700,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_http_stripe_scoped"},
+    }
+    raw_body = json.dumps(raw_event, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    timestamp = str(int(time.time()))
+    signed_body = f"{timestamp}.{raw_body.decode('utf-8')}".encode("utf-8")
+    digest = hmac.new(secret.encode("utf-8"), signed_body, "sha256").hexdigest()
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            api_key="flow-memory-api-key",
+            require_scopes=True,
+            enable_rate_limit=False,
+        )
+    )
+    try:
+        allowed = gateway.handle(
+            "POST",
+            "/billing/webhooks/stripe",
+            {"Stripe-Signature": f"t={timestamp},v1={digest}"},
+            raw_body,
+        )
+        denied = gateway.handle(
+            "POST",
+            "/billing/webhooks/stripe",
+            {"Stripe-Signature": f"t={timestamp},v1=bad"},
+            raw_body,
+        )
+    finally:
+        reset_default_service(None)
+
+    assert allowed.status == 200
+    assert allowed.body["data"]["payment_event"]["verified"] is True
+    assert allowed.body["data"]["credit_transaction"]["amount"] == 17.0
+    assert denied.status == 401
+    assert denied.body["error"]["code"] == "auth.invalid"
+
 
 def test_http_gateway_api_key_management_rotates_active_tenant_key() -> None:
     admin_key = "fmk_admin_secret"

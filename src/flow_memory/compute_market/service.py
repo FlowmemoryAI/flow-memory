@@ -1784,6 +1784,15 @@ class ComputeMarketService:
                     request_id=request_id,
                     usage_charge_id=str(usage_charge["usage_charge_id"]),
                 )
+                if str(credit_debit.get("status", "")) == "insufficient_credit":
+                    self.telemetry.increment(
+                        "billing_insufficient_credit_total",
+                        {
+                            "provider_id": str(job.get("provider_id", "")),
+                            "currency": str(usage_charge["currency"]),
+                        },
+                        value=float(usage_charge["amount"]),
+                    )
                 provider_payout = _accrue_provider_payout(
                     self.store,
                     provider_id=str(job.get("provider_id", "")),

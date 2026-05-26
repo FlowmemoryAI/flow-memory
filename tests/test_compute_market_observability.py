@@ -107,6 +107,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     names = set(metric_names())
     assert "compute_job_completed_total" in names
     assert "billing_debit_total" in names
+    assert "billing_insufficient_credit_total" in names
     assert "audit_chain_verify_fail_total" in names
     assert "billing_webhook_failures_total" in names
     assert "provider_execution_failure_total" in names
@@ -687,6 +688,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "capacity_released_total",
         "capacity_hold_expired_total",
         "billing_debit_total",
+        "billing_insufficient_credit_total",
         "billing_payment_failed_total",
         "billing_webhook_failures_total",
         "provider_sla_penalty_total",
@@ -725,6 +727,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "FlowMemoryComputeMarketStaleQuotes",
         "FlowMemoryComputeMarketBillingWebhookFailures",
         "FlowMemoryComputeMarketPolicyDenialSpike",
+        "FlowMemoryComputeMarketBillingInsufficientCredit",
         "FlowMemoryComputeMarketUnexpectedSettlementConfig",
         "FlowMemoryComputeMarketProviderAllowlistMissing",
         "FlowMemoryComputeMarketComputeJobFailures",
@@ -738,6 +741,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "provider_circuit_open_total",
         "quote_stale_total",
         "billing_webhook_failures_total",
+        "billing_insufficient_credit_total",
         "compute_policy_denials_total",
         "policy_denied_total",
         "unexpected_live_settlement_config_total",

@@ -62,6 +62,16 @@ groups:
           summary: Stripe billing webhook verification failed.
           description: Verify Stripe-Signature, webhook secret, replay window, and raw body preservation at the gateway.
 
+      - alert: FlowMemoryComputeMarketBillingInsufficientCredit
+        expr: rate(billing_insufficient_credit_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: billing
+        annotations:
+          summary: Compute jobs are completing without enough prepaid credit.
+          description: Review credit balances, checkout health, tenant quota policy, and provider payout reconciliation before allowing paid execution to scale.
+
       - alert: FlowMemoryComputeMarketPolicyDenialSpike
         expr: rate(compute_policy_denials_total[5m]) > 10 or rate(policy_denied_total[5m]) > 10
         for: 5m

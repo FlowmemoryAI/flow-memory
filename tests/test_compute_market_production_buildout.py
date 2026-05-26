@@ -1888,6 +1888,14 @@ def test_prepaid_credit_debit_insufficient_balance_does_not_overdraw() -> None:
     assert completed["credit_debit"]["status"] == "insufficient_credit"
     assert completed["provider_payout"]["status"] == "accrued"
     assert service.billing_balance({"account_id": "acct_tiny"})["balance"]["available_credits"] == 0.1
+    assert (
+        _metric_total(
+            service,
+            "billing_insufficient_credit_total",
+            {"provider_id": "provider_live_gpu_1"},
+        )
+        == 0.18
+    )
 
 
 def test_marketplace_api_routes_and_scopes() -> None:

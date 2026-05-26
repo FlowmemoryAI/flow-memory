@@ -92,7 +92,8 @@
         {"expr": "sum(rate(billing_checkout_failed_total[5m]))", "legendFormat": "checkout failures", "refId": "B"},
         {"expr": "sum(rate(billing_payment_failed_total[5m]))", "legendFormat": "payment failures", "refId": "C"},
         {"expr": "sum(rate(billing_webhook_failures_total[5m]))", "legendFormat": "webhook failures", "refId": "D"},
-        {"expr": "sum(rate(provider_sla_penalty_total[5m]))", "legendFormat": "SLA penalties", "refId": "E"}
+        {"expr": "sum(rate(provider_sla_penalty_total[5m]))", "legendFormat": "SLA penalties", "refId": "E"},
+        {"expr": "sum(rate(billing_insufficient_credit_total[5m]))", "legendFormat": "insufficient credit", "refId": "F"}
       ],
       "title": "Billing and prepaid credits",
       "type": "timeseries"

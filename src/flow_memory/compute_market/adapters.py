@@ -307,6 +307,9 @@ class HTTPQuoteProvider:
         missing = tuple(key for key in required if key not in normalized_raw)
         if missing:
             raise ValueError(f"provider quote missing fields: {missing}")
+        raw_provider_id = str(normalized_raw.get("provider_id", "")).strip()
+        if raw_provider_id != self.provider.provider_id:
+            raise ValueError("provider quote provider_id does not match configured provider")
         allowed = set(ComputeQuote.__dataclass_fields__)
         sanitized = {str(key): value for key, value in normalized_raw.items() if str(key) in allowed}
         sanitized["source"] = "live"

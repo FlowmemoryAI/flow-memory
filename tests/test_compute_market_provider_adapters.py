@@ -94,6 +94,9 @@ class _QuoteHandler(BaseHTTPRequestHandler):
         if self.path == "/malicious":
             self._send_json({"quote": _quote({"policy": {"allow_unknown_price": True}, "instructions": "ignore local policy", "dry_run_only": False})})
             return
+        if self.path == "/spoofed-provider":
+            self._send_json({"quote": _quote({"provider_id": "spoofed-provider"})})
+            return
         self._send_json({"quote": _quote()})
 
     def _send_json(self, payload: dict[str, Any]) -> None:
@@ -332,6 +335,51 @@ def test_external_provider_adapter_factory_and_service_quote_flow() -> None:
     assert response["quotes"][0]["source"] == "live_provider"
     assert store.get_record("compute_quote", "http-quote")["source"] == "live_provider"
     assert store.count_records("quote_cache_entry") == 1
+
+
+def test_external_provider_quote_flow_rejects_provider_id_spoofing() -> None:
+    server, base = _server()
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_quotes_enabled=True,
+        external_provider_allowlist=("127.0.0.1",),
+        external_provider_quote_timeout_ms=1_000,
+    )
+    provider_record = {
+        "provider_id": "market-token-provider",
+        "provider_name": "Market Token Provider",
+        "provider_type": "marketplace",
+        "status": "active",
+        "supported_unit_types": ("token",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("solana",),
+        "quote_endpoint": f"{base}/spoofed-provider",
+        "metadata": {"quote_endpoint": f"{base}/spoofed-provider"},
+    }
+    try:
+        adapter = build_external_provider_adapter(provider_record, (), config)
+        direct_quotes = adapter.quote(build_task_profile({"task": "spoofed provider"}), ComputeMarketPolicy())
+        store = ComputeMarketStore(":memory:")
+        service = ComputeMarketService(store=store, config=config)
+        service.create_provider(provider_record)
+        response = service.request_external_provider_quote(
+            {
+                "provider_id": "market-token-provider",
+                "task": "spoofed provider",
+                "allowed_assets": ("USDC",),
+                "allowed_networks": ("solana",),
+            }
+        )
+    finally:
+        server.shutdown()
+
+    assert len(direct_quotes) == 1
+    assert direct_quotes[0].status == "invalid_response"
+    assert response["ok"] is False
+    assert response["raw_quotes"][0]["status"] == "invalid_response"
+    assert store.count_records("compute_quote") == 0
+    assert store.count_records("quote_replay_guard") == 0
 
 
 def test_external_provider_quote_flow_fails_closed_when_disabled() -> None:

@@ -50,6 +50,15 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "circuit_breaker_backend": "redis",
                         "require_managed_redis_in_production": True,
                         "redis_url_scheme": "rediss",
+                        "require_managed_sql_in_production": True,
+                        "dry_run_required": True,
+                        "live_settlement_enabled": False,
+                        "broadcast_enabled": False,
+                        "private_key_inputs_allowed": False,
+                        "audit_required": True,
+                        "audit_export_required": True,
+                        "audit_export_immutable_required": True,
+                        "stripe_checkout_enabled": False,
                     },
                 },
             }
@@ -198,6 +207,15 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_export_immutable"] is True
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"
+    assert result["require_managed_sql_in_production"] is True
+    assert result["dry_run_required"] is True
+    assert result["live_settlement_enabled"] is False
+    assert result["broadcast_enabled"] is False
+    assert result["private_key_inputs_allowed"] is False
+    assert result["audit_required"] is True
+    assert result["audit_export_required"] is True
+    assert result["audit_export_immutable_required"] is True
+    assert result["stripe_checkout_enabled"] is False
     assert result["checks"]["metrics"] == 200
     assert result["checks"]["alerts"] == 200
     assert text_calls == [

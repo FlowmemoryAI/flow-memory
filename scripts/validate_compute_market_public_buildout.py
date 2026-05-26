@@ -294,6 +294,14 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(readiness.get("circuit_breaker_status", {}).get("backend") == "redis" or readiness.get("production_safety_defaults", {}).get("circuit_breaker_backend") == "redis", "readiness did not report Redis circuit breaker")
     require(safety_defaults.get("require_managed_redis_in_production") is True, "managed Redis requirement is not enabled")
     require(safety_defaults.get("redis_url_scheme") == "rediss", "managed Redis URL is not rediss://")
+    require(safety_defaults.get("require_managed_sql_in_production") is True, "managed Postgres requirement is not enabled")
+    require(safety_defaults.get("dry_run_required") is True, "dry-run requirement is not enabled")
+    require(safety_defaults.get("live_settlement_enabled") is False, "live settlement must remain disabled for Level 1")
+    require(safety_defaults.get("broadcast_enabled") is False, "broadcasting must remain disabled for Level 1")
+    require(safety_defaults.get("private_key_inputs_allowed") is False, "private key inputs must remain disabled")
+    require(safety_defaults.get("audit_required") is True, "audit requirement is not enabled")
+    require(safety_defaults.get("audit_export_required") is True, "audit export requirement is not enabled")
+    require(safety_defaults.get("stripe_checkout_enabled") is False, "Stripe Checkout must remain disabled for Level 1")
     require(plan.get("dry_run_only") is True and plan.get("funds_moved") is False and plan.get("broadcast_allowed") is False and plan.get("private_key_required") is False, "plan safety flags failed")
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
@@ -338,6 +346,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
             and audit_export_status.get("audit_exporter_status", {}).get("exporter") == "s3_object_lock",
             "admin audit export is not immutable S3 Object Lock storage",
         )
+        require(safety_defaults.get("audit_export_immutable_required") is True, "immutable audit export requirement is not enabled")
 
     return {
         "status": "passed",
@@ -348,6 +357,15 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
         "circuit_breaker_backend": readiness.get("circuit_breaker_status", {}).get("backend") or readiness.get("production_safety_defaults", {}).get("circuit_breaker_backend"),
         "require_managed_redis_in_production": safety_defaults.get("require_managed_redis_in_production"),
         "redis_url_scheme": safety_defaults.get("redis_url_scheme"),
+        "require_managed_sql_in_production": safety_defaults.get("require_managed_sql_in_production"),
+        "dry_run_required": safety_defaults.get("dry_run_required"),
+        "live_settlement_enabled": safety_defaults.get("live_settlement_enabled"),
+        "broadcast_enabled": safety_defaults.get("broadcast_enabled"),
+        "private_key_inputs_allowed": safety_defaults.get("private_key_inputs_allowed"),
+        "audit_required": safety_defaults.get("audit_required"),
+        "audit_export_required": safety_defaults.get("audit_export_required"),
+        "audit_export_immutable_required": safety_defaults.get("audit_export_immutable_required"),
+        "stripe_checkout_enabled": safety_defaults.get("stripe_checkout_enabled"),
         "dry_run_only": True,
         "funds_moved": False,
         "broadcast_allowed": False,

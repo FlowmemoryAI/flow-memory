@@ -536,8 +536,8 @@ class LocalApiRouter:
     def _compute_provider_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_provider_disable(params["provider_id"], payload)
 
-    def _compute_provider_health(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_provider_health(params["provider_id"])
+    def _compute_provider_health(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_provider_health(params["provider_id"], payload)
 
     def _compute_provider_external_quote(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_provider_external_quote(payload)

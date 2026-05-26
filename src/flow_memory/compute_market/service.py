@@ -300,13 +300,15 @@ class ComputeMarketService:
         self._audit("compute.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
         return {"ok": True, "provider": current, "invalidated_quote_cache_entries": invalidated_cache}
 
-    def provider_health(self, provider_id: str) -> Mapping[str, Any]:
-        limited = self._rate_limit_response({}, "POST /compute/providers/{provider_id}/health-check", request_id=new_id("request"), provider_id=provider_id)
+    def provider_health(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /compute/providers/{provider_id}/health-check", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
         circuit = self.circuit_breaker.allow_request(provider_id, adapter_type="health_check")
         if not circuit.ok:
-            self._audit("compute.provider.circuit_open", {"provider_id": provider_id}, request_id=new_id("request"), result="skipped", reason_codes=("circuit_open",), provider_id=provider_id)
+            self._audit("compute.provider.circuit_open", payload, request_id=request_id, result="skipped", reason_codes=("circuit_open",), provider_id=provider_id)
             return {
                 "ok": False,
                 "provider_health": {

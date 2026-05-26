@@ -8,6 +8,7 @@ from typing import Any
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
 from flow_memory.api.auth import RedisNonceReplayStore, api_key_hash
+from flow_memory.compute_market.controls import InMemoryCircuitBreaker
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
@@ -175,6 +176,55 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header() -> N
     assert response.status == 200
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
     assert gateway.audit_sink.events[-1]["tenant_id"] == "tenant_http"
+
+
+def test_http_gateway_provider_health_store_audit_keeps_tenant_context() -> None:
+    breaker = InMemoryCircuitBreaker(failure_threshold=1, reset_after_seconds=60)
+    breaker.record_failure("tenant-provider", adapter_type="health_check", error_class="provider_timeout")
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+        circuit_breaker=breaker,
+    )
+    reset_default_service(service)
+    key = "fmk_tenant_provider_admin"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-provider-admin-key",
+                    "key_prefix": "fmk_tenant_",
+                    "key_hash": api_key_hash(key),
+                    "tenant_id": "tenant_provider",
+                    "principal": "svc-provider-admin",
+                    "scopes": "compute:provider-admin",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    try:
+        response = gateway.handle(
+            "POST",
+            "/compute/providers/tenant-provider/health-check",
+            {"x-flow-memory-api-key": key},
+            b"{}",
+        )
+    finally:
+        reset_default_service(None)
+
+    audit_events = service.store.list_records(
+        "audit_event",
+        filters={"tenant_id": "tenant_provider"},
+    ).records
+
+    assert response.status == 200
+    assert response.body["data"]["ok"] is False
+    assert response.body["data"]["provider_health"]["error_code"] == "circuit_open"
+    assert any(event["action"] == "compute.provider.circuit_open" for event in audit_events)
+    assert all(event["tenant_id"] == "tenant_provider" for event in audit_events)
 
 
 def test_http_gateway_rejects_scope_header_escalation_for_scoped_key() -> None:

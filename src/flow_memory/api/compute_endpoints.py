@@ -56,8 +56,8 @@ def compute_provider_disable(provider_id: str, payload: Mapping[str, Any]) -> Ma
     return default_service().disable_provider(provider_id, payload)
 
 
-def compute_provider_health(provider_id: str) -> Mapping[str, Any]:
-    return default_service().provider_health(provider_id)
+def compute_provider_health(provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().provider_health(provider_id, payload or {})
 
 def compute_provider_external_quote(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().request_external_provider_quote(payload)

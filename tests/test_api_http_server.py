@@ -62,6 +62,26 @@ def test_http_gateway_scope_enforcement():
     assert allowed.status == 200
 
 
+def test_http_gateway_prometheus_metrics_alias_returns_text_and_requires_compute_read_scope() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    service.telemetry.increment("compute_plan_requests_total", {"strategy": "balanced"})
+    reset_default_service(service)
+    gateway = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))
+    try:
+        denied = gateway.handle("GET", "/metrics", {"x-flow-memory-scopes": "api:read"})
+        allowed = gateway.handle("GET", "/metrics", {"x-flow-memory-scopes": "compute:read"})
+    finally:
+        reset_default_service(None)
+
+    assert denied.status == 403
+    assert allowed.status == 200
+    assert allowed.headers["content-type"] == "text/plain; version=0.0.4"
+    assert "# TYPE compute_plan_requests_total gauge" in allowed.to_bytes().decode("utf-8")
+    assert 'strategy="balanced"' in allowed.to_bytes().decode("utf-8")
+
 def test_http_gateway_rate_limit():
     gateway = HttpApiGateway(config=HttpApiConfig(rate_limit=1, rate_limit_window_seconds=60))
     headers = {"x-flow-memory-scopes": "api:read", "x-flow-memory-principal": "alice"}

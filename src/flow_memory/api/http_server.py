@@ -64,8 +64,11 @@ class HttpApiResponse:
     status: int
     body: Mapping[str, Any]
     headers: Mapping[str, str] = field(default_factory=dict)
+    raw_body: bytes | None = None
 
     def to_bytes(self) -> bytes:
+        if self.raw_body is not None:
+            return self.raw_body
         return json.dumps(self.body, indent=2, sort_keys=True, default=str).encode("utf-8")
 
 
@@ -196,6 +199,17 @@ class HttpApiGateway:
             router_payload = _tenant_scoped_payload(context, payload)
             router_payload = _inject_provider_callback_ip(context.method, context.path, router_payload, header_map)
             router_payload = _inject_stripe_webhook_context(context.method, context.path, router_payload, header_map, body)
+            if context.method in {"GET", "HEAD"} and context.path == "/metrics":
+                result = self.router.dispatch("GET", "/compute/metrics", router_payload)
+                metrics_text = str(result.get("metrics", "")) if isinstance(result, Mapping) else ""
+                content_type = str(result.get("content_type", "text/plain; version=0.0.4")) if isinstance(result, Mapping) else "text/plain; version=0.0.4"
+                self.audit_sink.record(_audit_event(context, True, 200, ""))
+                return HttpApiResponse(
+                    status=200,
+                    body={"ok": True, "request_id": request_id},
+                    headers={**_headers(request_id), "content-type": content_type},
+                    raw_body=metrics_text.encode("utf-8"),
+                )
             result = self.router.dispatch(context.method, context.path, router_payload)
             self.audit_sink.record(_audit_event(context, True, 200, ""))
             return HttpApiResponse(

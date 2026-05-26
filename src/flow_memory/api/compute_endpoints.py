@@ -333,6 +333,14 @@ def billing_usage(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]
     return default_service().billing_usage(payload or {})
 
 
+def billing_provider_payouts(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().billing_provider_payouts(payload or {})
+
+
+def billing_provider_payout_settle(payout_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().settle_provider_payout(payout_id, payload)
+
+
 def billing_refund(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().billing_refund(payload)
 

@@ -1199,6 +1199,63 @@ def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:
     assert service.billing_balance({"account_id": "acct_paid"})["balance"]["available_credits"] == 0.82
 
 
+def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody() -> None:
+    service = _service()
+    raw_event = {"id": "evt_credit_payout", "type": "checkout.session.completed", "amount": 1.0, "currency": "usd", "metadata": {"account_id": "acct_payout"}}
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_paid_compute_payout"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(job_id, {"account_id": "acct_payout", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
+    payout_id = str(completed["provider_payout"]["provider_payout_id"])
+
+    accrued = service.billing_provider_payouts({"provider_id": "provider_live_gpu_1", "status": "accrued"})
+    before_reconciliation = service.reconciliation({})["reconciliation"]
+
+    assert accrued["summary"]["accrued_total"] == 0.18
+    assert accrued["provider_payouts"][0]["provider_payout_id"] == payout_id
+    assert before_reconciliation["provider_payout_total"] == 0.18
+    assert before_reconciliation["ledger_balanced"] is True
+    assert before_reconciliation["ledger_balance_delta"] == 0.0
+
+    reset_default_service(service)
+    router = create_default_router()
+    try:
+        routed_list = router.dispatch("GET", "/billing/provider-payouts", {"status": "accrued"})
+        routed_settle = router.dispatch(
+            "POST",
+            f"/billing/provider-payouts/{payout_id}/settle",
+            {"external_payout_reference": "stripe_transfer_test_1", "settled_by": "ops"},
+        )
+    finally:
+        reset_default_service(None)
+
+    assert routed_list["provider_payouts"][0]["provider_payout_id"] == payout_id
+    assert routed_settle["provider_payout"]["status"] == "settled"
+    assert routed_settle["provider_payout"]["external_disbursement_recorded"] is True
+    assert routed_settle["provider_payout"]["funds_moved"] is False
+
+    settled = service.billing_provider_payouts({"provider_id": "provider_live_gpu_1", "status": "settled"})
+    after_reconciliation = service.reconciliation({})["reconciliation"]
+
+    assert settled["summary"]["settled_total"] == 0.18
+    assert after_reconciliation["provider_payout_summary"]["settled_count"] == 1
+    assert after_reconciliation["ledger_balanced"] is True
+
+    for operation, expected in (
+        (lambda: service.settle_provider_payout(payout_id, {}), "not accrued"),
+        (lambda: service.settle_provider_payout("payout_missing", {}), "Unknown provider payout"),
+    ):
+        try:
+            operation()
+        except (KeyError, ValueError) as exc:
+            assert expected in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError(f"invalid payout settlement succeeded: {expected}")
+
+
 def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation() -> None:
     service = _service()
     raw_event = {"id": "evt_credit_refund", "type": "checkout.session.completed", "amount": 1.0, "currency": "usd", "metadata": {"account_id": "acct_refund"}}
@@ -1284,6 +1341,8 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/compute/jobs/job_1/release-claim") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
         assert required_scopes_for("POST", "/billing/refund") == ("compute:billing",)
+        assert required_scopes_for("GET", "/billing/provider-payouts") == ("compute:billing",)
+        assert required_scopes_for("POST", "/billing/provider-payouts/payout_1/settle") == ("compute:billing",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
         assert required_scopes_for("GET", "/market/prices") == ("compute:read",)

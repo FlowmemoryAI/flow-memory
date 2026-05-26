@@ -1445,6 +1445,98 @@
         ]
       }
     },
+    "/billing/provider-payouts": {
+      "get": {
+        "operationId": "billing_provider_payouts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider_payouts": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List no-custody provider payout ledger entries",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/billing/provider-payouts/{payout_id}/settle": {
+      "post": {
+        "operationId": "billing_provider_payout_settle",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "payout_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "external_payout_reference": {
+                    "type": "string"
+                  },
+                  "settled_by": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider_payout": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Mark an accrued provider payout as externally settled without custody",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/billing/refund": {
       "post": {
         "operationId": "billing_refund",

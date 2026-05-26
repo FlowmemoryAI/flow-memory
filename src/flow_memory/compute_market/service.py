@@ -2114,6 +2114,74 @@ class ComputeMarketService:
         charges = tuple(self.store.list_records("usage_charge", filters=filters, limit=int(payload.get("limit", 100) or 100)).records)
         return {"ok": True, "usage_charges": charges, "account_id": account_id}
 
+    def billing_provider_payouts(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        filters: dict[str, Any] = {}
+        provider_id = str(payload.get("provider_id", "")).strip()
+        status = str(payload.get("status", "")).strip()
+        account_id = str(payload.get("account_id") or payload.get("tenant_id", "")).strip()
+        if provider_id:
+            filters["provider_id"] = provider_id
+        if status:
+            filters["status"] = status
+        if account_id:
+            filters["tenant_id"] = account_id
+        page = self.store.list_records(
+            "provider_payout",
+            filters=filters,
+            limit=int(payload.get("limit", 100) or 100),
+            cursor=str(payload.get("cursor", "")),
+        )
+        return {
+            "ok": True,
+            "provider_payouts": page.records,
+            "next_cursor": page.next_cursor,
+            "summary": _provider_payout_summary(page.records),
+        }
+
+    def settle_provider_payout(self, payout_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        payout = self.store.get_record("provider_payout", payout_id)
+        if payout is None:
+            raise KeyError(f"Unknown provider payout: {payout_id}")
+        current_status = str(payout.get("status", ""))
+        if current_status != "accrued":
+            raise ValueError(f"provider payout is not accrued: {current_status}")
+        now = utc_now_iso()
+        settled = {
+            **dict(payout),
+            "status": "settled",
+            "settled_at": now,
+            "updated_at": now,
+            "settled_by": str(payload.get("settled_by") or payload.get("actor_id") or "operator"),
+            "external_payout_reference": str(payload.get("external_payout_reference", "")),
+            "external_disbursement_recorded": True,
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
+        self.store.put_record(
+            "provider_payout",
+            payout_id,
+            settled,
+            tenant_id=str(settled.get("account_id", "")),
+            provider_id=str(settled.get("provider_id", "")),
+            route_id=str(settled.get("route_id", "")),
+            status="settled",
+            request_id=request_id,
+            actor_id=str(settled.get("settled_by", "")),
+            idempotency_key=str(payload.get("idempotency_key", payout_id)),
+        )
+        self._audit(
+            "billing.provider_payout.settled",
+            {**dict(payload), "provider_payout_id": payout_id},
+            request_id=request_id,
+            result="settled",
+            provider_id=str(settled.get("provider_id", "")),
+            route_id=str(settled.get("route_id", "")),
+        )
+        return {"ok": True, "provider_payout": settled}
+
     def billing_refund(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
@@ -2228,15 +2296,30 @@ class ComputeMarketService:
 
     def reconciliation(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
+        usage_charges = self._all_records("usage_charge")
+        payment_events = self._all_records("payment_event")
+        provider_payouts = self._all_records("provider_payout")
+        refunds = self._all_records("refund")
+        provider_sla_penalties = self._all_records("provider_sla_penalty")
+        usage_total = _record_amount_total(usage_charges)
+        refund_total = _record_amount_total(refunds)
+        provider_payout_total = _record_amount_total(provider_payouts)
+        ledger_balance_delta = round(usage_total - refund_total - provider_payout_total, 6)
         run_id = deterministic_id("reconciliation", {"created_at": utc_now_iso(), "scope": payload})
         run = {
             "reconciliation_run_id": run_id,
-            "status": "dry_run_reconciled",
-            "usage_charge_count": self.store.count_records("usage_charge"),
-            "payment_event_count": self.store.count_records("payment_event"),
-            "provider_payout_count": self.store.count_records("provider_payout"),
-            "refund_count": self.store.count_records("refund"),
-            "provider_sla_penalty_count": self.store.count_records("provider_sla_penalty"),
+            "status": "dry_run_reconciled" if abs(ledger_balance_delta) <= 0.000001 else "dry_run_reconciliation_attention",
+            "usage_charge_count": len(usage_charges),
+            "payment_event_count": len(payment_events),
+            "provider_payout_count": len(provider_payouts),
+            "refund_count": len(refunds),
+            "provider_sla_penalty_count": len(provider_sla_penalties),
+            "usage_charge_total": usage_total,
+            "refund_total": refund_total,
+            "provider_payout_total": provider_payout_total,
+            "provider_payout_summary": _provider_payout_summary(provider_payouts),
+            "ledger_balance_delta": ledger_balance_delta,
+            "ledger_balanced": abs(ledger_balance_delta) <= 0.000001,
             "funds_moved": False,
             "created_at": utc_now_iso(),
         }
@@ -3152,6 +3235,30 @@ class ComputeMarketService:
         if memory and self.config.economic_memory_writes_enabled:
             self.store.put_record("economic_memory", str(memory.get("record_id", deterministic_id("economic_memory", memory))), memory, agent_id=str(memory.get("agent_id", "")), goal_id=str(memory.get("goal_id", "")), provider_id=str(memory.get("provider_id", "")), route_id=str(memory.get("route_id", "")), task_type=str(memory.get("task_type", "")), task_hash=str(memory.get("task_hash", "")), status=str(memory.get("policy_result", "")), idempotency_key=idempotency_key, request_id=request_id)
             self.telemetry.increment("compute_economic_memory_writes_total")
+
+    def _all_records(
+        self,
+        record_type: str,
+        *,
+        filters: Mapping[str, Any] | None = None,
+        limit: int = 500,
+        include_archived: bool = False,
+    ) -> tuple[Mapping[str, Any], ...]:
+        records: list[Mapping[str, Any]] = []
+        cursor = ""
+        while True:
+            page = self.store.list_records(
+                record_type,
+                filters=filters,
+                limit=limit,
+                cursor=cursor,
+                include_archived=include_archived,
+            )
+            records.extend(page.records)
+            if not page.next_cursor:
+                break
+            cursor = page.next_cursor
+        return tuple(records)
 
     def _all_audit_events(self, *, limit: int = 500) -> tuple[Mapping[str, Any], ...]:
         records: list[Mapping[str, Any]] = []
@@ -5198,6 +5305,23 @@ def _accrue_provider_payout(
     }
     store.put_record("provider_payout", payout_id, payout, tenant_id=account_id, provider_id=provider_id, route_id=route_id, status="accrued", request_id=request_id, idempotency_key=payout_id)
     return payout
+
+
+def _record_amount_total(records: tuple[Mapping[str, Any], ...]) -> float:
+    return round(sum(float(record.get("amount", 0.0) or 0.0) for record in records), 6)
+
+
+def _provider_payout_summary(records: tuple[Mapping[str, Any], ...]) -> Mapping[str, Any]:
+    accrued = tuple(record for record in records if str(record.get("status", "")) == "accrued")
+    settled = tuple(record for record in records if str(record.get("status", "")) == "settled")
+    return {
+        "payout_count": len(records),
+        "accrued_count": len(accrued),
+        "settled_count": len(settled),
+        "total_amount": _record_amount_total(records),
+        "accrued_total": _record_amount_total(accrued),
+        "settled_total": _record_amount_total(settled),
+    }
 
 
 def _billing_account(account_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:

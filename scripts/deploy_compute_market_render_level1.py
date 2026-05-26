@@ -289,6 +289,37 @@ def env_var(key: str, value: str) -> dict[str, str]:
     return {"key": key, "value": value}
 
 
+def url_scheme(value: str) -> str:
+    return urllib.parse.urlparse(value).scheme.lower()
+
+
+def select_managed_redis_url(connection_info: dict[str, Any]) -> str:
+    fields = (
+        "redissConnectionString",
+        "tlsConnectionString",
+        "externalConnectionString",
+        "connectionString",
+        "internalConnectionString",
+    )
+    schemes: list[dict[str, str]] = []
+    for field in fields:
+        value = str(connection_info.get(field, "") or "")
+        if not value:
+            continue
+        scheme = url_scheme(value)
+        schemes.append({"field": field, "scheme": scheme})
+        if scheme == "rediss":
+            return value
+    emit(
+        "blocked_insecure_redis",
+        24,
+        required_scheme="rediss",
+        available_connection_schemes=schemes,
+        required_action="Render Key Value connection-info must expose a rediss:// TLS URL before public deployment",
+    )
+    raise AssertionError("unreachable")
+
+
 def build_env_vars(
     api_key_value: str,
     database_url: str,
@@ -296,6 +327,22 @@ def build_env_vars(
     public_api_url: str = "",
     audit_export_uri: str = "",
 ) -> list[dict[str, str]]:
+    if url_scheme(redis_url) != "rediss":
+        emit(
+            "blocked_insecure_redis",
+            24,
+            redis_url_scheme=url_scheme(redis_url),
+            required_scheme="rediss",
+            required_action="FLOW_MEMORY_COMPUTE_REDIS_URL must be a TLS rediss:// managed Redis URL.",
+        )
+    if url_scheme(database_url) not in {"postgres", "postgresql"}:
+        emit(
+            "blocked_insecure_postgres",
+            25,
+            database_url_scheme=url_scheme(database_url),
+            required_scheme="postgresql",
+            required_action="FLOW_MEMORY_COMPUTE_DATABASE_URL must be a managed PostgreSQL URL.",
+        )
     values = {
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
@@ -577,10 +624,11 @@ def main() -> int:
         keyvalue = wait_available(args.api_key, "/key-value", str(keyvalue["id"]), "keyvalue")
         pg_conn = render_request(args.api_key, "GET", f"/postgres/{urllib.parse.quote(str(postgres['id']))}/connection-info")
         kv_conn = render_request(args.api_key, "GET", f"/key-value/{urllib.parse.quote(str(keyvalue['id']))}/connection-info")
+        redis_url = select_managed_redis_url(kv_conn)
         env_vars = build_env_vars(
             api_key_value,
             str(pg_conn["internalConnectionString"]),
-            str(kv_conn["internalConnectionString"]),
+            redis_url,
             audit_export_uri=audit_export_uri,
         )
         service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
@@ -593,7 +641,7 @@ def main() -> int:
         env_vars = build_env_vars(
             api_key_value,
             str(pg_conn["internalConnectionString"]),
-            str(kv_conn["internalConnectionString"]),
+            redis_url,
             url,
             audit_export_uri,
         )

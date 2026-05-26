@@ -134,6 +134,48 @@ def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
     assert env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
 
+def test_render_deploy_selects_tls_keyvalue_connection_string() -> None:
+    redis_url = render_deploy.select_managed_redis_url(
+        {
+            "internalConnectionString": "redis://internal-render-redis:6379",
+            "externalConnectionString": "rediss://external-render-redis:6380",
+        }
+    )
+
+    assert redis_url == "rediss://external-render-redis:6380"
+
+
+def test_render_deploy_blocks_insecure_keyvalue_connection_info() -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.select_managed_redis_url(
+            {
+                "internalConnectionString": "redis://internal-render-redis:6379",
+                "connectionString": "redis://external-render-redis:6379",
+            }
+        )
+
+    assert blocked.value.code == 24
+
+
+def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> None:
+    with pytest.raises(SystemExit) as redis_blocked:
+        render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "redis://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+        )
+    with pytest.raises(SystemExit) as postgres_blocked:
+        render_deploy.build_env_vars(
+            "dev-key",
+            "sqlite:///tmp/local.db",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+        )
+
+    assert redis_blocked.value.code == 24
+    assert postgres_blocked.value.code == 25
+
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = {"deploy_list": 0, "waited_for": ""}

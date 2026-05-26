@@ -107,7 +107,7 @@ def parse_env(path: Path) -> dict[str, str]:
 
 
 def audit_export_uri_from_env(values: dict[str, str]) -> str:
-    uri = values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI") or DEFAULT_AUDIT_EXPORT_URI
+    uri = DEFAULT_AUDIT_EXPORT_URI or values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "")
     if not uri or has_placeholder(uri):
         emit(
             "blocked_missing_audit_object_storage",
@@ -123,6 +123,22 @@ def audit_export_uri_from_env(values: dict[str, str]) -> str:
             required_action="FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI must be an s3:// Object Lock bucket/prefix",
         )
     return uri
+
+
+def audit_export_s3_region_from_env(values: dict[str, str]) -> str:
+    region = DEFAULT_AUDIT_EXPORT_S3_REGION or values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
+    if not region or has_placeholder(region):
+        emit(
+            "blocked_missing_audit_object_storage",
+            23,
+            missing_values=["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION"],
+            required_action="configure FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION for the S3 Object Lock audit export bucket",
+        )
+    return region
+
+
+def _audit_export_setting(values: dict[str, str], key: str, default: str) -> str:
+    return values.get(key) or default
 
 
 def has_placeholder(value: str) -> bool:
@@ -392,6 +408,11 @@ def build_env_vars(
     redis_url: str,
     public_api_url: str = "",
     audit_export_uri: str = "",
+    audit_export_object_lock_mode: str = DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE,
+    audit_export_retention_days: str = DEFAULT_AUDIT_EXPORT_RETENTION_DAYS,
+    audit_export_immutable_required: str = DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
+    audit_export_s3_region: str = DEFAULT_AUDIT_EXPORT_S3_REGION,
+    audit_export_s3_endpoint_url: str = DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
 ) -> list[dict[str, str]]:
     if url_scheme(redis_url) != "rediss":
         emit(
@@ -449,11 +470,11 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED": "true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED": "true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": audit_export_uri,
-        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE": DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE,
-        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS": DEFAULT_AUDIT_EXPORT_RETENTION_DAYS,
-        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
-        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION": DEFAULT_AUDIT_EXPORT_S3_REGION,
-        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL": DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE": audit_export_object_lock_mode,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS": audit_export_retention_days,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": audit_export_immutable_required,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION": audit_export_s3_region,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL": audit_export_s3_endpoint_url,
         "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
         "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY": "",
         "FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL": "",
@@ -702,6 +723,27 @@ def main() -> int:
     validate_render_plans()
     env_values = parse_env(Path(args.env_file))
     audit_export_uri = audit_export_uri_from_env(env_values)
+    audit_export_s3_region = audit_export_s3_region_from_env(env_values)
+    audit_export_object_lock_mode = _audit_export_setting(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
+        DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE,
+    )
+    audit_export_retention_days = _audit_export_setting(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
+        DEFAULT_AUDIT_EXPORT_RETENTION_DAYS,
+    )
+    audit_export_immutable_required = _audit_export_setting(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED",
+        DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
+    )
+    audit_export_s3_endpoint_url = _audit_export_setting(
+        env_values,
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL",
+        DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
+    )
     owner_id = infer_owner_id(args.api_key, args.owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
@@ -725,6 +767,11 @@ def main() -> int:
             str(pg_conn["internalConnectionString"]),
             redis_url,
             audit_export_uri=audit_export_uri,
+            audit_export_s3_region=audit_export_s3_region,
+            audit_export_object_lock_mode=audit_export_object_lock_mode,
+            audit_export_retention_days=audit_export_retention_days,
+            audit_export_immutable_required=audit_export_immutable_required,
+            audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
         )
         service = ensure_service(args.api_key, owner_id, args.region, repo, branch, env_vars)
         url = public_url(service)
@@ -737,8 +784,13 @@ def main() -> int:
             api_key_value,
             str(pg_conn["internalConnectionString"]),
             redis_url,
-            url,
-            audit_export_uri,
+            public_api_url=url,
+            audit_export_uri=audit_export_uri,
+            audit_export_s3_region=audit_export_s3_region,
+            audit_export_object_lock_mode=audit_export_object_lock_mode,
+            audit_export_retention_days=audit_export_retention_days,
+            audit_export_immutable_required=audit_export_immutable_required,
+            audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
         )
         render_request(args.api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
         trigger_service_deploy(args.api_key, str(service["id"]))

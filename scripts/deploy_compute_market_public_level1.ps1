@@ -133,7 +133,8 @@ $requiredKeys = @(
     'FLOW_MEMORY_API_KEY',
     'FLOW_MEMORY_COMPUTE_DATABASE_URL',
     'FLOW_MEMORY_COMPUTE_REDIS_URL',
-    'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI'
+    'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI',
+    'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION'
 )
 
 $placeholderPattern = 'CHANGEME|<required>|<your-domain>|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host'

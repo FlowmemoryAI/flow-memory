@@ -168,13 +168,28 @@ def test_api_server_cli_accepts_public_bind_with_jwt_gateway_secret() -> None:
     assert config.jwt_audience == "flow-memory-api"
 
 
-def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
+def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(SystemExit) as missing:
         render_deploy.audit_export_uri_from_env({})
     with pytest.raises(SystemExit) as local_file:
         render_deploy.audit_export_uri_from_env(
             {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "/var/lib/flow-memory/audit/compute-market.ndjson"}
         )
+    with pytest.raises(SystemExit) as missing_region:
+        render_deploy.audit_export_s3_region_from_env(
+            {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://flow-memory-audit/compute-market"}
+        )
+    monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_URI", "s3://flow-memory-shell-audit/compute-market")
+    monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_S3_REGION", "us-west-2")
+
+    assert (
+        render_deploy.audit_export_uri_from_env(
+            {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "/var/lib/flow-memory/audit/compute-market.ndjson"}
+        )
+        == "s3://flow-memory-shell-audit/compute-market"
+    )
+    assert render_deploy.audit_export_s3_region_from_env({}) == "us-west-2"
+
 
     env_vars = {
         item["key"]: item["value"]
@@ -183,15 +198,18 @@ def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
             "postgresql://db/flow_memory",
             "rediss://redis/0",
             audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_s3_region="us-east-1",
         )
     }
 
     assert missing.value.code == 23
     assert local_file.value.code == 23
+    assert missing_region.value.code == 23
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == "s3://flow-memory-audit/compute-market"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
+    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION"] == "us-east-1"
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED"] == "false"
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL"] == "https://api.stripe.com"
     assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"] == "300"
@@ -292,6 +310,7 @@ def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_
                 "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://CHANGEME-managed-postgres-host:5432/flow_memory",
                 "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
             ]
         ),
         encoding="utf-8",

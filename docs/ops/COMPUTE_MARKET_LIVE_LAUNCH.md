@@ -21,7 +21,7 @@ cp deployments/compute-market/live.env.example .env.compute-market.live
 ```
 
 2. Fill every `CHANGEME` value. Do not commit the filled file.
-   For Render API provisioning, export `RENDER_API_KEY`, `RENDER_OWNER_ID`, `RENDER_KEYVALUE_IP_ALLOWLIST`, and `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI` in the shell before running `scripts/deploy_compute_market_render_level1.py`. `RENDER_KEYVALUE_IP_ALLOWLIST` must contain the public egress CIDR ranges allowed to reach the external `rediss://` Key Value endpoint. Set `RENDER_POSTGRES_PLAN`, `RENDER_KEYVALUE_PLAN`, and `RENDER_SERVICE_PLAN` to production-grade paid plans; `RENDER_ALLOW_FREE_PLANS=true` is reserved for non-production smoke deployments only.
+   For Render API provisioning, export `RENDER_API_KEY`, `RENDER_OWNER_ID`, `RENDER_KEYVALUE_IP_ALLOWLIST`, `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI`, and `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION` in the shell before running `scripts/deploy_compute_market_render_level1.py`. `RENDER_KEYVALUE_IP_ALLOWLIST` must contain the public egress CIDR ranges allowed to reach the external `rediss://` Key Value endpoint. Set `RENDER_POSTGRES_PLAN`, `RENDER_KEYVALUE_PLAN`, and `RENDER_SERVICE_PLAN` to production-grade paid plans; `RENDER_ALLOW_FREE_PLANS=true` is reserved for non-production smoke deployments only.
    Keep `FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false` for Level 1. If paid credits are enabled in a later gate, put Stripe API and webhook secrets only in the deployment secret manager and keep `FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS` set to a bounded replay window.
 
 3. Start the planning stack:

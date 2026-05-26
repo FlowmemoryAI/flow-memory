@@ -269,6 +269,10 @@ def compute_job_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().create_job(payload)
 
 
+def compute_jobs(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().list_jobs(payload or {})
+
+
 def compute_job(job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().get_job(job_id, payload or {})
 

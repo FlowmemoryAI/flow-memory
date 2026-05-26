@@ -139,6 +139,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/compute/audit/replay", "compute_audit_replay", "Forensically replay audit events from the store or an exported NDJSON file", request_fields=("path", "chain_id", "from_sequence", "to_sequence"), response_fields=("ok", "replay")),
     EndpointSpec("GET", "/compute/audit/{audit_event_id}", "compute_audit_event", "Get a compute audit event", response_fields=("ok", "audit_event")),
     EndpointSpec("POST", "/compute/jobs", "compute_job_create", "Create a dry-run compute job record and lifecycle event", request_fields=("task_type", "input_ref", "model_or_runtime", "resource_request", "budget_policy_id", "route_id", "provider_id"), response_fields=("ok", "job", "event")),
+    EndpointSpec("GET", "/compute/jobs", "compute_jobs", "List compute jobs with tenant, status, provider, route, and pagination filters", response_fields=("ok", "jobs", "next_cursor")),
     EndpointSpec("GET", "/compute/jobs/{job_id}", "compute_job", "Get a compute job", response_fields=("ok", "job")),
     EndpointSpec("POST", "/compute/jobs/{job_id}/cancel", "compute_job_cancel", "Cancel a queued compute job", response_fields=("ok", "job", "event")),
     EndpointSpec("GET", "/compute/jobs/{job_id}/events", "compute_job_events", "List compute job events", response_fields=("ok", "events")),

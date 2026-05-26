@@ -85,6 +85,7 @@ from flow_memory.api.compute_endpoints import (
     compute_job_artifacts,
     compute_job_cancel,
     compute_job_create,
+    compute_jobs,
     compute_job_complete,
     compute_job_events,
     compute_job_receipt,
@@ -683,6 +684,9 @@ class LocalApiRouter:
     def _compute_job_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_create(payload)
 
+    def _compute_jobs(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_jobs(payload)
+
     def _compute_job(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job(params["job_id"], payload)
 
@@ -1022,6 +1026,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/compute/payment-plan", router._compute_payment_plan, "compute_payment_plan")
     router.register("POST", "/compute/simulate-settlement", router._compute_simulate_settlement, "compute_simulate_settlement")
     router.register("POST", "/compute/jobs", router._compute_job_create, "compute_job_create")
+    router.register("GET", "/compute/jobs", router._compute_jobs, "compute_jobs")
     router.register("GET", "/compute/jobs/{job_id}", router._compute_job, "compute_job")
     router.register("POST", "/compute/jobs/{job_id}/cancel", router._compute_job_cancel, "compute_job_cancel")
     router.register("GET", "/compute/jobs/{job_id}/events", router._compute_job_events, "compute_job_events")

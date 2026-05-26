@@ -1046,6 +1046,46 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_compute_job_listing_filters_by_tenant_status_and_paginates() -> None:
+    service = _service()
+    first = service.create_job(
+        {**_job_payload(), "job_id": "job_list_a1", "tenant_id": "tenant_job_list_a"}
+    )
+    second = service.create_job(
+        {**_job_payload(), "job_id": "job_list_a2", "tenant_id": "tenant_job_list_a"}
+    )
+    service.create_job(
+        {**_job_payload(), "job_id": "job_list_b1", "tenant_id": "tenant_job_list_b"}
+    )
+    running_id = str(
+        service.create_job(
+            {**_job_payload(), "job_id": "job_list_a_running", "tenant_id": "tenant_job_list_a"}
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(running_id, {"tenant_id": "tenant_job_list_a"})
+
+    first_page = service.list_jobs(
+        {"tenant_id": "tenant_job_list_a", "status": "queued", "limit": 1}
+    )
+    second_page = service.list_jobs(
+        {
+            "tenant_id": "tenant_job_list_a",
+            "status": "queued",
+            "limit": 10,
+            "cursor": str(first_page["next_cursor"]),
+        }
+    )
+    tenant_b = service.list_jobs({"tenant_id": "tenant_job_list_b"})
+
+    paged_jobs = (*first_page["jobs"], *second_page["jobs"])
+    paged_ids = {str(job["job_id"]) for job in paged_jobs}
+    assert paged_ids == {str(first["job"]["job_id"]), str(second["job"]["job_id"])}
+    assert first_page["next_cursor"]
+    assert all(str(job["tenant_id"]) == "tenant_job_list_a" for job in paged_jobs)
+    assert all(str(job["status"]) == "queued" for job in paged_jobs)
+    assert tuple(str(job["job_id"]) for job in tenant_b["jobs"]) == ("job_list_b1",)
+
+
 def test_compute_job_completion_rejects_cross_tenant_billing_account_before_state_change() -> None:
     service = _service()
     job_id = str(
@@ -1903,6 +1943,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
     router = create_default_router()
     try:
         assert required_scopes_for("POST", "/compute/jobs") == ("compute:execute",)
+        assert required_scopes_for("GET", "/compute/jobs") == ("compute:read",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/dispatch") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/complete") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/claim") == ("compute:execute",)
@@ -1928,9 +1969,11 @@ def test_marketplace_api_routes_and_scopes() -> None:
         dispatched = router.dispatch("POST", f"/compute/jobs/{job_id}/dispatch", {"worker_id": "worker_api"})
         completed = router.dispatch("POST", f"/compute/jobs/{job_id}/complete", {"actual_total_cost": 0.12, "worker_id": "worker_api"})
         telemetry = router.dispatch("GET", "/compute/telemetry")
+        jobs = router.dispatch("GET", "/compute/jobs", {"status": "succeeded"})
         assert dispatched["job"]["status"] == "running"
         assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
+        assert tuple(str(item["job_id"]) for item in jobs["jobs"]) == (job_id,)
         assert telemetry["summary"]["metric_sample_count"] >= 1
     finally:
         reset_default_service(None)

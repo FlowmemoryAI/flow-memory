@@ -1409,6 +1409,34 @@ class ComputeMarketService:
         self._audit("compute.job.queued", payload, request_id=request_id, result="queued", provider_id=provider_id, route_id=route_id)
         return {"ok": True, "job": job, "event": event}
 
+    def list_jobs(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload or {})
+        filters = {
+            key: value
+            for key, value in (payload or {}).items()
+            if key
+            in {
+                "tenant_id",
+                "workspace_id",
+                "provider_id",
+                "route_id",
+                "task_type",
+                "status",
+                "request_id",
+                "actor_id",
+                "start_time",
+                "end_time",
+            }
+            and value not in (None, "")
+        }
+        page = self.store.list_records(
+            "compute_job",
+            filters=filters,
+            limit=int((payload or {}).get("limit", 100)),
+            cursor=str((payload or {}).get("cursor", "")),
+        )
+        return {"ok": True, "jobs": page.records, "next_cursor": page.next_cursor}
+
     def get_job(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         job = self.store.get_record("compute_job", job_id)
         if job is None or not _tenant_can_access_record(payload or {}, job):

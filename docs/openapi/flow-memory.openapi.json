@@ -2689,6 +2689,37 @@
       }
     },
     "/compute/jobs": {
+      "get": {
+        "operationId": "compute_jobs",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "jobs": {
+                      "type": "string"
+                    },
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List compute jobs with tenant, status, provider, route, and pagination filters",
+        "tags": [
+          "compute"
+        ]
+      },
       "post": {
         "operationId": "compute_job_create",
         "requestBody": {

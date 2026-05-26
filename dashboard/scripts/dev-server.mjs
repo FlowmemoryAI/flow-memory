@@ -54,6 +54,13 @@ const fixtureSpecs = [
     path: 'local-network-replay.json',
     run_kind: 'local_network',
   },
+  {
+    fixture_id: 'predictive-cognitive-core',
+    label: 'Predictive Cognitive Core',
+    description: 'Prediction, counterfactual, policy, outcome, error, and lesson replay.',
+    path: 'predictive-cognitive-core.json',
+    run_kind: 'cognition',
+  },
 ];
 
 const safeLiveReadEndpoints = [
@@ -64,6 +71,9 @@ const safeLiveReadEndpoints = [
   'GET /visual/embodiment/{run_id}',
   'GET /launch/console/runs/{run_id}/embodiment',
   'GET /release/decision/public-alpha-launch-finalizer',
+  'GET /cognition/experiences',
+  'GET /cognition/prediction-errors',
+  'GET /launch/console/runs/{run_id}/predictions',
 ];
 
 
@@ -252,6 +262,93 @@ function renderReplaySummary(payloads) {
       <div class="event-filters"><label>neural</label><label>policy</label><label>memory</label><label>compute/economy</label><label>audit/safety</label></div>
       <ol class="event-timeline">${latest}</ol>
       ${cognitive ? `<article class="predictive-cognitive-readout" aria-label="Predictive Cognitive Core"><strong>Predictive Cognitive Core</strong><span>${text(cognitive.chosen_action)} → error ${Number(cognitive.prediction_error || 0).toFixed(2)}</span><small>${text(cognitive.lesson || '')}</small></article>` : ''}
+    </section>`;
+}
+function renderPredictiveCognitionPanel(payload) {
+  const tick = payload?.tick || {};
+  const state = tick.state || {};
+  const prediction = tick.prediction || {};
+  const selectedAction = tick.selected_action || {};
+  const policy = tick.policy_decision || {};
+  const actual = tick.actual_outcome || {};
+  const error = tick.prediction_error || {};
+  const experience = tick.experience || {};
+  const learning = tick.learning_update || {};
+  const memories = Array.isArray(tick.retrieved_memories) ? tick.retrieved_memories : [];
+  const candidates = Array.isArray(tick.candidate_actions) ? tick.candidate_actions : [];
+  const scores = Array.isArray(tick.scores) ? tick.scores : [];
+  const scoreByAction = new Map(scores.map((score) => [score.candidate_action_id, score]));
+  const counterfactuals = tick.counterfactuals || {};
+  const predictions = Array.isArray(counterfactuals.candidate_predictions) ? counterfactuals.candidate_predictions : [];
+
+  const metric = (label, value) => `<div><dt>${text(label)}</dt><dd>${text(value)}</dd></div>`;
+  const scoreText = (value) => Number(value || 0).toFixed(2);
+  const candidateRows = candidates.slice(0, 4).map((candidate) => {
+    const score = scoreByAction.get(candidate.action_id) || {};
+    const selected = candidate.action_id === selectedAction.action_id;
+    return `
+      <li data-selected="${selected}">
+        <strong>${text(candidate.description)}</strong>
+        <span>${text(candidate.action_type)} · ${text(candidate.expected_domain)}</span>
+        <small>score ${scoreText(score.overall_score)} · risk ${scoreText(score.risk_score)}</small>
+      </li>`;
+  }).join('');
+  const predictionRows = predictions.slice(0, 4).map((item) => `
+    <li>
+      <strong>${text(item.predicted_result)}</strong>
+      <span>confidence ${scoreText(item.confidence)} · risk ${scoreText(item.risk)} · reward ${scoreText(item.expected_reward)}</span>
+      <small>${text((item.possible_failure_modes || []).slice(0, 3).join(' / '))}</small>
+    </li>`).join('');
+  const memoryRows = memories.length ? memories.slice(0, 3).map((memory) => `
+    <li>
+      <strong>${text(memory.experience_id || memory.memory_id || 'memory')}</strong>
+      <span>${text(memory.lesson || memory.goal || 'similar local experience')}</span>
+    </li>`).join('') : '<li><strong>No prior matching lessons</strong><span>First deterministic local observation for this goal.</span></li>';
+  const matched = Number(error.prediction_error || 0) <= 0.25;
+  return `
+    <section id="cognition" class="predictive-cognition-panel mission-surface mission-surface-wide" aria-label="Predictive Cognition panel">
+      <header class="surface-header">
+        <span>Predictive Cognition</span>
+        <strong>Prediction before action, lesson after outcome</strong>
+        <small>Local deterministic world-model replay. Neural outputs stay advisory; PolicyEngine and ApprovalGate remain authoritative.</small>
+      </header>
+      <div class="cognition-grid">
+        <article class="cognition-summary">
+          <p class="cognition-state">${text(state.human_readable_summary || 'state encoded')}</p>
+          <h2>${text(prediction.predicted_result || 'No prediction loaded')}</h2>
+          <dl>
+            ${metric('confidence', scoreText(prediction.confidence))}
+            ${metric('risk', scoreText(prediction.risk))}
+            ${metric('reward', scoreText(prediction.expected_reward))}
+            ${metric('prediction error', scoreText(error.prediction_error))}
+            ${metric('policy', policy.allowed === false ? 'denied' : 'allowed')}
+            ${metric('experience', experience.experience_id || 'not written')}
+          </dl>
+          <div class="cognition-match" data-matched="${matched}">${matched ? 'prediction matched reality' : 'prediction produced a lesson'}</div>
+        </article>
+        <article class="cognition-flow">
+          <h3>Selected action</h3>
+          <p>${text(selectedAction.description || 'No selected action')}</p>
+          <h3>Actual outcome</h3>
+          <p>${text(actual.reason || (actual.success ? 'served Mission Control panels without placeholder text' : 'observed mismatch'))}</p>
+          <h3>Lesson learned</h3>
+          <p>${text(error.lesson || experience.lesson || 'No lesson recorded yet')}</p>
+          <h3>Learning update</h3>
+          <p>${text(learning.mode || 'local_deterministic')} · loss ${scoreText(learning.loss_before)} → ${scoreText(learning.loss_after)}</p>
+        </article>
+        <article class="cognition-list">
+          <h3>Candidate actions</h3>
+          <ol>${candidateRows}</ol>
+        </article>
+        <article class="cognition-list">
+          <h3>Counterfactual predictions</h3>
+          <ol>${predictionRows}</ol>
+        </article>
+        <article class="cognition-list cognition-memory">
+          <h3>Retrieved memories</h3>
+          <ol>${memoryRows}</ol>
+        </article>
+      </div>
     </section>`;
 }
 
@@ -923,6 +1020,7 @@ function renderMissionControlHtml(payloads, finalizer) {
       <nav aria-label="Mission Control sections">
         <a href="#runs">Runs</a>
         <a href="#replay">Replay</a>
+        <a href="#cognition">Cognition</a>
         <a href="#embodiment">Embodiment</a>
         <a href="#live-3d">Live 3D</a>
       </nav>
@@ -948,6 +1046,7 @@ function renderMissionControlHtml(payloads, finalizer) {
       ${renderReplaySummary(payloads)}
       ${renderFinalizerStatus(finalizer)}
     </div>
+    ${renderPredictiveCognitionPanel(payloads['predictive-cognitive-core'] || {})}
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
     ${renderActionFooter()}

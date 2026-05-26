@@ -281,14 +281,14 @@
         "learning_tick_count": 0,
         "memory_activation_count": 1,
         "phase": "learning",
-        "plan_score": 0.6631,
+        "plan_score": 0.771767,
         "policy_gate_state": "pending_policy_gate",
-        "prediction_confidence": 0.898577,
-        "risk_score": 0.241567,
-        "session_id": "neural_session_83278fb8372441aab0afce401b4f4383",
+        "prediction_confidence": 0.825323,
+        "risk_score": 0.152501,
+        "session_id": "neural_session_91936b4cdeea47dca7e8806483c54fe1",
         "status": "fallback_non_neural",
-        "surprise_score": 0.101423,
-        "uncertainty": 0.101423
+        "surprise_score": 0.174677,
+        "uncertainty": 0.174677
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
@@ -309,11 +309,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "selected",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -330,11 +330,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "quoted",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -351,11 +351,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "selected",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -372,11 +372,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "simulated",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -393,11 +393,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "dry_run_planned",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -414,11 +414,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "simulated",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -435,11 +435,11 @@
         "quote_total": 2.56e-05,
         "route_id": "local-cpu-small",
         "status": "written",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       "provenance": "live",
       "schema_version": "visual.telemetry.v1",
-      "source": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+      "source": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
       "source_event_id": ""
     },
     {
@@ -778,33 +778,6 @@
       "schema_version": "visual.telemetry.v1",
       "source": "did:flow:requester",
       "source_event_id": "network_receipt_0006"
-    },
-    {
-      "created_at": "1970-01-01T00:00:00+00:00",
-      "event_id": "visual_event_predictive_cognitive_0001",
-      "event_type": "cognitive",
-      "payload": {
-        "actual_result": {
-          "output": "Mission Control panels rendered",
-          "success": true
-        },
-        "actual_summary": "served dashboard contained Mission Control panels, not placeholder copy",
-        "agent_id": "did:flow:worker",
-        "chosen_action": "verify_first",
-        "confidence": 0.78,
-        "experience_id": "prediction_experience_fixture_mission_control_verify",
-        "future_policy": "Run served-content verification before claiming dashboard visual changes are visible.",
-        "goal": "launch dashboard and verify Mission Control served HTML",
-        "lesson": "Prediction matched reality after verifying served HTML; preserve this check before UI handoff.",
-        "predicted_outcome": "Verify served HTML before claiming Mission Control is live.",
-        "prediction_error": 0.12,
-        "prediction_id": "prediction_fixture_mission_control_verify",
-        "success": true
-      },
-      "provenance": "replay",
-      "schema_version": "visual.telemetry.v1",
-      "source": "did:flow:worker",
-      "source_event_id": "prediction_experience_fixture_mission_control_verify"
     }
   ],
   "generated_at": "1970-01-01T00:00:00+00:00",
@@ -1031,7 +1004,7 @@
         "summary": "neural observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0016",
         "event_type": "compute",
         "ok": true,
@@ -1040,7 +1013,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0017",
         "event_type": "compute",
         "ok": true,
@@ -1049,7 +1022,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0018",
         "event_type": "compute",
         "ok": true,
@@ -1058,7 +1031,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0019",
         "event_type": "compute",
         "ok": true,
@@ -1067,7 +1040,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0020",
         "event_type": "compute",
         "ok": true,
@@ -1076,7 +1049,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0021",
         "event_type": "compute",
         "ok": true,
@@ -1085,7 +1058,7 @@
         "summary": "compute observed"
       },
       {
-        "actor_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787",
+        "actor_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2",
         "audit_id": "visual_event_0022",
         "event_type": "compute",
         "ok": true,
@@ -1263,34 +1236,9 @@
         "provenance": "live",
         "source_event_id": "visual_event_0041",
         "summary": "audit observed"
-      },
-      {
-        "actor_id": "did:flow:worker",
-        "audit_id": "visual_event_predictive_cognitive_0001",
-        "event_type": "cognitive",
-        "ok": true,
-        "provenance": "replay",
-        "source_event_id": "visual_event_predictive_cognitive_0001",
-        "summary": "prediction error memory recorded"
       }
     ],
-    "cognitive": [
-      {
-        "actual_result": "served dashboard contained Mission Control panels, not placeholder copy",
-        "agent_id": "did:flow:worker",
-        "chosen_action": "verify_first",
-        "confidence": 0.78,
-        "future_policy": "Run served-content verification before claiming dashboard visual changes are visible.",
-        "goal": "launch dashboard and verify Mission Control served HTML",
-        "lesson": "Prediction matched reality after verifying served HTML; preserve this check before UI handoff.",
-        "predicted_outcome": "Verify served HTML before claiming Mission Control is live.",
-        "prediction_error": 0.12,
-        "prediction_id": "prediction_fixture_mission_control_verify",
-        "provenance": "replay",
-        "source_event_id": "visual_event_predictive_cognitive_0001",
-        "success": true
-      }
-    ],
+    "cognitive": [],
     "compute": [
       {
         "agent_id": "did:flow:worker",
@@ -1305,7 +1253,7 @@
         "signal_id": "visual_event_0016",
         "source_event_id": "visual_event_0016",
         "status": "selected",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1320,7 +1268,7 @@
         "signal_id": "visual_event_0017",
         "source_event_id": "visual_event_0017",
         "status": "quoted",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1335,7 +1283,7 @@
         "signal_id": "visual_event_0018",
         "source_event_id": "visual_event_0018",
         "status": "selected",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1350,7 +1298,7 @@
         "signal_id": "visual_event_0019",
         "source_event_id": "visual_event_0019",
         "status": "simulated",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1365,7 +1313,7 @@
         "signal_id": "visual_event_0020",
         "source_event_id": "visual_event_0020",
         "status": "dry_run_planned",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1380,7 +1328,7 @@
         "signal_id": "visual_event_0021",
         "source_event_id": "visual_event_0021",
         "status": "simulated",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       },
       {
         "agent_id": "did:flow:worker",
@@ -1395,7 +1343,7 @@
         "signal_id": "visual_event_0022",
         "source_event_id": "visual_event_0022",
         "status": "written",
-        "task_id": "agent_plan_6d62104a352d4a65922d1fea2fad5787"
+        "task_id": "agent_plan_d570b42c3df3416caa4157d73efcc3a2"
       }
     ],
     "economy": [
@@ -1636,17 +1584,17 @@
         "learning_tick_count": 0,
         "memory_activation_count": 1,
         "phase": "learning",
-        "plan_score": 0.6631,
+        "plan_score": 0.771767,
         "policy_gate_state": "pending_policy_gate",
-        "prediction_confidence": 0.898577,
+        "prediction_confidence": 0.825323,
         "provenance": "live",
-        "risk_score": 0.241567,
-        "session_id": "neural_session_83278fb8372441aab0afce401b4f4383",
+        "risk_score": 0.152501,
+        "session_id": "neural_session_91936b4cdeea47dca7e8806483c54fe1",
         "signal_id": "visual_event_0015",
         "source_event_id": "visual_event_0015",
         "status": "fallback_non_neural",
-        "surprise_score": 0.101423,
-        "uncertainty": 0.101423
+        "surprise_score": 0.174677,
+        "uncertainty": 0.174677
       }
     ],
     "provenance": "replay",
@@ -1665,7 +1613,7 @@
     ],
     "runtime": {
       "agents": 4,
-      "events": 42,
+      "events": 41,
       "ignored_regressions": [],
       "status": "ok",
       "tasks": 2,

@@ -1461,7 +1461,8 @@ a {
 .replay-controls,
 .public-alpha-finalizer,
 .neural-embodiment-panel,
-.live-3d-mode-panel {
+.live-3d-mode-panel,
+.predictive-cognition-panel {
   width: min(1240px, 100%);
   margin: 0 auto 18px;
 }
@@ -1520,7 +1521,8 @@ a {
 .replay-controls,
 .public-alpha-finalizer,
 .neural-embodiment-panel,
-.live-3d-mode-panel {
+.live-3d-mode-panel,
+.predictive-cognition-panel {
   border-radius: 30px;
   padding: clamp(18px, 2.4vw, 28px);
 }
@@ -1531,6 +1533,7 @@ a {
 .public-alpha-finalizer header,
 .neural-embodiment-panel header,
 .live-3d-mode-panel header,
+.predictive-cognition-panel header,
 .network-legend header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1682,6 +1685,115 @@ dd {
 .agent-detail-drawer li,
 .network-legend dd {
   color: var(--muted);
+}
+.predictive-cognition-panel {
+  margin-top: 8px;
+}
+
+.cognition-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(260px, 0.92fr);
+  gap: 14px;
+}
+
+.cognition-summary,
+.cognition-flow,
+.cognition-list {
+  border: 1px solid rgba(22, 20, 16, 0.10);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.48), rgba(247, 244, 236, 0.26)),
+    rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  padding: 16px;
+}
+
+.cognition-summary {
+  grid-row: span 2;
+}
+
+.cognition-summary h2 {
+  max-width: 18ch;
+  margin: 10px 0 16px;
+  color: var(--ink);
+  font-size: clamp(1.7rem, 3vw, 3.1rem);
+  line-height: 0.94;
+  letter-spacing: -0.055em;
+}
+
+.cognition-state,
+.cognition-flow p,
+.cognition-list span,
+.cognition-list small {
+  color: var(--muted);
+}
+
+.cognition-state,
+.cognition-list small {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cognition-summary dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.cognition-summary dl div,
+.cognition-list li {
+  border-top: 1px solid rgba(22, 20, 16, 0.11);
+  padding-top: 10px;
+}
+
+.cognition-match {
+  width: fit-content;
+  margin-top: 16px;
+  border: 1px solid rgba(0, 82, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 82, 255, 0.10);
+  color: var(--accent);
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.cognition-flow h3,
+.cognition-list h3 {
+  margin: 0 0 8px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  letter-spacing: -0.015em;
+}
+
+.cognition-flow h3:not(:first-child) {
+  margin-top: 16px;
+}
+
+.cognition-list ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cognition-list li {
+  display: grid;
+  gap: 5px;
+}
+
+.cognition-list li[data-selected="true"] {
+  border-color: rgba(0, 82, 255, 0.30);
+  color: var(--accent);
+}
+
+.cognition-memory {
+  grid-column: 1 / -1;
 }
 
 .public-alpha-finalizer p {
@@ -1899,14 +2011,21 @@ dd {
   .public-alpha-finalizer,
   .neural-embodiment-panel,
   .live-3d-mode-panel,
+  .predictive-cognition-panel,
   .mission-stack-grid {
     width: min(100%, 920px);
   }
 
   .mission-control-hero,
   .run-console-layout,
-  .mission-stack-grid {
+  .mission-stack-grid,
+  .cognition-grid {
     grid-template-columns: 1fr;
+  }
+  .cognition-summary,
+  .cognition-memory {
+    grid-column: auto;
+    grid-row: auto;
   }
 
   .mission-hero-copy {

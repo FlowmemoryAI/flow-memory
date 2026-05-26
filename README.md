@@ -43,6 +43,9 @@ python -m flow_memory launch runs export <run_id> --out artifacts/launch/bundles
 python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/public-alpha-local-demo.json --json
 python -m flow_memory launch visual embodiment --run live-agent-supervisor --out dashboard/src/mock-data/live-neural-embodiment.json --json
 python -m flow_memory launch finalize public-alpha --out release_evidence/public_alpha_launch_finalizer.json --json
+python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json
+python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --ticks 5 --emit-visual --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -70,6 +73,7 @@ npm test
 Mission Control is connected to local state/replay/API data, with mock fallback clearly labeled.
 Live 3D Mode renders the neural embodiment as read-only local/replay telemetry; it is not an agent launcher, provider connector, settlement console, or policy bypass.
 `cd dashboard && npm run dev` serves the real Mission Control replay UI at `/mission-control` with the run selector, neural embodiment panel, Live 3D Mode, GPU evidence status, and public-alpha finalizer status from local fixtures. It does not expose unsafe write/control endpoints.
+Predictive Cognition is available in CLI/API/replay mode: agents encode current state, retrieve similar experience records, predict candidate outcomes, score counterfactuals, observe actual results, compute prediction error, and write lessons under `artifacts/cognition/experiences/`.
 
 The project now combines:
 
@@ -95,6 +99,7 @@ The project now combines:
 - Mission Control neural embodiment view for visible local neural runtime/session, loop phase, memory, learning, policy, supervisor heartbeat, and imported GPU evidence status
 - Mission Control Live 3D Mode for read-only CSS 3D/WebGL-ready local neural embodiment telemetry with policy/approval authority intact
 - Public Alpha Launch Finalizer evidence for local demo bundle, Live 3D mode, launch evidence, release decisions, and C:\\tmp backup exclusion checks
+- Predictive Cognitive Core for local deterministic world-state encoding, candidate action prediction, counterfactual scoring, prediction-error records, experience memory, FlowLang cognition blocks, read-only Mission Control cognition telemetry, and policy-gated learning metadata
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.

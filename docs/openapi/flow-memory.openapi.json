@@ -328,6 +328,268 @@
         ]
       }
     },
+    "/cognition/experiences": {
+      "get": {
+        "operationId": "cognition_experiences",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "experiences": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local predictive cognition experience records",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/experiences/{experience_id}": {
+      "get": {
+        "operationId": "cognition_experience",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "experience_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "experience": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one local predictive cognition experience record",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/memory/query": {
+      "post": {
+        "operationId": "cognition_memory_query",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "query": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "experiences": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Query local predictive cognition experience memory",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/predict": {
+      "post": {
+        "operationId": "cognition_predict",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "goal": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "candidate_actions": {
+                      "type": "string"
+                    },
+                    "counterfactuals": {
+                      "type": "string"
+                    },
+                    "predictions": {
+                      "type": "string"
+                    },
+                    "scores": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Predict candidate outcomes without executing actions",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/prediction-errors": {
+      "get": {
+        "operationId": "cognition_prediction_errors",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "prediction_errors": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List prediction-error records from local experiences",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
+    "/cognition/tick": {
+      "post": {
+        "operationId": "cognition_tick",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "actual_outcome": {
+                    "type": "string"
+                  },
+                  "agent": {
+                    "type": "string"
+                  },
+                  "goal": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "experience": {
+                      "type": "string"
+                    },
+                    "learning_update": {
+                      "type": "string"
+                    },
+                    "prediction": {
+                      "type": "string"
+                    },
+                    "prediction_error": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run one local prediction-driven cognition tick",
+        "tags": [
+          "cognition"
+        ]
+      }
+    },
     "/compute/capacity": {
       "get": {
         "operationId": "compute_capacity",
@@ -1222,6 +1484,46 @@
           }
         },
         "summary": "Return the 3D-ready neural embodiment state for a Mission Control run",
+        "tags": [
+          "launch"
+        ]
+      }
+    },
+    "/launch/console/runs/{run_id}/predictions": {
+      "get": {
+        "operationId": "launch_console_run_predictions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "experiences": {
+                      "type": "string"
+                    },
+                    "predictions": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return predictive cognition records associated with a Mission Control run",
         "tags": [
           "launch"
         ]
@@ -3051,6 +3353,46 @@
           }
         },
         "summary": "Return the Mission Control neural embodiment projection for a run",
+        "tags": [
+          "visual"
+        ]
+      }
+    },
+    "/visual/embodiment/{run_id}/cognition": {
+      "get": {
+        "operationId": "visual_embodiment_cognition",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "cognition": {
+                      "type": "string"
+                    },
+                    "embodiment": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return neural embodiment plus predictive cognition projection for a run",
         "tags": [
           "visual"
         ]

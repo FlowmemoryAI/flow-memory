@@ -24,6 +24,7 @@ This is not AGI, not unbounded autonomous operation, and not V-JEPA 2 or VideoMA
   - learning tick count
 - Metadata-only checkpoint records.
 - Mission Control visual/replay telemetry for neural live sessions.
+- Predictive Cognitive Core telemetry for state encoding, counterfactual prediction, policy-gated outcome observation, prediction-error learning, and experience memory.
 
 ## What does not run by default
 
@@ -58,6 +59,12 @@ python -m flow_memory launch agent --template live-research --neural tiny_torch 
 ```
 
 This high-level workflow creates a local agent, starts or attaches a neural-live session, runs deterministic local loop ticks, writes memory and checkpoint metadata, and exports replay-ready Mission Control telemetry. It is the recommended public-alpha demo path for neural-live agents.
+Predictive cognition can be attached to supervised launch metadata without changing the neural safety boundary:
+
+```bash
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --ticks 5 --emit-visual --json
+```
+
 
 Live Agent Operations adds a persistent local run registry around that workflow:
 
@@ -122,6 +129,17 @@ POST /neural/live/sessions/{session_id}/learn
   }
 }
 ```
+Predictive cognition API examples:
+
+```text
+POST /cognition/predict
+POST /cognition/tick
+GET /cognition/experiences
+GET /cognition/prediction-errors
+```
+
+These endpoints use `cognition:read`, `cognition:run`, and `cognition:write` scopes. They keep predictions advisory and record lessons only after observed outcomes.
+
 
 ## FlowLang example
 
@@ -168,6 +186,7 @@ The visual telemetry path emits neural state suitable for Mission Control:
 - `policy_gate_state`
 
 Replay and live dashboard modes can render this as a neural activity halo, policy gate state, confidence/risk panel, and learning tick count.
+Predictive Cognition adds Mission Control telemetry for prediction, actual outcome, prediction error, lesson learned, selected action, and local deterministic learning metadata.
 
 ## Mission Control neural embodiment
 

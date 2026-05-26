@@ -32,6 +32,9 @@ VISUAL_READ_SCOPE = "visual:read"
 VISUAL_STREAM_SCOPE = "visual:stream"
 COMPUTE_READ_SCOPE = "compute:read"
 COMPUTE_PLAN_SCOPE = "compute:plan"
+COGNITION_READ_SCOPE = "cognition:read"
+COGNITION_RUN_SCOPE = "cognition:run"
+COGNITION_WRITE_SCOPE = "cognition:write"
 
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
@@ -57,6 +60,9 @@ KNOWN_SCOPES = frozenset({
     VISUAL_STREAM_SCOPE,
     COMPUTE_READ_SCOPE,
     COMPUTE_PLAN_SCOPE,
+    COGNITION_READ_SCOPE,
+    COGNITION_RUN_SCOPE,
+    COGNITION_WRITE_SCOPE,
 
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -160,8 +166,18 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (LAUNCH_RUN_SCOPE,)
     if path_key.startswith("/launch/supervisor/runs/") and (path_key.endswith("/pause") or path_key.endswith("/stop")):
         return (LAUNCH_CONTROL_SCOPE,)
+    if path_key.startswith("/launch/console/runs/") and path_key.endswith("/predictions"):
+        return (COGNITION_READ_SCOPE,)
     if path_key.startswith("/launch/console/"):
         return (LAUNCH_READ_SCOPE,)
+    if path_key.startswith("/cognition/"):
+        if normalized_method in READ_METHODS or path_key in {"/cognition/predict", "/cognition/memory/query"}:
+            return (COGNITION_READ_SCOPE,)
+        if path_key == "/cognition/tick":
+            return (COGNITION_RUN_SCOPE, COGNITION_WRITE_SCOPE)
+        return (COGNITION_WRITE_SCOPE,)
+    if path_key.startswith("/visual/embodiment/") and path_key.endswith("/cognition"):
+        return (COGNITION_READ_SCOPE,)
     if path_key.startswith("/visual/embodiment/"):
         return (VISUAL_READ_SCOPE,)
     if path_key in {"/launch/bundles/public-alpha", "/launch/finalize/public-alpha"}:

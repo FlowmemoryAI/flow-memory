@@ -1,0 +1,1044 @@
+{
+  "agent_learns_from_prediction_error": true,
+  "agent_observes_actual_outcome": true,
+  "agent_predicts_before_action": true,
+  "api_cognition_available": true,
+  "api_cognition_scopes_available": true,
+  "api_routes": [
+    "GET /cognition/experiences",
+    "GET /cognition/experiences/{experience_id}",
+    "GET /cognition/prediction-errors",
+    "GET /launch/console/runs/{run_id}/predictions",
+    "GET /visual/embodiment/{run_id}/cognition",
+    "POST /cognition/memory/query",
+    "POST /cognition/predict",
+    "POST /cognition/tick"
+  ],
+  "candidate_action_model_available": true,
+  "cli_cognition_available": true,
+  "counterfactual_generation_available": true,
+  "experience_memory_query_available": true,
+  "experience_records_available": true,
+  "external_model_calls": false,
+  "files_present": {
+    "agent_runner": true,
+    "api_endpoints": true,
+    "cognition_package": true,
+    "dashboard_dev_server": true,
+    "dashboard_fixture": true,
+    "docs": true,
+    "neural_runtime": true,
+    "predictive_core": true,
+    "visual_adapter": true
+  },
+  "flowlang_cognition_block_available": true,
+  "mission_control_cognition_fixture_available": true,
+  "mission_control_cognition_panel_available": true,
+  "mission_control_visual_state_validated": true,
+  "neural_prediction_error_learning_validated": true,
+  "no_agi_overclaim_invariant": true,
+  "no_consciousness_overclaim_invariant": true,
+  "no_production_autonomy_overclaim_invariant": true,
+  "ok": true,
+  "policy_authority_preserved": true,
+  "policy_gate_overrides_prediction": true,
+  "prediction_error_memory_validated": true,
+  "prediction_error_records_available": true,
+  "prediction_records_available": true,
+  "predictive_cognitive_core_available": true,
+  "predictive_forecast_validated": true,
+  "prior_lesson_retrieval_validated": true,
+  "public_alpha_docs_updated": true,
+  "raw_weights_written": false,
+  "sample_cognition_visual_state": {
+    "agents": [],
+    "audit": [
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_8964058d26a94fe28cc06dccd75a2a5d",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_8964058d26a94fe28cc06dccd75a2a5d",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_8915d53dd465481eb675b74519e86b1e",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_8915d53dd465481eb675b74519e86b1e",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_8d8db67065a641a49a6004550ffc3fca",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_8d8db67065a641a49a6004550ffc3fca",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_4f3d28c676904dc8ae6e425a623bc0f1",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_4f3d28c676904dc8ae6e425a623bc0f1",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_d1580241c91844e6b263d25d508098d9",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_d1580241c91844e6b263d25d508098d9",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_ad0943356f4c4fd6a382a801c74f37f1",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_ad0943356f4c4fd6a382a801c74f37f1",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_b257c56b5f354150af0df0a4f5d9c6b8",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_b257c56b5f354150af0df0a4f5d9c6b8",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_f8fddfb6f7294b48aade8857309fc0e1",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_f8fddfb6f7294b48aade8857309fc0e1",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_a7f9e40ee17b42bcbaa725ec6a3eb379",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_a7f9e40ee17b42bcbaa725ec6a3eb379",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_6586730ed0da43c0bd291c38c4087877",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_6586730ed0da43c0bd291c38c4087877",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_aaff3e7fbd864a0f9391dadedccf3242",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_aaff3e7fbd864a0f9391dadedccf3242",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_bca9a98a26694ce2a0a0a599721b94c9",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_bca9a98a26694ce2a0a0a599721b94c9",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "release-cognition-agent",
+        "audit_id": "visual_event_5dedf5b2ca424737b97e12e1165a3737",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_5dedf5b2ca424737b97e12e1165a3737",
+        "summary": "cognitive observed"
+      }
+    ],
+    "cognitive": [
+      {
+        "actual_result": "success",
+        "agent_id": "release-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "future_policy": "Prediction diverged for candidate_action_5eb834f661cd286950645c7a: partial_match. Verify assumptions before repeating.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction diverged for candidate_action_5eb834f661cd286950645c7a: partial_match. Verify assumptions before repeating.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.333333,
+        "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
+        "provenance": "replay",
+        "source_event_id": "visual_event_5dedf5b2ca424737b97e12e1165a3737",
+        "success": true
+      }
+    ],
+    "compute": [],
+    "economy": [],
+    "memory": [],
+    "neural": [],
+    "provenance": "replay",
+    "rl": [],
+    "runtime": {
+      "agents": 0,
+      "events": 13,
+      "ignored_regressions": [],
+      "status": "ok",
+      "tasks": 0,
+      "warnings": []
+    },
+    "safety": [],
+    "schema_version": "visual.telemetry.v1",
+    "supervisor": [],
+    "tasks": []
+  },
+  "sample_experience": {
+    "actual_result": {
+      "output": "Launch Mission Control and verify served UI before claiming success",
+      "step_results": [
+        {
+          "output": "Launch Mission Control and verify served UI before claiming success",
+          "success": true,
+          "tool": "respond"
+        }
+      ],
+      "success": true
+    },
+    "confidence_after": 0.606981,
+    "confidence_before": 0.5771,
+    "experience_id": "prediction_experience_8d0885a4c811f495f1f75ca7",
+    "future_policy": "Prefer this action pattern when the same state, goal, and policy gate recur.",
+    "lesson": "Prediction matched reality for respond; preserve this plan pattern.",
+    "memory_tags": [
+      "predictive",
+      "world-model"
+    ],
+    "neural_learning_sample": {
+      "actual_success": true,
+      "chosen_action": "respond",
+      "confidence_after": 0.606981,
+      "confidence_before": 0.5771,
+      "experience_id": "prediction_experience_8d0885a4c811f495f1f75ca7",
+      "goal": "Launch Mission Control and verify served UI before claiming success",
+      "lesson": "Prediction matched reality for respond; preserve this plan pattern.",
+      "local_only": true,
+      "policy_authority": "policy_engine_and_approval_gate",
+      "predicted_success_probability": 0.63225,
+      "prediction_error": 0.283925,
+      "prediction_id": "prediction_43671c32229139e33c2d0652"
+    },
+    "prediction": {
+      "agent_id": "agent_439f5d8e30a14af5ba34be955ba4b5df",
+      "chosen_action": "respond",
+      "confidence": 0.5771,
+      "counterfactuals": [
+        {
+          "action": "respond",
+          "predicted_success": 0.63175,
+          "rationale": "execute the current policy-gated plan",
+          "reward_score": 0.5266,
+          "risk_score": 0.195
+        },
+        {
+          "action": "verify_first",
+          "predicted_success": 0.71175,
+          "rationale": "reduce uncertainty before irreversible work",
+          "reward_score": 0.4966,
+          "risk_score": 0.075
+        },
+        {
+          "action": "request_approval",
+          "predicted_success": 0.59175,
+          "rationale": "trade speed for policy confidence when risk is elevated",
+          "reward_score": 0.4466,
+          "risk_score": 0.0
+        }
+      ],
+      "explanation": "Predicted success 0.63, confidence 0.58, risk 0.20. No prior lesson matched strongly.",
+      "goal": "Launch Mission Control and verify served UI before claiming success",
+      "local_only": true,
+      "policy_authority": "policy_engine_and_approval_gate",
+      "predicted_outcome": "Action respond may complete the goal with verification for 'Launch Mission Control and verify served UI before claiming success' under low risk.",
+      "predicted_success_probability": 0.63225,
+      "prediction_id": "prediction_43671c32229139e33c2d0652",
+      "reward_score": 0.5266,
+      "risk_score": 0.195,
+      "state_before": {
+        "agent_id": "agent_439f5d8e30a14af5ba34be955ba4b5df",
+        "context_count": 0,
+        "economic_intent": false,
+        "goal": "Launch Mission Control and verify served UI before claiming success",
+        "memory_tags": [
+          "predictive",
+          "world-model"
+        ],
+        "plan_actions": [
+          "respond"
+        ],
+        "plan_id": "agent_plan_851fc2d29eb843769ea9a4fd537398fa",
+        "prior_lessons": [],
+        "risk_level": "low",
+        "state_id": "world_state_02934b3649886718ece73b7c"
+      }
+    },
+    "prediction_error": 0.283925,
+    "success": true
+  },
+  "sample_flowlang_cognition": {
+    "confidence_calibration_enabled": true,
+    "counterfactuals_enabled": true,
+    "experience_memory_enabled": true,
+    "explain_predictions": true,
+    "max_counterfactuals": 4,
+    "prediction_error_learning": true,
+    "prediction_horizons": [
+      "immediate",
+      "short",
+      "medium"
+    ],
+    "predictive_core_enabled": true,
+    "retrieve_similar_experiences": true,
+    "world_model": "local-deterministic"
+  },
+  "sample_neural_learning": {
+    "advisory_only": true,
+    "after_metric": 0.20093,
+    "agent_id": "predictive-release-neural",
+    "before_metric": 0.20295912832569557,
+    "learning_signal": "prediction_error",
+    "learning_tick_count": 1,
+    "local_only": true,
+    "loss": 0.20093,
+    "ok": true,
+    "prediction_error": 0.283925,
+    "raw_weights_written": false,
+    "safety_authority": "policy_engine_and_approval_gate",
+    "sample_id": "neural_sample_861b1abf743d3acc",
+    "session_id": "neural_session_ec4a146c04c944dd91b7d95df08c56d9",
+    "status": "learned",
+    "step_count": 0
+  },
+  "sample_prediction": {
+    "agent_id": "agent_439f5d8e30a14af5ba34be955ba4b5df",
+    "chosen_action": "respond",
+    "confidence": 0.5771,
+    "counterfactuals": [
+      {
+        "action": "respond",
+        "predicted_success": 0.63175,
+        "rationale": "execute the current policy-gated plan",
+        "reward_score": 0.5266,
+        "risk_score": 0.195
+      },
+      {
+        "action": "verify_first",
+        "predicted_success": 0.71175,
+        "rationale": "reduce uncertainty before irreversible work",
+        "reward_score": 0.4966,
+        "risk_score": 0.075
+      },
+      {
+        "action": "request_approval",
+        "predicted_success": 0.59175,
+        "rationale": "trade speed for policy confidence when risk is elevated",
+        "reward_score": 0.4466,
+        "risk_score": 0.0
+      }
+    ],
+    "explanation": "Predicted success 0.63, confidence 0.58, risk 0.20. No prior lesson matched strongly.",
+    "goal": "Launch Mission Control and verify served UI before claiming success",
+    "local_only": true,
+    "policy_authority": "policy_engine_and_approval_gate",
+    "predicted_outcome": "Action respond may complete the goal with verification for 'Launch Mission Control and verify served UI before claiming success' under low risk.",
+    "predicted_success_probability": 0.63225,
+    "prediction_id": "prediction_43671c32229139e33c2d0652",
+    "reward_score": 0.5266,
+    "risk_score": 0.195,
+    "state_before": {
+      "agent_id": "agent_439f5d8e30a14af5ba34be955ba4b5df",
+      "context_count": 0,
+      "economic_intent": false,
+      "goal": "Launch Mission Control and verify served UI before claiming success",
+      "memory_tags": [
+        "predictive",
+        "world-model"
+      ],
+      "plan_actions": [
+        "respond"
+      ],
+      "plan_id": "agent_plan_851fc2d29eb843769ea9a4fd537398fa",
+      "prior_lessons": [],
+      "risk_level": "low",
+      "state_id": "world_state_02934b3649886718ece73b7c"
+    }
+  },
+  "sample_visual_state": {
+    "agents": [],
+    "audit": [
+      {
+        "actor_id": "agent_439f5d8e30a14af5ba34be955ba4b5df",
+        "audit_id": "visual_event_9693d54cc5cd48dcb3a17815139f2fe2",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_9693d54cc5cd48dcb3a17815139f2fe2",
+        "summary": "cognitive observed"
+      }
+    ],
+    "cognitive": [
+      {
+        "actual_result": "Launch Mission Control and verify served UI before claiming success",
+        "agent_id": "agent_439f5d8e30a14af5ba34be955ba4b5df",
+        "chosen_action": "respond",
+        "confidence": 0.5771,
+        "future_policy": "Prefer this action pattern when the same state, goal, and policy gate recur.",
+        "goal": "Launch Mission Control and verify served UI before claiming success",
+        "lesson": "Prediction matched reality for respond; preserve this plan pattern.",
+        "predicted_outcome": "Action respond may complete the goal with verification for 'Launch Mission Control and verify served UI before claiming success' under low risk.",
+        "prediction_error": 0.283925,
+        "prediction_id": "prediction_43671c32229139e33c2d0652",
+        "provenance": "replay",
+        "source_event_id": "visual_event_9693d54cc5cd48dcb3a17815139f2fe2",
+        "success": true
+      }
+    ],
+    "compute": [],
+    "economy": [],
+    "memory": [],
+    "neural": [],
+    "provenance": "replay",
+    "rl": [],
+    "runtime": {
+      "agents": 0,
+      "events": 1,
+      "ignored_regressions": [],
+      "status": "ok",
+      "tasks": 0,
+      "warnings": []
+    },
+    "safety": [],
+    "schema_version": "visual.telemetry.v1",
+    "supervisor": [],
+    "tasks": []
+  },
+  "sample_world_model_tick": {
+    "actual_outcome": {
+      "state_patch": {
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "success": true
+    },
+    "candidate_actions": [
+      {
+        "action_id": "candidate_action_849fc632934c0a9ab0e96892",
+        "action_type": "requested",
+        "command_preview": "check mission-control route",
+        "description": "check mission-control route",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      {
+        "action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "action_type": "diagnostic",
+        "command_preview": "Invoke-WebRequest /mission-control",
+        "description": "verify served Mission Control HTML before claiming success",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      {
+        "action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+        "action_type": "command_sequence",
+        "command_preview": "stop stale port; npm run dev",
+        "description": "restart stale local dashboard server before verification",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 90
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      {
+        "action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+        "action_type": "diagnostic",
+        "command_preview": "npm test && npm run build",
+        "description": "run dashboard build and render tests",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      }
+    ],
+    "counterfactuals": {
+      "candidate_predictions": [
+        {
+          "agent_id": "release-cognition-agent",
+          "candidate_action_id": "candidate_action_849fc632934c0a9ab0e96892",
+          "confidence": 0.56,
+          "created_at": "2026-05-26T04:50:23.867825+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_reward": 0.58,
+          "expected_time_ms": 30000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "prediction_id": "prediction_record_7fcdcf46ed13614c2086cf93",
+          "reasoning_summary": "Action 'check mission-control route' scored with confidence 0.56, risk 0.12, memories 0, phase observed.",
+          "risk": 0.12,
+          "run_id": "",
+          "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+        },
+        {
+          "agent_id": "release-cognition-agent",
+          "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+          "confidence": 0.64,
+          "created_at": "2026-05-26T04:50:23.867825+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_reward": 0.68,
+          "expected_time_ms": 30000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
+          "reasoning_summary": "Action 'verify served Mission Control HTML before claiming success' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+          "risk": 0.12,
+          "run_id": "",
+          "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+        },
+        {
+          "agent_id": "release-cognition-agent",
+          "candidate_action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+          "confidence": 0.5248,
+          "created_at": "2026-05-26T04:50:23.867825+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 90
+          },
+          "expected_reward": 0.58,
+          "expected_time_ms": 90000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "dashboard verification may expose stale server or placeholder output",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": false,
+            "placeholder_removed": false
+          },
+          "prediction_id": "prediction_record_fada6bf19610050b3db78a0f",
+          "reasoning_summary": "Action 'restart stale local dashboard server before verification' scored with confidence 0.52, risk 0.28, memories 0, phase observed.",
+          "risk": 0.28,
+          "run_id": "",
+          "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+        },
+        {
+          "agent_id": "release-cognition-agent",
+          "candidate_action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+          "confidence": 0.64,
+          "created_at": "2026-05-26T04:50:23.867825+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_reward": 0.68,
+          "expected_time_ms": 30000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "prediction_id": "prediction_record_32597ff45b602b6fdc8a6f3e",
+          "reasoning_summary": "Action 'run dashboard build and render tests' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+          "risk": 0.12,
+          "run_id": "",
+          "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+        }
+      ],
+      "counterfactual_id": "counterfactual_2c4a8db42dc548e141b28303",
+      "goal": "verify dashboard is serving real Mission Control",
+      "recommended_action_id": "candidate_action_5eb834f661cd286950645c7a",
+      "rejected_action_ids": [
+        "candidate_action_849fc632934c0a9ab0e96892",
+        "candidate_action_a1f02fab77b98c3fe597f510",
+        "candidate_action_4400cb6896375e8c2a178e9f"
+      ],
+      "selection_reason": "selected highest expected reward plus confidence minus risk under policy constraints",
+      "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+    },
+    "experience": {
+      "actual_outcome": {
+        "state_patch": {
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "success": true
+      },
+      "agent_id": "release-cognition-agent",
+      "candidate_actions": [
+        {
+          "action_id": "candidate_action_849fc632934c0a9ab0e96892",
+          "action_type": "requested",
+          "command_preview": "check mission-control route",
+          "description": "check mission-control route",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        },
+        {
+          "action_id": "candidate_action_5eb834f661cd286950645c7a",
+          "action_type": "diagnostic",
+          "command_preview": "Invoke-WebRequest /mission-control",
+          "description": "verify served Mission Control HTML before claiming success",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        },
+        {
+          "action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+          "action_type": "command_sequence",
+          "command_preview": "stop stale port; npm run dev",
+          "description": "restart stale local dashboard server before verification",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 90
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        },
+        {
+          "action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+          "action_type": "diagnostic",
+          "command_preview": "npm test && npm run build",
+          "description": "run dashboard build and render tests",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        }
+      ],
+      "confidence_after": 0.442667,
+      "confidence_before": 0.64,
+      "created_at": "2026-05-26T04:50:23.867825+00:00",
+      "experience_id": "experience_52667831625e92eb8974f199",
+      "goal": "verify dashboard is serving real Mission Control",
+      "learning_update": {
+        "external_model_calls": false,
+        "learning_signal": "prediction_error",
+        "loss_after": 0.753451,
+        "loss_before": 0.852963,
+        "mode": "local_deterministic",
+        "performed": true,
+        "prediction_error": 0.333333,
+        "raw_weights_written": false
+      },
+      "lesson": "Prediction diverged for candidate_action_5eb834f661cd286950645c7a: partial_match. Verify assumptions before repeating.",
+      "memory_tags": [
+        "cognition",
+        "prediction",
+        "experience",
+        "dashboard",
+        "release",
+        "policy",
+        "git"
+      ],
+      "policy_decision": {
+        "allowed": true,
+        "authority": "policy_engine_and_approval_gate",
+        "mode": "supervised",
+        "reason": "local diagnostic or simulation action",
+        "requires_approval": false
+      },
+      "prediction": {
+        "agent_id": "release-cognition-agent",
+        "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "confidence": 0.64,
+        "created_at": "2026-05-26T04:50:23.867825+00:00",
+        "expected_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_reward": 0.68,
+        "expected_time_ms": 30000,
+        "memory_support_ids": [],
+        "possible_failure_modes": [
+          "stale local server",
+          "wrong port",
+          "browser cache",
+          "static placeholder route"
+        ],
+        "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+        "predicted_state_patch": {
+          "dashboard_checked": true,
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
+        "reasoning_summary": "Action 'verify served Mission Control HTML before claiming success' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+        "risk": 0.12,
+        "run_id": "",
+        "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+      },
+      "prediction_error": {
+        "actual_fields": {
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "actual_outcome_id": "actual_outcome_c84349adc517598901f15d7f",
+        "confidence_after": 0.442667,
+        "confidence_before": 0.64,
+        "created_at": "2026-05-26T04:50:23.867825+00:00",
+        "error_id": "prediction_error_3eca3318723574be127b11fd",
+        "error_type": "partial_match",
+        "expected_fields": {
+          "dashboard_checked": true,
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "lesson": "Prediction diverged for candidate_action_5eb834f661cd286950645c7a: partial_match. Verify assumptions before repeating.",
+        "match_score": 0.666667,
+        "missing_expected": [
+          "dashboard_checked"
+        ],
+        "prediction_error": 0.333333,
+        "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
+        "unexpected_actual": []
+      },
+      "retrieved_memory_ids": [],
+      "risk_after": 0.06666664,
+      "risk_before": 0.12,
+      "run_id": "",
+      "selected_action": {
+        "action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "action_type": "diagnostic",
+        "command_preview": "Invoke-WebRequest /mission-control",
+        "description": "verify served Mission Control HTML before claiming success",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      "session_id": "",
+      "state_before": {
+        "agent_id": "release-cognition-agent",
+        "available_tools": [
+          "pytest",
+          "npm",
+          "git",
+          "release_decision"
+        ],
+        "created_at": "2026-05-26T04:50:23.866821+00:00",
+        "current_phase": "observed",
+        "dashboard_state": {},
+        "goal": "verify dashboard is serving real Mission Control",
+        "gpu_evidence_status": "verified",
+        "human_readable_summary": "goal=verify dashboard is serving real Mission Control; phase=observed; memories=0; errors=0; gpu=verified",
+        "memory_context": [],
+        "policy_state": {
+          "mode": "supervised"
+        },
+        "recent_errors": [],
+        "release_state": {},
+        "repo_state": {},
+        "run_id": "",
+        "session_id": "",
+        "state_id": "world_state_269998ad7cf6e6f8d4a69648",
+        "uncertainty_score": 0.42,
+        "vector_state": [
+          0.2,
+          0.0,
+          0.0,
+          0.42
+        ]
+      }
+    },
+    "experience_path": "artifacts\\cognition\\experiences\\experience_52667831625e92eb8974f199.json",
+    "learning_update": {
+      "external_model_calls": false,
+      "learning_signal": "prediction_error",
+      "loss_after": 0.753451,
+      "loss_before": 0.852963,
+      "mode": "local_deterministic",
+      "performed": true,
+      "prediction_error": 0.333333,
+      "raw_weights_written": false
+    },
+    "local_only": true,
+    "ok": true,
+    "policy_decision": {
+      "allowed": true,
+      "authority": "policy_engine_and_approval_gate",
+      "mode": "supervised",
+      "reason": "local diagnostic or simulation action",
+      "requires_approval": false
+    },
+    "prediction": {
+      "agent_id": "release-cognition-agent",
+      "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+      "confidence": 0.64,
+      "created_at": "2026-05-26T04:50:23.867825+00:00",
+      "expected_cost": {
+        "compute": "local",
+        "local_only": true,
+        "time_seconds": 30
+      },
+      "expected_reward": 0.68,
+      "expected_time_ms": 30000,
+      "memory_support_ids": [],
+      "possible_failure_modes": [
+        "stale local server",
+        "wrong port",
+        "browser cache",
+        "static placeholder route"
+      ],
+      "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+      "predicted_state_patch": {
+        "dashboard_checked": true,
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
+      "reasoning_summary": "Action 'verify served Mission Control HTML before claiming success' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+      "risk": 0.12,
+      "run_id": "",
+      "state_id": "world_state_269998ad7cf6e6f8d4a69648"
+    },
+    "prediction_error": {
+      "actual_fields": {
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "actual_outcome_id": "actual_outcome_c84349adc517598901f15d7f",
+      "confidence_after": 0.442667,
+      "confidence_before": 0.64,
+      "created_at": "2026-05-26T04:50:23.867825+00:00",
+      "error_id": "prediction_error_3eca3318723574be127b11fd",
+      "error_type": "partial_match",
+      "expected_fields": {
+        "dashboard_checked": true,
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "lesson": "Prediction diverged for candidate_action_5eb834f661cd286950645c7a: partial_match. Verify assumptions before repeating.",
+      "match_score": 0.666667,
+      "missing_expected": [
+        "dashboard_checked"
+      ],
+      "prediction_error": 0.333333,
+      "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
+      "unexpected_actual": []
+    },
+    "retrieved_memories": [],
+    "safety_authority": "policy_engine_and_approval_gate",
+    "scores": [
+      {
+        "candidate_action_id": "candidate_action_849fc632934c0a9ab0e96892",
+        "cost_score": 0.1,
+        "goal_progress_score": 0.58,
+        "memory_support": 0.0,
+        "overall_score": 0.3312,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.56,
+        "recommended": false,
+        "risk_score": 0.12
+      },
+      {
+        "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "cost_score": 0.1,
+        "goal_progress_score": 0.68,
+        "memory_support": 0.0,
+        "overall_score": 0.3876,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.64,
+        "recommended": true,
+        "risk_score": 0.12
+      },
+      {
+        "candidate_action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+        "cost_score": 0.3,
+        "goal_progress_score": 0.58,
+        "memory_support": 0.0,
+        "overall_score": 0.290944,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.5248,
+        "recommended": false,
+        "risk_score": 0.28
+      },
+      {
+        "candidate_action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+        "cost_score": 0.1,
+        "goal_progress_score": 0.68,
+        "memory_support": 0.0,
+        "overall_score": 0.3876,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.64,
+        "recommended": false,
+        "risk_score": 0.12
+      }
+    ],
+    "selected_action": {
+      "action_id": "candidate_action_5eb834f661cd286950645c7a",
+      "action_type": "diagnostic",
+      "command_preview": "Invoke-WebRequest /mission-control",
+      "description": "verify served Mission Control HTML before claiming success",
+      "estimated_cost": {
+        "compute": "local",
+        "local_only": true,
+        "time_seconds": 30
+      },
+      "expected_domain": "dashboard",
+      "metadata": {},
+      "policy_sensitive": false,
+      "requires_approval": false
+    },
+    "state": {
+      "agent_id": "release-cognition-agent",
+      "available_tools": [
+        "pytest",
+        "npm",
+        "git",
+        "release_decision"
+      ],
+      "created_at": "2026-05-26T04:50:23.866821+00:00",
+      "current_phase": "observed",
+      "dashboard_state": {},
+      "goal": "verify dashboard is serving real Mission Control",
+      "gpu_evidence_status": "verified",
+      "human_readable_summary": "goal=verify dashboard is serving real Mission Control; phase=observed; memories=0; errors=0; gpu=verified",
+      "memory_context": [],
+      "policy_state": {
+        "mode": "supervised"
+      },
+      "recent_errors": [],
+      "release_state": {},
+      "repo_state": {},
+      "run_id": "",
+      "session_id": "",
+      "state_id": "world_state_269998ad7cf6e6f8d4a69648",
+      "uncertainty_score": 0.42,
+      "vector_state": [
+        0.2,
+        0.0,
+        0.0,
+        0.42
+      ]
+    }
+  },
+  "scope_checks": {
+    "experiences_read": true,
+    "predict_read": true,
+    "tick_run_write": true
+  },
+  "tests_present": [
+    "test_api_cognition_endpoints.py",
+    "test_cli_cognition.py",
+    "test_cognition_package.py",
+    "test_predictive_cognition_docs.py"
+  ],
+  "visual_cognition_events_available": true,
+  "world_state_model_available": true
+}

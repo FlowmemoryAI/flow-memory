@@ -42,6 +42,7 @@ class AgentProfile:
     neural_config: Mapping[str, Any] = field(default_factory=dict)
     rl_config: Mapping[str, Any] = field(default_factory=dict)
     compute_config: Mapping[str, Any] = field(default_factory=dict)
+    cognition_config: Mapping[str, Any] = field(default_factory=dict)
     autonomy_mode: str = "supervised"
     risk_budget: RiskBudget = field(default_factory=RiskBudget)
     reputation: float = 0.0
@@ -71,6 +72,13 @@ class AgentProfile:
         rl_backend = str(self.rl_config.get("backend", "local_tabular"))
         if rl_backend not in {"local_tabular", "tabular_q", "heuristic", "pufferlib"}:
             errors.append(f"unknown RL backend: {rl_backend}")
+        if self.cognition_config:
+            policy_fallback = str(self.cognition_config.get("policy_fallback", "allow_non_cognitive"))
+            if policy_fallback not in {"fail_closed", "allow_non_cognitive"}:
+                errors.append(f"unknown cognition policy_fallback: {policy_fallback}")
+            max_counterfactuals = int(self.cognition_config.get("max_counterfactuals", 4) or 4)
+            if max_counterfactuals < 1:
+                errors.append("cognition max_counterfactuals must be positive")
         if self.compute_config:
             if self.compute_config.get("enabled", True) and "budget_policy" not in self.compute_config:
                 errors.append("compute_config requires budget_policy when enabled")
@@ -96,6 +104,7 @@ class AgentProfile:
             "neural_config": dict(self.neural_config),
             "rl_config": dict(self.rl_config),
             "compute_config": dict(self.compute_config),
+            "cognition_config": dict(self.cognition_config),
             "autonomy_mode": self.autonomy_mode,
             "risk_budget": self.risk_budget.as_record(),
             "reputation": self.reputation,

@@ -49,7 +49,7 @@
     "gpu_evidence_status": "verified",
     "learning_steps": 2,
     "loop_ticks_completed": 2,
-    "memory_records_written": 6,
+    "memory_records_written": 8,
     "no_external_calls": true,
     "no_funds_moved": true,
     "no_live_provider_calls": true,

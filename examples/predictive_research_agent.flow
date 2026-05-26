@@ -1,0 +1,30 @@
+agent PredictiveResearchAgent {
+  goal: "verify and improve the local Flow Memory launch state"
+
+  neural {
+    enabled: true
+    backend: "tiny_torch"
+    live_mode: true
+    learning_enabled: true
+    telemetry_enabled: true
+    policy_fallback: "fail_closed"
+  }
+
+  cognition {
+    predictive_core_enabled: true
+    world_model: "local-deterministic"
+    prediction_horizons: ["immediate", "short", "medium"]
+    counterfactuals_enabled: true
+    max_counterfactuals: 4
+    prediction_error_learning: true
+    experience_memory_enabled: true
+    retrieve_similar_experiences: true
+    confidence_calibration_enabled: true
+    explain_predictions: true
+  }
+
+  policy {
+    autonomy: "supervised"
+    approval_required: true
+  }
+}

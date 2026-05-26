@@ -40,6 +40,7 @@ def start_supervised_run(
     flow_source: str = "",
     goal: str = "",
     parent_run_id: str = "",
+    predictive_core: bool = False,
 ) -> Mapping[str, Any]:
     """Run a finite supervised local neural-live launch and persist supervisor state."""
 
@@ -88,6 +89,7 @@ def start_supervised_run(
             run_record_path=str(summary.get("run_record_path", "")),
             continuation_of=parent_run_id,
             gpu_evidence_status=str(summary.get("gpu_evidence_status", "blocked_missing_artifact")),
+            predictive_core_enabled=bool(predictive_core),
         )
         heartbeat = _heartbeat_payload(record, status="completed", ticks=ticks)
         _write_heartbeat(root_path, run_id, heartbeat)
@@ -99,6 +101,7 @@ def start_supervised_run(
                 "supervised": True,
                 "parent_run_id": parent_run_id,
                 "continuation_of": parent_run_id,
+                "predictive_core_enabled": bool(predictive_core),
             },
             "visual_events_emitted": int(dict(launch.get("summary", {})).get("visual_events_emitted", record["ticks_completed"])),
         })
@@ -137,6 +140,7 @@ def start_supervised_run(
             run_record_path=_rel(root_path, run_record_path(root_path, run_id)),
             continuation_of=parent_run_id,
             gpu_evidence_status=_gpu_evidence_status(root_path),
+            predictive_core_enabled=bool(predictive_core),
             last_error=type(exc).__name__,
         )
         heartbeat = _heartbeat_payload(record, status="failed", ticks=0)
@@ -275,6 +279,7 @@ def _supervisor_record(
     run_record_path: str,
     continuation_of: str,
     gpu_evidence_status: str,
+    predictive_core_enabled: bool = False,
     last_error: str = "",
 ) -> dict[str, Any]:
     if status not in SUPERVISOR_STATUSES:
@@ -302,6 +307,7 @@ def _supervisor_record(
         "run_record_path": run_record_path,
         "continuation_of": continuation_of,
         "gpu_evidence_status": gpu_evidence_status,
+        "predictive_core_enabled": bool(predictive_core_enabled),
         "local_only": True,
         "no_external_calls": True,
         "no_live_provider_calls": True,

@@ -1,0 +1,1320 @@
+{
+  "commands": [
+    "python -m flow_memory cognition predict --goal \"verify dashboard\" --action \"check mission-control route\" --json",
+    "python -m flow_memory cognition tick --agent live-research --goal \"verify dashboard is serving real Mission Control\" --json"
+  ],
+  "description": "Prediction, counterfactuals, policy gate, observed outcome, prediction error, and lesson memory for Mission Control.",
+  "events": [
+    {
+      "created_at": "2026-05-26T04:50:02.019406+00:00",
+      "event_id": "visual_event_818ac9a323a74ebc989a2849d41d6f27",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_state_encoded",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.019406+00:00",
+      "event_id": "visual_event_8758f462f7ed47f6818a9628f6d9f7c5",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_memory_retrieved",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_35b236cfddad4ec79411c29b01ed100d",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_candidate_actions_generated",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_7450520988e0404ea71fe9c24d4b14dd",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_prediction_generated",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_f6462dcf30e94702abc803992f5be6e1",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_counterfactuals_generated",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_cade9a1759d242d59eae4685ab4c6ed4",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_candidate_scored",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_dd992b1ca25b48a0b8e5ad27847f0a2d",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_action_selected",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_cb2abc35c41a4d4fb0a141e600865bf6",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_policy_gate_applied",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_96cfd5964c7244ccadff5246a348c298",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_actual_outcome_observed",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_6194fd7148c74745b2ea197053505fb3",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_prediction_error_computed",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_b339a461ea084152be1fb715b2986940",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_experience_written",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_d11a0a6000bb413c8c5dc4f77e37d231",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_lesson_learned",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    },
+    {
+      "created_at": "2026-05-26T04:50:02.020407+00:00",
+      "event_id": "visual_event_4fbd7591e1634863a2a318f91e98619f",
+      "event_type": "cognitive",
+      "payload": {
+        "actual_result": {
+          "html_contains": [
+            "Predictive Cognition",
+            "Live 3D",
+            "Neural Embodiment"
+          ],
+          "html_missing": [
+            "production frontend bundling remains a public-alpha next step"
+          ],
+          "state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "success": true
+        },
+        "actual_summary": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "event": "cognition_learning_update_completed",
+        "experience_id": "experience_98158917aae23764f78ca8e7",
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "success": true
+      },
+      "provenance": "replay",
+      "schema_version": "visual.telemetry.v1",
+      "source": "mission-control-cognition-agent",
+      "source_event_id": ""
+    }
+  ],
+  "fixture_id": "predictive-cognitive-core",
+  "label": "Predictive Cognitive Core",
+  "mode": "local_deterministic",
+  "ok": true,
+  "state": {
+    "agents": [],
+    "audit": [
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_818ac9a323a74ebc989a2849d41d6f27",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_818ac9a323a74ebc989a2849d41d6f27",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_8758f462f7ed47f6818a9628f6d9f7c5",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_8758f462f7ed47f6818a9628f6d9f7c5",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_35b236cfddad4ec79411c29b01ed100d",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_35b236cfddad4ec79411c29b01ed100d",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_7450520988e0404ea71fe9c24d4b14dd",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_7450520988e0404ea71fe9c24d4b14dd",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_f6462dcf30e94702abc803992f5be6e1",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_f6462dcf30e94702abc803992f5be6e1",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_cade9a1759d242d59eae4685ab4c6ed4",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_cade9a1759d242d59eae4685ab4c6ed4",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_dd992b1ca25b48a0b8e5ad27847f0a2d",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_dd992b1ca25b48a0b8e5ad27847f0a2d",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_cb2abc35c41a4d4fb0a141e600865bf6",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_cb2abc35c41a4d4fb0a141e600865bf6",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_96cfd5964c7244ccadff5246a348c298",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_96cfd5964c7244ccadff5246a348c298",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_6194fd7148c74745b2ea197053505fb3",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_6194fd7148c74745b2ea197053505fb3",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_b339a461ea084152be1fb715b2986940",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_b339a461ea084152be1fb715b2986940",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_d11a0a6000bb413c8c5dc4f77e37d231",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_d11a0a6000bb413c8c5dc4f77e37d231",
+        "summary": "cognitive observed"
+      },
+      {
+        "actor_id": "mission-control-cognition-agent",
+        "audit_id": "visual_event_4fbd7591e1634863a2a318f91e98619f",
+        "event_type": "cognitive",
+        "ok": true,
+        "provenance": "replay",
+        "source_event_id": "visual_event_4fbd7591e1634863a2a318f91e98619f",
+        "summary": "cognitive observed"
+      }
+    ],
+    "cognitive": [
+      {
+        "actual_result": "success",
+        "agent_id": "mission-control-cognition-agent",
+        "chosen_action": "verify served Mission Control HTML before claiming success",
+        "confidence": 0.64,
+        "future_policy": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "goal": "verify dashboard is serving real Mission Control",
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "predicted_outcome": "served dashboard should contain Mission Control panels and no placeholder text",
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "provenance": "replay",
+        "source_event_id": "visual_event_4fbd7591e1634863a2a318f91e98619f",
+        "success": true
+      }
+    ],
+    "compute": [],
+    "economy": [],
+    "memory": [],
+    "neural": [],
+    "provenance": "replay",
+    "rl": [],
+    "runtime": {
+      "agents": 0,
+      "events": 13,
+      "ignored_regressions": [],
+      "status": "ok",
+      "tasks": 0,
+      "warnings": []
+    },
+    "safety": [],
+    "schema_version": "visual.telemetry.v1",
+    "supervisor": [],
+    "tasks": []
+  },
+  "tick": {
+    "actual_outcome": {
+      "html_contains": [
+        "Predictive Cognition",
+        "Live 3D",
+        "Neural Embodiment"
+      ],
+      "html_missing": [
+        "production frontend bundling remains a public-alpha next step"
+      ],
+      "state_patch": {
+        "dashboard_checked": true,
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "success": true
+    },
+    "candidate_actions": [
+      {
+        "action_id": "candidate_action_849fc632934c0a9ab0e96892",
+        "action_type": "requested",
+        "command_preview": "check mission-control route",
+        "description": "check mission-control route",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      {
+        "action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "action_type": "diagnostic",
+        "command_preview": "Invoke-WebRequest /mission-control",
+        "description": "verify served Mission Control HTML before claiming success",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      {
+        "action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+        "action_type": "command_sequence",
+        "command_preview": "stop stale port; npm run dev",
+        "description": "restart stale local dashboard server before verification",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 90
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      {
+        "action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+        "action_type": "diagnostic",
+        "command_preview": "npm test && npm run build",
+        "description": "run dashboard build and render tests",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      }
+    ],
+    "counterfactuals": {
+      "candidate_predictions": [
+        {
+          "agent_id": "mission-control-cognition-agent",
+          "candidate_action_id": "candidate_action_849fc632934c0a9ab0e96892",
+          "confidence": 0.56,
+          "created_at": "2026-05-26T04:50:02.019406+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_reward": 0.58,
+          "expected_time_ms": 30000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "prediction_id": "prediction_record_8cc50cc9897cc262579b384c",
+          "reasoning_summary": "Action 'check mission-control route' scored with confidence 0.56, risk 0.12, memories 0, phase observed.",
+          "risk": 0.12,
+          "run_id": "predictive-cognitive-core-demo",
+          "state_id": "world_state_95b6726619cfc77fc7b9820d"
+        },
+        {
+          "agent_id": "mission-control-cognition-agent",
+          "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+          "confidence": 0.64,
+          "created_at": "2026-05-26T04:50:02.019406+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_reward": 0.68,
+          "expected_time_ms": 30000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+          "reasoning_summary": "Action 'verify served Mission Control HTML before claiming success' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+          "risk": 0.12,
+          "run_id": "predictive-cognitive-core-demo",
+          "state_id": "world_state_95b6726619cfc77fc7b9820d"
+        },
+        {
+          "agent_id": "mission-control-cognition-agent",
+          "candidate_action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+          "confidence": 0.5248,
+          "created_at": "2026-05-26T04:50:02.019406+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 90
+          },
+          "expected_reward": 0.58,
+          "expected_time_ms": 90000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "dashboard verification may expose stale server or placeholder output",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": false,
+            "placeholder_removed": false
+          },
+          "prediction_id": "prediction_record_5a2b4968b826fdacb19595dd",
+          "reasoning_summary": "Action 'restart stale local dashboard server before verification' scored with confidence 0.52, risk 0.28, memories 0, phase observed.",
+          "risk": 0.28,
+          "run_id": "predictive-cognitive-core-demo",
+          "state_id": "world_state_95b6726619cfc77fc7b9820d"
+        },
+        {
+          "agent_id": "mission-control-cognition-agent",
+          "candidate_action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+          "confidence": 0.64,
+          "created_at": "2026-05-26T04:50:02.019406+00:00",
+          "expected_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_reward": 0.68,
+          "expected_time_ms": 30000,
+          "memory_support_ids": [],
+          "possible_failure_modes": [
+            "stale local server",
+            "wrong port",
+            "browser cache",
+            "static placeholder route"
+          ],
+          "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+          "predicted_state_patch": {
+            "dashboard_checked": true,
+            "mission_control_visible": true,
+            "placeholder_removed": true
+          },
+          "prediction_id": "prediction_record_0a2c885accec07b2e9d96647",
+          "reasoning_summary": "Action 'run dashboard build and render tests' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+          "risk": 0.12,
+          "run_id": "predictive-cognitive-core-demo",
+          "state_id": "world_state_95b6726619cfc77fc7b9820d"
+        }
+      ],
+      "counterfactual_id": "counterfactual_1125fbce38c18ce0bcd880bb",
+      "goal": "verify dashboard is serving real Mission Control",
+      "recommended_action_id": "candidate_action_5eb834f661cd286950645c7a",
+      "rejected_action_ids": [
+        "candidate_action_849fc632934c0a9ab0e96892",
+        "candidate_action_a1f02fab77b98c3fe597f510",
+        "candidate_action_4400cb6896375e8c2a178e9f"
+      ],
+      "selection_reason": "selected highest expected reward plus confidence minus risk under policy constraints",
+      "state_id": "world_state_95b6726619cfc77fc7b9820d"
+    },
+    "experience": {
+      "actual_outcome": {
+        "html_contains": [
+          "Predictive Cognition",
+          "Live 3D",
+          "Neural Embodiment"
+        ],
+        "html_missing": [
+          "production frontend bundling remains a public-alpha next step"
+        ],
+        "state_patch": {
+          "dashboard_checked": true,
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "success": true
+      },
+      "agent_id": "mission-control-cognition-agent",
+      "candidate_actions": [
+        {
+          "action_id": "candidate_action_849fc632934c0a9ab0e96892",
+          "action_type": "requested",
+          "command_preview": "check mission-control route",
+          "description": "check mission-control route",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        },
+        {
+          "action_id": "candidate_action_5eb834f661cd286950645c7a",
+          "action_type": "diagnostic",
+          "command_preview": "Invoke-WebRequest /mission-control",
+          "description": "verify served Mission Control HTML before claiming success",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        },
+        {
+          "action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+          "action_type": "command_sequence",
+          "command_preview": "stop stale port; npm run dev",
+          "description": "restart stale local dashboard server before verification",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 90
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        },
+        {
+          "action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+          "action_type": "diagnostic",
+          "command_preview": "npm test && npm run build",
+          "description": "run dashboard build and render tests",
+          "estimated_cost": {
+            "compute": "local",
+            "local_only": true,
+            "time_seconds": 30
+          },
+          "expected_domain": "dashboard",
+          "metadata": {},
+          "policy_sensitive": false,
+          "requires_approval": false
+        }
+      ],
+      "confidence_after": 0.72,
+      "confidence_before": 0.64,
+      "created_at": "2026-05-26T04:50:02.019406+00:00",
+      "experience_id": "experience_98158917aae23764f78ca8e7",
+      "goal": "verify dashboard is serving real Mission Control",
+      "learning_update": {
+        "external_model_calls": false,
+        "learning_signal": "prediction_error",
+        "loss_after": 0.122368,
+        "loss_before": 0.122368,
+        "mode": "local_deterministic",
+        "performed": true,
+        "prediction_error": 0.0,
+        "raw_weights_written": false
+      },
+      "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+      "memory_tags": [
+        "cognition",
+        "prediction",
+        "experience",
+        "dashboard",
+        "mission-control",
+        "release",
+        "policy",
+        "git",
+        "api"
+      ],
+      "policy_decision": {
+        "allowed": true,
+        "authority": "policy_engine_and_approval_gate",
+        "mode": "supervised",
+        "reason": "local diagnostic or simulation action",
+        "requires_approval": false
+      },
+      "prediction": {
+        "agent_id": "mission-control-cognition-agent",
+        "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "confidence": 0.64,
+        "created_at": "2026-05-26T04:50:02.019406+00:00",
+        "expected_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_reward": 0.68,
+        "expected_time_ms": 30000,
+        "memory_support_ids": [],
+        "possible_failure_modes": [
+          "stale local server",
+          "wrong port",
+          "browser cache",
+          "static placeholder route"
+        ],
+        "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+        "predicted_state_patch": {
+          "dashboard_checked": true,
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "reasoning_summary": "Action 'verify served Mission Control HTML before claiming success' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+        "risk": 0.12,
+        "run_id": "predictive-cognitive-core-demo",
+        "state_id": "world_state_95b6726619cfc77fc7b9820d"
+      },
+      "prediction_error": {
+        "actual_fields": {
+          "dashboard_checked": true,
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "actual_outcome_id": "actual_outcome_c2532603d190e6b0ec2c4288",
+        "confidence_after": 0.72,
+        "confidence_before": 0.64,
+        "created_at": "2026-05-26T04:50:02.019406+00:00",
+        "error_id": "prediction_error_0b8ef724dd88bbb72ac9bd46",
+        "error_type": "exact_match",
+        "expected_fields": {
+          "dashboard_checked": true,
+          "mission_control_visible": true,
+          "placeholder_removed": true
+        },
+        "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+        "match_score": 1.0,
+        "missing_expected": [],
+        "prediction_error": 0.0,
+        "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+        "unexpected_actual": []
+      },
+      "retrieved_memory_ids": [],
+      "risk_after": 0.039999999999999994,
+      "risk_before": 0.12,
+      "run_id": "predictive-cognitive-core-demo",
+      "selected_action": {
+        "action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "action_type": "diagnostic",
+        "command_preview": "Invoke-WebRequest /mission-control",
+        "description": "verify served Mission Control HTML before claiming success",
+        "estimated_cost": {
+          "compute": "local",
+          "local_only": true,
+          "time_seconds": 30
+        },
+        "expected_domain": "dashboard",
+        "metadata": {},
+        "policy_sensitive": false,
+        "requires_approval": false
+      },
+      "session_id": "cognition-session-demo",
+      "state_before": {
+        "agent_id": "mission-control-cognition-agent",
+        "available_tools": [
+          "pytest",
+          "npm",
+          "git",
+          "release_decision"
+        ],
+        "created_at": "2026-05-26T04:50:02.011408+00:00",
+        "current_phase": "observed",
+        "dashboard_state": {
+          "local_api_optional": true,
+          "mode": "mock_replay",
+          "route": "/mission-control"
+        },
+        "goal": "verify dashboard is serving real Mission Control",
+        "gpu_evidence_status": "verified",
+        "human_readable_summary": "goal=verify dashboard is serving real Mission Control; phase=observed; memories=0; errors=0; gpu=verified",
+        "memory_context": [],
+        "policy_state": {
+          "mode": "supervised"
+        },
+        "recent_errors": [],
+        "release_state": {
+          "status": "candidate",
+          "target": "public-alpha-launch-finalizer"
+        },
+        "repo_state": {
+          "branch": "main",
+          "working_tree": "clean"
+        },
+        "run_id": "predictive-cognitive-core-demo",
+        "session_id": "cognition-session-demo",
+        "state_id": "world_state_95b6726619cfc77fc7b9820d",
+        "uncertainty_score": 0.42,
+        "vector_state": [
+          0.2,
+          0.0,
+          0.0,
+          0.42
+        ]
+      }
+    },
+    "experience_path": "",
+    "learning_update": {
+      "external_model_calls": false,
+      "learning_signal": "prediction_error",
+      "loss_after": 0.122368,
+      "loss_before": 0.122368,
+      "mode": "local_deterministic",
+      "performed": true,
+      "prediction_error": 0.0,
+      "raw_weights_written": false
+    },
+    "local_only": true,
+    "ok": true,
+    "policy_decision": {
+      "allowed": true,
+      "authority": "policy_engine_and_approval_gate",
+      "mode": "supervised",
+      "reason": "local diagnostic or simulation action",
+      "requires_approval": false
+    },
+    "prediction": {
+      "agent_id": "mission-control-cognition-agent",
+      "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+      "confidence": 0.64,
+      "created_at": "2026-05-26T04:50:02.019406+00:00",
+      "expected_cost": {
+        "compute": "local",
+        "local_only": true,
+        "time_seconds": 30
+      },
+      "expected_reward": 0.68,
+      "expected_time_ms": 30000,
+      "memory_support_ids": [],
+      "possible_failure_modes": [
+        "stale local server",
+        "wrong port",
+        "browser cache",
+        "static placeholder route"
+      ],
+      "predicted_result": "served dashboard should contain Mission Control panels and no placeholder text",
+      "predicted_state_patch": {
+        "dashboard_checked": true,
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+      "reasoning_summary": "Action 'verify served Mission Control HTML before claiming success' scored with confidence 0.64, risk 0.12, memories 0, phase observed.",
+      "risk": 0.12,
+      "run_id": "predictive-cognitive-core-demo",
+      "state_id": "world_state_95b6726619cfc77fc7b9820d"
+    },
+    "prediction_error": {
+      "actual_fields": {
+        "dashboard_checked": true,
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "actual_outcome_id": "actual_outcome_c2532603d190e6b0ec2c4288",
+      "confidence_after": 0.72,
+      "confidence_before": 0.64,
+      "created_at": "2026-05-26T04:50:02.019406+00:00",
+      "error_id": "prediction_error_0b8ef724dd88bbb72ac9bd46",
+      "error_type": "exact_match",
+      "expected_fields": {
+        "dashboard_checked": true,
+        "mission_control_visible": true,
+        "placeholder_removed": true
+      },
+      "lesson": "Prediction matched the observed outcome for candidate_action_5eb834f661cd286950645c7a; preserve this action pattern.",
+      "match_score": 1.0,
+      "missing_expected": [],
+      "prediction_error": 0.0,
+      "prediction_id": "prediction_record_3392550f4f81a78f87090827",
+      "unexpected_actual": []
+    },
+    "retrieved_memories": [],
+    "safety_authority": "policy_engine_and_approval_gate",
+    "scores": [
+      {
+        "candidate_action_id": "candidate_action_849fc632934c0a9ab0e96892",
+        "cost_score": 0.1,
+        "goal_progress_score": 0.58,
+        "memory_support": 0.0,
+        "overall_score": 0.3312,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.56,
+        "recommended": false,
+        "risk_score": 0.12
+      },
+      {
+        "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
+        "cost_score": 0.1,
+        "goal_progress_score": 0.68,
+        "memory_support": 0.0,
+        "overall_score": 0.3876,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.64,
+        "recommended": true,
+        "risk_score": 0.12
+      },
+      {
+        "candidate_action_id": "candidate_action_a1f02fab77b98c3fe597f510",
+        "cost_score": 0.3,
+        "goal_progress_score": 0.58,
+        "memory_support": 0.0,
+        "overall_score": 0.290944,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.5248,
+        "recommended": false,
+        "risk_score": 0.28
+      },
+      {
+        "candidate_action_id": "candidate_action_4400cb6896375e8c2a178e9f",
+        "cost_score": 0.1,
+        "goal_progress_score": 0.68,
+        "memory_support": 0.0,
+        "overall_score": 0.3876,
+        "policy_risk": 0.05,
+        "prediction_confidence": 0.64,
+        "recommended": false,
+        "risk_score": 0.12
+      }
+    ],
+    "selected_action": {
+      "action_id": "candidate_action_5eb834f661cd286950645c7a",
+      "action_type": "diagnostic",
+      "command_preview": "Invoke-WebRequest /mission-control",
+      "description": "verify served Mission Control HTML before claiming success",
+      "estimated_cost": {
+        "compute": "local",
+        "local_only": true,
+        "time_seconds": 30
+      },
+      "expected_domain": "dashboard",
+      "metadata": {},
+      "policy_sensitive": false,
+      "requires_approval": false
+    },
+    "state": {
+      "agent_id": "mission-control-cognition-agent",
+      "available_tools": [
+        "pytest",
+        "npm",
+        "git",
+        "release_decision"
+      ],
+      "created_at": "2026-05-26T04:50:02.011408+00:00",
+      "current_phase": "observed",
+      "dashboard_state": {
+        "local_api_optional": true,
+        "mode": "mock_replay",
+        "route": "/mission-control"
+      },
+      "goal": "verify dashboard is serving real Mission Control",
+      "gpu_evidence_status": "verified",
+      "human_readable_summary": "goal=verify dashboard is serving real Mission Control; phase=observed; memories=0; errors=0; gpu=verified",
+      "memory_context": [],
+      "policy_state": {
+        "mode": "supervised"
+      },
+      "recent_errors": [],
+      "release_state": {
+        "status": "candidate",
+        "target": "public-alpha-launch-finalizer"
+      },
+      "repo_state": {
+        "branch": "main",
+        "working_tree": "clean"
+      },
+      "run_id": "predictive-cognitive-core-demo",
+      "session_id": "cognition-session-demo",
+      "state_id": "world_state_95b6726619cfc77fc7b9820d",
+      "uncertainty_score": 0.42,
+      "vector_state": [
+        0.2,
+        0.0,
+        0.0,
+        0.42
+      ]
+    }
+  }
+}

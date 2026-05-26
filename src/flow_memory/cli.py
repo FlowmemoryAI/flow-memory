@@ -32,6 +32,8 @@ from flow_memory.launch_supervisor import (
 from flow_memory.visualization.run_console import build_public_alpha_demo_bundle
 from flow_memory.visualization.embodiment import build_neural_embodiment_fixture
 from flow_memory.release.launch_finalizer import finalize_public_alpha_launch
+from flow_memory.cognition.experience import get_experience, list_experiences, prediction_error_records
+from flow_memory.cognition.world_model import DeterministicWorldModel
 
 
 def _json_default(value: Any) -> str:
@@ -135,6 +137,7 @@ def _launch(argv: list[str]) -> int:
     supervisor_start.add_argument("--ticks", type=int, default=10)
     supervisor_start.add_argument("--tick-interval-ms", type=int, default=250)
     supervisor_start.add_argument("--emit-visual", action="store_true")
+    supervisor_start.add_argument("--predictive-core", action="store_true", help="Enable predictive cognition metadata for this supervised launch")
     supervisor_start.add_argument("--json", action="store_true")
     supervisor_status_cmd = supervisor_sub.add_parser("status")
     supervisor_status_cmd.add_argument("--json", action="store_true")
@@ -228,6 +231,7 @@ def _launch(argv: list[str]) -> int:
                     ticks=args.ticks,
                     tick_interval_ms=args.tick_interval_ms,
                     emit_visual=args.emit_visual,
+                    predictive_core=args.predictive_core,
                 )
                 return _print_launch_payload(payload, json_output=args.json, human=f"supervisor run {payload['supervisor']['run_id']}: {payload['supervisor']['status']}")
             if args.supervisor_command == "status":
@@ -360,6 +364,54 @@ def _launch_doctor() -> Mapping[str, Any]:
         "local_only": True,
         "safety_authority": "policy_engine_and_approval_gate",
     }
+
+def _cognition(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory cognition", description="Run predictive cognitive core commands")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    predict = sub.add_parser("predict")
+    predict.add_argument("--goal", required=True)
+    predict.add_argument("--action", default="")
+    predict.add_argument("--agent-id", default="cli-cognition-agent")
+    predict.add_argument("--json", action="store_true")
+
+    tick = sub.add_parser("tick")
+    tick.add_argument("--agent", default="cli-cognition-agent")
+    tick.add_argument("--goal", required=True)
+    tick.add_argument("--action", default="")
+    tick.add_argument("--json", action="store_true")
+
+    experiences = sub.add_parser("experiences")
+    exp_sub = experiences.add_subparsers(dest="experience_command", required=True)
+    exp_list = exp_sub.add_parser("list")
+    exp_list.add_argument("--json", action="store_true")
+    exp_show = exp_sub.add_parser("show")
+    exp_show.add_argument("experience_id")
+    exp_show.add_argument("--json", action="store_true")
+
+    errors = sub.add_parser("prediction-errors")
+    err_sub = errors.add_subparsers(dest="error_command", required=True)
+    err_list = err_sub.add_parser("list")
+    err_list.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    model = DeterministicWorldModel()
+    if args.command == "predict":
+        payload = model.tick({"agent_id": args.agent_id, "goal": args.goal, "action": args.action, "write_experience": False})
+        payload = {key: payload[key] for key in ("ok", "state", "candidate_actions", "counterfactuals", "scores", "selected_action", "prediction", "policy_decision") if key in payload}
+        return _print_launch_payload(payload, json_output=args.json, human=f"prediction {payload['prediction']['prediction_id']}: {payload['prediction']['predicted_result']}")
+    if args.command == "tick":
+        payload = model.tick({"agent_id": args.agent, "goal": args.goal, "action": args.action})
+        return _print_launch_payload(payload, json_output=args.json, human=f"experience {payload['experience']['experience_id']}: error {payload['prediction_error']['prediction_error']:.2f}")
+    if args.command == "experiences":
+        if args.experience_command == "list":
+            records = list_experiences(".")
+            return _print_launch_payload({"ok": True, "experiences": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} cognition experience(s)")
+        record = get_experience(args.experience_id, ".")
+        return _print_launch_payload({"ok": True, "experience": record}, json_output=args.json, human=f"experience {args.experience_id}")
+    records = prediction_error_records(".")
+    return _print_launch_payload({"ok": True, "prediction_errors": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} prediction error(s)")
+
 
 def _compute(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory compute", description="Inspect and simulate the local Compute Market")
@@ -499,6 +551,8 @@ def main(argv: list[str] | None = None) -> int:
         return _manifest(argv[1:])
     if argv and argv[0] == "launch":
         return _launch(argv[1:])
+    if argv and argv[0] == "cognition":
+        return _cognition(argv[1:])
     if argv and argv[0] == "compute":
         return _compute(argv[1:])
     if argv and argv[0] == "neural":

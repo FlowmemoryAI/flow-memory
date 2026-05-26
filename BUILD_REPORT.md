@@ -842,3 +842,19 @@ Implemented the dashboard app wiring slice so `cd dashboard && npm run dev` serv
 - Replay/mock mode works without the local API. Optional local API mode remains separate and read-only.
 - The dev server rejects non-GET methods and does not expose launch, network-run, compute, settlement, or control POST endpoints.
 - Added dashboard tests proving `/mission-control` renders the real panels and no longer contains the previous frontend-bundling placeholder copy.
+
+## Predictive Cognitive Core update
+
+Implemented the Predictive Cognitive Core slice for local prediction-driven agents.
+
+- Added `src/flow_memory/cognition/` with world state, candidate action, prediction, counterfactual, prediction-error, experience, scoring, learning, memory, telemetry, and evidence modules.
+- Added deterministic local world-model commands:
+  - `python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json`
+  - `python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json`
+  - `python -m flow_memory cognition experiences list --json`
+- Added local API endpoints for `/cognition/predict`, `/cognition/tick`, `/cognition/experiences`, `/cognition/prediction-errors`, `/cognition/memory/query`, launch-console prediction lookup, and embodiment cognition projection.
+- Added FlowLang `cognition { ... }` block parsing and AgentProfile conversion.
+- Added Mission Control `predictive-cognitive-core` fixture and Predictive Cognition panel for current state, retrieved memories, candidate actions, counterfactual predictions, selected action, policy gate, actual outcome, prediction error, lesson, experience id, and learning update metadata.
+- Expanded release evidence with Predictive Cognitive Core availability, policy override validation, CLI/API/FlowLang/dashboard coverage, visual cognition telemetry, and public-alpha honesty invariants.
+
+Safety posture remains unchanged: predictions are scoped to observable local Flow Memory outcomes, neural outputs remain advisory, and PolicyEngine/ApprovalGate remain authoritative.

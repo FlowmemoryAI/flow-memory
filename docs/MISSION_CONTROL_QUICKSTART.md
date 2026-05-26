@@ -1,6 +1,6 @@
 # Mission Control Quickstart
 
-Mission Control is the public-alpha visual operating layer for Flow Memory. It turns real local network runs into visual telemetry for agents, tasks, memory, neural advisory signals, RL episodes, safety gates, audit events, and simulated local economy flows.
+Mission Control is the public-alpha visual operating layer for Flow Memory. It turns real local network runs into visual telemetry for agents, tasks, memory, predictive cognition, neural advisory signals, RL episodes, safety gates, audit events, and simulated local economy flows.
 
 Maturity: public-alpha scaffold connected to local state, replay files, and local API polling. It is not a hosted production dashboard.
 
@@ -69,6 +69,12 @@ Useful endpoints:
 - `POST /launch/finalize/public-alpha`
 - `GET /visual/embodiment/{run_id}`
 - `GET /launch/console/runs/{run_id}/embodiment`
+- `POST /cognition/predict`
+- `POST /cognition/tick`
+- `GET /cognition/experiences`
+- `GET /cognition/prediction-errors`
+- `GET /launch/console/runs/{run_id}/predictions`
+- `GET /visual/embodiment/{run_id}/cognition`
 With local auth/scopes:
 
 ```bash
@@ -77,6 +83,7 @@ python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765 --api-key de
 
 Read visual endpoints with `x-flow-memory-scopes: visual:read`; run network scenarios with `x-flow-memory-scopes: network:run`.
 Launch console read endpoints require `x-flow-memory-scopes: launch:read`; public-alpha demo bundle export requires `x-flow-memory-scopes: launch:export`.
+Cognition read endpoints require `x-flow-memory-scopes: cognition:read`; cognition ticks require `x-flow-memory-scopes: cognition:run cognition:write`.
 Public-alpha finalizer export also requires `x-flow-memory-scopes: launch:export`.
 
 ## 4. Run dashboard checks
@@ -89,7 +96,7 @@ npm run build
 npm run dev
 ```
 
-For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
+For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
 
 The dev server exposes fixture JSON and read-only page rendering only. It does not expose launch, network-run, compute, settlement, or control POST endpoints. Optional local API mode remains a separate read-only polling path through `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`.
 
@@ -103,6 +110,7 @@ The dashboard includes a scoped run selector for these replay/demo fixtures:
 - **Live Agent Supervisor** — `dashboard/src/mock-data/live-agent-supervisor.json`
 - **Live Neural Embodiment** — `dashboard/src/mock-data/live-neural-embodiment.json`
 - **Local Network Replay** — `dashboard/src/mock-data/local-network-replay.json`
+- **Predictive Cognitive Core** — `dashboard/src/mock-data/predictive-cognitive-core.json`
 
 The selected run status card shows run id, kind, agent id, backend, status, current phase, ticks, policy gate state, risk/confidence, memory writes, visual event count, GPU evidence status, replay artifact path, and run record path.
 
@@ -148,6 +156,23 @@ dashboard/src/mock-data/live-agent-supervisor.json
 ```
 
 Supervisor telemetry maps to the visual `supervisor` state collection and includes run id, supervisor id, agent id, backend, status, phase, tick count, last heartbeat, and policy gate state.
+
+## Predictive Cognition panel
+
+Generate a local deterministic cognition record:
+
+```bash
+python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json
+python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json
+```
+
+Mission Control can load the stable cognition fixture:
+
+```text
+dashboard/src/mock-data/predictive-cognitive-core.json
+```
+
+The panel shows current state summary, retrieved memories, candidate actions, counterfactual predictions, selected action, policy gate result, actual outcome, prediction error, lesson learned, experience id, and local deterministic learning metadata. It is read-only and keeps predictions scoped to observable Flow Memory outcomes.
 
 ## Neural embodiment view
 

@@ -1,6 +1,6 @@
 # Start Here: Flow Memory Public Alpha
 
-Flow Memory is a local/testnet public alpha for launching memory-bearing AI agents with FlowLang, local economy flows, neural advisory metadata, RL Arena training, and Mission Control replay/live-state visualization.
+Flow Memory is a local/testnet public alpha for launching memory-bearing AI agents with FlowLang, local economy flows, neural advisory metadata, predictive cognition, RL Arena training, and Mission Control replay/live-state visualization.
 
 Maturity: public alpha only. Flow Memory is not production-certified, not audited, not mainnet-ready, and does not move real funds by default.
 
@@ -83,6 +83,16 @@ python -m flow_memory --neural tiny_torch --json "Explore and report"
 ```
 
 Torch/CUDA are optional. Neural models advise only; PolicyEngine and ApprovalGate remain authoritative.
+Predictive cognition adds a local deterministic loop for prediction, counterfactual scoring, prediction-error learning, and experience memory:
+
+```bash
+python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json
+python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json
+python -m flow_memory cognition experiences list --json
+```
+
+Records are stored under `artifacts/cognition/experiences/` and remain scoped to observable local Flow Memory outcomes.
+
 
 ## Local alpha evidence
 
@@ -100,9 +110,10 @@ GPU-gated targets remain blocked until the real RunPod artifact is imported.
 
 ```bash
 python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --ticks 5 --tick-interval-ms 10 --emit-visual --json
+python -m flow_memory launch supervisor start --template live-research --neural tiny_torch --predictive-core --ticks 5 --emit-visual --json
 python -m flow_memory launch supervisor status --json
 python -m flow_memory launch supervisor heartbeat <run_id> --json
 ```
 
 Supervisor runs are local-only, finite, and policy-gated.
-The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural outputs advisory.
+The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, `predictive-cognitive-core`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural/predictive outputs advisory.

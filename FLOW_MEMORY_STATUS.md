@@ -4,7 +4,7 @@ Date: 2026-05-24
 
 ## Current status
 
-Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
+Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
 
 It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, API auth remains a seam, and FlowLang remains v0/prototype.
 
@@ -27,6 +27,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Live neural agents targeted validation | Pass: `16 passed`; broader neural/agent/FlowLang/visual/release targeted set `175 passed, 3 skipped` |
 
 | Mission Control run console + demo bundle | Pass: targeted tests added; full validation pending this slice |
+| Predictive Cognitive Core | Added this slice; focused validation recorded in the final run output |
 ## Maturity table
 
 | Capability | Status |
@@ -54,6 +55,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Dependency-free local HTTP API server | Implemented local/public-alpha server with API-key, scopes, rate limits, error contracts, and audit events; not production internet auth |
 | Flow Memory Compute Market | Implemented local dry-run subsystem; quotes/routes/payment intents/settlement simulations only |
 | Live neural agent runtime | Implemented local deterministic prototype; optional PyTorch backend, fail-closed policy fallback, metadata-only checkpoints |
+| Predictive Cognitive Core | Implemented local deterministic world-state/prediction/counterfactual/error/experience-memory loop; advisory only |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |
@@ -317,3 +319,16 @@ The visible embodiment layer is a public-alpha visual/replay surface. It does no
 | Finalizer release target | implemented | `public-alpha-launch-finalizer` requires local launch evidence, GPU-backed launch readiness, Live 3D evidence, and the finalizer record. |
 
 The finalizer remains evidence-only. It does not start agents, contact providers, move funds, broadcast transactions, enable live settlement, or bypass PolicyEngine/ApprovalGate.
+
+## Predictive Cognitive Core status
+
+| Subsystem | Status | Notes |
+| --- | --- | --- |
+| Cognition package | implemented local deterministic core | `src/flow_memory/cognition/` provides world state, candidate actions, predictions, counterfactuals, prediction errors, experience memory, scoring, learning, telemetry, and evidence. |
+| CLI | implemented | `python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json`; `python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json`. |
+| API | implemented local seam | `/cognition/predict`, `/cognition/tick`, `/cognition/experiences`, `/cognition/prediction-errors`, `/cognition/memory/query`, launch-console predictions, and embodiment cognition projection. |
+| FlowLang | implemented | `cognition { predictive_core_enabled: true ... }` parses into AgentProfile cognition config. |
+| Mission Control | implemented read-only panel | `dashboard/src/mock-data/predictive-cognitive-core.json` powers the Predictive Cognition panel for prediction, actual outcome, error, lesson, and learning metadata. |
+| Release evidence | implemented | `predictive_cognitive_core.json` validates model records, policy override, CLI/API/FlowLang/dashboard coverage, visual telemetry, and public-alpha honesty invariants. |
+
+Predictive cognition is not a production autonomy claim. It is a bounded local loop for observable state prediction, outcome comparison, prediction-error learning, and lesson memory. PolicyEngine and ApprovalGate remain authoritative.

@@ -1,6 +1,6 @@
 # Public Alpha Readiness
 
-Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory/live launch, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
+Flow Memory is ready for **local public alpha** when local launch, FlowLang launch, neural advisory/live launch, predictive cognition, local network scenarios, Mission Control replay, RL Arena examples, API help, release evidence, and docs checks pass.
 
 Run:
 
@@ -30,6 +30,7 @@ python scripts/release_decision.py --target public-alpha-launch-finalizer
 | Public-alpha demo bundle | Implemented as local JSON bundle with replay references, docs, commands, release evidence, GPU status, and honest limitations. |
 | Mission Control Live 3D Mode | Implemented as a read-only CSS 3D/WebGL-ready view over local/replay neural embodiment telemetry; no agent launch, provider calls, settlement, or policy bypass. |
 | Public Alpha Launch Finalizer | Implemented as evidence-only handoff for launch evidence, Live 3D mode, demo bundle, release decisions, and C:\tmp backup exclusion. |
+| Predictive Cognitive Core | Implemented as local deterministic world-state encoding, candidate prediction, counterfactual scoring, prediction-error records, experience memory, FlowLang cognition blocks, API/CLI commands, and read-only Mission Control telemetry. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
@@ -70,6 +71,7 @@ Local public alpha includes a Mission Control run selector/status card over thes
 - `live-agent-operations`
 - `live-agent-supervisor`
 - `local-network-replay`
+- `predictive-cognitive-core`
 - `live-neural-embodiment`
 
 Generate the local public-alpha demo bundle:
@@ -79,6 +81,8 @@ python -m flow_memory launch bundle public-alpha --out artifacts/launch/bundles/
 ```
 
 The bundle is reference-oriented and local-only. It must keep GPU status honest, neural outputs advisory, policy gates authoritative, and real-funds/provider behavior disabled.
+Predictive Cognition is also part of the local evidence path. It writes experience records under `artifacts/cognition/experiences/` and keeps predictions scoped to observable local outcomes.
+
 
 ## Visible neural embodiment readiness
 
@@ -94,6 +98,16 @@ GET /launch/console/runs/{run_id}/embodiment
 ```
 
 This shows the local neural runtime/session, loop phase, confidence/risk, policy gate, memory activations, learning ticks, supervisor heartbeat, replay artifact, and imported GPU evidence status. It remains a public-alpha visual/replay layer, not AGI, sentience, settlement execution, or production ML certification.
+
+## Predictive Cognitive Core readiness
+
+```bash
+python -m flow_memory cognition predict --goal "verify dashboard" --action "check mission-control route" --json
+python -m flow_memory cognition tick --agent live-research --goal "verify dashboard is serving real Mission Control" --json
+python -m flow_memory cognition prediction-errors list --json
+```
+
+The readiness invariant is prediction-first and evidence-backed: candidate actions are scored before observation, actual outcomes are recorded after observation, prediction error creates a lesson, and policy gates remain authoritative.
 
 ## Mission Control Live 3D Mode and finalizer
 

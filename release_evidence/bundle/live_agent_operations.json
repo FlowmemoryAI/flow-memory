@@ -46,7 +46,7 @@
       "gpu_evidence_status": "blocked_missing_artifact",
       "learning_steps": 2,
       "loop_ticks_completed": 2,
-      "memory_records_written": 7,
+      "memory_records_written": 9,
       "no_external_calls": true,
       "no_funds_moved": true,
       "no_live_provider_calls": true,

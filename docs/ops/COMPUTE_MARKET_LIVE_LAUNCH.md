@@ -101,3 +101,32 @@ flow-memory compute provider-contract validate provider-quote.json --json
 ## Immutable audit handoff
 
 The local export is tamper-evident but not WORM. Production must copy `FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI` outputs/checkpoints to object-lock storage and verify the object retention metadata out of band.
+
+For AWS S3 Object Lock, upload both the NDJSON export and checkpoint manifest with retention metadata, then read retention and checksum metadata back before accepting the deployment evidence:
+
+```bash
+export AUDIT_BUCKET=<object-lock-bucket>
+export AUDIT_KEY="compute-market/audit/$(date -u +%Y%m%dT%H%M%SZ)/audit_export.ndjson"
+export CHECKPOINT_KEY="${AUDIT_KEY}.checkpoint.json"
+export RETAIN_UNTIL="$(date -u -d '+365 days' +%Y-%m-%dT%H:%M:%SZ)"
+
+aws s3api put-object \
+  --bucket "$AUDIT_BUCKET" \
+  --key "$AUDIT_KEY" \
+  --body release_evidence/public_live_audit_export.ndjson \
+  --object-lock-mode COMPLIANCE \
+  --object-lock-retain-until-date "$RETAIN_UNTIL"
+
+aws s3api put-object \
+  --bucket "$AUDIT_BUCKET" \
+  --key "$CHECKPOINT_KEY" \
+  --body release_evidence/public_live_audit_export.ndjson.checkpoint.json \
+  --object-lock-mode COMPLIANCE \
+  --object-lock-retain-until-date "$RETAIN_UNTIL"
+
+aws s3api get-object-retention --bucket "$AUDIT_BUCKET" --key "$AUDIT_KEY"
+aws s3api head-object --bucket "$AUDIT_BUCKET" --key "$AUDIT_KEY"
+python scripts/validate_compute_market_public_buildout.py --require-immutable-audit
+```
+
+The `get-object-retention` result must show `Mode=COMPLIANCE` and a retain-until date at or beyond the deployment retention policy. The `head-object` checksum/ETag must match the uploaded file according to the bucket's checksum mode before the release evidence is accepted.

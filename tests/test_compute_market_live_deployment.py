@@ -45,6 +45,16 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL=https://api.stripe.com",
         "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS=300",
         "RENDER_KEYVALUE_IP_ALLOWLIST",
+        "RENDER_API_KEY=CHANGEME-render-api-key",
+        "RENDER_OWNER_ID=CHANGEME-render-owner-or-workspace-id",
+        "RENDER_POSTGRES_PLAN=starter",
+        "RENDER_KEYVALUE_PLAN=starter",
+        "RENDER_SERVICE_PLAN=starter",
+        "RENDER_BRANCH=work/squire-v2",
+        "RENDER_REPO_URL=CHANGEME-render-connected-repository-url",
+        "RENDER_ENABLE_DISK=false",
+        "RENDER_REGION=oregon",
+        "Leave empty for AWS S3",
     ):
         assert required in template
 
@@ -98,6 +108,7 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_JWT_ISSUER\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_AUDIENCE\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS\n        value: 60" in blueprint
+    assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
 
 
 def test_render_deploy_requires_https_public_url_before_smoke() -> None:
@@ -247,6 +258,33 @@ def test_render_blueprint_preserves_billing_safety_defaults() -> None:
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS\n        value: 300" in blueprint
     public_script = (ROOT / "scripts" / "deploy_compute_market_public_level1.ps1").read_text(encoding="utf-8")
     assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'" in public_script
+
+
+def test_compute_market_deployment_runbook_covers_live_drills() -> None:
+    deployment = (ROOT / "docs" / "ops" / "COMPUTE_MARKET_DEPLOYMENT.md").read_text(encoding="utf-8")
+    launch = (ROOT / "docs" / "ops" / "COMPUTE_MARKET_LIVE_LAUNCH.md").read_text(encoding="utf-8")
+
+    for required in (
+        "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED=true",
+        "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
+        "FLOW_MEMORY_API_REQUIRE_SCOPES=true",
+        "Managed PostgreSQL backup/PITR runbook",
+        "Production Level 1 RPO is 15 minutes",
+        "Managed PostgreSQL restore drill",
+        "Blue/green migration rehearsal",
+        "python scripts/validate_compute_market_live_infra.py",
+        "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT",
+    ):
+        assert required in deployment
+
+    for required in (
+        "aws s3api put-object",
+        "--object-lock-mode COMPLIANCE",
+        "aws s3api get-object-retention",
+        "aws s3api head-object",
+        "python scripts/validate_compute_market_public_buildout.py --require-immutable-audit",
+    ):
+        assert required in launch
 
 
 def test_public_smoke_scripts_verify_observability_endpoints() -> None:

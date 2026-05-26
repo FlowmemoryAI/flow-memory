@@ -10,6 +10,7 @@ from flow_memory.crypto.asymmetric import DEV_HMAC_ALGORITHM, SignatureEnvelope
 from flow_memory.crypto.canonical_json import canonical_json_bytes
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.crypto.keys import LocalKeyPair
+__all__ = ("SignatureEnvelope", "sign_payload", "verify_payload")
 
 
 

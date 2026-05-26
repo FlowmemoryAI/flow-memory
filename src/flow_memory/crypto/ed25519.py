@@ -10,7 +10,7 @@ from __future__ import annotations
 import base64
 import hmac
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from flow_memory.crypto.asymmetric import ED25519_ALGORITHM, PublicKeyRecord, SignatureEnvelope, VerificationResult
 from flow_memory.crypto.canonical_json import canonical_json_bytes, canonical_json_hash
@@ -55,9 +55,12 @@ class Ed25519Signer:
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
             private_key = Ed25519PrivateKey.from_private_bytes(self.private_key_bytes)
-            return private_key.public_key().public_bytes(
-                encoding=serialization.Encoding.Raw,
-                format=serialization.PublicFormat.Raw,
+            return cast(
+                bytes,
+                private_key.public_key().public_bytes(
+                    encoding=serialization.Encoding.Raw,
+                    format=serialization.PublicFormat.Raw,
+                ),
             )
         from nacl.signing import SigningKey
 
@@ -95,11 +98,11 @@ class Ed25519Verifier:
 
     @property
     def key_id(self) -> str:
-        return self.public.key_id
+        return str(self.public.key_id)
 
     @property
     def algorithm(self) -> str:
-        return self.public.algorithm
+        return str(self.public.algorithm)
 
     def verify(self, payload: Any, envelope: SignatureEnvelope | Mapping[str, str]) -> VerificationResult:
         record = envelope.as_record() if isinstance(envelope, SignatureEnvelope) else dict(envelope)

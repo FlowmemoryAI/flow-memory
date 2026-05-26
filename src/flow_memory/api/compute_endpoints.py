@@ -89,6 +89,10 @@ def market_quote_ingest(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().broker_quote(payload)
 
 
+def market_quote_cache_invalidate(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().invalidate_quote_cache(payload)
+
+
 def market_capacity_list(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().list_capacity(payload)
 

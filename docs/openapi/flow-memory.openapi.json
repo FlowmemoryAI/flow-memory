@@ -4644,6 +4644,73 @@
         ]
       }
     },
+    "/market/quotes/cache/invalidate": {
+      "post": {
+        "operationId": "market_quote_cache_invalidate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "cache_key": {
+                    "type": "string"
+                  },
+                  "policy_hash": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "quote_id": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "task_hash": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "invalidated_count": {
+                      "type": "string"
+                    },
+                    "invalidated_entries": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Invalidate cached provider quotes by provider, route, task, policy, cache key, or quote id",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/quotes/ingest": {
       "post": {
         "operationId": "market_quote_ingest",

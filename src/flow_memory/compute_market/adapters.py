@@ -544,11 +544,13 @@ class QuoteCollector:
         for route in adapter.list_routes():
             cache_key = self.store.quote_cache_key(route.provider_id, route.route_id, task_hash, policy_hash)
             cached_entry = self.store.get_record("quote_cache_entry", cache_key)
-            if cached_entry and not _expired(str(cached_entry.get("expires_at", ""))):
-                quote_record = cached_entry.get("quote", {})
-                if isinstance(quote_record, Mapping):
-                    cached.append(ComputeQuote(**dict(quote_record, source="cache")))
-                    continue
+            if cached_entry:
+                cache_status = str(cached_entry.get("status", "")).lower()
+                if cache_status not in {"invalidated", "stale", "expired", "disabled"} and not _expired(str(cached_entry.get("expires_at", ""))):
+                    quote_record = cached_entry.get("quote", {})
+                    if isinstance(quote_record, Mapping):
+                        cached.append(ComputeQuote(**dict(quote_record, source="cache")))
+                        continue
             misses.append(route)
         if not misses:
             return tuple(cached)

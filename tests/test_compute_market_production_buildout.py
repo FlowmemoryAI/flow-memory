@@ -271,6 +271,26 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert service.store.count_records("quote_replay_guard") == 1
     assert service.store.count_records("quote_cache_entry") == 1
 
+    invalidated = service.invalidate_quote_cache(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "quote_id": "quote_live_gpu_1",
+            "reason": "provider_refresh",
+        }
+    )
+    cache_entry = service.store.get_record("quote_cache_entry", invalidated["invalidated_entries"][0]["cache_key"])
+
+    assert invalidated["invalidated_count"] == 1
+    assert cache_entry is not None
+    assert cache_entry["status"] == "invalidated"
+    assert cache_entry["invalidation_reason"] == "provider_refresh"
+    assert _metric_total(
+        service,
+        "quote_cache_invalidated_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 1.0
+
     replay = service.broker_quote({"quote": {**_quote(), "estimated_total_cost": 0.27}})
     assert replay["ok"] is False
     assert replay["error"]["error_code"] == "quote.replay_detected"

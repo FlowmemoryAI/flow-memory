@@ -6,7 +6,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, cast
 
-from flow_memory.compute_market.adapters import HTTPQuoteProvider, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
+from flow_memory.compute_market.adapters import HTTPQuoteProvider, QuoteCollector, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
 from flow_memory.compute_market.service import ComputeMarketService
@@ -250,6 +250,42 @@ def test_http_provider_marks_stale_unknown_and_ignores_policy_text() -> None:
     assert "policy" not in malicious[0].as_record()
     assert malicious[0].dry_run_only is False
 
+
+def test_quote_collector_ignores_invalidated_cache_entries() -> None:
+    server, base = _server()
+    store = ComputeMarketStore(":memory:")
+    provider = _provider(f"{base}/valid")
+    profile = build_task_profile({"task": "cache invalidation"})
+    policy = ComputeMarketPolicy()
+    collector = QuoteCollector((provider,), store=store)
+    try:
+        first = collector.collect(profile, policy)
+        second = collector.collect(profile, policy)
+        cache_key = store.quote_cache_key(
+            "market-token-provider",
+            "market-token-route",
+            profile.task_hash,
+            content_hash(policy.as_record()),
+        )
+        cache_entry = dict(store.get_record("quote_cache_entry", cache_key) or {})
+        store.put_record(
+            "quote_cache_entry",
+            cache_key,
+            {**cache_entry, "status": "invalidated"},
+            provider_id="market-token-provider",
+            route_id="market-token-route",
+            task_hash=profile.task_hash,
+            status="invalidated",
+            expires_at=str(cache_entry.get("expires_at", "")),
+        )
+        refreshed = collector.collect(profile, policy)
+    finally:
+        server.shutdown()
+
+    assert first[0].source == "live"
+    assert second[0].source == "cache"
+    assert refreshed[0].source == "live"
+    assert _REQUEST_COUNTS["/valid"] == 2
 
 def test_external_provider_adapter_factory_and_service_quote_flow() -> None:
     server, base = _server()

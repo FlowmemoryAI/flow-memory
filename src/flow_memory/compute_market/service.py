@@ -287,15 +287,17 @@ class ComputeMarketService:
 
     def disable_provider(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
-        limited = self._rate_limit_response(payload, "POST /compute/providers/{provider_id}/disable", request_id=_request_id(payload), provider_id=provider_id)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /compute/providers/{provider_id}/disable", request_id=request_id, provider_id=provider_id)
         if limited is not None:
             return limited
         current = dict(self.get_provider(provider_id)["provider"])
         current["status"] = "disabled"
         current["disabled_at"] = utc_now_iso()
-        self.store.put_record("compute_provider", provider_id, current, provider_id=provider_id, status="disabled")
-        self._audit("compute.provider.disabled", payload, result="disabled", provider_id=provider_id)
-        return {"ok": True, "provider": current}
+        self.store.put_record("compute_provider", provider_id, current, provider_id=provider_id, status="disabled", request_id=request_id)
+        invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": provider_id, "reason": "provider_disabled"}, request_id=request_id)
+        self._audit("compute.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
+        return {"ok": True, "provider": current, "invalidated_quote_cache_entries": invalidated_cache}
 
     def provider_health(self, provider_id: str) -> Mapping[str, Any]:
         limited = self._rate_limit_response({}, "POST /compute/providers/{provider_id}/health-check", request_id=new_id("request"), provider_id=provider_id)
@@ -466,8 +468,9 @@ class ComputeMarketService:
         if provider is not None:
             disabled_provider = {**dict(provider), "status": "disabled", "disabled_at": disabled_at, "updated_at": disabled_at}
             self.store.put_record("compute_provider", provider_id, disabled_provider, provider_id=provider_id, status="disabled", request_id=request_id)
+        invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": provider_id, "reason": "provider_disabled"}, request_id=request_id)
         self._audit("market.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
-        return {"ok": True, "provider_application": updated_application}
+        return {"ok": True, "provider_application": updated_application, "invalidated_quote_cache_entries": invalidated_cache}
 
     def provider_reputation(self, provider_id: str) -> Mapping[str, Any]:
         jobs = tuple(self.store.list_records("compute_job", filters={"provider_id": provider_id}, limit=500).records)
@@ -520,15 +523,17 @@ class ComputeMarketService:
 
     def disable_route(self, route_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
-        limited = self._rate_limit_response(payload, "POST /compute/routes/{route_id}/disable", request_id=_request_id(payload), route_id=route_id)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /compute/routes/{route_id}/disable", request_id=request_id, route_id=route_id)
         if limited is not None:
             return limited
         current = dict(self.get_route(route_id)["route"])
         current["enabled"] = False
         current["disabled_at"] = utc_now_iso()
-        self.store.put_record("compute_route", route_id, current, provider_id=str(current.get("provider_id", "")), route_id=route_id, status="disabled")
-        self._audit("compute.route.disabled", payload, result="disabled", route_id=route_id)
-        return {"ok": True, "route": current}
+        self.store.put_record("compute_route", route_id, current, provider_id=str(current.get("provider_id", "")), route_id=route_id, status="disabled", request_id=request_id)
+        invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": str(current.get("provider_id", "")), "route_id": route_id, "reason": "route_disabled"}, request_id=request_id)
+        self._audit("compute.route.disabled", payload, request_id=request_id, result="disabled", route_id=route_id)
+        return {"ok": True, "route": current, "invalidated_quote_cache_entries": invalidated_cache}
 
     def list_policies(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         page = self.store.list_records("compute_market_policy", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
@@ -726,6 +731,26 @@ class ComputeMarketService:
             )
             self._audit("market.quote.expired_prior_quotes_marked_stale", payload, request_id=request_id, result="completed", reason_codes=("prior_quotes_expired",), provider_id=provider_id, route_id=route_id)
         return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}, "fraud_signals": fraud_signals}
+
+    def invalidate_quote_cache(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        provider_id = str(payload.get("provider_id", ""))
+        route_id = str(payload.get("route_id", ""))
+        limited = self._rate_limit_response(payload, "POST /market/quotes/cache/invalidate", request_id=request_id, provider_id=provider_id, route_id=route_id)
+        if limited is not None:
+            return limited
+        invalidated = self._invalidate_quote_cache_entries(payload, request_id=request_id)
+        self._audit(
+            "market.quote.cache_invalidated",
+            payload,
+            request_id=request_id,
+            result="invalidated" if invalidated else "noop",
+            reason_codes=() if invalidated else ("quote_cache_entry_not_found",),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return {"ok": True, "invalidated_entries": invalidated, "invalidated_count": len(invalidated)}
 
     def request_external_provider_quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -934,6 +959,60 @@ class ComputeMarketService:
             )
             expired.append(updated)
         return tuple(expired)
+
+    def _invalidate_quote_cache_entries(self, payload: Mapping[str, Any], *, request_id: str) -> tuple[Mapping[str, Any], ...]:
+        provider_id = str(payload.get("provider_id", ""))
+        route_id = str(payload.get("route_id", ""))
+        task_hash = str(payload.get("task_hash", ""))
+        cache_key = str(payload.get("cache_key", ""))
+        quote_id = str(payload.get("quote_id", ""))
+        policy_hash = str(payload.get("policy_hash", ""))
+        filters: dict[str, str] = {}
+        if provider_id:
+            filters["provider_id"] = provider_id
+        if route_id:
+            filters["route_id"] = route_id
+        if task_hash:
+            filters["task_hash"] = task_hash
+        page = self.store.list_records("quote_cache_entry", filters=filters, limit=500)
+        now = utc_now_iso()
+        invalidated: list[Mapping[str, Any]] = []
+        reason = str(payload.get("reason", "manual_invalidation"))
+        for current in page.records:
+            current_cache_key = str(current.get("cache_key", current.get("record_id", "")))
+            if cache_key and current_cache_key != cache_key:
+                continue
+            if policy_hash and str(current.get("policy_hash", "")) != policy_hash:
+                continue
+            cached_quote = current.get("quote", {})
+            if quote_id and (not isinstance(cached_quote, Mapping) or str(cached_quote.get("quote_id", "")) != quote_id):
+                continue
+            if str(current.get("status", "")) == "invalidated":
+                continue
+            updated = {
+                **dict(current),
+                "status": "invalidated",
+                "invalidated_at": now,
+                "invalidation_reason": reason,
+                "updated_at": now,
+            }
+            self.store.put_record(
+                "quote_cache_entry",
+                current_cache_key,
+                updated,
+                provider_id=str(updated.get("provider_id", "")),
+                route_id=str(updated.get("route_id", "")),
+                task_hash=str(updated.get("task_hash", "")),
+                status="invalidated",
+                expires_at=now,
+                request_id=request_id,
+            )
+            self.telemetry.increment(
+                "quote_cache_invalidated_total",
+                {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
+            )
+            invalidated.append(updated)
+        return tuple(invalidated)
 
     def create_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)

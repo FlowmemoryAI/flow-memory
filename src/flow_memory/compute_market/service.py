@@ -662,7 +662,15 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
-        stale_marked = _mark_expired_quotes_stale(self.store, provider_id, route_id, request_id=request_id)
+        _assert_provider_catalog_access(self.store, provider_id, payload)
+        stale_marked = _mark_expired_quotes_stale(
+            self.store,
+            provider_id,
+            route_id,
+            request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
+        )
         public_key = _provider_public_key(payload, provider_id, self)
         validation = validate_provider_quote_contract(
             quote,
@@ -673,7 +681,7 @@ class ComputeMarketService:
         )
         quote_id = str(quote.get("quote_id") or deterministic_id("quote", quote))
         quote_hash = content_hash(quote)
-        cross_provider_replay = _cross_provider_quote_replay(self.store, quote_id, quote_hash, provider_id)
+        cross_provider_replay = _cross_provider_quote_replay(self.store, quote_id, quote_hash, provider_id, payload)
         if cross_provider_replay:
             signal = _record_provider_fraud_signal(
                 self.store,
@@ -684,6 +692,8 @@ class ComputeMarketService:
                 severity="critical",
                 request_id=request_id,
                 details={"quote_hash": quote_hash, "matched_provider_id": str(cross_provider_replay.get("provider_id", ""))},
+                tenant_id=str(payload.get("tenant_id", "")),
+                workspace_id=str(payload.get("workspace_id", "")),
             )
             error = compute_error(
                 "quote.cross_provider_replay_detected",
@@ -694,6 +704,8 @@ class ComputeMarketService:
             self._audit("market.quote.cross_provider_replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("cross_provider_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
         replay_guard = self.store.get_record("quote_replay_guard", quote_id)
+        if replay_guard and not _tenant_can_access_record(payload, replay_guard):
+            replay_guard = {}
         if replay_guard and str(replay_guard.get("quote_hash", "")) != quote_hash:
             error = compute_error(
                 "quote.replay_detected",
@@ -710,6 +722,8 @@ class ComputeMarketService:
                 severity="critical",
                 request_id=request_id,
                 details={"quote_hash": quote_hash, "previous_hash": str(replay_guard.get("quote_hash", ""))},
+                tenant_id=str(payload.get("tenant_id", "")),
+                workspace_id=str(payload.get("workspace_id", "")),
             )
             self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
@@ -721,21 +735,40 @@ class ComputeMarketService:
                 quote_id=quote_id,
                 validation_errors=validation.error_codes,
                 request_id=request_id,
+                tenant_id=str(payload.get("tenant_id", "")),
+                workspace_id=str(payload.get("workspace_id", "")),
             )
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
             return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": validation_fraud_signals}
         signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
-        record = _normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid)
-        previous = self.store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=1).records
+        record = {
+            **_normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid),
+            "tenant_id": str(payload.get("tenant_id", "")),
+            "workspace_id": str(payload.get("workspace_id", "")),
+        }
+        quote_filters = {"provider_id": provider_id, "route_id": route_id}
+        if _payload_tenant_id(payload):
+            quote_filters["tenant_id"] = _payload_tenant_id(payload)
+        previous = self.store.list_records("compute_quote", filters=quote_filters, limit=1).records
         drift = _quote_drift(previous[0] if previous else {}, record)
         fraud_signals: tuple[Mapping[str, Any], ...] = ()
         self.store.put_record(
             "quote_replay_guard",
             quote_id,
-            {"quote_id": quote_id, "quote_hash": quote_hash, "provider_id": provider_id, "route_id": route_id, "created_at": utc_now_iso()},
+            {
+                "quote_id": quote_id,
+                "quote_hash": quote_hash,
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "created_at": utc_now_iso(),
+                "tenant_id": str(payload.get("tenant_id", "")),
+                "workspace_id": str(payload.get("workspace_id", "")),
+            },
             provider_id=provider_id,
             route_id=route_id,
             request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
         )
         self.store.put_record(
             "compute_quote",
@@ -746,6 +779,8 @@ class ComputeMarketService:
             status=str(record.get("status", "valid")),
             expires_at=str(record.get("expires_at", "")),
             request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
             idempotency_key=str(payload.get("idempotency_key", "")),
         )
         if drift:
@@ -757,6 +792,8 @@ class ComputeMarketService:
                 route_id=route_id,
                 status=str(drift["status"]),
                 request_id=request_id,
+                tenant_id=str(payload.get("tenant_id", "")),
+                workspace_id=str(payload.get("workspace_id", "")),
             )
             if str(drift.get("status", "")) == "review":
                 fraud_signals = (
@@ -769,6 +806,8 @@ class ComputeMarketService:
                         severity="review",
                         request_id=request_id,
                         details={"drift": drift},
+                        tenant_id=str(payload.get("tenant_id", "")),
+                        workspace_id=str(payload.get("workspace_id", "")),
                     ),
                 )
         cache_key = self.store.quote_cache_key(provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")))
@@ -788,6 +827,8 @@ class ComputeMarketService:
                 "expires_at": str(record.get("expires_at", "")),
                 "ttl_seconds": int(record.get("quote_ttl_seconds", 300) or 300),
                 "status": str(record.get("status", "valid")),
+                "tenant_id": str(payload.get("tenant_id", "")),
+                "workspace_id": str(payload.get("workspace_id", "")),
             },
             provider_id=provider_id,
             route_id=route_id,
@@ -795,6 +836,8 @@ class ComputeMarketService:
             status=str(record.get("status", "valid")),
             expires_at=str(record.get("expires_at", "")),
             request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
         )
         self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
         self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
@@ -815,6 +858,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/quotes/cache/invalidate", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        _assert_provider_catalog_access(self.store, provider_id, payload)
         invalidated = self._invalidate_quote_cache_entries(payload, request_id=request_id)
         self._audit(
             "market.quote.cache_invalidated",
@@ -869,7 +913,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/quotes/compare", request_id=request_id, provider_id=str(payload.get("provider_id", "")), route_id=str(payload.get("route_id", "")))
         if limited is not None:
             return limited
-        quotes_payload = payload.get("quotes", ())
+        quotes_payload = payload.get("quotes")
         quotes: tuple[Mapping[str, Any], ...]
         if isinstance(quotes_payload, tuple | list):
             quotes = tuple(item for item in quotes_payload if isinstance(item, Mapping))
@@ -877,6 +921,12 @@ class ComputeMarketService:
             quote_ids = _tuple(payload.get("quote_ids", ()))
             if quote_ids:
                 records = tuple(self.store.get_record("compute_quote", quote_id) for quote_id in quote_ids)
+                if _payload_tenant_id(payload):
+                    records = tuple(
+                        record
+                        for record in records
+                        if isinstance(record, Mapping) and _tenant_can_access_record(payload, record)
+                    )
                 quotes = tuple(record for record in records if isinstance(record, Mapping))
             else:
                 quotes = tuple(
@@ -930,6 +980,7 @@ class ComputeMarketService:
             self.telemetry.increment("provider_circuit_open_total", {"provider_id": provider_id})
             self._audit("market.quote.external_circuit_open", payload, request_id=request_id, result="rejected", reason_codes=("circuit_open",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": compute_error("provider.circuit_open", "Provider circuit is open.", details=circuit.as_record(), request_id=request_id).as_record()}
+        _assert_provider_catalog_access(self.store, provider_id, payload)
         provider = self.store.get_record("compute_provider", provider_id)
         if provider is None:
             raise KeyError(f"Unknown compute provider: {provider_id}")
@@ -953,6 +1004,8 @@ class ComputeMarketService:
                     "allowed_assets": payload.get("allowed_assets", ()),
                     "allowed_networks": payload.get("allowed_networks", ()),
                     "request_id": request_id,
+                    "tenant_id": str(payload.get("tenant_id", "")),
+                    "workspace_id": str(payload.get("workspace_id", "")),
                 }
             )
             validations.append(brokered.get("validation", {}) if isinstance(brokered, Mapping) else {})
@@ -979,6 +1032,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/capacity/list", request_id=request_id, provider_id=str(payload.get("provider_id", "")), route_id=str(payload.get("route_id", "")))
         if limited is not None:
             return limited
+        _assert_provider_catalog_access(self.store, str(payload.get("provider_id", "")), payload)
         window = _capacity_window(payload)
         self.store.put_record(
             "compute_capacity_window",
@@ -989,6 +1043,8 @@ class ComputeMarketService:
             status="active",
             expires_at=str(window["ends_at"]),
             request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
         )
         self._audit("market.capacity.listed", payload, request_id=request_id, result="listed", provider_id=str(window["provider_id"]), route_id=str(window["route_id"]))
         return {"ok": True, "capacity_window": window}
@@ -1025,23 +1081,27 @@ class ComputeMarketService:
         )
         if limited is not None:
             return limited
+        _assert_provider_catalog_access(self.store, provider_id, payload)
         idempotency_key = str(payload.get("idempotency_key", "")).strip()
         if idempotency_key:
             existing = self.store.find_by_idempotency("capacity_auction", idempotency_key)
             if existing is not None:
                 return {"ok": True, "clearing": existing, "idempotent_replay": True}
         self._expire_capacity_holds(payload, request_id=request_id)
+        capacity_filters = {"provider_id": provider_id, "route_id": route_id}
+        if _payload_tenant_id(payload):
+            capacity_filters["tenant_id"] = _payload_tenant_id(payload)
         windows = tuple(
             self.store.list_records(
                 "compute_capacity_window",
-                filters={"provider_id": provider_id, "route_id": route_id},
+                filters=capacity_filters,
                 limit=100,
             ).records
         )
         reservations = tuple(
             self.store.list_records(
                 "compute_reservation",
-                filters={"provider_id": provider_id, "route_id": route_id},
+                filters=capacity_filters,
                 limit=500,
             ).records
         )
@@ -1055,6 +1115,8 @@ class ComputeMarketService:
             status=str(clearing["status"]),
             idempotency_key=idempotency_key,
             request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
         )
         total_units_cleared = float(clearing.get("total_units_cleared", 0.0) or 0.0)
         self.telemetry.increment(
@@ -1101,8 +1163,12 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/capacity/reserve", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        _assert_provider_catalog_access(self.store, provider_id, payload)
+        capacity_filters = {"provider_id": provider_id, "route_id": route_id}
+        if _payload_tenant_id(payload):
+            capacity_filters["tenant_id"] = _payload_tenant_id(payload)
         self._expire_capacity_holds(payload, request_id=request_id)
-        reservation = _capacity_reservation(payload, self.store.list_records("compute_capacity_window", filters={"provider_id": provider_id, "route_id": route_id}, limit=100).records, self.store.list_records("compute_reservation", filters={"provider_id": provider_id, "route_id": route_id}, limit=500).records)
+        reservation = _capacity_reservation(payload, self.store.list_records("compute_capacity_window", filters=capacity_filters, limit=100).records, self.store.list_records("compute_reservation", filters=capacity_filters, limit=500).records)
         self.store.put_record(
             "compute_reservation",
             str(reservation["reservation_id"]),
@@ -1113,6 +1179,8 @@ class ComputeMarketService:
             expires_at=str(reservation["hold_expires_at"]),
             idempotency_key=str(payload.get("idempotency_key", "")),
             request_id=request_id,
+            tenant_id=str(payload.get("tenant_id", "")),
+            workspace_id=str(payload.get("workspace_id", "")),
         )
         self.telemetry.increment("capacity_reserved_total", {"provider_id": provider_id, "route_id": route_id}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
         self._audit("market.capacity.reserved", payload, request_id=request_id, result="held", provider_id=provider_id, route_id=route_id)
@@ -1126,6 +1194,8 @@ class ComputeMarketService:
             raise ValueError("reservation_id is required")
         current = self.store.get_record("compute_reservation", reservation_id)
         if current is None:
+            raise KeyError(f"Unknown capacity reservation: {reservation_id}")
+        if not _tenant_can_access_record(payload, current):
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
         status = str(current.get("status", ""))
         if status != "held":
@@ -1147,6 +1217,8 @@ class ComputeMarketService:
             route_id=str(reservation.get("route_id", "")),
             status="confirmed",
             request_id=request_id,
+            tenant_id=str(reservation.get("tenant_id", "")),
+            workspace_id=str(reservation.get("workspace_id", "")),
         )
         self.telemetry.increment(
             "capacity_confirmed_total",
@@ -1175,6 +1247,8 @@ class ComputeMarketService:
         current = self.store.get_record("compute_reservation", reservation_id)
         if current is None:
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
+        if not _tenant_can_access_record(payload, current):
+            raise KeyError(f"Unknown capacity reservation: {reservation_id}")
         released_at = utc_now_iso()
         reservation = {**dict(current), "status": "released", "released_at": released_at, "updated_at": released_at}
         self.store.put_record(
@@ -1185,6 +1259,8 @@ class ComputeMarketService:
             route_id=str(reservation.get("route_id", "")),
             status="released",
             request_id=request_id,
+            tenant_id=str(reservation.get("tenant_id", "")),
+            workspace_id=str(reservation.get("workspace_id", "")),
         )
         self.telemetry.increment("capacity_released_total", {"provider_id": str(reservation.get("provider_id", "")), "route_id": str(reservation.get("route_id", ""))}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
         self._audit("market.capacity.released", payload, request_id=request_id, result="released", provider_id=str(reservation.get("provider_id", "")), route_id=str(reservation.get("route_id", "")))
@@ -1198,6 +1274,8 @@ class ComputeMarketService:
             filters["provider_id"] = provider_id
         if route_id:
             filters["route_id"] = route_id
+        if _payload_tenant_id(payload):
+            filters["tenant_id"] = _payload_tenant_id(payload)
         page = self.store.list_records("compute_reservation", filters=filters, limit=500)
         now = utc_now_iso()
         interval_start, interval_end = _capacity_time_range(payload)
@@ -1220,6 +1298,8 @@ class ComputeMarketService:
                 route_id=str(updated.get("route_id", "")),
                 status="expired",
                 request_id=request_id,
+                tenant_id=str(updated.get("tenant_id", "")),
+                workspace_id=str(updated.get("workspace_id", "")),
             )
             self.telemetry.increment(
                 "capacity_hold_expired_total",
@@ -1243,6 +1323,8 @@ class ComputeMarketService:
             filters["route_id"] = route_id
         if task_hash:
             filters["task_hash"] = task_hash
+        if _payload_tenant_id(payload):
+            filters["tenant_id"] = _payload_tenant_id(payload)
         page = self.store.list_records("quote_cache_entry", filters=filters, limit=500)
         now = utc_now_iso()
         invalidated: list[Mapping[str, Any]] = []
@@ -1275,6 +1357,8 @@ class ComputeMarketService:
                 status="invalidated",
                 expires_at=now,
                 request_id=request_id,
+                tenant_id=str(updated.get("tenant_id", "")),
+                workspace_id=str(updated.get("workspace_id", "")),
             )
             self.telemetry.increment(
                 "quote_cache_invalidated_total",
@@ -3897,6 +3981,8 @@ def _record_provider_fraud_signal(
     severity: str,
     request_id: str,
     details: Mapping[str, Any],
+    tenant_id: str = "",
+    workspace_id: str = "",
 ) -> dict[str, Any]:
     now = utc_now_iso()
     signal = {
@@ -3919,6 +4005,8 @@ def _record_provider_fraud_signal(
         "details": dict(details),
         "dry_run_only": True,
         "funds_moved": False,
+        "tenant_id": tenant_id,
+        "workspace_id": workspace_id,
         "created_at": now,
         "updated_at": now,
         "request_id": request_id,
@@ -3931,6 +4019,8 @@ def _record_provider_fraud_signal(
         route_id=route_id,
         status="open",
         request_id=request_id,
+        tenant_id=tenant_id,
+        workspace_id=workspace_id,
     )
     return signal
 
@@ -3940,11 +4030,20 @@ def _cross_provider_quote_replay(
     quote_id: str,
     quote_hash: str,
     provider_id: str,
+    payload: Mapping[str, Any] | None = None,
 ) -> Mapping[str, Any]:
+    access_payload = payload or {}
     existing = store.get_record("quote_replay_guard", quote_id)
-    if existing and str(existing.get("provider_id", "")) and str(existing.get("provider_id", "")) != provider_id:
+    if (
+        existing
+        and _tenant_can_access_record(access_payload, existing)
+        and str(existing.get("provider_id", ""))
+        and str(existing.get("provider_id", "")) != provider_id
+    ):
         return existing
     for observed in store.list_records("quote_replay_guard", limit=1000).records:
+        if not _tenant_can_access_record(access_payload, observed):
+            continue
         observed_provider_id = str(observed.get("provider_id", ""))
         if observed_provider_id and observed_provider_id != provider_id and str(observed.get("quote_hash", "")) == quote_hash:
             return observed
@@ -3957,10 +4056,15 @@ def _mark_expired_quotes_stale(
     route_id: str,
     *,
     request_id: str,
+    tenant_id: str = "",
+    workspace_id: str = "",
 ) -> int:
     now = utc_now_iso()
     marked = 0
-    for quote in store.list_records("compute_quote", filters={"provider_id": provider_id, "route_id": route_id}, limit=500).records:
+    filters = {"provider_id": provider_id, "route_id": route_id}
+    if tenant_id:
+        filters["tenant_id"] = tenant_id
+    for quote in store.list_records("compute_quote", filters=filters, limit=500).records:
         expires_at = str(quote.get("expires_at", ""))
         if not expires_at or expires_at > now or str(quote.get("status", "")) != "valid":
             continue
@@ -3974,6 +4078,8 @@ def _mark_expired_quotes_stale(
             status="stale",
             expires_at=expires_at,
             request_id=request_id,
+            tenant_id=tenant_id or str(updated.get("tenant_id", "")),
+            workspace_id=workspace_id or str(updated.get("workspace_id", "")),
         )
         marked += 1
     return marked
@@ -3997,6 +4103,8 @@ def _fraud_signals_from_validation(
     quote_id: str,
     validation_errors: tuple[str, ...],
     request_id: str,
+    tenant_id: str = "",
+    workspace_id: str = "",
 ) -> tuple[Mapping[str, Any], ...]:
     signals: list[Mapping[str, Any]] = []
     for error_code in tuple(dict.fromkeys(validation_errors)):
@@ -4014,6 +4122,8 @@ def _fraud_signals_from_validation(
                 severity=severity,
                 request_id=request_id,
                 details={"validation_error": error_code, "validation_errors": validation_errors},
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
             )
         )
     return tuple(signals)
@@ -4211,6 +4321,8 @@ def _quote_drift(previous: Mapping[str, Any], current: Mapping[str, Any]) -> dic
         "drift_id": deterministic_id("quote_drift", {"previous": previous.get("quote_id", ""), "current": current.get("quote_id", "")}),
         "provider_id": str(current.get("provider_id", "")),
         "route_id": str(current.get("route_id", "")),
+        "tenant_id": str(current.get("tenant_id", "")),
+        "workspace_id": str(current.get("workspace_id", "")),
         "previous_quote_id": str(previous.get("quote_id", "")),
         "current_quote_id": str(current.get("quote_id", "")),
         "previous_total_cost": old_price,
@@ -4246,6 +4358,8 @@ def _capacity_window(payload: Mapping[str, Any]) -> dict[str, Any]:
         "price_floor": float(payload.get("price_floor", 0.0) or 0.0),
         "reservation_required": bool(payload.get("reservation_required", True)),
         "status": "active",
+        "tenant_id": str(payload.get("tenant_id", "")),
+        "workspace_id": str(payload.get("workspace_id", "")),
         "created_at": utc_now_iso(),
     }
 
@@ -4355,6 +4469,8 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
         "status": "held",
         "hold_expires_at": str(payload.get("hold_expires_at", window.get("ends_at", ""))),
         "dry_run_only": True,
+        "tenant_id": str(payload.get("tenant_id", window.get("tenant_id", ""))),
+        "workspace_id": str(payload.get("workspace_id", window.get("workspace_id", ""))),
         "funds_moved": False,
         "created_at": now,
         "updated_at": now,
@@ -4509,6 +4625,8 @@ def _capacity_auction_clearing(
         "dry_run_only": True,
         "funds_moved": False,
         "reservations_created": False,
+        "tenant_id": str(payload.get("tenant_id", "")),
+        "workspace_id": str(payload.get("workspace_id", "")),
         "created_at": now,
         "request_id": request_id,
     }
@@ -4658,6 +4776,27 @@ def _tenant_can_access_catalog_record(payload: Mapping[str, Any], record: Mappin
         return True
     record_tenant_id = str(record.get("tenant_id", "")).strip()
     return not record_tenant_id or record_tenant_id == tenant_id
+
+def _assert_provider_catalog_access(
+    store: ComputeMarketStoreProtocol,
+    provider_id: str,
+    payload: Mapping[str, Any],
+) -> None:
+    if not provider_id:
+        return
+    provider = store.get_record("compute_provider", provider_id)
+    if provider is not None:
+        if not _tenant_can_access_catalog_record(payload, provider):
+            raise KeyError(f"Unknown compute provider: {provider_id}")
+        return
+    applications = store.list_records(
+        "market_provider_application",
+        filters={"provider_id": provider_id},
+        limit=500,
+    ).records
+    if applications and not any(_tenant_can_access_catalog_record(payload, application) for application in applications):
+        raise KeyError(f"Unknown compute provider: {provider_id}")
+
 
 def _payload_worker_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("worker_id", "")).strip()

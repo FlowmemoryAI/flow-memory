@@ -347,6 +347,187 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["fraud_signal_count"] == 2
 
 
+def test_quote_and_capacity_records_are_tenant_scoped() -> None:
+    service = _service()
+    tenant_a = "tenant_market_a"
+    tenant_b = "tenant_market_b"
+    application = {**_provider_application(), "tenant_id": tenant_a, "workspace_id": "workspace_market_a"}
+    service.apply_market_provider(application)
+    service.verify_market_provider("provider_live_gpu_1", {"tenant_id": tenant_a})
+
+    accepted = service.broker_quote(
+        {
+            "tenant_id": tenant_a,
+            "workspace_id": "workspace_market_a",
+            "quote": _quote(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+    replay_guard = service.store.get_record("quote_replay_guard", "quote_live_gpu_1")
+    tenant_b_comparison = service.compare_quotes(
+        {
+            "tenant_id": tenant_b,
+            "quote_ids": ["quote_live_gpu_1"],
+            "task": "tenant b must not see tenant a quote",
+        }
+    )
+    tenant_a_comparison = service.compare_quotes(
+        {
+            "tenant_id": tenant_a,
+            "quote_ids": ["quote_live_gpu_1"],
+            "task": "tenant a can compare own quote",
+        }
+    )
+
+    assert accepted["quote"]["tenant_id"] == tenant_a
+    assert accepted["quote"]["workspace_id"] == "workspace_market_a"
+    assert replay_guard is not None
+    assert replay_guard["tenant_id"] == tenant_a
+    assert tenant_b_comparison["quote_comparison"]["summary"]["quote_count"] == 0
+    assert tenant_a_comparison["quote_comparison"]["summary"]["quote_count"] == 1
+
+    try:
+        service.broker_quote(
+            {
+                "tenant_id": tenant_b,
+                "quote": {**_quote(), "quote_id": "quote_tenant_b_rejected"},
+                "allowed_assets": ["USDC"],
+                "allowed_networks": ["solana"],
+            }
+        )
+    except KeyError as exc:
+        assert "Unknown compute provider" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant quote ingest was accepted")
+
+    try:
+        service.invalidate_quote_cache(
+            {
+                "tenant_id": tenant_b,
+                "provider_id": "provider_live_gpu_1",
+                "route_id": "route_live_gpu_1",
+                "quote_id": "quote_live_gpu_1",
+            }
+        )
+    except KeyError as exc:
+        assert "Unknown compute provider" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant quote cache invalidation was accepted")
+
+    window = service.list_capacity(
+        {
+            "tenant_id": tenant_a,
+            "workspace_id": "workspace_market_a",
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )["capacity_window"]
+    tenant_b_book = service.capacity_order_book({"tenant_id": tenant_b, "provider_id": "provider_live_gpu_1"})
+
+    assert window["tenant_id"] == tenant_a
+    assert window["workspace_id"] == "workspace_market_a"
+    assert tenant_b_book["capacity_windows"] == ()
+    assert tenant_b_book["summary"]["total_capacity_units"] == 0
+
+    try:
+        service.auction_capacity(
+            {
+                "tenant_id": tenant_b,
+                "provider_id": "provider_live_gpu_1",
+                "route_id": "route_live_gpu_1",
+                "capacity_units": 1,
+                "bids": [
+                    {
+                        "bid_id": "bid_tenant_b",
+                        "account_id": "acct_tenant_b",
+                        "capacity_units": 1,
+                        "max_unit_price": 3.0,
+                    }
+                ],
+            }
+        )
+    except KeyError as exc:
+        assert "Unknown compute provider" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant capacity auction was accepted")
+
+    try:
+        service.reserve_capacity(
+            {
+                "tenant_id": tenant_b,
+                "provider_id": "provider_live_gpu_1",
+                "route_id": "route_live_gpu_1",
+                "capacity_units": 1,
+            }
+        )
+    except KeyError as exc:
+        assert "Unknown compute provider" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant capacity reservation was accepted")
+
+    held = service.reserve_capacity(
+        {
+            "tenant_id": tenant_a,
+            "workspace_id": "workspace_market_a",
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 2,
+        }
+    )["reservation"]
+    assert held["tenant_id"] == tenant_a
+
+    try:
+        service.confirm_capacity({"tenant_id": tenant_b, "reservation_id": held["reservation_id"]})
+    except KeyError as exc:
+        assert "Unknown capacity reservation" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant capacity confirmation was accepted")
+
+    confirmed = service.confirm_capacity({"tenant_id": tenant_a, "reservation_id": held["reservation_id"]})[
+        "reservation"
+    ]
+    assert confirmed["tenant_id"] == tenant_a
+
+    try:
+        service.release_capacity({"tenant_id": tenant_b, "reservation_id": held["reservation_id"]})
+    except KeyError as exc:
+        assert "Unknown capacity reservation" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant capacity release was accepted")
+
+    released = service.release_capacity({"tenant_id": tenant_a, "reservation_id": held["reservation_id"]})[
+        "reservation"
+    ]
+    assert released["tenant_id"] == tenant_a
+
+    auction = service.auction_capacity(
+        {
+            "tenant_id": tenant_a,
+            "workspace_id": "workspace_market_a",
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 1,
+            "bids": [
+                {
+                    "bid_id": "bid_tenant_a",
+                    "account_id": "acct_tenant_a",
+                    "capacity_units": 1,
+                    "max_unit_price": 3.0,
+                }
+            ],
+        }
+    )
+    assert auction["clearing"]["tenant_id"] == tenant_a
+
+
 def test_quote_comparison_across_unit_types_and_assets() -> None:
     service = _service()
     token_quote = {

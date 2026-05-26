@@ -1012,6 +1012,60 @@ def test_provider_receipt_callback_enforces_ip_allowlist(monkeypatch: Any) -> No
     assert _metric_total(service, "compute_provider_receipt_rejected_total", {"reason": "provider_receipt.ip_not_allowed"}) == 1.0
 
 
+def test_provider_job_state_callbacks_enforce_ip_allowlist() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("203.0.113.0/24",),
+        ),
+    )
+
+    blocked_complete_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    allowed_complete_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    fail_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    heartbeat_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    service.dispatch_job(blocked_complete_job_id, {})
+    service.dispatch_job(allowed_complete_job_id, {})
+    service.dispatch_job(heartbeat_job_id, {})
+
+    blocked_complete = service.complete_job(
+        blocked_complete_job_id,
+        {"actual_total_cost": 0.2, "_flow_memory_client_ip": "198.51.100.10"},
+    )
+    allowed_complete = service.complete_job(
+        allowed_complete_job_id,
+        {"actual_total_cost": 0.2, "_flow_memory_client_ip": "203.0.113.42"},
+    )
+    blocked_fail = service.fail_job(
+        fail_job_id,
+        {"error_code": "provider_execution_failed", "reason": "blocked by callback allowlist", "_flow_memory_client_ip": "198.51.100.10"},
+    )
+    blocked_heartbeat = service.heartbeat_job(
+        heartbeat_job_id,
+        {"worker_id": "worker_1", "ttl_seconds": 60, "_flow_memory_client_ip": "198.51.100.10"},
+    )
+
+    for callback_action, result in {
+        "complete": blocked_complete,
+        "fail": blocked_fail,
+        "heartbeat": blocked_heartbeat,
+    }.items():
+        assert result["ok"] is False
+        assert result["error"]["error_code"] == "provider_callback.ip_not_allowed"
+        assert result["error"]["details"]["callback_action"] == callback_action
+
+    assert service.get_job(blocked_complete_job_id)["job"]["status"] == "running"
+    assert allowed_complete["ok"] is True
+    assert allowed_complete["job"]["status"] == "succeeded"
+    assert service.get_job(fail_job_id)["job"]["status"] == "queued"
+    assert service.get_job(heartbeat_job_id)["job"]["status"] == "running"
+    assert "heartbeat_count" not in service.get_job(heartbeat_job_id)["job"]
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.ip_not_allowed"}) == 3.0
+
+
 def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:
     service = _service()
     job_id = str(service.create_job(_job_payload())["job"]["job_id"])

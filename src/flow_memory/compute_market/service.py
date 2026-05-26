@@ -1317,7 +1317,7 @@ class ComputeMarketService:
             request_id=request_id,
         )
         status = str(receipt.get("status", "")).strip().lower()
-        completion_payload = {**dict(receipt), "request_id": request_id}
+        completion_payload = {**dict(receipt), "request_id": request_id, "_flow_memory_client_ip": client_ip}
         if status in {"succeeded", "success", "completed", "complete"}:
             self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
@@ -1469,6 +1469,19 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id)["job"])
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        callback_rejection = self._provider_callback_ip_rejection(
+            payload,
+            request_id=request_id,
+            job_id=job_id,
+            provider_id=provider_id,
+            route_id=route_id,
+            callback_action="complete",
+            audit_action="compute.job.complete_rejected",
+        )
+        if callback_rejection is not None:
+            return callback_rejection
         _assert_job_status(job, ("running",), "complete")
         worker_id = _assert_claim_owner(job, payload, "complete")
         completed_at = utc_now_iso()
@@ -1658,6 +1671,19 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id)["job"])
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        callback_rejection = self._provider_callback_ip_rejection(
+            payload,
+            request_id=request_id,
+            job_id=job_id,
+            provider_id=provider_id,
+            route_id=route_id,
+            callback_action="fail",
+            audit_action="compute.job.fail_rejected",
+        )
+        if callback_rejection is not None:
+            return callback_rejection
         _assert_job_status(job, ("queued", "dispatched", "running"), "fail")
         worker_id = _assert_claim_owner(job, payload, "fail")
         failed_at = utc_now_iso()
@@ -1839,8 +1865,21 @@ class ComputeMarketService:
     def heartbeat_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        worker_id = _worker_id(payload)
         job = dict(self.get_job(job_id)["job"])
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        callback_rejection = self._provider_callback_ip_rejection(
+            payload,
+            request_id=request_id,
+            job_id=job_id,
+            provider_id=provider_id,
+            route_id=route_id,
+            callback_action="heartbeat",
+            audit_action="compute.job.heartbeat_rejected",
+        )
+        if callback_rejection is not None:
+            return callback_rejection
+        worker_id = _worker_id(payload)
         _assert_job_status(job, ("dispatched", "running"), "heartbeat")
         _assert_claim_owner(job, payload, "heartbeat")
         lease_expires_at = _future_utc_iso(_lease_ttl_seconds(payload))
@@ -3225,6 +3264,49 @@ class ComputeMarketService:
             reason_codes=("circuit_open",),
         )
         return {**dict(payload), "policy": policy, "circuit_open_providers": open_providers}
+
+    def _provider_callback_ip_rejection(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+        job_id: str,
+        provider_id: str,
+        route_id: str,
+        callback_action: str,
+        audit_action: str,
+    ) -> Mapping[str, Any] | None:
+        client_ip = str(payload.get("_flow_memory_client_ip", ""))
+        if _provider_callback_ip_allowed(client_ip, self.config.provider_callback_ip_allowlist):
+            return None
+        error_code = "provider_callback.ip_not_allowed"
+        error = compute_error(
+            error_code,
+            "Provider callback source IP is not allowlisted.",
+            details={
+                "job_id": job_id,
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": callback_action,
+                "client_ip": client_ip,
+                "allowlist_configured": bool(self.config.provider_callback_ip_allowlist),
+            },
+            request_id=request_id,
+        )
+        self._audit(
+            audit_action,
+            payload,
+            request_id=request_id,
+            result="rejected",
+            reason_codes=("provider_callback_ip_not_allowed",),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        self.telemetry.increment(
+            "compute_provider_callback_rejected_total",
+            {"provider_id": provider_id, "route_id": route_id, "callback_action": callback_action, "reason": error_code},
+        )
+        return {"ok": False, "error": error.as_record()}
 
     def _open_circuit_provider_ids(self) -> tuple[str, ...]:
         open_ids = getattr(self.circuit_breaker, "open_provider_ids", None)

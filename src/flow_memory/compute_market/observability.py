@@ -59,6 +59,7 @@ _METRIC_NAMES: tuple[str, ...] = (
     "audit_chain_verify_fail_total",
     "compute_provider_receipt_accepted_total",
     "compute_provider_receipt_rejected_total",
+    "compute_provider_callback_rejected_total",
     "error_tracking_pending_total",
     "error_tracking_sent_total",
     "error_tracking_failed_total",

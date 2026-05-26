@@ -355,8 +355,10 @@ def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) 
     return {**dict(payload), "tenant_id": tenant_id, "_flow_memory_principal": str(context.principal or "")}
 
 
+_PROVIDER_CALLBACK_IP_PATH_SUFFIXES = ("/receipt", "/complete", "/fail", "/heartbeat")
+
 def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str]) -> Mapping[str, Any]:
-    if method.upper() != "POST" or not path.startswith("/compute/jobs/") or not path.endswith("/receipt"):
+    if method.upper() != "POST" or not path.startswith("/compute/jobs/") or not path.endswith(_PROVIDER_CALLBACK_IP_PATH_SUFFIXES):
         return payload
     client_ip = _trusted_client_ip(headers)
     if not client_ip:

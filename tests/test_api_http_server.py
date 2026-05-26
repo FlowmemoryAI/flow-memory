@@ -623,6 +623,72 @@ def test_http_gateway_injects_provider_receipt_client_ip(monkeypatch: Any) -> No
     assert response.body["data"]["error"]["error_code"] == "provider_receipt.ip_not_allowed"
 
 
+def test_http_gateway_injects_provider_state_callback_client_ip() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("127.0.0.1",),
+        ),
+    )
+    service.create_provider(
+        {
+            "provider_id": "callback-provider",
+            "provider_name": "Callback Provider",
+            "provider_type": "gpu",
+        }
+    )
+    base_job = {
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/job-http.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "callback-route",
+        "provider_id": "callback-provider",
+    }
+    callback_payloads: dict[str, dict[str, Any]] = {
+        "complete": {"actual_total_cost": 0.18},
+        "fail": {"error_code": "provider_execution_failed", "reason": "blocked by callback allowlist"},
+        "heartbeat": {"worker_id": "worker_1", "ttl_seconds": 60},
+    }
+    job_ids: dict[str, str] = {}
+    responses: dict[str, Any] = {}
+
+    reset_default_service(service)
+    try:
+        gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", require_scopes=True, enable_rate_limit=False))
+        for callback_action, payload in callback_payloads.items():
+            job_id = str(service.create_job({**base_job, "job_id": f"job_{callback_action}_ip_blocked"})["job"]["job_id"])
+            if callback_action in {"complete", "heartbeat"}:
+                service.dispatch_job(job_id, {})
+            job_ids[callback_action] = job_id
+            responses[callback_action] = gateway.handle(
+                "POST",
+                f"/compute/jobs/{job_id}/{callback_action}",
+                {
+                    "x-flow-memory-api-key": "dev",
+                    "x-flow-memory-scopes": "compute:execute",
+                    "x-flow-memory-client-ip": "198.51.100.77",
+                },
+                json.dumps(payload).encode("utf-8"),
+            )
+    finally:
+        reset_default_service(None)
+
+    for callback_action, response in responses.items():
+        assert response.status == 200
+        assert response.body["data"]["ok"] is False
+        assert response.body["data"]["error"]["error_code"] == "provider_callback.ip_not_allowed"
+        assert response.body["data"]["error"]["details"]["callback_action"] == callback_action
+    assert service.get_job(job_ids["complete"])["job"]["status"] == "running"
+    assert service.get_job(job_ids["fail"])["job"]["status"] == "queued"
+    assert service.get_job(job_ids["heartbeat"])["job"]["status"] == "running"
+    assert "heartbeat_count" not in service.get_job(job_ids["heartbeat"])["job"]
+
+
 def test_dependency_free_http_server_handles_local_request() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server = create_http_server(gateway, host="127.0.0.1", port=0)

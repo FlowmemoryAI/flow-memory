@@ -356,7 +356,8 @@ class S3WormAuditExporter:
         if not self._last_export_key:
             return AuditExportVerification(False, f"s3://{self.bucket}/{self.prefix}", 0, error_code="missing_export_key", message="no export has been written by this exporter instance")
         try:
-            response = self._client().get_object(Bucket=self.bucket, Key=self._last_export_key)
+            client = self._client()
+            response = client.get_object(Bucket=self.bucket, Key=self._last_export_key)
             parsed = tuple(json.loads(line) for line in _object_body_text(response.get("Body")).splitlines() if line.strip())
             manifest = parsed[0]
             checkpoint_line = parsed[-1]
@@ -380,6 +381,15 @@ class S3WormAuditExporter:
             chain_error = _verify_exported_chain(event_records)
             if chain_error:
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash, chain_error[0], chain_error[1])
+            self._assert_object_lock_readback(
+                client,
+                self._last_export_key,
+                expected_metadata={
+                    "manifest-hash": str(manifest.get("manifest_hash", "")),
+                    "checkpoint-id": str(checkpoint_map.get("checkpoint_id", "")),
+                    "audit-format": _EXPORT_FORMAT,
+                },
+            )
             return AuditExportVerification(True, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash)
         except Exception as exc:
             return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=type(exc).__name__, message=str(exc))

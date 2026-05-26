@@ -213,6 +213,28 @@ def test_render_deploy_blocks_unsafe_level1_env_overrides() -> None:
 
     assert blocked.value.code == 38
 
+
+def test_render_deploy_blocks_disabled_level1_control_planes(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.assert_level1_safety_settings(
+            {
+                "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED": "false",
+                "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED": "false",
+                "FLOW_MEMORY_COMPUTE_METRICS_ENABLED": "false",
+                "FLOW_MEMORY_COMPUTE_TRACING_ENABLED": "false",
+            }
+        )
+
+    payload = json.loads(capsys.readouterr().out)
+    invalid_keys = {item["key"] for item in payload["invalid_values"]}
+    assert blocked.value.code == 38
+    assert invalid_keys == {
+        "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED",
+        "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED",
+        "FLOW_MEMORY_COMPUTE_METRICS_ENABLED",
+        "FLOW_MEMORY_COMPUTE_TRACING_ENABLED",
+    }
+
 def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []
     jwt_health_calls = 0

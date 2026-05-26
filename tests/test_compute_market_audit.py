@@ -344,6 +344,23 @@ def test_s3_object_lock_exporter_fails_closed_without_head_readback_retention() 
         raise AssertionError("S3 exporter accepted missing readback retention evidence")
 
 
+def test_s3_object_lock_verify_export_fails_closed_without_retention_readback() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = _service()
+    service.plan({"task": "s3 verify missing retention readback", "request_id": "s3-verify-no-retention"})
+
+    exporter.export_events(service.store, chain_id="all")
+    export_put = client.puts[0]
+    export_key = str(export_put["Key"])
+    client.heads[(str(export_put["Bucket"]), export_key)].pop("ObjectLockRetainUntilDate", None)
+    verified = exporter.verify_export()
+
+    assert verified.ok is False
+    assert verified.error_code == "RuntimeError"
+    assert "readback retention timestamp" in verified.message
+
+
 def test_s3_exporter_factory_uses_first_class_region_endpoint_and_retention_config() -> None:
     exporter = create_audit_exporter(
         "s3://flow-memory-audit/compute-market?retention_days=7",

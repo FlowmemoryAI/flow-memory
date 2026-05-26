@@ -18,6 +18,7 @@ from flow_memory.compute_market.storage_backends import PostgresComputeMarketSto
 
 POSTGRES_ENV_NAMES = ("FLOW_MEMORY_TEST_POSTGRES_URL", "FLOW_MEMORY_COMPUTE_DATABASE_URL")
 REDIS_ENV_NAMES = ("FLOW_MEMORY_TEST_REDIS_URL", "FLOW_MEMORY_COMPUTE_REDIS_URL")
+POSTGRES_SECURE_SSL_MODES = ("require", "verify-ca", "verify-full")
 
 REQUIRED_POSTGRES_INDEX_GROUPS: Mapping[str, tuple[str, ...]] = {
     "economic_memory_by_agent_id": ("idx_compute_economic_memory_agent",),
@@ -263,7 +264,23 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         print(json.dumps({"ok": False, "status": "blocked_missing_live_infra", "missing_values": missing}, indent=2, sort_keys=True))
         return 2
-    if is_loopback_endpoint(postgres_url) and not args.allow_local_postgres:
+    postgres_is_loopback = is_loopback_endpoint(postgres_url)
+    postgres_ssl_mode = args.postgres_ssl_mode.strip().lower()
+    if postgres_ssl_mode not in POSTGRES_SECURE_SSL_MODES and not (args.allow_local_postgres and postgres_is_loopback):
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "status": "blocked_insecure_postgres",
+                    "postgres_ssl_mode": postgres_ssl_mode,
+                    "required_ssl_modes": POSTGRES_SECURE_SSL_MODES,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 6
+    if postgres_is_loopback and not args.allow_local_postgres:
         print(
             json.dumps(
                 {

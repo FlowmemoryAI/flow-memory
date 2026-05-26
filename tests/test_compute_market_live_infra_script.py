@@ -66,6 +66,27 @@ def test_live_infra_validator_blocks_plain_redis_before_network(monkeypatch: Any
     assert payload["required_scheme"] == "rediss"
 
 
+def test_live_infra_validator_blocks_insecure_postgres_before_network(monkeypatch: Any, capsys: Any) -> None:
+    _clear_live_env(monkeypatch)
+
+    exit_code = validator.main(
+        [
+            "--postgres-url",
+            "postgresql://flow_memory:secret@db.example/flow_memory",
+            "--postgres-ssl-mode",
+            "disable",
+            "--redis-url",
+            "rediss://cache.example:6379/0",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 6
+    assert payload["status"] == "blocked_insecure_postgres"
+    assert payload["postgres_ssl_mode"] == "disable"
+    assert "require" in payload["required_ssl_modes"]
+
+
 def test_live_infra_validator_blocks_loopback_postgres_before_network(monkeypatch: Any, capsys: Any) -> None:
     _clear_live_env(monkeypatch)
 

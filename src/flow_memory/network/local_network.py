@@ -107,6 +107,7 @@ class LocalFlowMemoryNetwork:
             self._extend_visual(agent_participants_to_visual_events((item.as_record() for item in self.topology.participants), provenance="live"))
         try:
             scenario_key = scenario.replace("_", "-")
+            reports: tuple[ScenarioReport, ...]
             if scenario_key == "all":
                 reports = (
                     self.run_basic_economy(),

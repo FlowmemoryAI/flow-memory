@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ssl
 import time
 
 from flow_memory.compute_market.config import ComputeMarketConfig
@@ -10,6 +11,7 @@ from flow_memory.compute_market.controls import (
     InMemoryRateLimiter,
     RedisCircuitBreaker,
     RedisRateLimiter,
+    _redis_client_kwargs,
     create_circuit_breaker,
     create_rate_limiter,
 )
@@ -165,6 +167,46 @@ def test_redis_rate_limiter_uses_atomic_counter_and_factory() -> None:
         RedisRateLimiter,
     )
 
+def test_redis_rate_limiter_route_limits_success_counter_and_tls_kwargs() -> None:
+    redis = FakeRedis()
+    limiter = RedisRateLimiter(
+        "redis://localhost:6379/0",
+        default_limit=10,
+        route_limits={"POST /compute/plan": 1},
+        window_seconds=30,
+        client=redis,
+    )
+
+    first = limiter.check_limit("actor", "POST /compute/plan")
+    second = limiter.check_limit("actor", "POST /compute/plan")
+    other_route = limiter.check_limit("actor", "GET /compute/health")
+    limiter.record_success(first.key)
+
+    assert first.ok is True
+    assert first.limit == 1
+    assert second.ok is False
+    assert second.reason_code == "rate_limited"
+    assert other_route.ok is True
+    assert other_route.limit == 10
+    assert redis.values[f"{first.key}:successes"] == 1
+    assert redis.expirations[f"{first.key}:successes"] == 30
+    assert _redis_client_kwargs("rediss://cache.example:6379/0")["ssl_cert_reqs"] == ssl.CERT_REQUIRED
+    assert "ssl_cert_reqs" not in _redis_client_kwargs("rediss://cache.example:6379/0", verify_tls=False)
+
+
+def test_redis_controls_fail_closed_when_tls_is_required_for_plain_url() -> None:
+    limiter = RedisRateLimiter("redis://localhost:6379/0", require_tls=True, client=FakeRedis())
+    breaker = RedisCircuitBreaker("redis://localhost:6379/0", require_tls=True, client=FakeRedis())
+
+    rate_decision = limiter.check_limit("actor", "POST /compute/plan")
+    circuit_decision = breaker.allow_request("provider")
+
+    assert rate_decision.ok is False
+    assert rate_decision.reason_code == "rate_limit_backend_unavailable"
+    assert limiter.get_status("readiness")["configured"] is False
+    assert circuit_decision.ok is False
+    assert circuit_decision.reason_code == "circuit_backend_unavailable"
+    assert breaker.get_state("provider")["configured"] is False
 
 
 def test_redis_rate_limiter_shares_state_across_instances() -> None:
@@ -217,6 +259,23 @@ def test_redis_circuit_breaker_opens_and_factory_selects_backend() -> None:
         RedisCircuitBreaker,
     )
 
+
+def test_redis_factories_require_tls_when_managed_redis_is_required() -> None:
+    config = ComputeMarketConfig(
+        database_url=":memory:",
+        compute_market_mode="test",
+        rate_limit_backend="redis",
+        circuit_breaker_backend="redis",
+        redis_url="redis://localhost:6379/0",
+        require_managed_redis_in_production=True,
+    )
+    limiter = create_rate_limiter(config)
+    breaker = create_circuit_breaker(config)
+
+    assert isinstance(limiter, RedisRateLimiter)
+    assert isinstance(breaker, RedisCircuitBreaker)
+    assert limiter.check_limit("actor", "POST /compute/plan").reason_code == "rate_limit_backend_unavailable"
+    assert breaker.allow_request("provider").reason_code == "circuit_backend_unavailable"
 
 
 def test_redis_circuit_breaker_recovers_across_instances_after_half_open_success() -> None:

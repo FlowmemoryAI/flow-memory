@@ -123,6 +123,14 @@ def test_live_infra_validator_blocks_loopback_rediss_before_network(monkeypatch:
     assert payload["redis_host"] == "localhost"
 
 
+def test_live_infra_validator_fail_closed_probe_reports_structured_reasons() -> None:
+    probe = validator.redis_fail_closed_probe()
+
+    assert probe["ok"] is True
+    assert probe["rate_limit_reason"] == "rate_limit_backend_unavailable"
+    assert probe["circuit_reason"] == "circuit_backend_unavailable"
+
+
 def test_live_infra_validator_can_run_local_insecure_redis_when_explicitly_allowed(
     monkeypatch: Any,
     capsys: Any,

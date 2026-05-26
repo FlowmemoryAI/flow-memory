@@ -177,10 +177,10 @@ def validate_redis(redis_url: str, *, require_tls: bool = True) -> Mapping[str, 
         return {"ok": False, "backend": "redis", "error_code": "redis_tls_required", "redis_url_scheme": url_scheme(redis_url)}
     prefix = f"flow-memory:live-infra:{monotonic_ns()}"
     try:
-        limiter_a = RedisRateLimiter(redis_url, prefix=prefix, default_limit=1, window_seconds=30)
-        limiter_b = RedisRateLimiter(redis_url, prefix=prefix, default_limit=1, window_seconds=30)
-        breaker_a = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=0)
-        breaker_b = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=0)
+        limiter_a = RedisRateLimiter(redis_url, prefix=prefix, default_limit=1, window_seconds=30, require_tls=require_tls)
+        limiter_b = RedisRateLimiter(redis_url, prefix=prefix, default_limit=1, window_seconds=30, require_tls=require_tls)
+        breaker_a = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=0, require_tls=require_tls)
+        breaker_b = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=0, require_tls=require_tls)
         first = limiter_a.check_limit("actor", "POST /compute/plan")
         second = limiter_b.check_limit("actor", "POST /compute/plan")
         breaker_a.record_failure("provider", error_class="provider_timeout")
@@ -198,10 +198,11 @@ def validate_redis(redis_url: str, *, require_tls: bool = True) -> Mapping[str, 
                 redis_prefix=prefix,
                 require_managed_redis_in_production=require_tls,
             ),
-            rate_limiter=RedisRateLimiter(redis_url, prefix=prefix, default_limit=100),
-            circuit_breaker=RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=3),
+            rate_limiter=RedisRateLimiter(redis_url, prefix=prefix, default_limit=100, require_tls=require_tls),
+            circuit_breaker=RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=3, require_tls=require_tls),
         )
         diagnostics = service.admin_redis_diagnostics({"request_id": f"live-redis-{monotonic_ns()}"})
+        fail_closed_probe = redis_fail_closed_probe()
         ok = all(
             (
                 limiter_a.get_status("readiness").get("configured") is True,
@@ -218,6 +219,7 @@ def validate_redis(redis_url: str, *, require_tls: bool = True) -> Mapping[str, 
                 diagnostics.get("circuit_breaker_probe", {}).get("ok") is True,
                 diagnostics.get("rate_limit_fail_closed") is True,
                 diagnostics.get("circuit_breaker_fail_closed") is True,
+                fail_closed_probe.get("ok") is True,
             )
         )
         return {
@@ -228,9 +230,38 @@ def validate_redis(redis_url: str, *, require_tls: bool = True) -> Mapping[str, 
             "circuit_open_reason": opened.reason_code,
             "circuit_recovered": recovered.ok is True and recovered.state == "closed",
             "diagnostics": diagnostics,
+            "fail_closed_probe": fail_closed_probe,
         }
     except Exception as exc:
         return {"ok": False, "backend": "redis", "error_code": type(exc).__name__, "message": str(exc)}
+
+
+class _FailingRedis:
+    def ping(self) -> bool:
+        raise RuntimeError("redis unavailable")
+
+    def incrby(self, _key: str, _amount: int) -> int:
+        raise RuntimeError("redis unavailable")
+
+    def hgetall(self, _key: str) -> Mapping[str, object]:
+        raise RuntimeError("redis unavailable")
+
+
+def redis_fail_closed_probe() -> Mapping[str, Any]:
+    limiter = RedisRateLimiter("redis://unavailable", fail_closed=True, client=_FailingRedis())
+    breaker = RedisCircuitBreaker("redis://unavailable", fail_closed=True, client=_FailingRedis())
+    rate_decision = limiter.check_limit("actor", "POST /compute/plan")
+    circuit_decision = breaker.allow_request("provider")
+    return {
+        "ok": (
+            rate_decision.ok is False
+            and rate_decision.reason_code == "rate_limit_backend_unavailable"
+            and circuit_decision.ok is False
+            and circuit_decision.reason_code == "circuit_backend_unavailable"
+        ),
+        "rate_limit_reason": rate_decision.reason_code,
+        "circuit_reason": circuit_decision.reason_code,
+    }
 
 
 def url_scheme(value: str) -> str:

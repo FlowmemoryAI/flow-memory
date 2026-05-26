@@ -7,6 +7,7 @@ satisfy before a horizontally scaled deployment enables it.
 """
 from __future__ import annotations
 
+import ssl
 import time
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol
@@ -392,6 +393,9 @@ class RedisRateLimiter:
     default_limit: int = 60
     window_seconds: int = 60
     fail_closed: bool = True
+    route_limits: Mapping[str, int] = field(default_factory=dict)
+    require_tls: bool = False
+    verify_tls: bool = True
     client: Any | None = None
 
     def check_limit(
@@ -417,6 +421,7 @@ class RedisRateLimiter:
                 api_key=api_key,
             )
         )
+        limit = int(self.route_limits.get(endpoint, self.default_limit))
         try:
             redis_client = self._client()
             count = int(redis_client.incrby(key, max(1, int(cost))))
@@ -428,7 +433,7 @@ class RedisRateLimiter:
                 return RateLimitDecision(
                     False,
                     key,
-                    self.default_limit,
+                    limit,
                     0,
                     time.monotonic() + self.window_seconds,
                     self.window_seconds,
@@ -437,19 +442,25 @@ class RedisRateLimiter:
             return RateLimitDecision(
                 True,
                 key,
-                self.default_limit,
-                self.default_limit,
+                limit,
+                limit,
                 time.monotonic(),
                 0,
                 "rate_limit_backend_fail_open",
             )
-        remaining = max(0, self.default_limit - count)
-        if count > self.default_limit:
-            return RateLimitDecision(False, key, self.default_limit, remaining, time.monotonic() + ttl, ttl, "rate_limited")
-        return RateLimitDecision(True, key, self.default_limit, remaining, time.monotonic() + ttl, 0)
+        remaining = max(0, limit - count)
+        if count > limit:
+            return RateLimitDecision(False, key, limit, remaining, time.monotonic() + ttl, ttl, "rate_limited")
+        return RateLimitDecision(True, key, limit, remaining, time.monotonic() + ttl, 0)
 
     def record_success(self, key: str) -> None:
-        return None
+        try:
+            redis_client = self._client()
+            success_key = f"{key}:successes"
+            redis_client.incrby(success_key, 1)
+            redis_client.expire(success_key, self.window_seconds)
+        except Exception:
+            return None
 
     def record_rejection(self, key: str, reason: str) -> None:
         try:
@@ -475,13 +486,14 @@ class RedisRateLimiter:
     def _client(self) -> Any:
         if not self.redis_url:
             raise RuntimeError("redis_url is required")
+        _validate_redis_tls(self.redis_url, self.require_tls)
         if self.client is not None:
             return self.client
         try:
             import redis
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Redis rate limiting requires optional dependency: redis") from exc
-        self.client = redis.Redis.from_url(self.redis_url, decode_responses=True)
+        self.client = redis.Redis.from_url(self.redis_url, **_redis_client_kwargs(self.redis_url, verify_tls=self.verify_tls))
         return self.client
 
 
@@ -495,6 +507,8 @@ class RedisCircuitBreaker:
     reset_after_seconds: int = 60
     success_threshold: int = 1
     fail_closed: bool = True
+    require_tls: bool = False
+    verify_tls: bool = True
     client: Any | None = None
 
     def allow_request(self, provider_id: str, *, route_id: str = "", adapter_type: str = "", error_class: str = "") -> CircuitDecision:
@@ -583,13 +597,14 @@ class RedisCircuitBreaker:
     def _client(self) -> Any:
         if not self.redis_url:
             raise RuntimeError("redis_url is required")
+        _validate_redis_tls(self.redis_url, self.require_tls)
         if self.client is not None:
             return self.client
         try:
             import redis
         except Exception as exc:  # pragma: no cover - optional dependency
             raise RuntimeError("Redis circuit breaking requires optional dependency: redis") from exc
-        self.client = redis.Redis.from_url(self.redis_url, decode_responses=True)
+        self.client = redis.Redis.from_url(self.redis_url, **_redis_client_kwargs(self.redis_url, verify_tls=self.verify_tls))
         return self.client
 
 
@@ -605,6 +620,7 @@ def create_rate_limiter(config: Any) -> RateLimiter:
             redis_url=str(getattr(config, "redis_url", "")),
             prefix=str(getattr(config, "redis_prefix", "flow-memory:compute-market")),
             fail_closed=bool(getattr(config, "rate_limit_fail_closed", True)),
+            require_tls=bool(getattr(config, "require_managed_redis_in_production", False)),
         )
     return DistributedRateLimiter(backend_name=backend)
 
@@ -621,8 +637,21 @@ def create_circuit_breaker(config: Any) -> CircuitBreaker:
             redis_url=str(getattr(config, "redis_url", "")),
             prefix=str(getattr(config, "redis_prefix", "flow-memory:compute-market")),
             fail_closed=bool(getattr(config, "circuit_breaker_fail_closed", True)),
+            require_tls=bool(getattr(config, "require_managed_redis_in_production", False)),
         )
     return DistributedCircuitBreaker(backend_name=backend)
+
+
+def _validate_redis_tls(redis_url: str, require_tls: bool) -> None:
+    if require_tls and not redis_url.startswith("rediss://"):
+        raise RuntimeError("managed Redis requires a rediss:// TLS URL")
+
+
+def _redis_client_kwargs(redis_url: str, *, verify_tls: bool = True) -> dict[str, object]:
+    kwargs: dict[str, object] = {"decode_responses": True}
+    if verify_tls and redis_url.startswith("rediss://"):
+        kwargs["ssl_cert_reqs"] = ssl.CERT_REQUIRED
+    return kwargs
 
 
 def _redis_ttl(redis_client: Any, key: str, default_ttl: int) -> int:

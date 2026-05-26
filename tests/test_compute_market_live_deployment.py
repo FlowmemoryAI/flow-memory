@@ -253,6 +253,17 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script
 
 
+def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:
+    wrapper = (ROOT / "scripts" / "deploy_render_compute_market.ps1").read_text(encoding="utf-8")
+
+    assert "deploy_compute_market_render_level1.py" in wrapper
+    assert "RENDER_API_KEY" in wrapper
+    assert "RENDER_OWNER_ID" in wrapper
+    assert "RENDER_ALLOW_FREE_PLANS" in wrapper
+    assert "render_helper_missing" in wrapper
+    assert "exit $LASTEXITCODE" in wrapper
+
+
 def test_public_buildout_validator_requires_observability_endpoints() -> None:
     validator_script = (ROOT / "scripts" / "validate_compute_market_public_buildout.py").read_text(encoding="utf-8")
 

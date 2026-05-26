@@ -4,7 +4,7 @@ import json
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 from flow_memory.compute_market.adapters import HTTPQuoteProvider, QuoteCollector, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
 from flow_memory.compute_market.config import ComputeMarketConfig
@@ -15,12 +15,14 @@ from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.compute_market.planner import build_task_profile
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
 from flow_memory.crypto.hashes import content_hash
+from flow_memory.crypto.asymmetric import LocalTestSigner
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import verify_payload
 
 _REQUEST_COUNTS: dict[str, int] = {}
 _CAPTURED_AUTH: list[str] = []
 _CAPTURED_SIGNATURE_HEADERS: list[dict[str, str]] = []
+_SIGNED_QUOTE_RESPONSE: dict[str, Any] | None = None
 
 
 def _quote(status_extra: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -97,6 +99,9 @@ class _QuoteHandler(BaseHTTPRequestHandler):
         if self.path == "/spoofed-provider":
             self._send_json({"quote": _quote({"provider_id": "spoofed-provider"})})
             return
+        if self.path == "/signed":
+            self._send_json({"quote": dict(_SIGNED_QUOTE_RESPONSE or _quote())})
+            return
         self._send_json({"quote": _quote()})
 
     def _send_json(self, payload: dict[str, Any]) -> None:
@@ -110,9 +115,11 @@ class _QuoteHandler(BaseHTTPRequestHandler):
 
 
 def _server() -> tuple[ThreadingHTTPServer, str]:
+    global _SIGNED_QUOTE_RESPONSE
     _REQUEST_COUNTS.clear()
     _CAPTURED_AUTH.clear()
     _CAPTURED_SIGNATURE_HEADERS.clear()
+    _SIGNED_QUOTE_RESPONSE = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), _QuoteHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -198,6 +205,49 @@ def test_http_provider_signs_outbound_quote_requests() -> None:
     assert captured["timestamp"]
     assert captured["nonce"]
     assert verify_payload(signature_payload, envelope, key) is True
+
+
+def test_external_provider_adapter_verifies_signed_quote_responses() -> None:
+    global _SIGNED_QUOTE_RESPONSE
+    signer = LocalTestSigner("provider-response-key", "provider-response-seed")
+    unsigned = _quote()
+    signed = {**unsigned, "signature": signer.sign(unsigned).as_record()}
+    provider_public_key: Mapping[str, Any] = signer.public_record().as_record()
+    server, base = _server()
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_quotes_enabled=True,
+        external_provider_allowlist=("127.0.0.1",),
+        external_provider_quote_timeout_ms=1_000,
+    )
+    provider_record = {
+        "provider_id": "market-token-provider",
+        "provider_name": "Market Token Provider",
+        "provider_type": "marketplace",
+        "status": "active",
+        "supported_unit_types": ("token",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("solana",),
+        "quote_endpoint": f"{base}/signed",
+        "metadata": {"quote_endpoint": f"{base}/signed", "public_key": provider_public_key},
+    }
+    try:
+        _SIGNED_QUOTE_RESPONSE = signed
+        adapter = build_external_provider_adapter(provider_record, (), config)
+        quotes = adapter.quote(build_task_profile({"task": "signed provider response"}), ComputeMarketPolicy())
+
+        _SIGNED_QUOTE_RESPONSE = {**signed, "estimated_total_cost": 9.99}
+        tampered = adapter.quote(build_task_profile({"task": "tampered provider response"}), ComputeMarketPolicy())
+    finally:
+        _SIGNED_QUOTE_RESPONSE = None
+        server.shutdown()
+
+    assert quotes[0].status == "valid"
+    assert quotes[0].signed_quote_valid is True
+    assert quotes[0].signed_quote
+    assert all(quote.status == "invalid_response" for quote in tampered)
+
 
 
 def test_signed_provider_request_headers_are_payload_bound() -> None:

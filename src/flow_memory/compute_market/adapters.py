@@ -22,6 +22,7 @@ from flow_memory.compute_market.models import (
     TaskEconomicProfile,
 )
 from flow_memory.compute_market.pricing import collect_quote, normalize_quote
+from flow_memory.compute_market.provider_contracts import verify_provider_quote_signature
 from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id, utc_now_iso
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.crypto.keys import LocalKeyPair
@@ -215,6 +216,7 @@ class HTTPQuoteProvider:
     execution_signing_key: LocalKeyPair | None = None
     signing_required: bool = False
     execution_signing_required: bool = False
+    verification_public_key: str | Mapping[str, Any] = ""
 
     def get_provider_metadata(self) -> ComputeProvider:
         return self.provider
@@ -295,6 +297,12 @@ class HTTPQuoteProvider:
 
     def normalize_quote(self, raw_quote: Mapping[str, Any]) -> ComputeQuote:
         normalized_raw = dict(raw_quote)
+        raw_signature = raw_quote.get("signature") or raw_quote.get("verification")
+        signed_quote_valid = False
+        if self.verification_public_key:
+            signed_quote_valid = verify_provider_quote_signature(raw_quote, self.verification_public_key)
+            if not signed_quote_valid:
+                raise ValueError("provider quote signature is missing or invalid")
         normalized_raw.setdefault("provider_or_route", normalized_raw.get("route_id", self.provider.provider_name))
         normalized_raw.setdefault("provider_type", self.provider.provider_type)
         normalized_raw.setdefault("market_type", self.provider.market_type)
@@ -321,6 +329,9 @@ class HTTPQuoteProvider:
         if str(sanitized.get("expires_at", "")) and _expired(str(sanitized.get("expires_at", ""))):
             sanitized["status"] = QuoteStatus.STALE.value
             sanitized["stale"] = True
+        if raw_signature:
+            sanitized["signed_quote"] = json.dumps(raw_signature, sort_keys=True, default=str)
+            sanitized["signed_quote_valid"] = signed_quote_valid
         if self.preserve_raw_quote:
             sanitized["raw_quote_hash"] = content_hash(raw_quote)
         return normalize_quote(ComputeQuote(**sanitized))
@@ -619,6 +630,7 @@ def build_external_provider_adapter(
         execution_auth_header_value_env=str(_metadata_value(provider_record, "execution_auth_header_value_env", _metadata_value(provider_record, "auth_header_value_env", ""))),
         signing_key=_local_signing_key(provider_record, execution=False),
         execution_signing_key=_local_signing_key(provider_record, execution=True),
+        verification_public_key=_verification_public_key(provider_record),
         signing_required=_truthy(_metadata_value(provider_record, "outbound_signing_required", False)),
         execution_signing_required=_truthy(
             _metadata_value(
@@ -729,6 +741,16 @@ def _local_signing_key(record: Mapping[str, Any], *, execution: bool) -> LocalKe
     if not key_id or not secret:
         return None
     return LocalKeyPair(key_id=key_id, secret=secret)
+
+
+def _verification_public_key(record: Mapping[str, Any]) -> str | Mapping[str, Any]:
+    for key in ("quote_verification_public_key", "provider_public_key", "public_key"):
+        value = _metadata_value(record, key, "")
+        if isinstance(value, Mapping):
+            return value
+        if str(value or "").strip():
+            return str(value)
+    return ""
 
 
 def _truthy(value: object) -> bool:

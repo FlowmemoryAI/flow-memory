@@ -295,6 +295,12 @@ def _add_compute_query_args(sub: argparse.ArgumentParser) -> None:
 
 
 
+def _mapping_output(value: object) -> Mapping[str, Any]:
+    if isinstance(value, Mapping):
+        return value
+    raise TypeError("compute market service returned a non-object response")
+
+
 def _provider_admin_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str, Any]:
     action = str(getattr(args, "provider_action", ""))
     provider_payload = {**payload, **_load_json_object(str(getattr(args, "file", "")))}
@@ -312,15 +318,15 @@ def _provider_admin_output(service: Any, args: Any, payload: dict[str, Any]) -> 
         provider_payload["verification_notes"] = verification_notes
 
     if action == "apply":
-        return service.apply_market_provider(provider_payload)
+        return _mapping_output(service.apply_market_provider(provider_payload))
     if action == "verify":
-        return service.verify_market_provider(_required_provider_id(provider_id), provider_payload)
+        return _mapping_output(service.verify_market_provider(_required_provider_id(provider_id), provider_payload))
     if action == "disable":
-        return service.disable_market_provider(_required_provider_id(provider_id), provider_payload)
+        return _mapping_output(service.disable_market_provider(_required_provider_id(provider_id), provider_payload))
     if action == "get":
-        return service.market_provider(_required_provider_id(provider_id))
+        return _mapping_output(service.market_provider(_required_provider_id(provider_id)))
     if action == "reputation":
-        return service.provider_reputation(_required_provider_id(provider_id))
+        return _mapping_output(service.provider_reputation(_required_provider_id(provider_id)))
     if action == "conformance":
         conformance_payload: dict[str, Any] = dict(provider_payload)
         if (
@@ -329,7 +335,7 @@ def _provider_admin_output(service: Any, args: Any, payload: dict[str, Any]) -> 
             and "quote_id" in conformance_payload
         ):
             conformance_payload = {**conformance_payload, "sample_quote": dict(conformance_payload)}
-        return service.provider_conformance(_required_provider_id(provider_id), conformance_payload)
+        return _mapping_output(service.provider_conformance(_required_provider_id(provider_id), conformance_payload))
     raise ValueError(f"unsupported provider admin action: {action}")
 
 
@@ -345,20 +351,22 @@ def _billing_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping
     if action == "checkout":
         billing_payload["amount"] = float(getattr(args, "amount", 0.0) or 0.0)
         billing_payload["currency"] = str(getattr(args, "currency", "USD"))
-        return service.billing_checkout(billing_payload)
+        return _mapping_output(service.billing_checkout(billing_payload))
     if action == "balance":
-        return service.billing_balance(billing_payload)
+        return _mapping_output(service.billing_balance(billing_payload))
     if action == "usage":
-        return service.billing_usage(billing_payload)
+        return _mapping_output(service.billing_usage(billing_payload))
     if action == "provider-payouts":
         status = str(getattr(args, "status", ""))
         if status:
             billing_payload["status"] = status
-        return service.billing_provider_payouts(billing_payload)
+        return _mapping_output(service.billing_provider_payouts(billing_payload))
     if action == "payout-settle":
         billing_payload["external_payout_reference"] = str(getattr(args, "external_payout_reference", ""))
         billing_payload["settled_by"] = str(getattr(args, "settled_by", ""))
-        return service.settle_provider_payout(_required_billing_id(billing_id, "payout_id"), billing_payload)
+        return _mapping_output(
+            service.settle_provider_payout(_required_billing_id(billing_id, "payout_id"), billing_payload)
+        )
     if action == "refund":
         usage_charge_id = str(getattr(args, "usage_charge_id", "") or billing_id)
         if usage_charge_id:
@@ -370,12 +378,12 @@ def _billing_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping
         if reason:
             billing_payload["reason"] = reason
         billing_payload["currency"] = str(getattr(args, "currency", "USD"))
-        return service.billing_refund(billing_payload)
+        return _mapping_output(service.billing_refund(billing_payload))
     if action == "webhook-stripe":
         billing_payload["raw_event"] = _load_json_object(str(getattr(args, "raw_event_file", "")))
         billing_payload["webhook_secret"] = str(getattr(args, "webhook_secret", ""))
         billing_payload["stripe_signature"] = str(getattr(args, "stripe_signature", ""))
-        return service.billing_webhook_stripe(billing_payload)
+        return _mapping_output(service.billing_webhook_stripe(billing_payload))
     raise ValueError(f"unsupported billing action: {action}")
 
 
@@ -424,32 +432,32 @@ def _job_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str
     if lease_ttl_seconds > 0:
         job_payload["lease_ttl_seconds"] = lease_ttl_seconds
     if action == "create":
-        return service.create_job(job_payload)
+        return _mapping_output(service.create_job(job_payload))
     if action == "claim":
         if job_id:
             job_payload["job_id"] = job_id
-        return service.claim_job(job_payload)
+        return _mapping_output(service.claim_job(job_payload))
     required_job_id = _required_billing_id(job_id, "job_id")
     if action == "get":
-        return service.get_job(required_job_id)
+        return _mapping_output(service.get_job(required_job_id))
     if action == "events":
-        return service.job_events(required_job_id)
+        return _mapping_output(service.job_events(required_job_id))
     if action == "artifacts":
-        return service.job_artifacts(required_job_id)
+        return _mapping_output(service.job_artifacts(required_job_id))
     if action == "cancel":
-        return service.cancel_job(required_job_id, job_payload)
+        return _mapping_output(service.cancel_job(required_job_id, job_payload))
     if action == "retry":
-        return service.retry_job(required_job_id, job_payload)
+        return _mapping_output(service.retry_job(required_job_id, job_payload))
     if action == "dispatch":
-        return service.dispatch_job(required_job_id, job_payload)
+        return _mapping_output(service.dispatch_job(required_job_id, job_payload))
     if action == "complete":
-        return service.complete_job(required_job_id, job_payload)
+        return _mapping_output(service.complete_job(required_job_id, job_payload))
     if action == "fail":
-        return service.fail_job(required_job_id, job_payload)
+        return _mapping_output(service.fail_job(required_job_id, job_payload))
     if action == "heartbeat":
-        return service.heartbeat_job(required_job_id, job_payload)
+        return _mapping_output(service.heartbeat_job(required_job_id, job_payload))
     if action == "release-claim":
-        return service.release_job_claim(required_job_id, job_payload)
+        return _mapping_output(service.release_job_claim(required_job_id, job_payload))
     raise ValueError(f"unsupported job action: {action}")
 
 
@@ -482,19 +490,19 @@ def _capacity_output(service: Any, args: Any, payload: dict[str, Any]) -> Mappin
     if bool(getattr(args, "allow_partial", False)):
         capacity_payload["allow_partial"] = True
     if action == "list":
-        return service.list_capacity(capacity_payload)
+        return _mapping_output(service.list_capacity(capacity_payload))
     if action == "order-book":
-        return service.capacity_order_book(capacity_payload)
+        return _mapping_output(service.capacity_order_book(capacity_payload))
     if action == "reserve":
-        return service.reserve_capacity(capacity_payload)
+        return _mapping_output(service.reserve_capacity(capacity_payload))
     if action == "confirm":
-        return service.confirm_capacity(capacity_payload)
+        return _mapping_output(service.confirm_capacity(capacity_payload))
     if action == "release":
-        return service.release_capacity(capacity_payload)
+        return _mapping_output(service.release_capacity(capacity_payload))
     if action == "expire":
-        return service.expire_capacity(capacity_payload)
+        return _mapping_output(service.expire_capacity(capacity_payload))
     if action == "auction":
-        return service.auction_capacity(capacity_payload)
+        return _mapping_output(service.auction_capacity(capacity_payload))
     raise ValueError(f"unsupported capacity action: {action}")
 
 

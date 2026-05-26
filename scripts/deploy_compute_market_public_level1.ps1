@@ -294,13 +294,21 @@ if ($failedComposeChecks.Count -gt 0) {
 if ($RunLiveIntegrationTests) {
     [Environment]::SetEnvironmentVariable('FLOW_MEMORY_TEST_POSTGRES_URL', [string]$envValues['FLOW_MEMORY_COMPUTE_DATABASE_URL'], 'Process')
     [Environment]::SetEnvironmentVariable('FLOW_MEMORY_TEST_REDIS_URL', [string]$envValues['FLOW_MEMORY_COMPUTE_REDIS_URL'], 'Process')
+    $liveInfra = Invoke-ExternalQuiet -FilePath 'python' -ArgumentList @('scripts/validate_compute_market_live_infra.py')
+    if ($liveInfra.ExitCode -ne 0) {
+        Write-Status -Status 'failed_live_infra_validation' -Fields @{
+            public_url = ''
+            exit_code = $liveInfra.ExitCode
+        }
+        exit 6
+    }
     $pytest = Invoke-ExternalQuiet -FilePath 'python' -ArgumentList @('-m', 'pytest', 'tests/test_compute_market_live_integration.py', '-q')
     if ($pytest.ExitCode -ne 0) {
         Write-Status -Status 'failed_live_integration_tests' -Fields @{
             public_url = ''
             exit_code = $pytest.ExitCode
         }
-        exit 6
+        exit 7
     }
 }
 

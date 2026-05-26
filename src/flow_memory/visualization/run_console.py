@@ -55,6 +55,27 @@ FIXTURE_SPECS: tuple[Mapping[str, str], ...] = (
         "path": "dashboard/src/mock-data/live-neural-embodiment.json",
         "run_kind": "embodiment",
     },
+    {
+        "fixture_id": "predictive-cognitive-core",
+        "label": "Predictive Cognitive Core",
+        "description": "Prediction, counterfactual, policy, outcome, prediction-error, and lesson replay.",
+        "path": "dashboard/src/mock-data/predictive-cognitive-core.json",
+        "run_kind": "cognition",
+    },
+    {
+        "fixture_id": "predictive-learning-benchmark",
+        "label": "Predictive Learning Benchmark",
+        "description": "Repeated local scenarios, lesson consolidation, and prediction accuracy trend replay.",
+        "path": "dashboard/src/mock-data/predictive-learning-benchmark.json",
+        "run_kind": "cognition_benchmark",
+    },
+    {
+        "fixture_id": "agent-genesis-onboarding",
+        "label": "Agent Genesis",
+        "description": "Private-by-default agent birth, genome, memory seed, consent, first prediction, mirror, and passport replay.",
+        "path": "dashboard/src/mock-data/agent-genesis-onboarding.json",
+        "run_kind": "genesis",
+    },
 )
 
 CATEGORY_ALIASES: Mapping[str, str] = {
@@ -347,7 +368,7 @@ def _summary_from_fixture_payload(root: Path, spec: Mapping[str, str], payload: 
         label=str(spec["label"]),
         description=str(spec["description"]),
         fixture_path=_rel(root, path),
-        ok=path.exists() and bool(payload.get("ok", True)) and bool(events or state),
+        ok=path.exists() and bool(payload.get("ok", True)) and bool(events or state or payload.get("benchmark") or payload.get("birth") or payload.get("genome")),
     )
 
 

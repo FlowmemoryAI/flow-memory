@@ -35,6 +35,10 @@ COMPUTE_PLAN_SCOPE = "compute:plan"
 COGNITION_READ_SCOPE = "cognition:read"
 COGNITION_RUN_SCOPE = "cognition:run"
 COGNITION_WRITE_SCOPE = "cognition:write"
+GENESIS_READ_SCOPE = "genesis:read"
+GENESIS_CREATE_SCOPE = "genesis:create"
+GENESIS_TEACH_SCOPE = "genesis:teach"
+GENESIS_EXPORT_SCOPE = "genesis:export"
 
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
@@ -63,6 +67,10 @@ KNOWN_SCOPES = frozenset({
     COGNITION_READ_SCOPE,
     COGNITION_RUN_SCOPE,
     COGNITION_WRITE_SCOPE,
+    GENESIS_READ_SCOPE,
+    GENESIS_CREATE_SCOPE,
+    GENESIS_TEACH_SCOPE,
+    GENESIS_EXPORT_SCOPE,
 
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -178,6 +186,16 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         if path_key == "/cognition/lessons/consolidate":
             return (COGNITION_WRITE_SCOPE,)
         return (COGNITION_WRITE_SCOPE,)
+    if path_key.startswith("/genesis/"):
+        if normalized_method in READ_METHODS:
+            return (GENESIS_READ_SCOPE,)
+        if path_key == "/genesis/birth":
+            return (GENESIS_CREATE_SCOPE,)
+        if path_key.endswith("/teaching"):
+            return (GENESIS_TEACH_SCOPE,)
+        if path_key == "/genesis/contributions/export":
+            return (GENESIS_EXPORT_SCOPE,)
+        return (GENESIS_CREATE_SCOPE,)
     if path_key.startswith("/visual/embodiment/") and path_key.endswith("/cognition"):
         return (COGNITION_READ_SCOPE,)
     if path_key.startswith("/visual/embodiment/"):

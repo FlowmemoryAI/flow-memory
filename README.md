@@ -50,6 +50,10 @@ python -m flow_memory cognition benchmark run --scenario dashboard-stale-server 
 python -m flow_memory cognition benchmark run --scenario all --trials 5 --json
 python -m flow_memory cognition lessons consolidate --json
 python -m flow_memory cognition metrics --json
+python -m flow_memory genesis archetypes list --json
+python -m flow_memory genesis birth --user local-user --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --instinct careful --instinct builder --consent private_only --json
+python -m flow_memory genesis passport show <agent_id> --json
+python -m flow_memory genesis mirror show <agent_id> --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -79,6 +83,7 @@ Live 3D Mode renders the neural embodiment as read-only local/replay telemetry; 
 `cd dashboard && npm run dev` serves the real Mission Control replay UI at `/mission-control` with the run selector, neural embodiment panel, Live 3D Mode, GPU evidence status, and public-alpha finalizer status from local fixtures. It does not expose unsafe write/control endpoints.
 Predictive Cognition is available in CLI/API/replay mode: agents encode current state, retrieve similar experience records, predict candidate outcomes, score counterfactuals, observe actual results, compute prediction error, and write lessons under `artifacts/cognition/experiences/`.
 Predictive Learning Benchmark and memory consolidation are available in CLI/API/replay mode: repeated local scenarios write experience records, consolidate reusable lessons under `artifacts/cognition/lessons/`, reuse those lessons before later predictions, and export benchmark records under `artifacts/cognition/benchmarks/`.
+Agent Genesis is available in CLI/API/replay mode: birth a policy-gated agent with purpose, instincts, boundaries, private memory seed, genome, first prediction, mirror, passport, and private-only network learning by default. No download is required for the first agent concept; a local node download is optional for private tools, private compute, or compute contribution.
 
 The project now combines:
 
@@ -106,6 +111,7 @@ The project now combines:
 - Public Alpha Launch Finalizer evidence for local demo bundle, Live 3D mode, launch evidence, release decisions, and C:\\tmp backup exclusion checks
 - Predictive Cognitive Core for local deterministic world-state encoding, candidate action prediction, counterfactual scoring, prediction-error records, experience memory, FlowLang cognition blocks, read-only Mission Control cognition telemetry, and policy-gated learning metadata
 - Predictive Learning Benchmark and memory consolidation for deterministic local scenario replay, before/after prediction-accuracy metrics, consolidated lessons, lesson reuse, repeated-mistake reduction, and policy-authoritative benchmark evidence
+- Agent Genesis and Network Learning Protocol for private-by-default agent birth, Agent Genomes, Memory Seeds, instincts, boundaries, first predictions, Agent Mirrors, Agent Passports, human teaching events, sanitized opt-in contributions, and Mission Control genesis telemetry
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.

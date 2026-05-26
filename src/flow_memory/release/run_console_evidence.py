@@ -23,6 +23,9 @@ REQUIRED_FIXTURES = (
     "dashboard/src/mock-data/live-agent-supervisor.json",
     "dashboard/src/mock-data/live-neural-embodiment.json",
     "dashboard/src/mock-data/local-network-replay.json",
+    "dashboard/src/mock-data/predictive-cognitive-core.json",
+    "dashboard/src/mock-data/predictive-learning-benchmark.json",
+    "dashboard/src/mock-data/agent-genesis-onboarding.json",
 )
 
 REQUIRED_DOCS = (
@@ -85,6 +88,9 @@ def mission_control_run_console_evidence(root: str | Path = ".") -> Mapping[str,
         "mission_control_launch_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/live-neural-agent-launch.json", {}).get("ok") is True,
         "mission_control_neural_embodiment_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/live-neural-embodiment.json", {}).get("ok") is True,
         "mission_control_local_network_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/local-network-replay.json", {}).get("ok") is True,
+        "mission_control_predictive_cognition_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/predictive-cognitive-core.json", {}).get("ok") is True,
+        "mission_control_predictive_learning_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/predictive-learning-benchmark.json", {}).get("ok") is True,
+        "mission_control_agent_genesis_fixture_validated": fixtures["files"].get("dashboard/src/mock-data/agent-genesis-onboarding.json", {}).get("ok") is True,
         "public_alpha_demo_bundle_cli_available": _cli_has_bundle(cli_text),
         "public_alpha_demo_bundle_api_available": _api_available(missing_endpoints),
         "public_alpha_demo_bundle_validated": bundle.get("ok") is True and bundle_safe.get("ok") is True,
@@ -141,8 +147,9 @@ def _fixtures_status(root: Path) -> Mapping[str, Any]:
         payload = _read_json(path)
         events = payload.get("events", payload.get("visual_events", ()))
         state = payload.get("state", {})
+        content = events or state or payload.get("benchmark") or payload.get("birth") or payload.get("genome")
         records[relative] = {
-            "ok": path.exists() and isinstance(payload, Mapping) and bool(events or state),
+            "ok": path.exists() and isinstance(payload, Mapping) and bool(content),
             "exists": path.exists(),
             "event_count": len(events) if isinstance(events, (list, tuple)) else 0,
             "has_state": isinstance(state, Mapping) and bool(state),

@@ -1416,6 +1416,403 @@
         ]
       }
     },
+    "/genesis/agents/{agent_id}/genome": {
+      "get": {
+        "operationId": "genesis_genome",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "genome": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect an Agent Genome",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/agents/{agent_id}/mirror": {
+      "get": {
+        "operationId": "genesis_mirror",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "mirror": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect an Agent Mirror",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/agents/{agent_id}/passport": {
+      "get": {
+        "operationId": "genesis_passport",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "passport": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect an Agent Genesis passport",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/agents/{agent_id}/teaching": {
+      "post": {
+        "operationId": "genesis_teaching",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "correction_type": {
+                    "type": "string"
+                  },
+                  "lesson": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "private_lesson": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Record a private-by-default human teaching event",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/archetypes": {
+      "get": {
+        "operationId": "genesis_archetypes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "archetypes": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List Agent Genesis archetypes",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/birth": {
+      "post": {
+        "operationId": "genesis_birth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "archetype": {
+                    "type": "string"
+                  },
+                  "boundaries": {
+                    "type": "string"
+                  },
+                  "consent_mode": {
+                    "type": "string"
+                  },
+                  "instincts": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  },
+                  "user_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "birth_certificate": {
+                      "type": "string"
+                    },
+                    "first_prediction": {
+                      "type": "string"
+                    },
+                    "mirror": {
+                      "type": "string"
+                    },
+                    "passport": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Birth a policy-gated Flow Memory agent",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/boundaries": {
+      "get": {
+        "operationId": "genesis_boundaries",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "boundaries": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List Agent Genesis boundary rules",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/contributions": {
+      "get": {
+        "operationId": "genesis_contributions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contributions": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List sanitized network contributions",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/contributions/export": {
+      "post": {
+        "operationId": "genesis_contributions_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "out": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contributions": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Export sanitized network contribution bundle",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
+    "/genesis/instincts": {
+      "get": {
+        "operationId": "genesis_instincts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "instincts": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List Agent Genesis instincts",
+        "tags": [
+          "genesis"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health",

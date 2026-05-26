@@ -1,7 +1,8 @@
 {
-  "bundle_hash": "d424ef8b76de91112ea99088c957c319d5055bcb6b1d9b3684d4f7c31ec1da5d",
+  "bundle_hash": "fcf5bbb2fb4a9f41223625145ff058f91ce5cf10ca3940e4b2bd675f38d05b45",
   "file_hashes": {
-    "api_snapshot.json": "610c642feffc5dda94caba8c66d39d1ba2fe7165428cd4c18ef832148216f6d5",
+    "agent_genesis_network_learning.json": "8381eb8dd58461f2382dd246a04d1e0b9e0b4ab22fe02a8566e758e20722d3a1",
+    "api_snapshot.json": "8dc9a870a1c32a8dbdf51f636cc7a881f59fe7fb9c82a746318be2f30a0c57db",
     "base_artifacts.json": "48508bb9e1d31f01a687101dda8c8591fad2d5abb5a4cf70cbdc189f3638f01f",
     "base_deployment_plan.json": "f53cfe400d5fd425326c3a83b27a8adfb9c7eb3f4baa975ff7fab4b3ad844e0d",
     "clean_clone_validation.json": "5ec2708b78fc7041fafcbe4a4ed0f83ec5d8dbf914013c3f7b943f6a1664ff03",
@@ -12,18 +13,19 @@
     "live_agent_operations.json": "c74e844b06b995108405853fd255c097db62115f872743b75df0277e77b611ae",
     "live_agent_supervisor.json": "cdcaad4f556dd098f6ccd1db283d12f79730f8ac358121e17d9cd570eea3caa2",
     "mission_control_live_3d.json": "56566b409be1209013b859a2056fa50f5a21414ee387a086e202ce701fe68ab8",
-    "mission_control_run_console.json": "8c27d1bf9a1a208ecf2d78cef9c68a1cc3335ebdaf908e00ce2a6aa7014cbee2",
+    "mission_control_run_console.json": "f76bf85c490aac04cec2bfe69b719b42ff5d271f67fe3e8e3947f0abf1803739",
     "neural_embodiment.json": "187d7621581eacc2658ee67c460dc32479ac0ddeeb347dce19399515af201f4f",
-    "neural_live_agents.json": "4ac1a6e38c16fabf5e0293979728b1c16f8095ebcd636792301aa7336096df8f",
-    "predictive_cognitive_core.json": "91a84fee703c13d03b30476633b8a543ed3a5d46fb9840e4374afae13b03fc32",
-    "predictive_learning_benchmark.json": "f33b6fc026c936e107c2c34a84f95c28e0e3a4ed01ebb8ef23b42a92066c4723",
+    "neural_live_agents.json": "da3c162f45c810073bb2448f4f63749e9397d72dc761cbdf22cc936a12dd1b33",
+    "predictive_cognitive_core.json": "2b1490eeb2c68475e906fe4235db4d12ece5c8ffc52ee0a999bc494060f6fe62",
+    "predictive_learning_benchmark.json": "8f85092d39dbfe6ad465a33e46095c579d42ac8c82898b924e2ed8d2c951af72",
     "release_gates.json": "cfbc21bf43137a08f1c7253dc63b63d56dcef7034994bb4ce03ebe9fc1ec6826",
-    "release_manifest.json": "cb5fb5d0bd850202f09601b83e40219b39c082f46dcff017b746620e2cb961ac",
+    "release_manifest.json": "de3d14c782b505eb1706c6802199b622fff45924f98fbb062782a6bbb009d368",
     "rl_benchmarks.json": "a116202413f41ad364530da3b94634cc08f7c1f699e8c6cbf4f5e752af098f49",
     "storage_schema.json": "7417bed718a4783b050b61bc84f71b0351547b2a57462780641dd53d7b4885a7",
-    "visual_system.json": "1769b0ce094e05b0e5d8cc578b0ca8d541debb989c6bdbd746fb56088fcda8bb"
+    "visual_system.json": "c553d13140abab6271c0671f3b2720147c05a2f5ed021ab2764ee7c826647656"
   },
   "files": [
+    "agent_genesis_network_learning.json",
     "api_snapshot.json",
     "base_artifacts.json",
     "base_deployment_plan.json",

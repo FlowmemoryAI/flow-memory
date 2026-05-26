@@ -1,0 +1,1148 @@
+{
+  "agent_profile": {
+    "agent_id": "genesis_agent_892d57dcbb1da2298d05925a",
+    "allowed_skills": [],
+    "allowed_tools": [
+      "observe_environment",
+      "respond"
+    ],
+    "autonomy_mode": "supervised",
+    "capabilities": [
+      "predictive_cognition",
+      "memory_consolidation",
+      "safe_local_tools"
+    ],
+    "cognition_config": {
+      "confidence_calibration_enabled": true,
+      "experience_memory_enabled": true,
+      "explain_predictions": true,
+      "memory_consolidation_enabled": true,
+      "policy_fallback": "fail_closed",
+      "prediction_error_learning": true,
+      "predictive_benchmarks_enabled": true,
+      "predictive_core_enabled": true,
+      "retrieve_similar_experiences": true,
+      "world_model": "local-deterministic"
+    },
+    "compute_config": {},
+    "constraints": [
+      "ask_before_risky_action",
+      "never_spend_money",
+      "never_delete_without_approval",
+      "never_share_private_memory",
+      "local_only_by_default"
+    ],
+    "created_at": "2026-05-26T17:40:18.719419+00:00",
+    "description": "Help me build and remember Flow Memory",
+    "economy_config": {},
+    "goals": [
+      "Help me build and remember Flow Memory"
+    ],
+    "identity": "",
+    "memory_config": {
+      "experience_memory": true,
+      "memory_seed_id": "memory_seed_2c029a1308310302f48f1251",
+      "private_memory": true
+    },
+    "metadata": {
+      "agent_genome": {
+        "agent_id": "genesis_agent_892d57dcbb1da2298d05925a",
+        "archetype_id": "research-builder",
+        "benchmark_refs": [],
+        "boundaries": [
+          "ask_before_risky_action",
+          "never_spend_money",
+          "never_delete_without_approval",
+          "never_share_private_memory",
+          "local_only_by_default"
+        ],
+        "cognition_profile": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "contribution_profile": {
+          "allowed_record_types": [],
+          "mode": "private_only",
+          "network_learning": "private_only",
+          "raw_private_payload_excluded": true
+        },
+        "created_at": "2026-05-26T17:40:18.719419+00:00",
+        "drive_profile": {
+          "approval_threshold": 0.76,
+          "drive_weights": {
+            "goal_completion": 0.9,
+            "lesson_reuse": 0.84,
+            "memory_usefulness": 0.94,
+            "policy_compliance": 0.95,
+            "prediction_accuracy_improvement": 0.94,
+            "repeated_mistake_reduction": 0.78,
+            "user_trust_preservation": 0.88,
+            "verification": 0.9
+          },
+          "exploration_tolerance": 0.41,
+          "policy_sensitivity": 0.94,
+          "risk_tolerance": 0.23
+        },
+        "forked_from": "",
+        "genome_id": "agent_genome_f6640931c5988b373f5b261d",
+        "instincts": [
+          "careful",
+          "builder",
+          "memory_first",
+          "verifier"
+        ],
+        "memory_profile": {
+          "experience_memory": true,
+          "memory_seed_id": "memory_seed_2c029a1308310302f48f1251",
+          "private_memory": true
+        },
+        "neural_profile": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "parent_genome_id": "",
+        "policy_profile": {
+          "approval_required": true,
+          "approval_required_for_risk": true,
+          "autonomy": "supervised",
+          "destructive_action_requires_approval": true,
+          "local_only": true,
+          "max_spend": 0.0,
+          "no_money_movement": true,
+          "private_memory_allowed": false,
+          "raw_payload_allowed": false
+        },
+        "privacy_profile": {
+          "consent_mode": "private_only",
+          "private_memory_allowed": false,
+          "raw_payload_allowed": false
+        },
+        "private_memory_excluded": true,
+        "public_shareable": false,
+        "purpose": "Help me build and remember Flow Memory",
+        "version": "agent-genome-v1"
+      }
+    },
+    "name": "Mira",
+    "neural_config": {
+      "backend": "tiny_torch",
+      "enabled": true,
+      "learning_enabled": true,
+      "live_mode": true,
+      "policy_fallback": "fail_closed",
+      "telemetry_enabled": true
+    },
+    "persona": "Policy-gated Flow Memory agent born through Agent Genesis.",
+    "reputation": 0.0,
+    "risk_budget": {
+      "max_escrow_exposure": 0.0,
+      "max_risk_level": "medium",
+      "max_slashing_exposure": 0.0,
+      "max_spend": 0.0
+    },
+    "rl_config": {}
+  },
+  "archetypes": [
+    {
+      "archetype_id": "research-builder",
+      "default_boundaries": [
+        "ask_before_risky_action",
+        "never_spend_money",
+        "never_delete_without_approval",
+        "never_share_private_memory",
+        "local_only_by_default"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "careful",
+        "curious",
+        "builder",
+        "memory_first",
+        "verifier"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "current priority is safe local agent creation",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "prefers exact commands",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "goal_completion": 0.82,
+        "prediction_accuracy_improvement": 0.88,
+        "uncertainty_reduction": 0.86
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help me understand, build, and remember Flow Memory.",
+      "description": "Maps project state, explains tradeoffs, and turns repeated mistakes into lessons.",
+      "display_name": "Research Builder",
+      "first_lesson_template": "Check observable state before reporting success, then store the verified lesson.",
+      "first_prediction_template": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    },
+    {
+      "archetype_id": "memory-scout",
+      "default_boundaries": [
+        "ask_before_risky_action",
+        "never_share_private_memory",
+        "local_only_by_default"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "memory_first",
+        "scout",
+        "careful"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "memory retrieval should stay private by default",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "values remembered context",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "memory_usefulness": 0.9,
+        "uncertainty_reduction": 0.78
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help me retrieve and consolidate useful project memory.",
+      "description": "Finds similar prior experiences and turns them into private lessons.",
+      "display_name": "Memory Scout",
+      "first_lesson_template": "Useful memories should be consolidated only after an observed outcome.",
+      "first_prediction_template": "I can search private memory for similar situations before recommending a safe action.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    },
+    {
+      "archetype_id": "launch-assistant",
+      "default_boundaries": [
+        "ask_before_risky_action",
+        "never_spend_money",
+        "no_external_provider_calls",
+        "no_live_settlement"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "careful",
+        "builder",
+        "verifier",
+        "safety_first"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "local launch evidence must remain honest",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "wants visible proof",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "goal_completion": 0.84,
+        "policy_compliance": 0.92
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help me launch local public-alpha flows safely.",
+      "description": "Runs bounded local launch checks and keeps release evidence honest.",
+      "display_name": "Launch Assistant",
+      "first_lesson_template": "Release readiness needs observed evidence, not assumptions.",
+      "first_prediction_template": "I can predict which local launch checks should pass and verify release evidence before reporting readiness.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    },
+    {
+      "archetype_id": "market-observer",
+      "default_boundaries": [
+        "never_spend_money",
+        "no_live_settlement",
+        "no_external_provider_calls",
+        "local_only_by_default"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "cost_aware",
+        "careful",
+        "verifier"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "compute market routes are dry-run only",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "cares about cost and safety",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "cost_efficiency": 0.9,
+        "policy_compliance": 0.88
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help me evaluate compute-market choices in dry-run mode.",
+      "description": "Studies dry-run compute routes without provider calls or funds movement.",
+      "display_name": "Market Observer",
+      "first_lesson_template": "Dry-run route evidence must not be confused with live settlement.",
+      "first_prediction_template": "I can compare dry-run compute routes and predict budget risk without contacting providers.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    },
+    {
+      "archetype_id": "personal-operator",
+      "default_boundaries": [
+        "ask_before_risky_action",
+        "never_delete_without_approval",
+        "never_share_private_memory"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "careful",
+        "memory_first",
+        "teacher"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "personal preferences are private",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "prefers clear next actions",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "memory_usefulness": 0.8,
+        "user_trust_preservation": 0.92
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help me operate recurring tasks without losing context.",
+      "description": "Maintains user preferences, boundaries, and repeatable safe routines.",
+      "display_name": "Personal Operator",
+      "first_lesson_template": "User teaching events should become private lessons first.",
+      "first_prediction_template": "I can start by learning your preferred operating rules and verifying a low-risk first step.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    },
+    {
+      "archetype_id": "teacher-agent",
+      "default_boundaries": [
+        "ask_before_risky_action",
+        "never_share_private_memory",
+        "local_only_by_default"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "teacher",
+        "curious",
+        "careful"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "teaching events are structured training signals",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "wants explanations",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "explanation_quality": 0.9,
+        "user_trust_preservation": 0.84
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help me learn the system by explaining predictions, mistakes, and lessons.",
+      "description": "Explains decisions and converts user corrections into private teaching events.",
+      "display_name": "Teacher Agent",
+      "first_lesson_template": "A correction should become a private lesson unless the user opts in to share it.",
+      "first_prediction_template": "I can explain what I expect, what I observe, and what lesson should be stored.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    },
+    {
+      "archetype_id": "network-mentor",
+      "default_boundaries": [
+        "never_share_private_memory",
+        "ask_before_risky_action",
+        "no_unapproved_tool_use"
+      ],
+      "default_cognition_config": {
+        "confidence_calibration_enabled": true,
+        "experience_memory_enabled": true,
+        "explain_predictions": true,
+        "memory_consolidation_enabled": true,
+        "policy_fallback": "fail_closed",
+        "prediction_error_learning": true,
+        "predictive_benchmarks_enabled": true,
+        "predictive_core_enabled": true,
+        "retrieve_similar_experiences": true,
+        "world_model": "local-deterministic"
+      },
+      "default_instincts": [
+        "teacher",
+        "verifier",
+        "safety_first",
+        "memory_first"
+      ],
+      "default_memory_seed_template": {
+        "behavior_rules": [
+          "do not overclaim",
+          "verify observable outcomes",
+          "preserve useful memory"
+        ],
+        "project_context": [
+          "network learning uses sanitized structured experience",
+          "Flow Memory is the Human Compute Network"
+        ],
+        "user_preferences": [
+          "cares about consent",
+          "show honest status",
+          "ask before risky actions"
+        ]
+      },
+      "default_motivation_config": {
+        "lesson_usefulness": 0.9,
+        "policy_compliance": 0.94
+      },
+      "default_neural_config": {
+        "backend": "tiny_torch",
+        "enabled": true,
+        "learning_enabled": true,
+        "live_mode": true,
+        "policy_fallback": "fail_closed",
+        "telemetry_enabled": true
+      },
+      "default_policy_config": {
+        "approval_required": true,
+        "autonomy": "supervised"
+      },
+      "default_privacy_config": {
+        "consent_mode": "private_only",
+        "private_memory_excluded": true,
+        "raw_payload_allowed": false
+      },
+      "default_purpose": "Help convert proven private lessons into safe network contributions.",
+      "description": "Publishes sanitized lessons only after consent and validation.",
+      "display_name": "Network Mentor",
+      "first_lesson_template": "Shared lessons must exclude raw private payloads and pass policy checks.",
+      "first_prediction_template": "I can identify lessons that may help the network, but contribution remains opt-in and sanitized.",
+      "limitations": [
+        "local public-alpha agent profile, not production autonomy",
+        "neural and cognition outputs are advisory",
+        "PolicyEngine and ApprovalGate remain authoritative"
+      ]
+    }
+  ],
+  "birth": {
+    "agent_id": "genesis_agent_892d57dcbb1da2298d05925a",
+    "archetype": "research-builder",
+    "birth_id": "agent_birth_f28b9d7f6e50893b480d8319",
+    "boundaries": [
+      "ask_before_risky_action",
+      "never_spend_money",
+      "never_delete_without_approval",
+      "never_share_private_memory",
+      "local_only_by_default"
+    ],
+    "consent_id": "network_learning_consent_0e2192b74045cbd4e2b10599",
+    "created_at": "2026-05-26T17:40:18.719419+00:00",
+    "first_prediction": {
+      "agent_name": "Mira",
+      "confidence": 0.72,
+      "local_only": true,
+      "policy": "supervised; approval required",
+      "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+      "risk": 0.1,
+      "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+    },
+    "genome_id": "agent_genome_f6640931c5988b373f5b261d",
+    "instincts": [
+      "careful",
+      "builder",
+      "memory_first",
+      "verifier"
+    ],
+    "memory_seed_id": "memory_seed_2c029a1308310302f48f1251",
+    "name": "Mira",
+    "network_learning_status": "disabled",
+    "privacy": {
+      "mode": "private_only",
+      "private_memory_shared": false,
+      "raw_private_payload_excluded": true
+    },
+    "purpose": "Help me build and remember Flow Memory"
+  },
+  "boundaries": [
+    {
+      "approval_required": true,
+      "boundary_id": "ask_before_risky_action",
+      "description": "Require approval for risky or irreversible actions.",
+      "display_name": "Ask before risky action",
+      "policy_flags": {
+        "approval_required_for_risk": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "never_spend_money",
+      "description": "Disallow real-funds movement and paid provider execution.",
+      "display_name": "Never spend money",
+      "policy_flags": {
+        "max_spend": 0.0,
+        "no_money_movement": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "never_delete_without_approval",
+      "description": "Require explicit approval before destructive file operations.",
+      "display_name": "Never delete without approval",
+      "policy_flags": {
+        "destructive_action_requires_approval": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "never_share_private_memory",
+      "description": "Exclude raw private memory from network contribution by default.",
+      "display_name": "Never share private memory",
+      "policy_flags": {
+        "private_memory_allowed": false,
+        "raw_payload_allowed": false
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "local_only_by_default",
+      "description": "Prefer local/replay/dry-run paths unless explicitly configured otherwise.",
+      "display_name": "Local-only by default",
+      "policy_flags": {
+        "local_only": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "no_external_provider_calls",
+      "description": "Disable live provider calls in the public-alpha default profile.",
+      "display_name": "No external provider calls",
+      "policy_flags": {
+        "no_live_provider_calls": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "no_live_settlement",
+      "description": "Allow dry-run settlement simulations only.",
+      "display_name": "No live settlement",
+      "policy_flags": {
+        "no_live_settlement": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "no_private_keys",
+      "description": "Do not request, store, or use private keys.",
+      "display_name": "No private keys",
+      "policy_flags": {
+        "no_private_keys": true
+      }
+    },
+    {
+      "approval_required": true,
+      "boundary_id": "no_unapproved_tool_use",
+      "description": "Restrict tools to policy-approved local actions.",
+      "display_name": "No unapproved tool use",
+      "policy_flags": {
+        "approved_tools_only": true
+      }
+    }
+  ],
+  "contribution_status": {
+    "available": false,
+    "mode": "private_only",
+    "offer": "Sanitized lessons can be contributed only after explicit opt-in.",
+    "raw_private_payload_excluded": true
+  },
+  "first_prediction": {
+    "agent_name": "Mira",
+    "confidence": 0.72,
+    "local_only": true,
+    "policy": "supervised; approval required",
+    "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+    "risk": 0.1,
+    "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+  },
+  "fixture_id": "agent-genesis-onboarding",
+  "genome": {
+    "agent_id": "genesis_agent_892d57dcbb1da2298d05925a",
+    "archetype_id": "research-builder",
+    "benchmark_refs": [],
+    "boundaries": [
+      "ask_before_risky_action",
+      "never_spend_money",
+      "never_delete_without_approval",
+      "never_share_private_memory",
+      "local_only_by_default"
+    ],
+    "cognition_profile": {
+      "confidence_calibration_enabled": true,
+      "experience_memory_enabled": true,
+      "explain_predictions": true,
+      "memory_consolidation_enabled": true,
+      "policy_fallback": "fail_closed",
+      "prediction_error_learning": true,
+      "predictive_benchmarks_enabled": true,
+      "predictive_core_enabled": true,
+      "retrieve_similar_experiences": true,
+      "world_model": "local-deterministic"
+    },
+    "contribution_profile": {
+      "allowed_record_types": [],
+      "mode": "private_only",
+      "network_learning": "private_only",
+      "raw_private_payload_excluded": true
+    },
+    "created_at": "2026-05-26T17:40:18.719419+00:00",
+    "drive_profile": {
+      "approval_threshold": 0.76,
+      "drive_weights": {
+        "goal_completion": 0.9,
+        "lesson_reuse": 0.84,
+        "memory_usefulness": 0.94,
+        "policy_compliance": 0.95,
+        "prediction_accuracy_improvement": 0.94,
+        "repeated_mistake_reduction": 0.78,
+        "user_trust_preservation": 0.88,
+        "verification": 0.9
+      },
+      "exploration_tolerance": 0.41,
+      "policy_sensitivity": 0.94,
+      "risk_tolerance": 0.23
+    },
+    "forked_from": "",
+    "genome_id": "agent_genome_f6640931c5988b373f5b261d",
+    "instincts": [
+      "careful",
+      "builder",
+      "memory_first",
+      "verifier"
+    ],
+    "memory_profile": {
+      "experience_memory": true,
+      "memory_seed_id": "memory_seed_2c029a1308310302f48f1251",
+      "private_memory": true
+    },
+    "neural_profile": {
+      "backend": "tiny_torch",
+      "enabled": true,
+      "learning_enabled": true,
+      "live_mode": true,
+      "policy_fallback": "fail_closed",
+      "telemetry_enabled": true
+    },
+    "parent_genome_id": "",
+    "policy_profile": {
+      "approval_required": true,
+      "approval_required_for_risk": true,
+      "autonomy": "supervised",
+      "destructive_action_requires_approval": true,
+      "local_only": true,
+      "max_spend": 0.0,
+      "no_money_movement": true,
+      "private_memory_allowed": false,
+      "raw_payload_allowed": false
+    },
+    "privacy_profile": {
+      "consent_mode": "private_only",
+      "private_memory_allowed": false,
+      "raw_payload_allowed": false
+    },
+    "private_memory_excluded": true,
+    "public_shareable": false,
+    "purpose": "Help me build and remember Flow Memory",
+    "version": "agent-genome-v1"
+  },
+  "instincts": [
+    {
+      "approval_threshold": 0.82,
+      "description": "Prefer verified low-risk actions and ask before irreversible steps.",
+      "display_name": "Careful",
+      "drive_weights": {
+        "policy_compliance": 0.95,
+        "user_trust_preservation": 0.88
+      },
+      "exploration_tolerance": 0.28,
+      "instinct_id": "careful",
+      "memory_behavior": "store verified lessons",
+      "policy_sensitivity": 0.94,
+      "prediction_behavior": "predict failure modes first",
+      "risk_tolerance": 0.18
+    },
+    {
+      "approval_threshold": 0.64,
+      "description": "Reduce uncertainty by inspecting context and asking better questions.",
+      "display_name": "Curious",
+      "drive_weights": {
+        "memory_exploration": 0.72,
+        "uncertainty_reduction": 0.92
+      },
+      "exploration_tolerance": 0.78,
+      "instinct_id": "curious",
+      "memory_behavior": "retrieve broadly",
+      "policy_sensitivity": 0.68,
+      "prediction_behavior": "generate counterfactuals",
+      "risk_tolerance": 0.34
+    },
+    {
+      "approval_threshold": 0.68,
+      "description": "Complete goals through tests, checks, and observable progress.",
+      "display_name": "Builder",
+      "drive_weights": {
+        "goal_completion": 0.9,
+        "repeated_mistake_reduction": 0.78
+      },
+      "exploration_tolerance": 0.52,
+      "instinct_id": "builder",
+      "memory_behavior": "store procedural lessons",
+      "policy_sensitivity": 0.72,
+      "prediction_behavior": "predict verification outcomes",
+      "risk_tolerance": 0.32
+    },
+    {
+      "approval_threshold": 0.72,
+      "description": "Look for prior experiences before recommending action.",
+      "display_name": "Memory-first",
+      "drive_weights": {
+        "lesson_reuse": 0.84,
+        "memory_usefulness": 0.94
+      },
+      "exploration_tolerance": 0.48,
+      "instinct_id": "memory_first",
+      "memory_behavior": "retrieve before acting",
+      "policy_sensitivity": 0.78,
+      "prediction_behavior": "anchor prediction in lessons",
+      "risk_tolerance": 0.24
+    },
+    {
+      "approval_threshold": 0.82,
+      "description": "Prefer cheap, dry-run, local paths and avoid waste.",
+      "display_name": "Cost-aware",
+      "drive_weights": {
+        "compute_budget_safety": 0.88,
+        "cost_efficiency": 0.94
+      },
+      "exploration_tolerance": 0.35,
+      "instinct_id": "cost_aware",
+      "memory_behavior": "record cost lessons",
+      "policy_sensitivity": 0.86,
+      "prediction_behavior": "predict cost before action",
+      "risk_tolerance": 0.2
+    },
+    {
+      "approval_threshold": 0.9,
+      "description": "Maximize policy compliance and avoid unapproved side effects.",
+      "display_name": "Safety-first",
+      "drive_weights": {
+        "policy_compliance": 1.0,
+        "risk_reduction": 0.92
+      },
+      "exploration_tolerance": 0.22,
+      "instinct_id": "safety_first",
+      "memory_behavior": "store risk warnings",
+      "policy_sensitivity": 1.0,
+      "prediction_behavior": "predict denial paths",
+      "risk_tolerance": 0.12
+    },
+    {
+      "approval_threshold": 0.58,
+      "description": "Move quickly on reversible low-risk work with verification.",
+      "display_name": "Fast mover",
+      "drive_weights": {
+        "goal_completion": 0.86,
+        "time_to_resolution": 0.8
+      },
+      "exploration_tolerance": 0.62,
+      "instinct_id": "fast_mover",
+      "memory_behavior": "store compact lessons",
+      "policy_sensitivity": 0.58,
+      "prediction_behavior": "predict immediate outcome",
+      "risk_tolerance": 0.42
+    },
+    {
+      "approval_threshold": 0.7,
+      "description": "Explain predictions, surprises, and lessons clearly.",
+      "display_name": "Teacher",
+      "drive_weights": {
+        "explanation_quality": 0.92,
+        "user_trust_preservation": 0.82
+      },
+      "exploration_tolerance": 0.5,
+      "instinct_id": "teacher",
+      "memory_behavior": "turn corrections into lessons",
+      "policy_sensitivity": 0.74,
+      "prediction_behavior": "explain confidence and risk",
+      "risk_tolerance": 0.24
+    },
+    {
+      "approval_threshold": 0.7,
+      "description": "Explore unfamiliar local context safely and report what is known.",
+      "display_name": "Scout",
+      "drive_weights": {
+        "discovery": 0.9,
+        "uncertainty_reduction": 0.84
+      },
+      "exploration_tolerance": 0.76,
+      "instinct_id": "scout",
+      "memory_behavior": "map context memories",
+      "policy_sensitivity": 0.7,
+      "prediction_behavior": "predict information gain",
+      "risk_tolerance": 0.3
+    },
+    {
+      "approval_threshold": 0.82,
+      "description": "Confirm claims with checks before treating them as learned.",
+      "display_name": "Verifier",
+      "drive_weights": {
+        "prediction_accuracy_improvement": 0.94,
+        "verification": 0.9
+      },
+      "exploration_tolerance": 0.36,
+      "instinct_id": "verifier",
+      "memory_behavior": "store evidence-backed lessons",
+      "policy_sensitivity": 0.9,
+      "prediction_behavior": "predict and measure actual outcome",
+      "risk_tolerance": 0.18
+    }
+  ],
+  "label": "Agent Genesis",
+  "learning_consent": {
+    "default_mode": "private_only",
+    "modes": [
+      "private_only",
+      "sanitized_lessons",
+      "anonymous_benchmark_traces",
+      "public_agent_genome",
+      "compute_node_contributor"
+    ],
+    "network_learning_is_opt_in": true,
+    "raw_private_payload_excluded": true
+  },
+  "memory_seed": {
+    "behavior_rules": [
+      "do not overclaim",
+      "ask before risky actions"
+    ],
+    "project_context": [
+      "Flow Memory is the Human Compute Network"
+    ],
+    "raw_private_content_shared": false,
+    "summary": "exact commands, honest status, visible proof, do not overclaim, ask before risky actions",
+    "user_preferences": [
+      "exact commands",
+      "honest status",
+      "visible proof"
+    ]
+  },
+  "mirror": {
+    "actual": {
+      "reason": "agent born as seed profile; first run not requested",
+      "simulated": true,
+      "success": true
+    },
+    "agent_id": "genesis_agent_892d57dcbb1da2298d05925a",
+    "confidence_change": 0.08,
+    "contribution_offer": {
+      "available": false,
+      "mode": "private_only",
+      "raw_private_payload_excluded": true
+    },
+    "created_at": "2026-05-26T17:40:18.719419+00:00",
+    "lesson": "Check observable state before reporting success, then store the verified lesson.",
+    "memory_written": true,
+    "mirror_id": "agent_mirror_0965978da239d9d385a0f2f3",
+    "next_time": "reuse this verified pattern",
+    "prediction": {
+      "agent_name": "Mira",
+      "confidence": 0.72,
+      "local_only": true,
+      "policy": "supervised; approval required",
+      "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+      "risk": 0.1,
+      "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+    },
+    "risk_change": -0.06,
+    "surprise": "prediction matched observed first outcome"
+  },
+  "mission_control": {
+    "integrations": [
+      "Predictive Cognition",
+      "Predictive Learning Benchmark",
+      "Neural Embodiment",
+      "Live 3D Mode"
+    ],
+    "panel": "Agent Genesis",
+    "url": "/mission-control#genesis-genesis_agent_892d57dcbb1da2298d05925a"
+  },
+  "ok": true,
+  "passport": {
+    "agent_id": "genesis_agent_892d57dcbb1da2298d05925a",
+    "benchmarks_passed": 0,
+    "contributions_made": 0,
+    "genome_id": "agent_genome_f6640931c5988b373f5b261d",
+    "lessons_learned": 0,
+    "network_reuse_count": 0,
+    "policy_compliance": 1.0,
+    "prediction_accuracy": 0.0,
+    "predictions_made": 0,
+    "stage": "seed",
+    "updated_at": "2026-05-26T17:40:18.719419+00:00",
+    "visible_limitations": [
+      "local public-alpha agent profile, not production autonomy",
+      "neural and cognition outputs are advisory",
+      "PolicyEngine and ApprovalGate remain authoritative"
+    ]
+  },
+  "summary": {
+    "description": "A private-by-default onboarding replay where the agent receives a purpose, instincts, boundaries, memory seed, first prediction, passport, and mirror before optional network contribution.",
+    "headline": "Birth an agent into the network",
+    "no_download_required_for_first_agent": true,
+    "optional_node_path": "Node download is optional for private tools, private compute, or compute contribution.",
+    "safety_authority": "policy_engine_and_approval_gate"
+  }
+}

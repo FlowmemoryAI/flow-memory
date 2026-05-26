@@ -26,6 +26,7 @@ This is not AGI, not unbounded autonomous operation, and not V-JEPA 2 or VideoMA
 - Mission Control visual/replay telemetry for neural live sessions.
 - Predictive Cognitive Core telemetry for state encoding, counterfactual prediction, policy-gated outcome observation, prediction-error learning, and experience memory.
 - Predictive learning benchmark telemetry for lesson consolidation, lesson reuse, prediction-accuracy trends, and repeated-mistake reduction in local scenarios.
+- Agent Genesis telemetry for born-agent genome, private memory seed, consent mode, first prediction, mirror, passport, and optional sanitized contribution status.
 
 ## What does not run by default
 
@@ -153,6 +154,21 @@ GET /cognition/metrics
 These endpoints use `cognition:read`, `cognition:run`, and `cognition:write` scopes. They keep predictions advisory and record lessons only after observed outcomes.
 Benchmark execution uses `cognition:run cognition:write`; lesson consolidation uses `cognition:write`; read-only benchmark/lesson/metric inspection uses `cognition:read`.
 
+Agent Genesis API examples:
+
+```text
+GET /genesis/archetypes
+GET /genesis/instincts
+GET /genesis/boundaries
+POST /genesis/birth
+GET /genesis/agents/{agent_id}/passport
+GET /genesis/agents/{agent_id}/genome
+GET /genesis/agents/{agent_id}/mirror
+POST /genesis/agents/{agent_id}/teaching
+```
+
+These endpoints use `genesis:read`, `genesis:create`, `genesis:teach`, and `genesis:export` scopes. The first agent path needs no download; the optional node path is for private local tools, private compute, or compute contribution.
+
 
 ## FlowLang example
 
@@ -201,6 +217,7 @@ The visual telemetry path emits neural state suitable for Mission Control:
 Replay and live dashboard modes can render this as a neural activity halo, policy gate state, confidence/risk panel, and learning tick count.
 Predictive Cognition adds Mission Control telemetry for prediction, actual outcome, prediction error, lesson learned, selected action, and local deterministic learning metadata.
 Predictive Learning adds Mission Control telemetry and fixtures for benchmark scenario, accuracy/error trends, lesson consolidation, lesson reuse, repeated mistakes reduced, unsafe recommendations avoided, and policy overrides.
+Agent Genesis adds Mission Control telemetry and fixtures for Agent Genome, Memory Seed, instincts, boundaries, Learning Consent, First Prediction, Agent Mirror, Agent Passport, and private-only network learning defaults.
 
 ## Mission Control neural embodiment
 

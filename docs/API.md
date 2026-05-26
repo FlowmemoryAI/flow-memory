@@ -53,6 +53,16 @@ router.dispatch("GET", "/health")
 - `/cognition/benchmarks/run`
 - `/cognition/lessons`
 - `/cognition/metrics`
+- `/genesis/archetypes`
+- `/genesis/instincts`
+- `/genesis/boundaries`
+- `/genesis/birth`
+- `/genesis/agents/{agent_id}/passport`
+- `/genesis/agents/{agent_id}/genome`
+- `/genesis/agents/{agent_id}/mirror`
+- `/genesis/agents/{agent_id}/teaching`
+- `/genesis/contributions`
+- `/genesis/contributions/export`
 
 ## OpenAPI
 
@@ -121,6 +131,7 @@ The local API exposes read-only release metadata for public-alpha tooling:
 
 - `GET /release/evidence` returns the committed release evidence bundle index metadata and never exposes raw artifacts.
 - `GET /release/decision/{target}` returns local release-readiness decisions for `local`, `neural-gpu-smoke`, `public-alpha-neural`, `public-alpha-launch`, `public-alpha-launch-finalizer`, and `public-alpha-cognition`.
+`public-alpha-genesis` validates Agent Genesis, Network Learning Protocol, private-only defaults, sanitized contribution records, and Mission Control genesis telemetry.
 
 When scope checks are enabled these endpoints require `release:read`.
 
@@ -177,3 +188,29 @@ Console read endpoints require `launch:read`; demo bundle and finalizer exports 
 - `GET /cognition/metrics`
 
 Prediction reads require `cognition:read`; bounded ticks and benchmark runs require `cognition:run cognition:write`; lesson consolidation requires `cognition:write`. These endpoints are local public-alpha seams for deterministic predictive cognition, lesson consolidation, and benchmark metrics. They do not authorize actions or bypass PolicyEngine/ApprovalGate.
+
+## Agent Genesis endpoints
+
+These endpoints support no-download first-agent creation, Agent Genome inspection, private Memory Seed flow, Agent Mirror, Agent Passport, human teaching events, and opt-in network learning contribution records.
+
+```text
+GET /genesis/archetypes
+GET /genesis/instincts
+GET /genesis/boundaries
+POST /genesis/birth
+GET /genesis/agents/{agent_id}/passport
+GET /genesis/agents/{agent_id}/genome
+GET /genesis/agents/{agent_id}/mirror
+POST /genesis/agents/{agent_id}/teaching
+GET /genesis/contributions
+POST /genesis/contributions/export
+```
+
+Scope mapping:
+
+- `genesis:read` for read endpoints.
+- `genesis:create` for birth.
+- `genesis:teach` for teaching events.
+- `genesis:export` for contribution export.
+
+Raw private payloads are excluded by default. Network learning stays private only unless an explicit consent mode allows sanitized records.

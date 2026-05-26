@@ -6,6 +6,12 @@
   },
   "dashboard_fixtures": {
     "files": {
+      "dashboard/src/mock-data/agent-genesis-onboarding.json": {
+        "event_count": 0,
+        "exists": true,
+        "has_state": false,
+        "ok": true
+      },
       "dashboard/src/mock-data/live-agent-operations.json": {
         "event_count": 25,
         "exists": true,
@@ -35,6 +41,18 @@
         "exists": true,
         "has_state": true,
         "ok": true
+      },
+      "dashboard/src/mock-data/predictive-cognitive-core.json": {
+        "event_count": 13,
+        "exists": true,
+        "has_state": true,
+        "ok": true
+      },
+      "dashboard/src/mock-data/predictive-learning-benchmark.json": {
+        "event_count": 0,
+        "exists": true,
+        "has_state": false,
+        "ok": true
       }
     },
     "ok": true
@@ -51,11 +69,14 @@
     "ok": true
   },
   "missing_endpoints": [],
+  "mission_control_agent_genesis_fixture_validated": true,
   "mission_control_dev_server_renders_real_dashboard": true,
   "mission_control_launch_fixture_validated": true,
   "mission_control_local_network_fixture_validated": true,
   "mission_control_neural_embodiment_fixture_validated": true,
   "mission_control_operations_fixture_validated": true,
+  "mission_control_predictive_cognition_fixture_validated": true,
+  "mission_control_predictive_learning_fixture_validated": true,
   "mission_control_replay_fixture_selector_validated": true,
   "mission_control_run_console_available": true,
   "mission_control_run_selector_available": true,
@@ -71,9 +92,9 @@
   "public_alpha_demo_bundle_no_live_provider_calls": true,
   "public_alpha_demo_bundle_validated": true,
   "sample_bundle": {
-    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpikwompip\\public-alpha-local-demo.json",
+    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpgo50v3su\\public-alpha-local-demo.json",
     "command_count": 16,
-    "fixture_count": 5,
+    "fixture_count": 8,
     "gpu_evidence_status": "artifact_present_not_verified"
   }
 }

@@ -30,7 +30,22 @@ PUBLIC_ALPHA_EVIDENCE = (
 )
 NEURAL_GPU_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("gpu_evidence",)
 PUBLIC_ALPHA_NEURAL_EVIDENCE = NEURAL_GPU_EVIDENCE + ("rl_benchmarks",)
-LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + ("full_system_quick", "launch_scripts", "local_network_visual_replay", "mission_control_docs", "compute_market", "neural_live_agents", "predictive_cognitive_core", "predictive_learning_benchmark", "live_agent_launchpad", "live_agent_operations", "live_agent_supervisor", "mission_control_run_console", "neural_embodiment")
+LOCAL_PUBLIC_ALPHA_EVIDENCE = PUBLIC_ALPHA_EVIDENCE + (
+    "full_system_quick",
+    "launch_scripts",
+    "local_network_visual_replay",
+    "mission_control_docs",
+    "compute_market",
+    "neural_live_agents",
+    "predictive_cognitive_core",
+    "predictive_learning_benchmark",
+    "agent_genesis_network_learning",
+    "live_agent_launchpad",
+    "live_agent_operations",
+    "live_agent_supervisor",
+    "mission_control_run_console",
+    "neural_embodiment",
+)
 PUBLIC_ALPHA_LOCAL_LAUNCH_EVIDENCE = LOCAL_PUBLIC_ALPHA_EVIDENCE + (
     "public_alpha_launch_test",
     "public_alpha_launch_evidence",
@@ -44,6 +59,7 @@ PUBLIC_ALPHA_LAUNCH_FINALIZER_EVIDENCE = tuple(dict.fromkeys(PUBLIC_ALPHA_LOCAL_
     "mission_control_live_3d",
     "public_alpha_launch_finalizer",
 )))
+AGENT_GENESIS_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("agent_genesis_network_learning",)))
 
 
 @dataclass(frozen=True)
@@ -113,6 +129,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_cognition_blockers(root_path, gates.ok)
         classification = "public_alpha_cognition_candidate" if not blockers else "blocked_public_alpha_cognition"
         evidence = LOCAL_PUBLIC_ALPHA_EVIDENCE
+    elif target == "public-alpha-genesis":
+        blockers = _public_alpha_genesis_blockers(root_path, gates.ok)
+        classification = "public_alpha_genesis_candidate" if not blockers else "blocked_public_alpha_genesis"
+        evidence = AGENT_GENESIS_EVIDENCE
     elif target == "production":
         blockers = (("release_gates_failed",) if not gates.ok else ()) + PRODUCTION_BLOCKERS
         classification = "blocked_production_release"
@@ -300,6 +320,13 @@ def _local_public_alpha_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
     except Exception:
         blockers.append("predictive_learning_benchmark_evidence_missing_or_invalid")
     try:
+        from flow_memory.release.agent_genesis_evidence import agent_genesis_network_learning_evidence
+
+        if not agent_genesis_network_learning_evidence(root).get("ok"):
+            blockers.append("agent_genesis_network_learning_evidence_missing_or_invalid")
+    except Exception:
+        blockers.append("agent_genesis_network_learning_evidence_missing_or_invalid")
+    try:
         from flow_memory.release.launchpad_evidence import live_agent_launchpad_evidence
 
         if not live_agent_launchpad_evidence(root).get("ok"):
@@ -385,6 +412,20 @@ def _public_alpha_cognition_blockers(root: Path, gate_ok: bool) -> tuple[str, ..
             blockers.extend(f"predictive_learning_{blocker}" for blocker in decision.get("blockers", ()))
     except Exception:
         blockers.append("predictive_learning_benchmark_evidence_missing_or_invalid")
+    return tuple(dict.fromkeys(blockers))
+def _public_alpha_genesis_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_local_public_alpha_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.agent_genesis_evidence import (
+            agent_genesis_network_learning_evidence,
+            verify_agent_genesis_network_learning_evidence,
+        )
+
+        decision = verify_agent_genesis_network_learning_evidence(agent_genesis_network_learning_evidence(root))
+        if not decision.get("ok"):
+            blockers.extend(f"agent_genesis_{blocker}" for blocker in decision.get("blockers", ()))
+    except Exception:
+        blockers.append("agent_genesis_network_learning_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_launch_finalizer_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

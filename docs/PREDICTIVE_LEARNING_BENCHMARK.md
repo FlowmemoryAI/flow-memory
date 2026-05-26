@@ -27,6 +27,7 @@ The benchmark reports:
 - `consolidated_lesson_count`
 
 The expected public-alpha invariant is practical: repeated local trials should reuse lessons, reduce repeated mistakes, and never let lessons bypass PolicyEngine or ApprovalGate.
+Agent Genesis supplies the first private memory seed and first prediction that later experience records can improve. Network learning remains private only by default; sanitized lesson contribution is opt-in and excludes raw private payloads.
 
 ## Scenarios
 

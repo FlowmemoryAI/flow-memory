@@ -37,10 +37,10 @@
   "ctmp_backup_tracked_paths": [],
   "git": {
     "branch": "main",
-    "commit": "72eb78559cb45b6cc19ea269967040c679ce8e7d",
+    "commit": "cd3f949730106958126375382662903728fa8549",
     "tracked_ctmp_backup_paths": []
   },
-  "hash": "dd8e681ed31e288b9b7c56c0ba8751311f865694288cc3bed59e2a79ace35daa",
+  "hash": "4782dc495f2bcd7e1cb00e97546b19c13e9e117c6c5e3a5af0de75ae257ccc98",
   "invariants": {
     "ctmp_backup_not_tracked": true,
     "local_only": true,
@@ -102,8 +102,8 @@
   "operator_handoff": "Mission Control Live 3D Mode + Public Alpha Launch Finalizer",
   "project": "Flow Memory",
   "public_alpha_demo_bundle": {
-    "bundle_hash": "d28a48b5ecebc1f75582aa415aeeab8663d8bec0916213972f946e52a0bb2d67",
-    "fixture_count": 5,
+    "bundle_hash": "73653b5fbe8ba58c5171ed5cffb0bb5f2a677b164d7746f7a1af107ff2e89541",
+    "fixture_count": 8,
     "gpu_evidence_status": "verified",
     "missing_invariants": [],
     "ok": true,
@@ -155,6 +155,9 @@
         "mission_control_docs",
         "compute_market",
         "neural_live_agents",
+        "predictive_cognitive_core",
+        "predictive_learning_benchmark",
+        "agent_genesis_network_learning",
         "live_agent_launchpad",
         "live_agent_operations",
         "live_agent_supervisor",

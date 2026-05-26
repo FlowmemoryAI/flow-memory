@@ -1,6 +1,6 @@
 # Mission Control Quickstart
 
-Mission Control is the public-alpha visual operating layer for Flow Memory. It turns real local network runs into visual telemetry for agents, tasks, memory, predictive cognition, neural advisory signals, RL episodes, safety gates, audit events, and simulated local economy flows.
+Mission Control is the public-alpha visual operating layer for Flow Memory. It turns real local network runs into visual telemetry for agents, tasks, memory, predictive cognition, Agent Genesis, neural advisory signals, RL episodes, safety gates, audit events, and simulated local economy flows.
 
 Maturity: public-alpha scaffold connected to local state, replay files, and local API polling. It is not a hosted production dashboard.
 
@@ -82,6 +82,14 @@ Useful endpoints:
 - `GET /cognition/lessons`
 - `GET /cognition/lessons/{lesson_id}`
 - `GET /cognition/metrics`
+- `GET /genesis/archetypes`
+- `GET /genesis/instincts`
+- `GET /genesis/boundaries`
+- `POST /genesis/birth`
+- `GET /genesis/agents/{agent_id}/passport`
+- `GET /genesis/agents/{agent_id}/genome`
+- `GET /genesis/agents/{agent_id}/mirror`
+- `POST /genesis/agents/{agent_id}/teaching`
 With local auth/scopes:
 
 ```bash
@@ -91,6 +99,7 @@ python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765 --api-key de
 Read visual endpoints with `x-flow-memory-scopes: visual:read`; run network scenarios with `x-flow-memory-scopes: network:run`.
 Launch console read endpoints require `x-flow-memory-scopes: launch:read`; public-alpha demo bundle export requires `x-flow-memory-scopes: launch:export`.
 Cognition read endpoints require `x-flow-memory-scopes: cognition:read`; cognition ticks and benchmark runs require `x-flow-memory-scopes: cognition:run cognition:write`; lesson consolidation requires `x-flow-memory-scopes: cognition:write`.
+Genesis read endpoints require `x-flow-memory-scopes: genesis:read`; birth requires `x-flow-memory-scopes: genesis:create`; teaching requires `x-flow-memory-scopes: genesis:teach`; export requires `x-flow-memory-scopes: genesis:export`.
 Public-alpha finalizer export also requires `x-flow-memory-scopes: launch:export`.
 
 ## 4. Run dashboard checks
@@ -103,7 +112,7 @@ npm run build
 npm run dev
 ```
 
-For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Predictive Learning Benchmark panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
+For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Predictive Learning Benchmark panel, Agent Genesis panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
 
 The dev server exposes fixture JSON and read-only page rendering only. It does not expose launch, network-run, compute, settlement, or control POST endpoints. Optional local API mode remains a separate read-only polling path through `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`.
 
@@ -119,6 +128,7 @@ The dashboard includes a scoped run selector for these replay/demo fixtures:
 - **Local Network Replay** — `dashboard/src/mock-data/local-network-replay.json`
 - **Predictive Cognitive Core** — `dashboard/src/mock-data/predictive-cognitive-core.json`
 - **Predictive Learning Benchmark** — `dashboard/src/mock-data/predictive-learning-benchmark.json`
+- **Agent Genesis** — `dashboard/src/mock-data/agent-genesis-onboarding.json`
 
 The selected run status card shows run id, kind, agent id, backend, status, current phase, ticks, policy gate state, risk/confidence, memory writes, visual event count, GPU evidence status, replay artifact path, and run record path.
 
@@ -181,6 +191,22 @@ dashboard/src/mock-data/predictive-cognitive-core.json
 ```
 
 The panel shows current state summary, retrieved memories, candidate actions, counterfactual predictions, selected action, policy gate result, actual outcome, prediction error, lesson learned, experience id, and local deterministic learning metadata. It is read-only and keeps predictions scoped to observable Flow Memory outcomes.
+
+## Agent Genesis panel
+
+Generate a local birth record through the CLI:
+
+```bash
+python -m flow_memory genesis birth --user local-user --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --instinct careful --instinct builder --consent private_only --json
+```
+
+Mission Control can load the stable Agent Genesis fixture:
+
+```text
+dashboard/src/mock-data/agent-genesis-onboarding.json
+```
+
+The panel shows Agent Birth Flow, Agent Genome, Memory Seed, Learning Consent, First Prediction, Agent Mirror, Agent Passport, contribution status, and the no-download first-agent path. Network learning is private only by default; sanitized contribution requires explicit opt-in. The optional node path is for private tools, private compute, or compute contribution.
 
 ## Predictive Learning Benchmark panel
 

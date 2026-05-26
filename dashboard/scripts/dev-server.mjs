@@ -68,6 +68,13 @@ const fixtureSpecs = [
     path: 'predictive-learning-benchmark.json',
     run_kind: 'cognition_benchmark',
   },
+  {
+    fixture_id: 'agent-genesis-onboarding',
+    label: 'Agent Genesis',
+    description: 'Private-by-default agent birth, genome, memory seed, consent, first prediction, mirror, and passport replay.',
+    path: 'agent-genesis-onboarding.json',
+    run_kind: 'genesis',
+  },
 ];
 
 const safeLiveReadEndpoints = [
@@ -84,6 +91,13 @@ const safeLiveReadEndpoints = [
   'GET /cognition/benchmarks',
   'GET /cognition/lessons',
   'GET /cognition/metrics',
+  'GET /genesis/archetypes',
+  'GET /genesis/instincts',
+  'GET /genesis/boundaries',
+  'GET /genesis/agents/{agent_id}/passport',
+  'GET /genesis/agents/{agent_id}/genome',
+  'GET /genesis/agents/{agent_id}/mirror',
+  'GET /genesis/contributions',
 ];
 
 
@@ -426,6 +440,118 @@ function renderPredictiveLearningPanel(payload) {
         <article class="learning-list learning-lessons">
           <h3>Selected lesson details</h3>
           <ol>${lessonRows}</ol>
+        </article>
+      </div>
+    </section>`;
+}
+function renderAgentGenesisPanel(payload) {
+  const summary = payload?.summary || {};
+  const birth = payload?.birth || {};
+  const prediction = payload?.first_prediction || birth.first_prediction || {};
+  const genome = payload?.genome || {};
+  const memorySeed = payload?.memory_seed || {};
+  const consent = payload?.learning_consent || {};
+  const passport = payload?.passport || {};
+  const mirror = payload?.mirror || {};
+  const archetypes = Array.isArray(payload?.archetypes) ? payload.archetypes : [];
+  const instincts = Array.isArray(payload?.instincts) ? payload.instincts : [];
+  const boundaries = Array.isArray(payload?.boundaries) ? payload.boundaries : [];
+  const contribution = payload?.contribution_status || {};
+  const selectedInstincts = Array.isArray(birth.instincts) ? birth.instincts : [];
+  const selectedBoundaries = Array.isArray(birth.boundaries) ? birth.boundaries : [];
+  const cards = archetypes.slice(0, 4).map((item) => `
+    <article>
+      <strong>${text(item.display_name || item.archetype_id)}</strong>
+      <span>${text(item.description || '')}</span>
+      <small>${text((item.default_instincts || []).slice(0, 3).join(' · '))}</small>
+    </article>`).join('');
+  const instinctRows = instincts.slice(0, 6).map((item) => `
+    <li data-active="${selectedInstincts.includes(item.instinct_id)}">
+      <strong>${text(item.display_name || item.instinct_id)}</strong>
+      <span>${text(item.description || item.instinct_id)}</span>
+    </li>`).join('');
+  const boundaryRows = boundaries.slice(0, 7).map((item) => `
+    <li data-active="${selectedBoundaries.includes(item.boundary_id)}">
+      <strong>${text(item.display_name || item.boundary_id)}</strong>
+      <span>${text(item.description || item.boundary_id)}</span>
+    </li>`).join('');
+  const metrics = [
+    ['stage', passport.stage || 'seed'],
+    ['prediction accuracy', Number(passport.prediction_accuracy || 0).toFixed(2)],
+    ['policy compliance', Number(passport.policy_compliance || 0).toFixed(2)],
+    ['lessons learned', passport.lessons_learned || 0],
+    ['contributions', passport.contributions_made || 0],
+    ['benchmarks', passport.benchmarks_passed || 0],
+  ].map(([label, value]) => `<div><dt>${text(label)}</dt><dd>${text(value)}</dd></div>`).join('');
+  return `
+    <section id="genesis" class="agent-genesis-panel mission-surface mission-surface-wide" aria-label="Agent Genesis onboarding panel">
+      <header class="surface-header">
+        <span>Agent Genesis</span>
+        <strong>${text(summary.headline || 'Birth an agent into the network')}</strong>
+        <small>${text(summary.description || 'Create a policy-gated agent with instincts, boundaries, private memory seed, first prediction, and opt-in network learning.')}</small>
+      </header>
+      <div class="genesis-grid">
+        <article class="genesis-birth-card">
+          <p class="cognition-state">Agent Birth Flow</p>
+          <h2>${text(birth.name || 'Mira')}</h2>
+          <p>${text(birth.purpose || genome.purpose || 'Help me build and remember Flow Memory')}</p>
+          <dl>
+            <div><dt>archetype</dt><dd>${text(birth.archetype || genome.archetype_id || 'research-builder')}</dd></div>
+            <div><dt>privacy</dt><dd>${text(consent.default_mode || birth?.privacy?.mode || 'private_only')}</dd></div>
+            <div><dt>network learning</dt><dd>${text(consent.network_learning_is_opt_in ? 'opt-in only' : 'disabled')}</dd></div>
+            <div><dt>raw private payload</dt><dd>${text(consent.raw_private_payload_excluded ? 'excluded' : 'not allowed')}</dd></div>
+          </dl>
+        </article>
+        <article class="genesis-first-prediction">
+          <p class="cognition-state">First Prediction</p>
+          <h3>${text(prediction.prediction || 'I can map project state before acting.')}</h3>
+          <dl>
+            <div><dt>confidence</dt><dd>${Number(prediction.confidence || 0).toFixed(2)}</dd></div>
+            <div><dt>risk</dt><dd>${Number(prediction.risk || 0).toFixed(2)}</dd></div>
+            <div><dt>policy</dt><dd>${text(prediction.policy || 'supervised; approval required')}</dd></div>
+          </dl>
+          <small>${text(prediction.verification_plan || 'Compare the predicted state to observed first run evidence.')}</small>
+        </article>
+        <article class="genesis-genome-card">
+          <p class="cognition-state">Agent Genome</p>
+          <h3>${text(genome.genome_id || birth.genome_id || 'agent-genome-v1')}</h3>
+          <p>Portable profile for purpose, instincts, boundaries, cognition, neural runtime, memory, policy, privacy, and contribution settings. Private memory is excluded by default.</p>
+          <div class="genesis-chip-row">${selectedInstincts.map((item) => `<span>${text(item)}</span>`).join('')}</div>
+        </article>
+        <article class="genesis-memory-card">
+          <p class="cognition-state">Memory Seed</p>
+          <h3>Private starting context</h3>
+          <p>${text(memorySeed.summary || 'exact commands, honest status, visible proof')}</p>
+          <small>raw private content shared: ${text(memorySeed.raw_private_content_shared ? 'yes' : 'no')}</small>
+        </article>
+        <article class="genesis-picker">
+          <h3>Instinct picker</h3>
+          <ol>${instinctRows}</ol>
+        </article>
+        <article class="genesis-picker">
+          <h3>Boundary checklist</h3>
+          <ol>${boundaryRows}</ol>
+        </article>
+        <article class="genesis-passport-card">
+          <p class="cognition-state">Agent Passport</p>
+          <h3>${text(passport.stage || 'seed')}</h3>
+          <dl>${metrics}</dl>
+        </article>
+        <article class="genesis-mirror-card">
+          <p class="cognition-state">Agent Mirror</p>
+          <h3>${text(mirror.surprise || 'prediction matched observed first outcome')}</h3>
+          <p>${text(mirror.lesson || 'Check observable state before reporting success.')}</p>
+          <small>${text(mirror.next_time || 'reuse this verified pattern')}</small>
+        </article>
+        <article class="genesis-contribution-card">
+          <p class="cognition-state">Learning Consent</p>
+          <h3>Network learning is opt-in</h3>
+          <p>${text(contribution.offer || 'Sanitized lessons can be contributed only after explicit opt-in.')}</p>
+          <small>${text(summary.optional_node_path || 'Node download is optional for private tools, private compute, or compute contribution.')}</small>
+        </article>
+        <article class="genesis-archetypes">
+          <h3>Available archetypes</h3>
+          <div>${cards}</div>
         </article>
       </div>
     </section>`;
@@ -1101,6 +1227,7 @@ function renderMissionControlHtml(payloads, finalizer) {
         <a href="#replay">Replay</a>
         <a href="#cognition">Cognition</a>
         <a href="#learning">Learning</a>
+        <a href="#genesis">Genesis</a>
         <a href="#embodiment">Embodiment</a>
         <a href="#live-3d">Live 3D</a>
       </nav>
@@ -1128,6 +1255,7 @@ function renderMissionControlHtml(payloads, finalizer) {
     </div>
     ${renderPredictiveCognitionPanel(payloads['predictive-cognitive-core'] || {})}
     ${renderPredictiveLearningPanel(payloads['predictive-learning-benchmark'] || {})}
+    ${renderAgentGenesisPanel(payloads['agent-genesis-onboarding'] || {})}
     ${renderEmbodimentPanel(embodimentPayload)}
     ${renderLive3DPanel(embodimentPayload, state)}
     ${renderActionFooter()}

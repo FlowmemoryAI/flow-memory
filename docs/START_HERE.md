@@ -1,6 +1,6 @@
 # Start Here: Flow Memory Public Alpha
 
-Flow Memory is a local/testnet public alpha for launching memory-bearing AI agents with FlowLang, local economy flows, neural advisory metadata, predictive cognition, RL Arena training, and Mission Control replay/live-state visualization.
+Flow Memory is a local/testnet public alpha for launching memory-bearing AI agents with FlowLang, local economy flows, neural advisory metadata, predictive cognition, Agent Genesis, network learning consent, RL Arena training, and Mission Control replay/live-state visualization.
 
 Maturity: public alpha only. Flow Memory is not production-certified, not audited, not mainnet-ready, and does not move real funds by default.
 
@@ -97,6 +97,22 @@ python -m flow_memory cognition metrics --json
 
 Records are stored under `artifacts/cognition/experiences/`, `artifacts/cognition/lessons/`, and `artifacts/cognition/benchmarks/` and remain scoped to observable local Flow Memory outcomes.
 
+## Agent Genesis
+
+Agent Genesis is the no-download first-agent path: it creates a policy-gated profile, Agent Genome, private Memory Seed, first prediction, Agent Mirror, and Agent Passport. Network learning defaults to private only; sanitized contribution is opt-in.
+
+```bash
+python -m flow_memory genesis archetypes list --json
+python -m flow_memory genesis instincts list --json
+python -m flow_memory genesis boundaries list --json
+python -m flow_memory genesis birth --user local-user --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --instinct careful --instinct builder --consent private_only --json
+python -m flow_memory genesis passport show <agent_id> --json
+python -m flow_memory genesis mirror show <agent_id> --json
+```
+
+A local node download is optional for private local tools, private compute, or compute contribution.
+
+
 
 ## Local alpha evidence
 
@@ -121,4 +137,4 @@ python -m flow_memory launch supervisor heartbeat <run_id> --json
 ```
 
 Supervisor runs are local-only, finite, and policy-gated.
-The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, `predictive-cognitive-core`, `predictive-learning-benchmark`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural/predictive outputs advisory.
+The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, `predictive-cognitive-core`, `predictive-learning-benchmark`, `agent-genesis-onboarding`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural/predictive/genesis outputs advisory.

@@ -12,6 +12,10 @@ This build upgrades Flow Memory beyond the Agent Economy V2 and FlowLang prototy
 
 This is not production-certified. Contracts remain unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, and FlowLang remains a v0/prototype language layer.
 
+### 2026-05-26 Agent Genesis update
+
+Added Agent Genesis + Network Learning Protocol: private-by-default agent birth, Agent Genome, Memory Seed, instincts, boundaries, first prediction ceremony, Agent Mirror, Agent Passport, human teaching events, sanitized opt-in contribution records, Genesis CLI/API routes, FlowLang genesis/memory_seed blocks, Mission Control genesis fixture/panel, and `public-alpha-genesis` release evidence. First-agent onboarding needs no download; a local node path remains optional for private local tools, private compute, or compute contribution.
+
 ## Major systems added
 
 ### AI agent layer

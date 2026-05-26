@@ -16,6 +16,7 @@ perceive -> encode state -> retrieve similar experiences -> generate candidate a
 ```
 
 Neural scoring is advisory. `PolicyEngine` and `ApprovalGate` remain authoritative.
+Agent Genesis uses the same policy-gated cognition profile when a born agent receives a first prediction, private memory seed, genome, mirror, and passport. Network learning starts in private only mode unless sanitized contribution is explicitly selected.
 
 ## Local CLI
 

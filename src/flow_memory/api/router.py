@@ -66,6 +66,18 @@ from flow_memory.api.cognition_endpoints import (
     launch_run_predictions,
     visual_embodiment_cognition,
 )
+from flow_memory.api.genesis_endpoints import (
+    genesis_archetypes,
+    genesis_birth,
+    genesis_boundaries,
+    genesis_contributions,
+    genesis_contributions_export,
+    genesis_genome,
+    genesis_instincts,
+    genesis_mirror,
+    genesis_passport,
+    genesis_teaching,
+)
 from flow_memory.api.compute_endpoints import (
     compute_capacity_windows,
     compute_economic_memory,
@@ -656,6 +668,35 @@ class LocalApiRouter:
         return compute_economic_memory_query(payload)
 
 
+    def _genesis_archetypes(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_archetypes()
+
+    def _genesis_instincts(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_instincts()
+
+    def _genesis_boundaries(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_boundaries()
+
+    def _genesis_birth(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_birth(payload)
+
+    def _genesis_passport(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_passport(params["agent_id"])
+
+    def _genesis_genome(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_genome(params["agent_id"])
+
+    def _genesis_mirror(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_mirror(params["agent_id"])
+
+    def _genesis_teaching(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_teaching(params["agent_id"], payload)
+
+    def _genesis_contributions(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_contributions(str(payload.get("agent_id", payload.get("agent", ""))))
+
+    def _genesis_contributions_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return genesis_contributions_export(payload)
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -720,6 +761,16 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/cognition/metrics", router._cognition_metrics, "cognition_metrics")
     router.register("GET", "/launch/console/runs/{run_id}/predictions", router._launch_console_run_predictions, "launch_console_run_predictions")
     router.register("GET", "/visual/embodiment/{run_id}/cognition", router._visual_embodiment_cognition, "visual_embodiment_cognition")
+    router.register("GET", "/genesis/archetypes", router._genesis_archetypes, "genesis_archetypes")
+    router.register("GET", "/genesis/instincts", router._genesis_instincts, "genesis_instincts")
+    router.register("GET", "/genesis/boundaries", router._genesis_boundaries, "genesis_boundaries")
+    router.register("POST", "/genesis/birth", router._genesis_birth, "genesis_birth")
+    router.register("GET", "/genesis/agents/{agent_id}/passport", router._genesis_passport, "genesis_passport")
+    router.register("GET", "/genesis/agents/{agent_id}/genome", router._genesis_genome, "genesis_genome")
+    router.register("GET", "/genesis/agents/{agent_id}/mirror", router._genesis_mirror, "genesis_mirror")
+    router.register("POST", "/genesis/agents/{agent_id}/teaching", router._genesis_teaching, "genesis_teaching")
+    router.register("GET", "/genesis/contributions", router._genesis_contributions, "genesis_contributions")
+    router.register("POST", "/genesis/contributions/export", router._genesis_contributions_export, "genesis_contributions_export")
     router.register("POST", "/marketplace/tasks", router._marketplace_task_create, "marketplace_task_create")
     router.register("POST", "/marketplace/bids", router._marketplace_bid_create, "marketplace_bid_create")
     router.register("POST", "/marketplace/settle", router._marketplace_settle, "marketplace_settle")

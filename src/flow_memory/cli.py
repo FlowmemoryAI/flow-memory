@@ -37,6 +37,20 @@ from flow_memory.cognition.consolidation import consolidate_experiences, get_les
 from flow_memory.cognition.metrics import cognition_metrics
 from flow_memory.cognition.experience import get_experience, list_experiences, prediction_error_records
 from flow_memory.cognition.world_model import DeterministicWorldModel
+from flow_memory.agent_genesis import (
+    birth_agent,
+    create_teaching_event,
+    export_contribution_bundle,
+    export_genome,
+    get_genome,
+    get_mirror,
+    get_passport,
+    list_archetypes,
+    list_boundaries,
+    list_contributions,
+    list_instincts,
+    write_teaching_event,
+)
 
 
 def _json_default(value: Any) -> str:
@@ -464,6 +478,135 @@ def _cognition(argv: list[str]) -> int:
     return _print_launch_payload(payload, json_output=args.json, human=f"accuracy {payload['prediction_accuracy_before']:.2f} -> {payload['prediction_accuracy_after']:.2f}")
 
 
+def _genesis(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory genesis", description="Birth policy-gated Flow Memory agents")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    archetypes = sub.add_parser("archetypes")
+    archetype_sub = archetypes.add_subparsers(dest="archetype_command", required=True)
+    archetype_list = archetype_sub.add_parser("list")
+    archetype_list.add_argument("--json", action="store_true")
+
+    instincts = sub.add_parser("instincts")
+    instinct_sub = instincts.add_subparsers(dest="instinct_command", required=True)
+    instinct_list = instinct_sub.add_parser("list")
+    instinct_list.add_argument("--json", action="store_true")
+
+    boundaries = sub.add_parser("boundaries")
+    boundary_sub = boundaries.add_subparsers(dest="boundary_command", required=True)
+    boundary_list = boundary_sub.add_parser("list")
+    boundary_list.add_argument("--json", action="store_true")
+
+    birth = sub.add_parser("birth")
+    birth.add_argument("--user", "--user-id", dest="user_id", default="local-user")
+    birth.add_argument("--name", required=True)
+    birth.add_argument("--archetype", default="research-builder")
+    birth.add_argument("--purpose", default="")
+    birth.add_argument("--instinct", action="append", default=[])
+    birth.add_argument("--boundary", action="append", default=[])
+    birth.add_argument("--consent", "--consent-mode", dest="consent_mode", default="private_only")
+    birth.add_argument("--launch", action="store_true")
+    birth.add_argument("--json", action="store_true")
+
+    passport = sub.add_parser("passport")
+    passport_sub = passport.add_subparsers(dest="passport_command", required=True)
+    passport_show = passport_sub.add_parser("show")
+    passport_show.add_argument("agent_id")
+    passport_show.add_argument("--json", action="store_true")
+
+    genome = sub.add_parser("genome")
+    genome_sub = genome.add_subparsers(dest="genome_command", required=True)
+    genome_export = genome_sub.add_parser("export")
+    genome_export.add_argument("agent_id")
+    genome_export.add_argument("--out", required=True)
+    genome_export.add_argument("--json", action="store_true")
+    genome_show = genome_sub.add_parser("show")
+    genome_show.add_argument("agent_id")
+    genome_show.add_argument("--json", action="store_true")
+
+    mirror = sub.add_parser("mirror")
+    mirror_sub = mirror.add_subparsers(dest="mirror_command", required=True)
+    mirror_show = mirror_sub.add_parser("show")
+    mirror_show.add_argument("agent_id")
+    mirror_show.add_argument("--json", action="store_true")
+
+    teaching = sub.add_parser("teaching")
+    teaching_sub = teaching.add_subparsers(dest="teaching_command", required=True)
+    teaching_add = teaching_sub.add_parser("add")
+    teaching_add.add_argument("--agent", dest="agent_id", required=True)
+    teaching_add.add_argument("--user", dest="user_id", default="local-user")
+    teaching_add.add_argument("--type", dest="correction_type", default="correction")
+    teaching_add.add_argument("--content", default="")
+    teaching_add.add_argument("--lesson", required=True)
+    teaching_add.add_argument("--tag", action="append", default=[])
+    teaching_add.add_argument("--contribution-allowed", action="store_true")
+    teaching_add.add_argument("--json", action="store_true")
+
+    contributions = sub.add_parser("contributions")
+    contribution_sub = contributions.add_subparsers(dest="contribution_command", required=True)
+    contribution_list = contribution_sub.add_parser("list")
+    contribution_list.add_argument("--agent", dest="agent_id", default="")
+    contribution_list.add_argument("--json", action="store_true")
+    contribution_export = contribution_sub.add_parser("export")
+    contribution_export.add_argument("--agent", dest="agent_id", required=True)
+    contribution_export.add_argument("--out", required=True)
+    contribution_export.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "archetypes":
+        records = list_archetypes()
+        return _print_launch_payload({"ok": True, "archetypes": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} agent archetype(s)")
+    if args.command == "instincts":
+        records = list_instincts()
+        return _print_launch_payload({"ok": True, "instincts": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} agent instinct(s)")
+    if args.command == "boundaries":
+        records = list_boundaries()
+        return _print_launch_payload({"ok": True, "boundaries": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} agent boundary rule(s)")
+    if args.command == "birth":
+        payload = birth_agent({
+            "user_id": args.user_id,
+            "name": args.name,
+            "archetype": args.archetype,
+            "purpose": args.purpose,
+            "instincts": tuple(args.instinct),
+            "boundaries": tuple(args.boundary),
+            "consent_mode": args.consent_mode,
+            "launch": args.launch,
+        })
+        return _print_launch_payload(payload, json_output=args.json, human=f"born {payload['birth_certificate']['name']} as {payload['agent_id']}")
+    if args.command == "passport":
+        payload = {"ok": True, "passport": get_passport(args.agent_id)}
+        return _print_launch_payload(payload, json_output=args.json, human=f"passport {args.agent_id}")
+    if args.command == "genome":
+        if args.genome_command == "export":
+            payload = export_genome(args.agent_id, args.out)
+            return _print_launch_payload(payload, json_output=args.json, human=f"genome exported {payload['path']}")
+        payload = {"ok": True, "genome": get_genome(args.agent_id)}
+        return _print_launch_payload(payload, json_output=args.json, human=f"genome {args.agent_id}")
+    if args.command == "mirror":
+        payload = {"ok": True, "mirror": get_mirror(args.agent_id)}
+        return _print_launch_payload(payload, json_output=args.json, human=f"mirror {args.agent_id}")
+    if args.command == "teaching":
+        event = create_teaching_event(
+            user_id=args.user_id,
+            agent_id=args.agent_id,
+            correction_type=args.correction_type,
+            content=args.content,
+            lesson=args.lesson,
+            applies_to_tags=tuple(args.tag),
+            contribution_allowed=args.contribution_allowed,
+        )
+        payload = write_teaching_event(event)
+        return _print_launch_payload(payload, json_output=args.json, human=f"teaching event {payload['teaching_event_id']}")
+    if args.command == "contributions":
+        if args.contribution_command == "export":
+            payload = export_contribution_bundle(args.agent_id, args.out)
+            return _print_launch_payload(payload, json_output=args.json, human=f"contribution bundle {payload['path']}")
+        records = list_contributions(args.agent_id)
+        return _print_launch_payload({"ok": True, "contributions": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} contribution(s)")
+    raise AssertionError("unhandled genesis command")
+
+
 def _compute(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory compute", description="Inspect and simulate the local Compute Market")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -604,6 +747,8 @@ def main(argv: list[str] | None = None) -> int:
         return _launch(argv[1:])
     if argv and argv[0] == "cognition":
         return _cognition(argv[1:])
+    if argv and argv[0] == "genesis":
+        return _genesis(argv[1:])
     if argv and argv[0] == "compute":
         return _compute(argv[1:])
     if argv and argv[0] == "neural":

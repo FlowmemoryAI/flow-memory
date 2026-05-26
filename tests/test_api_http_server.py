@@ -303,6 +303,104 @@ def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> Non
     assert mismatch.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
 
 
+def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    key_a = "fmk_tenant_job_a"
+    key_b = "fmk_tenant_job_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-job-a-key",
+                    "key_prefix": "fmk_tenant_job_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_job_a",
+                    "principal": "svc-job-a",
+                    "scopes": ("compute:execute", "compute:read"),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "tenant-job-b-key",
+                    "key_prefix": "fmk_tenant_job_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_job_b",
+                    "principal": "svc-job-b",
+                    "scopes": ("compute:execute", "compute:read"),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    job_payload = {
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/tenant-job.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "tenant-job-route",
+        "provider_id": "tenant-job-provider",
+    }
+    try:
+        created = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps(job_payload).encode("utf-8"),
+        )
+        job_id = str(created.body["data"]["job"]["job_id"])
+        gateway.handle("POST", f"/compute/jobs/{job_id}/dispatch", {"x-flow-memory-api-key": key_a})
+        completed = gateway.handle(
+            "POST",
+            f"/compute/jobs/{job_id}/complete",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps({"actual_total_cost": 0.12, "artifact_ref": "s3://flow-memory-results/tenant-job.json", "artifact_data": {"tenant": "a"}}).encode("utf-8"),
+        )
+        allowed_job = gateway.handle("GET", f"/compute/jobs/{job_id}", {"x-flow-memory-api-key": key_a})
+        allowed_events = gateway.handle("GET", f"/compute/jobs/{job_id}/events", {"x-flow-memory-api-key": key_a})
+        allowed_artifacts = gateway.handle("GET", f"/compute/jobs/{job_id}/artifacts", {"x-flow-memory-api-key": key_a})
+        denied_job = gateway.handle("GET", f"/compute/jobs/{job_id}", {"x-flow-memory-api-key": key_b})
+        denied_events = gateway.handle("GET", f"/compute/jobs/{job_id}/events", {"x-flow-memory-api-key": key_b})
+        denied_artifacts = gateway.handle("GET", f"/compute/jobs/{job_id}/artifacts", {"x-flow-memory-api-key": key_b})
+        denied_cancel = gateway.handle("POST", f"/compute/jobs/{job_id}/cancel", {"x-flow-memory-api-key": key_b})
+
+        queued = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps({**job_payload, "job_id": "job_tenant_a_claim"}).encode("utf-8"),
+        )
+        queued_job_id = str(queued.body["data"]["job"]["job_id"])
+        denied_claim = gateway.handle(
+            "POST",
+            "/compute/jobs/claim",
+            {"x-flow-memory-api-key": key_b},
+            json.dumps({"job_id": queued_job_id, "worker_id": "worker_b"}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert created.status == 200
+    assert created.body["data"]["job"]["tenant_id"] == "tenant_job_a"
+    assert completed.status == 200
+    assert allowed_job.status == 200
+    assert allowed_events.status == 200
+    assert allowed_events.body["data"]["events"]
+    assert allowed_artifacts.status == 200
+    assert allowed_artifacts.body["data"]["artifacts"]
+    assert denied_job.status == 404
+    assert denied_events.status == 404
+    assert denied_artifacts.status == 404
+    assert denied_cancel.status == 404
+    assert denied_claim.status == 400
+    assert service.get_job(queued_job_id)["job"]["status"] == "queued"
+
+
 def test_http_gateway_accepts_direct_stripe_webhook_body_with_signature_header() -> None:
     secret = "whsec_http_gateway_secret"
     service = ComputeMarketService(

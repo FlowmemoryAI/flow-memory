@@ -683,17 +683,17 @@ class LocalApiRouter:
     def _compute_job_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_create(payload)
 
-    def _compute_job(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_job(params["job_id"])
+    def _compute_job(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job(params["job_id"], payload)
 
     def _compute_job_cancel(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_cancel(params["job_id"], payload)
 
-    def _compute_job_events(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_job_events(params["job_id"])
+    def _compute_job_events(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_events(params["job_id"], payload)
 
-    def _compute_job_artifacts(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_job_artifacts(params["job_id"])
+    def _compute_job_artifacts(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_job_artifacts(params["job_id"], payload)
 
     def _compute_job_retry(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_job_retry(params["job_id"], payload)

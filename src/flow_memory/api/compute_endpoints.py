@@ -269,20 +269,20 @@ def compute_job_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().create_job(payload)
 
 
-def compute_job(job_id: str) -> Mapping[str, Any]:
-    return default_service().get_job(job_id)
+def compute_job(job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().get_job(job_id, payload or {})
 
 
 def compute_job_cancel(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().cancel_job(job_id, payload)
 
 
-def compute_job_events(job_id: str) -> Mapping[str, Any]:
-    return default_service().job_events(job_id)
+def compute_job_events(job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().job_events(job_id, payload or {})
 
 
-def compute_job_artifacts(job_id: str) -> Mapping[str, Any]:
-    return default_service().job_artifacts(job_id)
+def compute_job_artifacts(job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().job_artifacts(job_id, payload or {})
 
 
 def compute_job_retry(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:

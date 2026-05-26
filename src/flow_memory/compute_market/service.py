@@ -1230,6 +1230,8 @@ class ComputeMarketService:
             status=str(job["status"]),
             idempotency_key=str(payload.get("idempotency_key", "")),
             request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
         )
         event = _job_event(str(job["job_id"]), "job.queued", status=str(job["status"]), request_id=request_id, details={"dry_run_only": True})
         self.store.put_record("compute_job_event", str(event["event_id"]), event, provider_id=provider_id, route_id=route_id, status=str(job["status"]), request_id=request_id)
@@ -1237,26 +1239,26 @@ class ComputeMarketService:
         self._audit("compute.job.queued", payload, request_id=request_id, result="queued", provider_id=provider_id, route_id=route_id)
         return {"ok": True, "job": job, "event": event}
 
-    def get_job(self, job_id: str) -> Mapping[str, Any]:
+    def get_job(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         job = self.store.get_record("compute_job", job_id)
-        if job is None:
+        if job is None or not _tenant_can_access_record(payload or {}, job):
             raise KeyError(f"Unknown compute job: {job_id}")
         return {"ok": True, "job": job}
 
-    def job_events(self, job_id: str) -> Mapping[str, Any]:
-        self.get_job(job_id)
+    def job_events(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        self.get_job(job_id, payload)
         events = tuple(event for event in self.store.list_records("compute_job_event", limit=500).records if str(event.get("job_id", "")) == job_id)
         return {"ok": True, "events": events}
 
-    def job_artifacts(self, job_id: str) -> Mapping[str, Any]:
-        self.get_job(job_id)
+    def job_artifacts(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        self.get_job(job_id, payload)
         artifacts = tuple(artifact for artifact in self.store.list_records("compute_job_artifact", limit=500).records if str(artifact.get("job_id", "")) == job_id)
         return {"ok": True, "artifacts": artifacts}
 
     def provider_job_receipt(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         receipt = _provider_receipt_payload(payload)
         provider_id = str(receipt.get("provider_id", payload.get("provider_id", job.get("provider_id", ""))))
         route_id = str(job.get("route_id", receipt.get("route_id", "")))
@@ -1317,7 +1319,13 @@ class ComputeMarketService:
             request_id=request_id,
         )
         status = str(receipt.get("status", "")).strip().lower()
-        completion_payload = {**dict(receipt), "request_id": request_id, "_flow_memory_client_ip": client_ip}
+        completion_payload = {
+            **dict(receipt),
+            "request_id": request_id,
+            "tenant_id": str(payload.get("tenant_id", "")),
+            "workspace_id": str(payload.get("workspace_id", payload.get("tenant_id", ""))),
+            "_flow_memory_client_ip": client_ip,
+        }
         if status in {"succeeded", "success", "completed", "complete"}:
             self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
@@ -1385,7 +1393,7 @@ class ComputeMarketService:
     def dispatch_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         _assert_job_status(job, ("queued", "dispatched"), "dispatch")
         worker_id = _assert_claim_owner(job, payload, "dispatch")
         execution = self._dispatch_external_provider_execution(job, payload, request_id=request_id)
@@ -1468,7 +1476,7 @@ class ComputeMarketService:
     def complete_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         provider_id = str(job.get("provider_id", ""))
         route_id = str(job.get("route_id", ""))
         callback_rejection = self._provider_callback_ip_rejection(
@@ -1670,7 +1678,7 @@ class ComputeMarketService:
     def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         provider_id = str(job.get("provider_id", ""))
         route_id = str(job.get("route_id", ""))
         callback_rejection = self._provider_callback_ip_rejection(
@@ -1746,7 +1754,7 @@ class ComputeMarketService:
 
     def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
         cancelled_at = utc_now_iso()
@@ -1759,7 +1767,7 @@ class ComputeMarketService:
 
     def retry_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         retry_at = utc_now_iso()
         attempts = int(job.get("attempt", 0) or 0) + 1
         job.update({"status": "queued", "attempt": attempts, "retried_at": retry_at, "updated_at": retry_at, "claimed_by": "", "lease_expires_at": "", "worker_capabilities": ()})
@@ -1776,7 +1784,7 @@ class ComputeMarketService:
         ttl_seconds = _lease_ttl_seconds(payload)
         lease_expires_at = _future_utc_iso(ttl_seconds)
         requested_job_id = str(payload.get("job_id", "")).strip()
-        candidates = _claim_candidates(self.store, requested_job_id=requested_job_id)
+        candidates = _claim_candidates(self.store, requested_job_id=requested_job_id, tenant_id=_payload_tenant_id(payload))
         for candidate in candidates:
             job = dict(candidate)
             job_id = str(job.get("job_id", job.get("record_id", "")))
@@ -1865,7 +1873,7 @@ class ComputeMarketService:
     def heartbeat_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         provider_id = str(job.get("provider_id", ""))
         route_id = str(job.get("route_id", ""))
         callback_rejection = self._provider_callback_ip_rejection(
@@ -1939,7 +1947,7 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         worker_id = _worker_id(payload)
-        job = dict(self.get_job(job_id)["job"])
+        job = dict(self.get_job(job_id, payload)["job"])
         _assert_job_status(job, ("dispatched",), "release claim")
         _assert_claim_owner(job, payload, "release claim")
         released_at = utc_now_iso()
@@ -4533,15 +4541,24 @@ def _claim_candidates(
     store: ComputeMarketStoreProtocol,
     *,
     requested_job_id: str = "",
+    tenant_id: str = "",
 ) -> tuple[Mapping[str, Any], ...]:
+    tenant_filter = tenant_id.strip()
     if requested_job_id:
         job = store.get_record("compute_job", requested_job_id)
-        return (job,) if job is not None else ()
+        if job is None or not _tenant_can_access_record({"tenant_id": tenant_filter}, job):
+            return ()
+        return (job,)
     now = utc_now_iso()
-    queued = store.list_records("compute_job", filters={"status": "queued"}, limit=100).records
+    queued_filters: dict[str, Any] = {"status": "queued"}
+    dispatched_filters: dict[str, Any] = {"status": "dispatched"}
+    if tenant_filter:
+        queued_filters["tenant_id"] = tenant_filter
+        dispatched_filters["tenant_id"] = tenant_filter
+    queued = store.list_records("compute_job", filters=queued_filters, limit=100).records
     dispatched = tuple(
         job
-        for job in store.list_records("compute_job", filters={"status": "dispatched"}, limit=100).records
+        for job in store.list_records("compute_job", filters=dispatched_filters, limit=100).records
         if _job_lease_expired(job, now)
     )
     return tuple(
@@ -4551,6 +4568,16 @@ def _claim_candidates(
         )
     )
 
+
+def _payload_tenant_id(payload: Mapping[str, Any]) -> str:
+    return str(payload.get("tenant_id", "")).strip()
+
+
+def _tenant_can_access_record(payload: Mapping[str, Any], record: Mapping[str, Any]) -> bool:
+    tenant_id = _payload_tenant_id(payload)
+    if not tenant_id:
+        return True
+    return str(record.get("tenant_id", "")).strip() == tenant_id
 
 def _payload_worker_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("worker_id", "")).strip()
@@ -4612,6 +4639,8 @@ def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, An
         "budget_policy_id": str(payload.get("budget_policy_id", "")),
         "route_id": route_id,
         "provider_id": provider_id,
+        "tenant_id": str(payload.get("tenant_id", "")).strip(),
+        "workspace_id": str(payload.get("workspace_id", payload.get("tenant_id", ""))).strip(),
         "status": "queued",
         "lifecycle": ("planned", "quoted", "approved", "reserved", "queued"),
         "allowed_lifecycle": ("planned", "quoted", "approved", "reserved", "queued", "dispatched", "running", "succeeded", "failed", "cancelled", "expired", "settled", "reconciled"),

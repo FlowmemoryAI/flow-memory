@@ -78,6 +78,10 @@ class ComputeMarketConfig:
     error_tracking_webhook_url: str = ""
     error_tracking_webhook_secret: str = ""
     error_tracking_timeout_ms: int = 2_000
+    telemetry_export_enabled: bool = False
+    otlp_endpoint_url: str = ""
+    otlp_headers: tuple[str, ...] = ()
+    otlp_timeout_ms: int = 5_000
 
     @property
     def storage_backend_effective(self) -> str:
@@ -153,6 +157,8 @@ class ComputeMarketConfig:
             errors.append("alert_webhook_timeout_ms must be positive")
         if self.error_tracking_timeout_ms < 1:
             errors.append("error_tracking_timeout_ms must be positive")
+        if self.otlp_timeout_ms < 1:
+            errors.append("otlp_timeout_ms must be positive")
         if self.stripe_checkout_enabled:
             if not self.stripe_secret_key:
                 errors.append("stripe_checkout_enabled requires stripe_secret_key")
@@ -246,6 +252,10 @@ class ComputeMarketConfig:
             "error_tracking_webhook_configured": bool(self.error_tracking_webhook_url),
             "error_tracking_secret_configured": bool(self.error_tracking_webhook_secret),
             "error_tracking_timeout_ms": self.error_tracking_timeout_ms,
+            "telemetry_export_enabled": self.telemetry_export_enabled,
+            "otlp_endpoint_configured": bool(self.otlp_endpoint_url),
+            "otlp_headers_configured": bool(self.otlp_headers),
+            "otlp_timeout_ms": self.otlp_timeout_ms,
         }
 
 
@@ -324,6 +334,10 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         error_tracking_webhook_url=source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL", ""),
         error_tracking_webhook_secret=source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET", ""),
         error_tracking_timeout_ms=_int(source.get("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS"), 2_000),
+        telemetry_export_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED"), False),
+        otlp_endpoint_url=source.get("FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL", ""),
+        otlp_headers=_csv(source.get("FLOW_MEMORY_COMPUTE_OTLP_HEADERS", "")),
+        otlp_timeout_ms=_int(source.get("FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS"), 5_000),
     )
 
 

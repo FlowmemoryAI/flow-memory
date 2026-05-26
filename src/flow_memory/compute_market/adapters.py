@@ -283,7 +283,11 @@ class HTTPQuoteProvider:
                 last_status = QuoteStatus.PROVIDER_TIMEOUT.value
             except urllib.error.HTTPError as exc:
                 last_status = QuoteStatus.INVALID_RESPONSE.value if 300 <= exc.code < 400 else QuoteStatus.PROVIDER_ERROR.value
-            except (urllib.error.URLError, json.JSONDecodeError, UnicodeDecodeError, ValueError):
+            except urllib.error.URLError:
+                last_status = QuoteStatus.PROVIDER_ERROR.value
+            except OSError:
+                last_status = QuoteStatus.PROVIDER_ERROR.value
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
                 last_status = QuoteStatus.INVALID_RESPONSE.value if attempt == attempts - 1 else QuoteStatus.PROVIDER_ERROR.value
             if attempt + 1 < attempts:
                 time.sleep(self.retry_policy.backoff_seconds)

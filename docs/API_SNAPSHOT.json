@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 161,
-  "manifest_hash": "827d603c74afb138037a4e294e7a5ea7eb6f3ddbb49c3e9c5b3a9e0cfc38ee0a",
-  "openapi_hash": "6f5564f807d6c3dbd1b54d0f53c7ba6f49e758d9f6ebdb89e63c3d544a2e64b7",
+  "endpoint_count": 162,
+  "manifest_hash": "b7aa0c470afa9684466feee7a763ac5e58b73030a14dde06d6d550edeb8d449e",
+  "openapi_hash": "a0d95f9dc8af6cdf8f371303a9b82f5e8bd6deabbe0f4315d86ef67c5d594a29",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -80,6 +80,7 @@
     "PATCH /compute/policies/{policy_id}",
     "PATCH /compute/providers/{provider_id}",
     "PATCH /compute/routes/{route_id}",
+    "POST /admin/compute/otlp/export",
     "POST /agents/launch",
     "POST /agents/launch-flowlang",
     "POST /agents/launch-neural",
@@ -165,9 +166,10 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 148,
+  "path_count": 149,
   "paths": [
     "/admin/audit/export",
+    "/admin/compute/otlp/export",
     "/admin/reconciliation",
     "/admin/redis/diagnostics",
     "/admin/storage/diagnostics",

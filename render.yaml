@@ -107,6 +107,14 @@ services:
         sync: false
       - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS
         value: 2000
+      - key: FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL
+        value: ""
+      - key: FLOW_MEMORY_COMPUTE_OTLP_HEADERS
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS
+        value: 5000
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED
         value: false
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST

@@ -35,6 +35,7 @@ class _AlertWebhookHandler(BaseHTTPRequestHandler):
             {
                 "path": self.path,
                 "signature": self.headers.get("x-flow-memory-alert-signature", ""),
+                "authorization": self.headers.get("authorization", ""),
                 "body": json.loads(body),
                 "raw_body": body,
             }
@@ -108,6 +109,9 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "error_tracking_pending_total" in names
     assert "error_tracking_sent_total" in names
     assert "error_tracking_failed_total" in names
+    assert "otlp_export_attempt_total" in names
+    assert "otlp_export_sent_total" in names
+    assert "otlp_export_failed_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 
@@ -377,6 +381,142 @@ def test_error_tracking_integrates_via_http_gateway() -> None:
     assert body["data"]["status"] == "delivered"
     assert body["data"]["event"]["error_code"] == "gateway.error"
 
+
+def test_otlp_export_noops_when_disabled() -> None:
+    service = _service()
+    service.telemetry.increment("compute_plan_requests_total", {"strategy": "test"})
+
+    exported = service.export_telemetry_otlp({})
+
+    assert exported["ok"] is False
+    assert exported["error"] == "telemetry_export_disabled"
+    assert service.store.count_records("otlp_export_delivery") == 0
+
+
+def test_otlp_export_delivers_to_collector_and_records_evidence() -> None:
+    server, url = _alert_webhook_server()
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                telemetry_export_enabled=True,
+                otlp_endpoint_url=url,
+                otlp_headers=("authorization: Bearer otlp-secret",),
+            ),
+        )
+        service.telemetry.increment("compute_plan_requests_total", {"strategy": "otlp"})
+        with service.telemetry.span("compute.plan_request", {"request_id": "req_otlp"}):
+            pass
+        exported = service.export_telemetry_otlp({})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert exported["ok"] is True
+    assert exported["status"] == "delivered"
+    delivery = exported["delivery"]
+    assert delivery["metric_count"] == 1
+    assert delivery["trace_count"] == 1
+    assert "otlp-secret" not in json.dumps(delivery)
+    assert service.store.count_records("otlp_export_delivery") == 1
+    assert _ALERT_WEBHOOK_POSTS[0]["authorization"] == "Bearer otlp-secret"
+    assert _ALERT_WEBHOOK_POSTS[0]["body"]["resourceMetrics"][0]["scopeMetrics"][0]["metrics"][0]["name"] == "compute_plan_requests_total"
+    assert _ALERT_WEBHOOK_POSTS[0]["body"]["resourceSpans"][0]["scopeSpans"][0]["spans"][0]["name"] == "compute.plan_request"
+    assert "otlp-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert metric_totals["otlp_export_attempt_total"] == 1.0
+    assert metric_totals["otlp_export_sent_total"] == 1.0
+
+
+def test_otlp_export_records_failed_collector_without_leaking_headers() -> None:
+    server, url = _alert_webhook_server()
+    failing_url = url.replace("/alerts", "/fail")
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                telemetry_export_enabled=True,
+                otlp_endpoint_url=failing_url,
+                otlp_headers=("authorization: Bearer otlp-secret",),
+            ),
+        )
+        service.telemetry.increment("compute_plan_requests_total")
+        exported = service.export_telemetry_otlp({})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert exported["ok"] is False
+    assert exported["status"] == "failed"
+    assert exported["delivery"]["http_status"] == 503
+    assert "otlp-secret" not in json.dumps(exported["delivery"])
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert metric_totals["otlp_export_failed_total"] == 1.0
+
+
+def test_otlp_export_enabled_readiness_requires_usable_endpoint_url() -> None:
+    missing = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            telemetry_export_enabled=True,
+        ),
+    )
+    unsafe = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            telemetry_export_enabled=True,
+            otlp_endpoint_url="http://example.com/v1/metrics",
+        ),
+    )
+
+    assert "otlp_endpoint_unavailable" in missing.readiness()["readiness_failures"]
+    assert "otlp_endpoint_url_not_allowed" in unsafe.readiness()["readiness_failures"]
+
+
+def test_otlp_export_integrates_via_admin_gateway() -> None:
+    server, url = _alert_webhook_server()
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            telemetry_export_enabled=True,
+            otlp_endpoint_url=url,
+        ),
+    )
+    reset_default_service(service)
+    gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev-key", require_scopes=True, enable_rate_limit=False))
+    try:
+        service.telemetry.increment("compute_plan_requests_total")
+        response = gateway.handle(
+            "POST",
+            "/admin/compute/otlp/export",
+            {"x-flow-memory-api-key": "dev-key", "x-flow-memory-scopes": "compute:admin"},
+            b"{}",
+        )
+    finally:
+        reset_default_service(None)
+        server.shutdown()
+        server.server_close()
+
+    body = json.loads(response.to_bytes())
+    assert response.status == 200
+    assert body["data"]["status"] == "delivered"
+    assert body["data"]["delivery"]["metric_count"] == 1
+
 def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> None:
     service = _service()
     webhook = service.billing_webhook_stripe(
@@ -474,6 +614,9 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "redis_unavailable_total",
         "postgres_unavailable_total",
         "external_provider_allowlist_missing_total",
+        "otlp_export_attempt_total",
+        "otlp_export_sent_total",
+        "otlp_export_failed_total",
     }
 
     assert dashboard["uid"] == "flow-memory-compute-market-prod"

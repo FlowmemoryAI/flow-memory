@@ -58,6 +58,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "alert_acknowledgement",
     "alert_delivery",
     "error_tracking_event",
+    "otlp_export_delivery",
     "audit_checkpoint_manifest",
     "audit_replay_run",
 )

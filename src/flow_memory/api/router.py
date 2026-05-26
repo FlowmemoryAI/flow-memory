@@ -47,6 +47,7 @@ from flow_memory.api.visual_endpoints import current_visual_events, current_visu
 from flow_memory.api.compute_endpoints import (
     admin_reconciliation,
     admin_audit_export_status,
+    admin_otlp_export,
     admin_redis_diagnostics,
     admin_storage_diagnostics,
     billing_balance,
@@ -742,6 +743,9 @@ class LocalApiRouter:
     def _admin_audit_export_status(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return admin_audit_export_status(payload)
 
+    def _admin_otlp_export(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_otlp_export(payload)
+
 
     def _compute_health(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_health()
@@ -1080,6 +1084,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/admin/storage/diagnostics", router._admin_storage_diagnostics, "admin_storage_diagnostics")
     router.register("GET", "/admin/redis/diagnostics", router._admin_redis_diagnostics, "admin_redis_diagnostics")
     router.register("GET", "/admin/audit/export", router._admin_audit_export_status, "admin_audit_export_status")
+    router.register("POST", "/admin/compute/otlp/export", router._admin_otlp_export, "admin_otlp_export")
     router.register("GET", "/manifest", router._manifest, "manifest")
     return router
 

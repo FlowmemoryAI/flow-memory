@@ -112,7 +112,10 @@
         {"expr": "sum(rate(alert_delivery_sent_total[5m]))", "legendFormat": "alert deliveries", "refId": "F"},
         {"expr": "sum(rate(error_tracking_pending_total[5m]))", "legendFormat": "errors pending", "refId": "G"},
         {"expr": "sum(rate(error_tracking_failed_total[5m]))", "legendFormat": "error tracking failures", "refId": "H"},
-        {"expr": "sum(rate(error_tracking_sent_total[5m]))", "legendFormat": "errors tracked", "refId": "I"}
+        {"expr": "sum(rate(error_tracking_sent_total[5m]))", "legendFormat": "errors tracked", "refId": "I"},
+        {"expr": "sum(rate(otlp_export_attempt_total[5m]))", "legendFormat": "OTLP export attempts", "refId": "J"},
+        {"expr": "sum(rate(otlp_export_failed_total[5m]))", "legendFormat": "OTLP export failures", "refId": "K"},
+        {"expr": "sum(rate(otlp_export_sent_total[5m]))", "legendFormat": "OTLP exports sent", "refId": "L"}
       ],
       "title": "Audit chain and settlement safety",
       "type": "timeseries"

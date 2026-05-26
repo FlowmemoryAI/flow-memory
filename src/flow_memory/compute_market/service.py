@@ -2625,6 +2625,14 @@ class ComputeMarketService:
             and not _alert_webhook_url_allowed(self.config.error_tracking_webhook_url.strip())
         ):
             failures.append("error_tracking_webhook_url_not_allowed")
+        if self.config.telemetry_export_enabled and not self.config.otlp_endpoint_url.strip():
+            failures.append("otlp_endpoint_unavailable")
+        if (
+            self.config.telemetry_export_enabled
+            and self.config.otlp_endpoint_url.strip()
+            and not _alert_webhook_url_allowed(self.config.otlp_endpoint_url.strip())
+        ):
+            failures.append("otlp_endpoint_url_not_allowed")
         if self.config.external_provider_quotes_enabled and not self.config.external_provider_allowlist:
             failures.append("external_provider_allowlist_missing")
         if self.config.external_provider_quotes_enabled and not health.get("circuit_breaker_active", False):
@@ -2907,6 +2915,89 @@ class ComputeMarketService:
             "event": record,
         }
 
+    def export_telemetry_otlp(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        request_id = _request_id(payload)
+        if not self.config.telemetry_export_enabled:
+            return {"ok": False, "error": "telemetry_export_disabled", "request_id": request_id}
+
+        endpoint_url = self.config.otlp_endpoint_url.strip()
+        if not endpoint_url:
+            self._audit(
+                "compute.telemetry.export_failed",
+                {"request_id": request_id},
+                request_id=request_id,
+                result="failed",
+                reason_codes=("otlp_endpoint_unavailable",),
+            )
+            return {"ok": False, "error": "otlp_endpoint_unavailable", "request_id": request_id}
+        if not _alert_webhook_url_allowed(endpoint_url):
+            self._audit(
+                "compute.telemetry.export_failed",
+                {"request_id": request_id},
+                request_id=request_id,
+                result="failed",
+                reason_codes=("otlp_endpoint_url_not_allowed",),
+            )
+            return {"ok": False, "error": "otlp_endpoint_url_not_allowed", "request_id": request_id}
+
+        snapshot = self.telemetry.snapshot(reset=False)
+        metric_count = len(snapshot.get("metrics", ()))
+        trace_count = len(snapshot.get("traces", ()))
+        export_id = deterministic_id(
+            "otlp_export",
+            {"request_id": request_id, "metric_count": metric_count, "trace_count": trace_count},
+        )
+        body = _otlp_export_body(snapshot, export_id=export_id, request_id=request_id)
+        delivery = _otlp_export_record(
+            export_id,
+            endpoint_url=endpoint_url,
+            metric_count=metric_count,
+            trace_count=trace_count,
+            request_id=request_id,
+        )
+        self.telemetry.increment("otlp_export_attempt_total")
+        if self.config.compute_market_mode == "test":
+            delivery = {
+                **delivery,
+                "status": "dry_run_skipped",
+                "delivery_attempted": False,
+                "reason_codes": ("test_mode_no_external_otlp",),
+                "updated_at": utc_now_iso(),
+            }
+        else:
+            sent = _post_otlp_collector(
+                endpoint_url,
+                body,
+                headers=_otlp_headers(self.config.otlp_headers),
+                timeout_ms=self.config.otlp_timeout_ms,
+            )
+            delivery = {**delivery, **sent, "delivery_attempted": True}
+
+        status = str(delivery.get("status", ""))
+        self.store.put_record(
+            "otlp_export_delivery",
+            export_id,
+            delivery,
+            status=status,
+            request_id=request_id,
+            idempotency_key=export_id,
+        )
+        if status == "delivered":
+            self.telemetry.increment("otlp_export_sent_total")
+        elif status == "failed":
+            self.telemetry.increment("otlp_export_failed_total")
+        self._audit(
+            "compute.telemetry.exported",
+            {"request_id": request_id, "metric_count": delivery["metric_count"], "trace_count": delivery["trace_count"]},
+            request_id=request_id,
+            result=status or "failed",
+            reason_codes=tuple(delivery.get("reason_codes", ())),
+        )
+        if payload.get("reset") and status in {"delivered", "dry_run_skipped"}:
+            self.telemetry.reset()
+        return {"ok": status in {"delivered", "dry_run_skipped"}, "export_id": export_id, "status": status, "delivery": delivery}
+
     def admin_storage_diagnostics(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         _ = payload
         migration_status = self.store.migration_status()
@@ -3145,6 +3236,8 @@ _READINESS_FAILURE_METRICS = {
     "alert_webhook_url_not_allowed": "alert_delivery_failed_total",
     "error_tracking_webhook_unavailable": "error_tracking_failed_total",
     "error_tracking_webhook_url_not_allowed": "error_tracking_failed_total",
+    "otlp_endpoint_unavailable": "otlp_export_failed_total",
+    "otlp_endpoint_url_not_allowed": "otlp_export_failed_total",
 }
 
 
@@ -4516,6 +4609,166 @@ def _safe_error_value(key: str, value: object) -> Any:
 def _is_sensitive_error_key(key: str) -> bool:
     lowered = key.lower()
     return any(fragment in lowered for fragment in _ERROR_DETAIL_KEY_FRAGMENTS)
+
+
+def _otlp_export_record(
+    export_id: str,
+    *,
+    endpoint_url: str,
+    metric_count: int,
+    trace_count: int,
+    request_id: str,
+) -> dict[str, Any]:
+    now = utc_now_iso()
+    return {
+        "export_id": export_id,
+        "endpoint": _redacted_url(endpoint_url),
+        "status": "pending_delivery",
+        "channel": "otlp_http_json",
+        "metric_count": metric_count,
+        "trace_count": trace_count,
+        "delivery_attempted": False,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _otlp_export_body(snapshot: Mapping[str, Any], *, export_id: str, request_id: str) -> Mapping[str, Any]:
+    metrics = tuple(item for item in snapshot.get("metrics", ()) if isinstance(item, Mapping))
+    traces = tuple(item for item in snapshot.get("traces", ()) if isinstance(item, Mapping))
+    resource = {
+        "attributes": (
+            {"key": "service.name", "value": {"stringValue": "flow-memory-compute-market"}},
+            {"key": "deployment.environment", "value": {"stringValue": "production_planning"}},
+            {"key": "flow_memory.export_id", "value": {"stringValue": export_id}},
+            {"key": "flow_memory.request_id", "value": {"stringValue": request_id}},
+        )
+    }
+    scope = {"name": "flow-memory.compute-market", "version": "1.0.0"}
+    return {
+        "resourceMetrics": (
+            {
+                "resource": resource,
+                "scopeMetrics": (
+                    {
+                        "scope": scope,
+                        "metrics": tuple(_otlp_metric(item) for item in metrics),
+                    },
+                ),
+            },
+        ),
+        "resourceSpans": (
+            {
+                "resource": resource,
+                "scopeSpans": (
+                    {
+                        "scope": scope,
+                        "spans": tuple(_otlp_span(item) for item in traces),
+                    },
+                ),
+            },
+        ),
+    }
+
+
+def _otlp_metric(sample: Mapping[str, Any]) -> Mapping[str, Any]:
+    return {
+        "name": str(sample.get("name", "")),
+        "gauge": {
+            "dataPoints": (
+                {
+                    "asDouble": _safe_non_negative_float(sample.get("value", 0.0)),
+                    "attributes": _otlp_attributes(sample.get("labels", {})),
+                },
+            )
+        },
+    }
+
+
+def _otlp_span(span: Mapping[str, Any]) -> Mapping[str, Any]:
+    end_time = int(datetime.now(tz=timezone.utc).timestamp() * 1_000_000_000)
+    latency_ns = int(max(0.0, _safe_non_negative_float(span.get("latency_ms", 0.0))) * 1_000_000)
+    return {
+        "name": str(span.get("name", "")),
+        "startTimeUnixNano": str(max(0, end_time - latency_ns)),
+        "endTimeUnixNano": str(end_time),
+        "attributes": _otlp_attributes(span.get("attributes", {})),
+    }
+
+
+def _otlp_attributes(raw: object) -> tuple[Mapping[str, Any], ...]:
+    if not isinstance(raw, Mapping):
+        return ()
+    return tuple(
+        {"key": str(key), "value": {"stringValue": str(value)}}
+        for key, value in sorted(raw.items())
+    )
+
+
+def _otlp_headers(raw: tuple[str, ...]) -> Mapping[str, str]:
+    headers: dict[str, str] = {}
+    for item in raw:
+        key, separator, value = item.partition(":")
+        if not separator:
+            key, separator, value = item.partition("=")
+        key = key.strip()
+        value = value.strip()
+        if not separator or not key or not value or "\n" in key or "\r" in key or "\n" in value or "\r" in value:
+            continue
+        headers[key] = value
+    return headers
+
+
+def _post_otlp_collector(
+    endpoint_url: str,
+    envelope: Mapping[str, Any],
+    *,
+    headers: Mapping[str, str],
+    timeout_ms: int,
+) -> Mapping[str, Any]:
+    body = json.dumps(envelope, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    request_headers = {
+        "content-type": "application/json",
+        "user-agent": "flow-memory-compute-market-otlp/1",
+        **dict(headers),
+    }
+    request = urllib.request.Request(endpoint_url, data=body, headers=request_headers, method="POST")
+    now = utc_now_iso()
+    try:
+        with urllib.request.urlopen(request, timeout=max(0.001, timeout_ms / 1000.0)) as response:
+            status_code = int(getattr(response, "status", 0) or response.getcode())
+            response.read(1024)
+    except urllib.error.HTTPError as exc:
+        return {
+            "status": "failed",
+            "http_status": int(getattr(exc, "code", 0) or 0),
+            "error": type(exc).__name__,
+            "reason_codes": ("otlp_collector_non_2xx",),
+            "updated_at": now,
+        }
+    except (OSError, urllib.error.URLError) as exc:
+        return {
+            "status": "failed",
+            "http_status": 0,
+            "error": type(exc).__name__,
+            "reason_codes": ("otlp_collector_delivery_failed",),
+            "updated_at": now,
+        }
+    if 200 <= status_code < 300:
+        return {
+            "status": "delivered",
+            "http_status": status_code,
+            "delivered_at": now,
+            "reason_codes": (),
+            "updated_at": now,
+        }
+    return {
+        "status": "failed",
+        "http_status": status_code,
+        "reason_codes": ("otlp_collector_non_2xx",),
+        "updated_at": now,
+    }
 
 
 def _post_alert_webhook(

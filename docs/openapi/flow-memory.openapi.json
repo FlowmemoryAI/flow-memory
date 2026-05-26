@@ -44,6 +44,58 @@
         ]
       }
     },
+    "/admin/compute/otlp/export": {
+      "post": {
+        "operationId": "admin_otlp_export",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "reset": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "delivery": {
+                      "type": "string"
+                    },
+                    "export_id": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Export Compute Market telemetry as OTLP JSON to the configured collector endpoint",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/reconciliation": {
       "get": {
         "operationId": "admin_reconciliation",

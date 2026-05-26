@@ -374,5 +374,9 @@ def admin_redis_diagnostics(payload: Mapping[str, Any] | None = None) -> Mapping
     return default_service().admin_redis_diagnostics(payload or {})
 
 
+def admin_otlp_export(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().export_telemetry_otlp(payload or {})
+
+
 def compute_migrations() -> Mapping[str, Any]:
     return {"ok": True, "migration_plan": migration_plan(), "default_market_policy": ComputeMarketPolicy().as_record()}

@@ -119,6 +119,7 @@ from flow_memory.api.compute_endpoints import (
     market_provider_verify,
     market_quote_ingest,
     market_quote_cache_invalidate,
+    market_quote_drift,
 )
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
@@ -536,6 +537,10 @@ class LocalApiRouter:
     def _market_quote_cache_invalidate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_quote_cache_invalidate(payload)
 
+
+    def _market_quote_drift(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_quote_drift(payload)
+
     def _market_capacity_list(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_capacity_list(payload)
 
@@ -883,6 +888,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/market/providers/{provider_id}/reputation", router._market_provider_reputation, "market_provider_reputation")
     router.register("POST", "/market/quotes/ingest", router._market_quote_ingest, "market_quote_ingest")
     router.register("POST", "/market/quotes/cache/invalidate", router._market_quote_cache_invalidate, "market_quote_cache_invalidate")
+    router.register("GET", "/market/quotes/drift-observations", router._market_quote_drift, "market_quote_drift")
     router.register("POST", "/market/capacity/list", router._market_capacity_list, "market_capacity_list")
     router.register("POST", "/market/capacity/reserve", router._market_capacity_reserve, "market_capacity_reserve")
     router.register("POST", "/market/capacity/expire", router._market_capacity_expire, "market_capacity_expire")

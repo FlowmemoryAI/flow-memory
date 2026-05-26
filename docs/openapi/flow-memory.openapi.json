@@ -4711,6 +4711,39 @@
         ]
       }
     },
+    "/market/quotes/drift-observations": {
+      "get": {
+        "operationId": "market_quote_drift",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "drift_observations": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize quote drift observations for provider price review",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/quotes/ingest": {
       "post": {
         "operationId": "market_quote_ingest",

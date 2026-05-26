@@ -752,6 +752,42 @@ class ComputeMarketService:
         )
         return {"ok": True, "invalidated_entries": invalidated, "invalidated_count": len(invalidated)}
 
+    def quote_drift_analytics(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        filters = payload or {}
+        page = self.store.list_records(
+            "quote_drift_observation",
+            filters=filters,
+            limit=int(filters.get("limit", 100) or 100),
+            cursor=str(filters.get("cursor", "")),
+        )
+        observations = page.records
+        ratios = tuple(float(item.get("drift_ratio", 0.0) or 0.0) for item in observations)
+        review_count = sum(1 for item in observations if str(item.get("status", "")) == "review")
+        observed_count = sum(1 for item in observations if str(item.get("status", "")) == "observed")
+        by_provider: dict[str, int] = {}
+        by_route: dict[str, int] = {}
+        for item in observations:
+            provider_id = str(item.get("provider_id", ""))
+            route_id = str(item.get("route_id", ""))
+            if provider_id:
+                by_provider[provider_id] = by_provider.get(provider_id, 0) + 1
+            if route_id:
+                by_route[route_id] = by_route.get(route_id, 0) + 1
+        return {
+            "ok": True,
+            "drift_observations": observations,
+            "next_cursor": page.next_cursor,
+            "summary": {
+                "observation_count": len(observations),
+                "review_count": review_count,
+                "observed_count": observed_count,
+                "max_drift_ratio": max(ratios) if ratios else 0.0,
+                "average_drift_ratio": round(sum(ratios) / len(ratios), 6) if ratios else 0.0,
+                "by_provider": by_provider,
+                "by_route": by_route,
+            },
+        }
+
     def request_external_provider_quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)

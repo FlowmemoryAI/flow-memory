@@ -301,6 +301,17 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert drifted["ok"] is True
     assert drifted["drift"]["status"] == "review"
     assert drifted["fraud_signals"][0]["signal_type"] == "quote_price_manipulation"
+
+    drift_analytics = service.quote_drift_analytics({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})
+    observed_only = service.quote_drift_analytics({"provider_id": "provider_live_gpu_1", "status": "observed"})
+
+    assert drift_analytics["summary"]["observation_count"] == 1
+    assert drift_analytics["summary"]["review_count"] == 1
+    assert drift_analytics["summary"]["max_drift_ratio"] == 0.5
+    assert drift_analytics["summary"]["by_provider"]["provider_live_gpu_1"] == 1
+    assert drift_analytics["drift_observations"][0]["previous_quote_id"] == "quote_live_gpu_1"
+    assert drift_analytics["drift_observations"][0]["current_quote_id"] == "quote_live_gpu_2"
+    assert observed_only["summary"]["observation_count"] == 0
     expired_quote = {**dict(accepted["quote"]), "expires_at": "2000-01-01T00:00:00Z", "status": "valid"}
     service.store.put_record(
         "compute_quote",

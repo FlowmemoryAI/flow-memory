@@ -93,6 +93,10 @@ def market_quote_cache_invalidate(payload: Mapping[str, Any]) -> Mapping[str, An
     return default_service().invalidate_quote_cache(payload)
 
 
+def market_quote_drift(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().quote_drift_analytics(payload or {})
+
+
 def market_capacity_list(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().list_capacity(payload)
 

@@ -101,6 +101,10 @@ def _compute(argv: list[str]) -> int:
     audit.add_argument("--path", default="")
     audit.add_argument("--from-sequence", type=int, default=1)
     audit.add_argument("--to-sequence", type=int, default=0)
+    audit.add_argument("--force", action="store_true")
+    audit.add_argument("--export", action="store_true")
+    audit.add_argument("--interval-seconds", type=int, default=0)
+    audit.add_argument("--min-events", type=int, default=0)
     replay = subparsers.add_parser("replay-decision", help="Replay a past compute route decision")
     _add_compute_query_args(replay)
     replay.add_argument("decision_id")
@@ -140,6 +144,12 @@ def _compute(argv: list[str]) -> int:
                 output = service.audit_checkpoint(payload)
             elif action == "verify-export":
                 output = service.audit_verify_export(payload)
+            elif action == "replay":
+                output = service.audit_forensic_replay(payload)
+            elif action == "checkpoint-schedule":
+                output = service.audit_checkpoint_schedule(payload)
+            elif action == "chain-monitor":
+                output = service.audit_chain_monitor(payload)
             else:
                 output = service.audit(payload)
         elif args.command == "health":
@@ -303,6 +313,10 @@ def _compute_payload(args: Any) -> dict[str, Any]:
         "path": str(getattr(args, "path", "")),
         "from_sequence": int(getattr(args, "from_sequence", 1) or 1),
         "to_sequence": int(getattr(args, "to_sequence", 0) or 0),
+        "force": bool(getattr(args, "force", False)),
+        "export": bool(getattr(args, "export", False)),
+        "interval_seconds": int(getattr(args, "interval_seconds", 0) or 0),
+        "min_events": int(getattr(args, "min_events", 0) or 0),
         "dry_run": True,
     }
 

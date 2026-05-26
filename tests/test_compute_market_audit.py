@@ -351,6 +351,39 @@ def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None
     assert file_replay["replay"]["summary"]["event_count"] == file_replay["replay"]["event_count"]
     assert service.store.count_records("audit_replay_run") == 2
 
+def test_audit_replay_checkpoint_schedule_and_monitor_cli(capsys: Any) -> None:
+    service = _service()
+    service.plan({"task": "cli audit operations", "request_id": "cli-audit-ops"})
+    reset_default_service(service)
+    try:
+        replay_exit = cli_main(["compute", "audit", "replay", "--json"])
+        replay = json.loads(capsys.readouterr().out)
+
+        schedule_exit = cli_main(["compute", "audit", "checkpoint-schedule", "--force", "--min-events", "1", "--json"])
+        scheduled = json.loads(capsys.readouterr().out)
+
+        monitor_exit = cli_main(["compute", "audit", "chain-monitor", "--json"])
+        monitor = json.loads(capsys.readouterr().out)
+    finally:
+        reset_default_service(None)
+
+    assert replay_exit == 0
+    assert replay["ok"] is True
+    assert replay["replay"]["source"] == "store"
+    assert replay["replay"]["timeline"]
+    assert service.store.count_records("audit_replay_run") == 1
+
+    assert schedule_exit == 0
+    assert scheduled["due"] is True
+    assert scheduled["scheduled_result"]["ok"] is True
+    assert scheduled["scheduled_result"]["checkpoint"]["checkpoint_hash"]
+    assert service.store.count_records("audit_checkpoint_manifest") == 1
+
+    assert monitor_exit == 0
+    assert monitor["ok"] is True
+    assert monitor["checkpoint_count"] == 1
+    assert monitor["chains"]
+
 
 def test_audit_operations_are_exposed_through_http_gateway(tmp_path: Any) -> None:
     service = _service()

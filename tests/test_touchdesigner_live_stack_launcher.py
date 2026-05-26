@@ -27,6 +27,8 @@ def test_live_stack_builds_three_local_commands():
     assert api[1].endswith("scripts\\run_local_api_server.py") or api[1].endswith("scripts/run_local_api_server.py")
     assert "--port" in api
     assert "8766" in api
+    assert "--rate-limit" in api
+    assert "10000" in api
     assert bridge[1].endswith("flowmemory_td_bridge.py")
     assert "--stdout" in bridge
     assert "--udp-port" in bridge
@@ -50,11 +52,19 @@ def test_live_stack_dry_run_exits_without_starting_processes(capsys):
     assert "create_flowmemory_neural_loom.py" in captured.out
 
 
-def test_live_stack_rejects_invalid_ports():
+def test_live_stack_rejects_invalid_ports_and_rate_limits():
     launcher = load_launcher()
+
     try:
         launcher.parse_args(["--api-port", "70000"])
     except ValueError as exc:
         assert "api-port" in str(exc)
     else:
         raise AssertionError("invalid port accepted")
+
+    try:
+        launcher.parse_args(["--api-rate-limit", "0"])
+    except ValueError as exc:
+        assert "api-rate-limit" in str(exc)
+    else:
+        raise AssertionError("invalid rate limit accepted")

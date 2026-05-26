@@ -26,6 +26,7 @@ from urllib.request import ProxyHandler, Request, build_opener
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_API_PORT = 8766
+DEFAULT_API_RATE_LIMIT = 10_000
 DEFAULT_UDP_PORT = 7000
 DEFAULT_AGENT_ID = "touchdesigner-neural-worker"
 DEFAULT_GOAL = "Stream a local neural memory loop into TouchDesigner"
@@ -38,6 +39,7 @@ class StackConfig:
     host: str = DEFAULT_HOST
     api_port: int = DEFAULT_API_PORT
     udp_port: int = DEFAULT_UDP_PORT
+    api_rate_limit: int = DEFAULT_API_RATE_LIMIT
     ticks: int = 999_999
     interval: float = 0.25
     learn_every: int = 2
@@ -69,6 +71,8 @@ def api_server_command(config: StackConfig) -> list[str]:
         config.host,
         "--port",
         str(config.api_port),
+        "--rate-limit",
+        str(config.api_rate_limit),
     ]
 
 
@@ -250,6 +254,7 @@ def parse_args(argv: list[str] | None = None) -> StackConfig:
     parser.add_argument("--host", default=DEFAULT_HOST, help="Local API/UDP host")
     parser.add_argument("--api-port", type=int, default=DEFAULT_API_PORT, help="Local API port")
     parser.add_argument("--udp-port", type=int, default=DEFAULT_UDP_PORT, help="TouchDesigner UDP In DAT port")
+    parser.add_argument("--api-rate-limit", type=int, default=DEFAULT_API_RATE_LIMIT, help="Local API requests per minute for the live visualization stack")
     parser.add_argument("--ticks", type=int, default=999_999, help="Live agent ticks before exit")
     parser.add_argument("--interval", type=float, default=0.25, help="Seconds between agent/bridge ticks")
     parser.add_argument("--learn-every", type=int, default=2, help="Send one learn call every N ticks; 0 disables learn calls")
@@ -273,12 +278,15 @@ def parse_args(argv: list[str] | None = None) -> StackConfig:
         raise ValueError("--learn-every must be non-negative")
     if args.learning_rate < 0:
         raise ValueError("--learning-rate must be non-negative")
+    if args.api_rate_limit < 1:
+        raise ValueError("--api-rate-limit must be positive")
     if args.startup_timeout <= 0:
         raise ValueError("--startup-timeout must be positive")
     return StackConfig(
         host=args.host,
         api_port=args.api_port,
         udp_port=args.udp_port,
+        api_rate_limit=args.api_rate_limit,
         ticks=args.ticks,
         interval=args.interval,
         learn_every=args.learn_every,

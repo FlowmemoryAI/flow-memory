@@ -1,4 +1,5 @@
 import json
+from typing import Any
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.scopes import required_scopes_for
@@ -134,7 +135,7 @@ def test_live_settlement_config_gates_fail_closed() -> None:
 
 
 def test_production_redis_config_requires_fail_closed_backends() -> None:
-    base = {
+    base: dict[str, Any] = {
         "database_url": "postgresql://db/flow_memory",
         "storage_backend": "postgres",
         "compute_market_mode": "production_planning",

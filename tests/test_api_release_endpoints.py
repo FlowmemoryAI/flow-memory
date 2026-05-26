@@ -3,7 +3,7 @@ from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 
 
-def test_release_endpoints_return_evidence_and_decision_metadata():
+def test_release_endpoints_return_evidence_and_decision_metadata() -> None:
     router = create_default_router()
     evidence = router.dispatch("GET", "/release/evidence")
     decision = router.dispatch("GET", "/release/decision/local")
@@ -13,7 +13,7 @@ def test_release_endpoints_return_evidence_and_decision_metadata():
     assert "decision" in decision
 
 
-def test_release_read_scope_required_when_enabled():
+def test_release_read_scope_required_when_enabled() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))
     denied = gateway.handle("GET", "/release/evidence", {"x-flow-memory-scopes": "api:read"})
     allowed = gateway.handle("GET", "/release/evidence", {"x-flow-memory-scopes": "release:read"})
@@ -21,7 +21,7 @@ def test_release_read_scope_required_when_enabled():
     assert allowed.status == 200
 
 
-def test_release_decision_invalid_target_uses_structured_error():
+def test_release_decision_invalid_target_uses_structured_error() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     response = gateway.handle("GET", "/release/decision/production", {})
     body = response.body
@@ -29,5 +29,5 @@ def test_release_decision_invalid_target_uses_structured_error():
     assert body["error"]["code"] == "request.invalid"
 
 
-def test_release_scope_mapping():
+def test_release_scope_mapping() -> None:
     assert required_scopes_for("GET", "/release/evidence") == ("release:read",)

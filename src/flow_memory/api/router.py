@@ -6,10 +6,20 @@ from typing import Any, Callable, Mapping
 from urllib.parse import unquote
 
 from flow_memory.api.auth import (
+    create_membership_record,
+    create_user_record,
+    create_workspace_record,
     disable_api_key_record,
+    disable_user_record,
+    disable_workspace_record,
     issue_api_key_record,
     public_api_key_record,
+    public_membership_record,
+    public_user_record,
+    public_workspace_record,
     rotate_api_key_record,
+    update_user_record,
+    update_workspace_record,
 )
 from flow_memory.api.manifest import API_ENDPOINTS, endpoint_manifest
 from flow_memory.core.types import new_id
@@ -155,6 +165,9 @@ class LocalApiRouter:
     attestations: list[Attestation] = field(default_factory=list)
     audit_events: list[Mapping[str, Any]] = field(default_factory=list)
     api_key_records: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+    user_records: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+    workspace_records: dict[str, Mapping[str, Any]] = field(default_factory=dict)
+    workspace_memberships: dict[str, Mapping[str, Any]] = field(default_factory=dict)
     runtime_ticks: int = 0
     latest_verification: Mapping[str, Any] = field(default_factory=dict)
 
@@ -799,6 +812,96 @@ class LocalApiRouter:
         disabled = disable_api_key_record(existing, reason=str(payload.get("reason", "operator_requested")))
         self.api_key_records[key_id] = disabled
         return {"ok": True, "record": public_api_key_record(disabled)}
+
+    def _auth_users(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "users": tuple(public_user_record(record) for record in self.user_records.values())}
+
+    def _auth_user_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        record = create_user_record(payload)
+        user_id = str(record["user_id"])
+        self.user_records[user_id] = record
+        return {"ok": True, "user": public_user_record(record), "management": "local_in_memory"}
+
+    def _auth_user(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "user": public_user_record(self._auth_user_record(params["user_id"]))}
+
+    def _auth_user_update(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        user_id = params["user_id"]
+        record = update_user_record(self._auth_user_record(user_id), payload)
+        self.user_records[user_id] = record
+        return {"ok": True, "user": public_user_record(record)}
+
+    def _auth_user_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        user_id = params["user_id"]
+        record = disable_user_record(self._auth_user_record(user_id), reason=str(payload.get("reason", "operator_requested")))
+        self.user_records[user_id] = record
+        return {"ok": True, "user": public_user_record(record)}
+
+    def _auth_workspaces(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "workspaces": tuple(public_workspace_record(record) for record in self.workspace_records.values())}
+
+    def _auth_workspace_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        record = create_workspace_record(payload)
+        workspace_id = str(record["workspace_id"])
+        self.workspace_records[workspace_id] = record
+        return {"ok": True, "workspace": public_workspace_record(record), "management": "local_in_memory"}
+
+    def _auth_workspace(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return {"ok": True, "workspace": public_workspace_record(self._auth_workspace_record(params["workspace_id"]))}
+
+    def _auth_workspace_update(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        workspace_id = params["workspace_id"]
+        record = update_workspace_record(self._auth_workspace_record(workspace_id), payload)
+        self.workspace_records[workspace_id] = record
+        return {"ok": True, "workspace": public_workspace_record(record)}
+
+    def _auth_workspace_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        workspace_id = params["workspace_id"]
+        record = disable_workspace_record(self._auth_workspace_record(workspace_id), reason=str(payload.get("reason", "operator_requested")))
+        self.workspace_records[workspace_id] = record
+        return {"ok": True, "workspace": public_workspace_record(record)}
+
+    def _auth_workspace_members(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        workspace_id = params["workspace_id"]
+        self._auth_workspace_record(workspace_id)
+        members = tuple(
+            public_membership_record(record)
+            for record in self.workspace_memberships.values()
+            if str(record.get("workspace_id", "")) == workspace_id and bool(record.get("enabled", True))
+        )
+        return {"ok": True, "members": members}
+
+    def _auth_workspace_member_add(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        workspace_id = params["workspace_id"]
+        user_id = str(payload.get("user_id", "")).strip()
+        self._auth_workspace_record(workspace_id)
+        self._auth_user_record(user_id)
+        record = create_membership_record(workspace_id, user_id, payload)
+        self.workspace_memberships[_membership_key(workspace_id, user_id)] = record
+        return {"ok": True, "membership": public_membership_record(record)}
+
+    def _auth_workspace_member_remove(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        workspace_id = params["workspace_id"]
+        user_id = params["user_id"]
+        key = _membership_key(workspace_id, user_id)
+        record = self.workspace_memberships.get(key)
+        if record is None or not bool(record.get("enabled", True)):
+            raise KeyError(f"Unknown workspace member: {user_id}")
+        removed = {**dict(record), "enabled": False, "removed_reason": str(payload.get("reason", "operator_requested"))}
+        self.workspace_memberships[key] = removed
+        return {"ok": True, "membership": public_membership_record(removed)}
+
+    def _auth_user_record(self, user_id: str) -> Mapping[str, Any]:
+        record = self.user_records.get(user_id)
+        if record is None:
+            raise KeyError(f"Unknown user: {user_id}")
+        return record
+
+    def _auth_workspace_record(self, workspace_id: str) -> Mapping[str, Any]:
+        record = self.workspace_records.get(workspace_id)
+        if record is None:
+            raise KeyError(f"Unknown workspace: {workspace_id}")
+        return record
     def _manifest(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.manifest()
 
@@ -822,6 +925,19 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/auth/api-keys", router._auth_api_key_create, "auth_api_key_create")
     router.register("POST", "/auth/api-keys/{key_id}/rotate", router._auth_api_key_rotate, "auth_api_key_rotate")
     router.register("POST", "/auth/api-keys/{key_id}/disable", router._auth_api_key_disable, "auth_api_key_disable")
+    router.register("GET", "/auth/users", router._auth_users, "auth_users")
+    router.register("POST", "/auth/users", router._auth_user_create, "auth_user_create")
+    router.register("GET", "/auth/users/{user_id}", router._auth_user, "auth_user")
+    router.register("PATCH", "/auth/users/{user_id}", router._auth_user_update, "auth_user_update")
+    router.register("POST", "/auth/users/{user_id}/disable", router._auth_user_disable, "auth_user_disable")
+    router.register("GET", "/auth/workspaces", router._auth_workspaces, "auth_workspaces")
+    router.register("POST", "/auth/workspaces", router._auth_workspace_create, "auth_workspace_create")
+    router.register("GET", "/auth/workspaces/{workspace_id}", router._auth_workspace, "auth_workspace")
+    router.register("PATCH", "/auth/workspaces/{workspace_id}", router._auth_workspace_update, "auth_workspace_update")
+    router.register("POST", "/auth/workspaces/{workspace_id}/disable", router._auth_workspace_disable, "auth_workspace_disable")
+    router.register("GET", "/auth/workspaces/{workspace_id}/members", router._auth_workspace_members, "auth_workspace_members")
+    router.register("POST", "/auth/workspaces/{workspace_id}/members", router._auth_workspace_member_add, "auth_workspace_member_add")
+    router.register("POST", "/auth/workspaces/{workspace_id}/members/{user_id}/remove", router._auth_workspace_member_remove, "auth_workspace_member_remove")
     router.register("GET", "/runtime/status", router._runtime_status, "runtime_status")
     router.register("POST", "/runtime/tick", router._runtime_tick, "runtime_tick")
     router.register("GET", "/agents", router._agents_list, "agents_list")
@@ -971,6 +1087,9 @@ def create_default_router() -> LocalApiRouter:
 def manifest() -> Mapping[str, Any]:
     return endpoint_manifest()
 
+
+def _membership_key(workspace_id: str, user_id: str) -> str:
+    return f"{workspace_id}:{user_id}"
 
 def _normalize_path(path: str) -> str:
     if not path:

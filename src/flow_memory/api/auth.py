@@ -38,6 +38,48 @@ class ApiAuthConfig:
     jwt_audience: str = ""
     jwt_leeway_seconds: int = 60
 
+KNOWN_AUTH_ROLES = frozenset({"admin", "member", "viewer", "billing", "auditor", "provider", "provider-admin"})
+
+
+@dataclass(frozen=True)
+class UserRecord:
+    user_id: str
+    email: str
+    display_name: str
+    roles: tuple[str, ...]
+    enabled: bool
+    created_at_epoch: int
+    created_by: str
+
+    def as_record(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+@dataclass(frozen=True)
+class WorkspaceRecord:
+    workspace_id: str
+    org_name: str
+    display_name: str
+    enabled: bool
+    created_at_epoch: int
+    created_by: str
+    metadata: Mapping[str, Any]
+
+    def as_record(self) -> dict[str, Any]:
+        return dict(self.__dict__)
+
+
+@dataclass(frozen=True)
+class MembershipRecord:
+    workspace_id: str
+    user_id: str
+    role: str
+    added_at_epoch: int
+    added_by: str
+    enabled: bool = True
+
+    def as_record(self) -> dict[str, Any]:
+        return dict(self.__dict__)
 
 @dataclass(frozen=True)
 class ApiAuthDecision:
@@ -171,6 +213,126 @@ def public_api_key_record(record: Mapping[str, Any]) -> Mapping[str, Any]:
     public = {str(key): value for key, value in record.items() if key not in {"key_hash", "api_key"}}
     public["key_hash_configured"] = bool(record.get("key_hash"))
     return public
+
+
+def create_user_record(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    email = str(payload.get("email", "")).strip().lower()
+    if not email or "@" not in email:
+        raise ValueError("email is required")
+    roles = _parse_roles(payload.get("roles", ("viewer",)))
+    now = int(time.time())
+    return UserRecord(
+        user_id=str(payload.get("user_id") or f"user_{secrets.token_hex(8)}"),
+        email=email,
+        display_name=str(payload.get("display_name", email)).strip() or email,
+        roles=roles,
+        enabled=True,
+        created_at_epoch=now,
+        created_by=str(payload.get("created_by", payload.get("principal", "api-admin"))),
+    ).as_record()
+
+
+def update_user_record(existing: Mapping[str, Any], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    updated = dict(existing)
+    if "email" in payload:
+        email = str(payload.get("email", "")).strip().lower()
+        if not email or "@" not in email:
+            raise ValueError("email is required")
+        updated["email"] = email
+    if "display_name" in payload:
+        updated["display_name"] = str(payload.get("display_name", "")).strip()
+    if "roles" in payload:
+        updated["roles"] = _parse_roles(payload.get("roles", ()))
+    updated["updated_at_epoch"] = int(time.time())
+    updated["updated_by"] = str(payload.get("updated_by", payload.get("principal", "api-admin")))
+    return updated
+
+
+def disable_user_record(record: Mapping[str, Any], *, reason: str = "operator_requested") -> Mapping[str, Any]:
+    if not _truthy(record.get("enabled", True)):
+        raise ValueError("user is already disabled")
+    return {**dict(record), "enabled": False, "status": "disabled", "disabled_reason": reason, "disabled_at_epoch": int(time.time())}
+
+
+def create_workspace_record(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    org_name = str(payload.get("org_name", payload.get("organization", ""))).strip()
+    display_name = str(payload.get("display_name", org_name)).strip() or org_name
+    if not org_name:
+        raise ValueError("org_name is required")
+    metadata = payload.get("metadata", {})
+    return WorkspaceRecord(
+        workspace_id=str(payload.get("workspace_id") or f"ws_{secrets.token_hex(8)}"),
+        org_name=org_name,
+        display_name=display_name,
+        enabled=True,
+        created_at_epoch=int(time.time()),
+        created_by=str(payload.get("created_by", payload.get("principal", "api-admin"))),
+        metadata=dict(metadata) if isinstance(metadata, Mapping) else {},
+    ).as_record()
+
+
+def update_workspace_record(existing: Mapping[str, Any], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    updated = dict(existing)
+    if "org_name" in payload:
+        org_name = str(payload.get("org_name", "")).strip()
+        if not org_name:
+            raise ValueError("org_name is required")
+        updated["org_name"] = org_name
+    if "display_name" in payload:
+        updated["display_name"] = str(payload.get("display_name", "")).strip()
+    if "metadata" in payload:
+        metadata = payload.get("metadata", {})
+        updated["metadata"] = dict(metadata) if isinstance(metadata, Mapping) else {}
+    updated["updated_at_epoch"] = int(time.time())
+    updated["updated_by"] = str(payload.get("updated_by", payload.get("principal", "api-admin")))
+    return updated
+
+
+def disable_workspace_record(record: Mapping[str, Any], *, reason: str = "operator_requested") -> Mapping[str, Any]:
+    if not _truthy(record.get("enabled", True)):
+        raise ValueError("workspace is already disabled")
+    return {**dict(record), "enabled": False, "status": "disabled", "disabled_reason": reason, "disabled_at_epoch": int(time.time())}
+
+
+def create_membership_record(workspace_id: str, user_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return MembershipRecord(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        role=validate_role_name(str(payload.get("role", "member"))),
+        added_at_epoch=int(time.time()),
+        added_by=str(payload.get("added_by", payload.get("principal", "api-admin"))),
+    ).as_record()
+
+
+def public_user_record(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _public_auth_record(record)
+
+
+def public_workspace_record(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _public_auth_record(record)
+
+
+def public_membership_record(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _public_auth_record(record)
+
+
+def validate_role_name(role: str) -> str:
+    normalized = role.strip()
+    if not normalized:
+        raise ValueError("role must be non-empty")
+    if normalized != normalized.lower() or any(character.isspace() for character in normalized):
+        raise ValueError("role must be lowercase and contain no whitespace")
+    if normalized not in KNOWN_AUTH_ROLES:
+        raise ValueError(f"unknown role: {normalized}")
+    return normalized
+
+
+def is_valid_role(role: str) -> bool:
+    try:
+        validate_role_name(role)
+    except ValueError:
+        return False
+    return True
 
 
 def authorize_request(
@@ -325,6 +487,22 @@ def _parse_scopes(value: object) -> tuple[str, ...]:
     else:
         parts = ()
     return tuple(sorted({part.strip() for part in parts if part.strip()}))
+
+
+def _parse_roles(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        parts: Sequence[str] = value.replace(",", " ").split()
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        parts = tuple(str(item) for item in value)
+    else:
+        parts = ()
+    roles = tuple(validate_role_name(part) for part in parts if part.strip())
+    return roles or ("viewer",)
+
+
+def _public_auth_record(record: Mapping[str, Any]) -> Mapping[str, Any]:
+    internal = {"key_hash", "api_key", "password", "secret", "token"}
+    return {str(key): value for key, value in record.items() if str(key) not in internal}
 
 
 def _truthy(value: object) -> bool:

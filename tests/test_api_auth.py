@@ -10,12 +10,16 @@ from flow_memory.api.auth import (
     api_key_hash,
     authorize_request,
     disable_api_key_record,
+    is_valid_role,
     issue_api_key_record,
     public_api_key_record,
     require_api_key,
     rotate_api_key_record,
+    validate_role_name,
 )
 from flow_memory.api.signed_requests import sign_request
+from flow_memory.api.router import create_default_router
+from flow_memory.api.scopes import required_scopes_for
 from flow_memory.crypto import generate_local_keypair
 
 
@@ -231,6 +235,51 @@ class ApiAuthTests(unittest.TestCase):
                 },
                 api_key="fmk_bad_secret",
             )
+
+    def test_auth_user_workspace_and_membership_management(self) -> None:
+        router = create_default_router()
+
+        user = router.dispatch(
+            "POST",
+            "/auth/users",
+            {"user_id": "user_alpha", "email": "ALPHA@example.com", "display_name": "Alpha", "roles": ["admin", "auditor"]},
+        )
+        workspace = router.dispatch(
+            "POST",
+            "/auth/workspaces",
+            {"workspace_id": "ws_alpha", "org_name": "Alpha Org", "display_name": "Alpha Workspace"},
+        )
+        membership = router.dispatch("POST", "/auth/workspaces/ws_alpha/members", {"user_id": "user_alpha", "role": "auditor"})
+        members = router.dispatch("GET", "/auth/workspaces/ws_alpha/members")
+        updated = router.dispatch("PATCH", "/auth/users/user_alpha", {"display_name": "Alpha Admin", "roles": ["admin"]})
+        removed = router.dispatch("POST", "/auth/workspaces/ws_alpha/members/user_alpha/remove", {"reason": "left"})
+        disabled_user = router.dispatch("POST", "/auth/users/user_alpha/disable", {"reason": "offboarded"})
+        disabled_workspace = router.dispatch("POST", "/auth/workspaces/ws_alpha/disable", {"reason": "closed"})
+
+        self.assertEqual(user["user"]["email"], "alpha@example.com")
+        self.assertEqual(user["management"], "local_in_memory")
+        self.assertEqual(workspace["workspace"]["org_name"], "Alpha Org")
+        self.assertEqual(membership["membership"]["role"], "auditor")
+        self.assertEqual(members["members"][0]["user_id"], "user_alpha")
+        self.assertEqual(updated["user"]["display_name"], "Alpha Admin")
+        self.assertFalse(removed["membership"]["enabled"])
+        self.assertFalse(disabled_user["user"]["enabled"])
+        self.assertFalse(disabled_workspace["workspace"]["enabled"])
+        self.assertNotIn("key_hash", user["user"])
+        with self.assertRaisesRegex(ValueError, "already disabled"):
+            router.dispatch("POST", "/auth/users/user_alpha/disable", {"reason": "again"})
+        with self.assertRaisesRegex(KeyError, "Unknown workspace member"):
+            router.dispatch("POST", "/auth/workspaces/ws_alpha/members/user_alpha/remove", {"reason": "again"})
+
+    def test_auth_role_name_validation_and_scopes(self) -> None:
+        self.assertEqual(validate_role_name("admin"), "admin")
+        self.assertTrue(is_valid_role("provider-admin"))
+        for role in ("", "Admin", "billing manager", "unknown"):
+            with self.assertRaises(ValueError):
+                validate_role_name(role)
+
+        self.assertEqual(required_scopes_for("GET", "/auth/users"), ("api:admin",))
+        self.assertEqual(required_scopes_for("POST", "/auth/workspaces/ws_alpha/members"), ("api:admin",))
 
 if __name__ == "__main__":
     unittest.main()

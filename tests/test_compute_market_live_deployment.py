@@ -166,6 +166,35 @@ def test_render_deploy_blocks_insecure_keyvalue_connection_info() -> None:
 
     assert blocked.value.code == 24
 
+def test_render_keyvalue_creation_requires_explicit_external_tls_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    created_body: dict[str, object] = {}
+
+    def fake_find_named(api_key: str, path: str, envelope: str, owner_id: str, name: str):
+        return None
+
+    def fake_render_request(api_key: str, method: str, path: str, body=None):
+        nonlocal created_body
+        if method == "POST" and path == "/key-value":
+            created_body = dict(body)
+            return {"id": "kv_1", **created_body}
+        raise AssertionError(f"unexpected Render call: {method} {path}")
+
+    monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
+
+    monkeypatch.setattr(render_deploy, "DEFAULT_KEYVALUE_IP_ALLOWLIST", "203.0.113.10/32,198.51.100.0/24")
+    created = render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
+
+    assert blocked.value.code == 26
+    assert created["ipAllowList"] == [
+        {"source": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"},
+        {"source": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
+    ]
+
+
 
 def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> None:
     with pytest.raises(SystemExit) as redis_blocked:

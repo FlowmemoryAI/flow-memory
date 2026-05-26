@@ -21,6 +21,7 @@ DEFAULT_AUDIT_EXPORT_URI = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"
 DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "free")
 DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "free")
 DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "free")
+DEFAULT_KEYVALUE_IP_ALLOWLIST = os.environ.get("RENDER_KEYVALUE_IP_ALLOWLIST", "").strip()
 ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
 DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE = os.environ.get(
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", "COMPLIANCE"
@@ -268,6 +269,22 @@ def ensure_postgres(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
     return render_request(api_key, "POST", "/postgres", body)
 
 
+def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
+    raw_value = DEFAULT_KEYVALUE_IP_ALLOWLIST if value is None else value
+    entries = [entry.strip() for entry in raw_value.split(",") if entry.strip()]
+    if not entries:
+        emit(
+            "blocked_missing_redis_external_allowlist",
+            26,
+            missing_values=["RENDER_KEYVALUE_IP_ALLOWLIST"],
+            required_action=(
+                "Set RENDER_KEYVALUE_IP_ALLOWLIST to the CIDR ranges allowed to reach the Render Key Value "
+                "external rediss:// endpoint."
+            ),
+        )
+    return [{"source": entry, "description": "flow-memory-compute-market-redis-tls"} for entry in entries]
+
+
 def ensure_keyvalue(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
     existing = find_named(api_key, "/key-value", "keyValue", owner_id, KEYVALUE_NAME)
     if existing is not None:
@@ -278,7 +295,7 @@ def ensure_keyvalue(api_key: str, owner_id: str, region: str) -> dict[str, Any]:
         "plan": DEFAULT_KEYVALUE_PLAN,
         "region": region,
         "maxmemoryPolicy": "noeviction",
-        "ipAllowList": [],
+        "ipAllowList": keyvalue_ip_allow_list(),
     }
     if DEFAULT_KEYVALUE_PLAN != "free":
         body["persistenceMode"] = "journal_snapshot"

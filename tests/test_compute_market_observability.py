@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import threading
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, cast
-
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.router import create_default_router
@@ -54,6 +54,22 @@ def _alert_webhook_server() -> tuple[ThreadingHTTPServer, str]:
     thread.start()
     host, port = cast(tuple[str, int], server.server_address)
     return server, f"http://{host}:{port}/alerts"
+
+
+class _FakeWebhookResponse:
+    status = 202
+
+    def __enter__(self) -> "_FakeWebhookResponse":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def getcode(self) -> int:
+        return self.status
+
+    def read(self, _size: int = -1) -> bytes:
+        return b'{"ok":true}'
 
 
 def test_metric_and_trace_records_serialize() -> None:
@@ -188,6 +204,41 @@ def test_alert_routing_delivers_configured_webhook_and_records_evidence() -> Non
     assert "alert-routing-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
     metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["alert_delivery_pending_total"] == 1.0
+    assert metric_totals["alert_delivery_sent_total"] == 1.0
+
+
+def test_alert_routing_retries_transient_delivery_error(monkeypatch: Any) -> None:
+    attempts = 0
+
+    def fake_urlopen(_request: object, **_kwargs: object) -> _FakeWebhookResponse:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("temporary alert webhook failure")
+        return _FakeWebhookResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            alert_routing_enabled=True,
+            alert_webhook_url="https://alerts.example.test/flow-memory",
+            alert_webhook_secret="alert-routing-secret",
+        ),
+    )
+
+    service.telemetry.increment("audit_chain_verify_fail_total")
+    routed = service.route_alerts({})
+
+    assert attempts == 2
+    assert routed["ok"] is True
+    assert routed["delivery_count"] == 1
+    assert routed["deliveries"][0]["status"] == "delivered"
+    assert routed["deliveries"][0]["http_status"] == 202
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["alert_delivery_sent_total"] == 1.0
 
 
@@ -431,6 +482,40 @@ def test_otlp_export_delivers_to_collector_and_records_evidence() -> None:
     assert "otlp-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
     metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["otlp_export_attempt_total"] == 1.0
+    assert metric_totals["otlp_export_sent_total"] == 1.0
+
+
+def test_otlp_export_retries_transient_collector_error(monkeypatch: Any) -> None:
+    attempts = 0
+
+    def fake_urlopen(_request: object, **_kwargs: object) -> _FakeWebhookResponse:
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("temporary otlp collector failure")
+        return _FakeWebhookResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            telemetry_export_enabled=True,
+            otlp_endpoint_url="https://otel.example.test/v1/traces",
+            otlp_headers=("authorization: Bearer otlp-secret",),
+        ),
+    )
+    service.telemetry.increment("compute_plan_requests_total", {"strategy": "otlp"})
+
+    exported = service.export_telemetry_otlp({})
+
+    assert attempts == 2
+    assert exported["ok"] is True
+    assert exported["status"] == "delivered"
+    assert exported["delivery"]["http_status"] == 202
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
     assert metric_totals["otlp_export_sent_total"] == 1.0
 
 

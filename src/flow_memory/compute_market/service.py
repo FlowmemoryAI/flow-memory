@@ -4936,6 +4936,67 @@ def _otlp_headers(raw: tuple[str, ...]) -> Mapping[str, str]:
     return headers
 
 
+def _post_json_with_transient_retry(
+    endpoint_url: str,
+    body: bytes,
+    *,
+    headers: Mapping[str, str],
+    timeout_ms: int,
+    delivery_failure_reason: str,
+    non_2xx_reason: str,
+) -> Mapping[str, Any]:
+    timeout_seconds = max(0.001, timeout_ms / 1000.0)
+    last_error = ""
+    now = utc_now_iso()
+    for attempt_index in range(2):
+        request = urllib.request.Request(endpoint_url, data=body, headers=dict(headers), method="POST")
+        now = utc_now_iso()
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                status_code = int(getattr(response, "status", 0) or response.getcode())
+                response.read(1024)
+        except urllib.error.HTTPError as exc:
+            return {
+                "status": "failed",
+                "http_status": int(getattr(exc, "code", 0) or 0),
+                "error": type(exc).__name__,
+                "reason_codes": (non_2xx_reason,),
+                "updated_at": now,
+            }
+        except (OSError, urllib.error.URLError) as exc:
+            last_error = type(exc).__name__
+            if attempt_index == 0:
+                continue
+            return {
+                "status": "failed",
+                "http_status": 0,
+                "error": last_error,
+                "reason_codes": (delivery_failure_reason,),
+                "updated_at": now,
+            }
+        if 200 <= status_code < 300:
+            return {
+                "status": "delivered",
+                "http_status": status_code,
+                "delivered_at": now,
+                "reason_codes": (),
+                "updated_at": now,
+            }
+        return {
+            "status": "failed",
+            "http_status": status_code,
+            "reason_codes": (non_2xx_reason,),
+            "updated_at": now,
+        }
+    return {
+        "status": "failed",
+        "http_status": 0,
+        "error": last_error or "OSError",
+        "reason_codes": (delivery_failure_reason,),
+        "updated_at": now,
+    }
+
+
 def _post_otlp_collector(
     endpoint_url: str,
     envelope: Mapping[str, Any],
@@ -4949,42 +5010,14 @@ def _post_otlp_collector(
         "user-agent": "flow-memory-compute-market-otlp/1",
         **dict(headers),
     }
-    request = urllib.request.Request(endpoint_url, data=body, headers=request_headers, method="POST")
-    now = utc_now_iso()
-    try:
-        with urllib.request.urlopen(request, timeout=max(0.001, timeout_ms / 1000.0)) as response:
-            status_code = int(getattr(response, "status", 0) or response.getcode())
-            response.read(1024)
-    except urllib.error.HTTPError as exc:
-        return {
-            "status": "failed",
-            "http_status": int(getattr(exc, "code", 0) or 0),
-            "error": type(exc).__name__,
-            "reason_codes": ("otlp_collector_non_2xx",),
-            "updated_at": now,
-        }
-    except (OSError, urllib.error.URLError) as exc:
-        return {
-            "status": "failed",
-            "http_status": 0,
-            "error": type(exc).__name__,
-            "reason_codes": ("otlp_collector_delivery_failed",),
-            "updated_at": now,
-        }
-    if 200 <= status_code < 300:
-        return {
-            "status": "delivered",
-            "http_status": status_code,
-            "delivered_at": now,
-            "reason_codes": (),
-            "updated_at": now,
-        }
-    return {
-        "status": "failed",
-        "http_status": status_code,
-        "reason_codes": ("otlp_collector_non_2xx",),
-        "updated_at": now,
-    }
+    return _post_json_with_transient_retry(
+        endpoint_url,
+        body,
+        headers=request_headers,
+        timeout_ms=timeout_ms,
+        delivery_failure_reason="otlp_collector_delivery_failed",
+        non_2xx_reason="otlp_collector_non_2xx",
+    )
 
 
 def _post_alert_webhook(
@@ -4998,42 +5031,14 @@ def _post_alert_webhook(
     headers = {"content-type": "application/json", "user-agent": "flow-memory-compute-market-alerts/1"}
     if secret:
         headers["x-flow-memory-alert-signature"] = hmac.new(secret.encode("utf-8"), body, "sha256").hexdigest()
-    request = urllib.request.Request(webhook_url, data=body, headers=headers, method="POST")
-    now = utc_now_iso()
-    try:
-        with urllib.request.urlopen(request, timeout=max(0.001, timeout_ms / 1000.0)) as response:
-            status_code = int(getattr(response, "status", 0) or response.getcode())
-            response.read(1024)
-    except urllib.error.HTTPError as exc:
-        return {
-            "status": "failed",
-            "http_status": int(getattr(exc, "code", 0) or 0),
-            "error": type(exc).__name__,
-            "reason_codes": ("alert_webhook_non_2xx",),
-            "updated_at": now,
-        }
-    except (OSError, urllib.error.URLError) as exc:
-        return {
-            "status": "failed",
-            "http_status": 0,
-            "error": type(exc).__name__,
-            "reason_codes": ("alert_webhook_delivery_failed",),
-            "updated_at": now,
-        }
-    if 200 <= status_code < 300:
-        return {
-            "status": "delivered",
-            "http_status": status_code,
-            "delivered_at": now,
-            "reason_codes": (),
-            "updated_at": now,
-        }
-    return {
-        "status": "failed",
-        "http_status": status_code,
-        "reason_codes": ("alert_webhook_non_2xx",),
-        "updated_at": now,
-    }
+    return _post_json_with_transient_retry(
+        webhook_url,
+        body,
+        headers=headers,
+        timeout_ms=timeout_ms,
+        delivery_failure_reason="alert_webhook_delivery_failed",
+        non_2xx_reason="alert_webhook_non_2xx",
+    )
 
 
 def _alert_webhook_url_allowed(value: str) -> bool:

@@ -13,4 +13,4 @@ def sign_request(method: str, path: str, payload: Mapping[str, Any], key: LocalK
 
 
 def verify_request(method: str, path: str, payload: Mapping[str, Any], signature: SignatureEnvelope, key: LocalKeyPair) -> bool:
-    return verify_payload({"method": method.upper(), "path": path, "payload": dict(payload)}, signature, key)
+    return bool(verify_payload({"method": method.upper(), "path": path, "payload": dict(payload)}, signature, key))

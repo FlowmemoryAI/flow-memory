@@ -24,6 +24,29 @@ def test_live_infra_validator_blocks_missing_urls(monkeypatch: Any, capsys: Any)
     assert "FLOW_MEMORY_TEST_REDIS_URL or FLOW_MEMORY_COMPUTE_REDIS_URL" in payload["missing_values"]
 
 
+def test_live_infra_validator_reports_required_postgres_index_evidence() -> None:
+    passing = validator.required_postgres_index_evidence({"ok": True, "missing_indexes": ()})
+    missing = validator.required_postgres_index_evidence(
+        {
+            "ok": True,
+            "missing_indexes": (
+                "idx_compute_economic_memory_agent",
+                "idx_compute_quote_cache_expires",
+                "idx_compute_audit_events_hash",
+            ),
+        }
+    )
+
+    assert passing["ok"] is True
+    assert passing["groups"]["provider_route_lookups"]["ok"] is True
+    assert missing["ok"] is False
+    assert missing["groups"]["economic_memory_by_agent_id"]["missing_indexes"] == (
+        "idx_compute_economic_memory_agent",
+    )
+    assert missing["groups"]["quote_expiration"]["ok"] is False
+    assert missing["groups"]["audit_event_hash"]["ok"] is False
+
+
 def test_live_infra_validator_blocks_plain_redis_before_network(monkeypatch: Any, capsys: Any) -> None:
     _clear_live_env(monkeypatch)
 

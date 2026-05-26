@@ -19,6 +19,22 @@ from flow_memory.compute_market.storage_backends import PostgresComputeMarketSto
 POSTGRES_ENV_NAMES = ("FLOW_MEMORY_TEST_POSTGRES_URL", "FLOW_MEMORY_COMPUTE_DATABASE_URL")
 REDIS_ENV_NAMES = ("FLOW_MEMORY_TEST_REDIS_URL", "FLOW_MEMORY_COMPUTE_REDIS_URL")
 
+REQUIRED_POSTGRES_INDEX_GROUPS: Mapping[str, tuple[str, ...]] = {
+    "economic_memory_by_agent_id": ("idx_compute_economic_memory_agent",),
+    "economic_memory_by_goal_id": ("idx_compute_economic_memory_goal",),
+    "provider_route_lookups": (
+        "idx_compute_quotes_provider",
+        "idx_compute_quotes_route",
+        "idx_compute_decisions_provider",
+        "idx_compute_decisions_route",
+        "idx_compute_quote_cache_provider",
+        "idx_compute_quote_cache_route",
+    ),
+    "quote_expiration": ("idx_compute_quotes_expires", "idx_compute_quote_cache_expires"),
+    "audit_chain_sequence": ("idx_compute_audit_events_chain",),
+    "audit_event_hash": ("idx_compute_audit_events_hash",),
+}
+
 
 def env_value(names: tuple[str, ...]) -> str:
     for name in names:
@@ -40,6 +56,20 @@ def is_loopback_endpoint(value: str) -> bool:
     except ValueError:
         return False
     return bool(address.is_loopback or address.is_unspecified)
+
+
+def required_postgres_index_evidence(schema: Mapping[str, Any]) -> Mapping[str, Any]:
+    missing = frozenset(str(item) for item in schema.get("missing_indexes", ()) if str(item))
+    schema_ok = schema.get("ok") is True
+    groups: dict[str, Mapping[str, Any]] = {}
+    for name, indexes in REQUIRED_POSTGRES_INDEX_GROUPS.items():
+        missing_for_group = tuple(index for index in indexes if index in missing)
+        groups[name] = {
+            "ok": schema_ok and not missing_for_group,
+            "indexes": indexes,
+            "missing_indexes": missing_for_group,
+        }
+    return {"ok": all(bool(group["ok"]) for group in groups.values()), "groups": groups}
 
 
 def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mapping[str, Any]:
@@ -78,6 +108,7 @@ def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mappin
         migration_second = service.store.migrate()
         schema = service.store.schema_verification()
         production = service.store.production_readiness_check()
+        index_evidence = required_postgres_index_evidence(schema)
         readiness = service.readiness()
         job_id = deterministic_id("live_pg_validator_job", {"run": run_id})
         service.store.put_record(
@@ -113,6 +144,7 @@ def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mappin
                 schema.get("ok") is True,
                 not schema.get("missing_tables", ()),
                 not schema.get("missing_indexes", ()),
+                index_evidence.get("ok") is True,
                 schema.get("advisory_lock_probe", {}).get("acquired") is True,
                 production.get("production_ready") is True,
                 readiness.get("ready") is True,
@@ -126,6 +158,7 @@ def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mappin
             "backend": "postgresql",
             "migration_second_applied": migration_second.applied,
             "schema_verification": schema,
+            "required_index_evidence": index_evidence,
             "production_readiness": production,
             "readiness_failures": readiness.get("readiness_failures", ()),
             "idempotent_replay": replay.get("idempotent_replay") is True,

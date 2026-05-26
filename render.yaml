@@ -100,6 +100,24 @@ services:
         sync: false
       - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL
         value: ""
+      - key: FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED
+        value: false
+      - key: FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY
+        sync: false
+      - key: FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL
+        value: ""
+      - key: FLOW_MEMORY_BILLING_STRIPE_CANCEL_URL
+        value: ""
+      - key: FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_TIMEOUT_MS
+        value: 5000
+      - key: FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL
+        value: https://api.stripe.com
+      - key: FLOW_MEMORY_BILLING_STRIPE_PRODUCT_NAME
+        value: Flow Memory compute credits
+      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS
+        value: 300
       - key: FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED
         value: false
       - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL

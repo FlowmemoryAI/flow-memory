@@ -37,6 +37,9 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
         "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
+        "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
+        "FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL=https://api.stripe.com",
+        "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS=300",
         "RENDER_KEYVALUE_IP_ALLOWLIST",
     ):
         assert required in template
@@ -68,6 +71,13 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS:-5000}" in compose
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE:-COMPLIANCE}" in compose
+    assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED: ${FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED:-false}" in compose
+    assert "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET: ${FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET:-}" in compose
+    assert (
+        "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS: "
+        "${FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS:-300}"
+    ) in compose
+
 
 def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
@@ -80,6 +90,15 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
 
     assert "Direct blueprint deploys cannot infer public egress CIDRs" in blueprint
     assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
+
+
+def test_render_blueprint_preserves_billing_safety_defaults() -> None:
+    blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
+
+    assert "      - key: FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED\n        value: false" in blueprint
+    assert "      - key: FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS\n        value: 300" in blueprint
 
 
 def test_public_smoke_scripts_verify_observability_endpoints() -> None:
@@ -164,6 +183,11 @@ def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
+    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED"] == "false"
+    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL"] == "https://api.stripe.com"
+    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"] == "300"
+    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"] == ""
+    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"] == ""
 
 def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_POSTGRES_PLAN", "free")

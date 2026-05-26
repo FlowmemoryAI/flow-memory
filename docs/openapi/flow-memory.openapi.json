@@ -4009,6 +4009,52 @@
         ]
       }
     },
+    "/market/capacity/confirm": {
+      "post": {
+        "operationId": "market_capacity_confirm",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "reservation_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "reservation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Confirm a held capacity reservation into a no-custody reserved capacity commitment",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/capacity/expire": {
       "post": {
         "operationId": "market_capacity_expire",

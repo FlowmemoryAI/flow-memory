@@ -104,6 +104,7 @@ from flow_memory.api.compute_endpoints import (
     compute_route_update,
     compute_routes,
     compute_simulate_settlement,
+    market_capacity_confirm,
     market_capacity_expire,
     market_capacity_list,
     market_capacity_order_book,
@@ -551,6 +552,9 @@ class LocalApiRouter:
     def _market_capacity_reserve(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_capacity_reserve(payload)
 
+    def _market_capacity_confirm(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_capacity_confirm(payload)
+
     def _market_capacity_expire(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_capacity_expire(payload)
 
@@ -896,6 +900,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/market/quotes/drift-observations", router._market_quote_drift, "market_quote_drift")
     router.register("POST", "/market/capacity/list", router._market_capacity_list, "market_capacity_list")
     router.register("POST", "/market/capacity/reserve", router._market_capacity_reserve, "market_capacity_reserve")
+    router.register("POST", "/market/capacity/confirm", router._market_capacity_confirm, "market_capacity_confirm")
     router.register("POST", "/market/capacity/expire", router._market_capacity_expire, "market_capacity_expire")
     router.register("POST", "/market/capacity/release", router._market_capacity_release, "market_capacity_release")
     router.register("GET", "/market/capacity/order-book", router._market_capacity_order_book, "market_capacity_order_book")

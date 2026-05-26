@@ -73,8 +73,9 @@
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
       "targets": [
         {"expr": "sum(rate(capacity_reserved_total[5m]))", "legendFormat": "reserved", "refId": "A"},
-        {"expr": "sum(rate(capacity_released_total[5m]))", "legendFormat": "released", "refId": "B"},
-        {"expr": "sum(rate(capacity_hold_expired_total[5m]))", "legendFormat": "expired holds", "refId": "C"}
+        {"expr": "sum(rate(capacity_confirmed_total[5m]))", "legendFormat": "confirmed", "refId": "B"},
+        {"expr": "sum(rate(capacity_released_total[5m]))", "legendFormat": "released", "refId": "C"},
+        {"expr": "sum(rate(capacity_hold_expired_total[5m]))", "legendFormat": "expired holds", "refId": "D"}
       ],
       "title": "Capacity reservations",
       "type": "timeseries"

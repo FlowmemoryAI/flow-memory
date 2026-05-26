@@ -40,6 +40,7 @@ _METRIC_NAMES: tuple[str, ...] = (
     "policy_denied_total",
     "quote_stale_total",
     "capacity_reserved_total",
+    "capacity_confirmed_total",
     "quote_cache_invalidated_total",
     "capacity_released_total",
     "capacity_hold_expired_total",

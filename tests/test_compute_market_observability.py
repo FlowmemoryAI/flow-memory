@@ -62,6 +62,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "compute_provider_receipt_rejected_total" in names
     assert "capacity_hold_expired_total" in names
     assert "quote_cache_invalidated_total" in names
+    assert "capacity_confirmed_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 
@@ -161,6 +162,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "provider_circuit_open_total",
         "quote_stale_total",
         "capacity_reserved_total",
+        "capacity_confirmed_total",
         "quote_cache_invalidated_total",
         "capacity_released_total",
         "capacity_hold_expired_total",

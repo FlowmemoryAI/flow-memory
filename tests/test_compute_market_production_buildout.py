@@ -502,6 +502,78 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     replacement = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 10})
     assert replacement["reservation"]["status"] == "held"
 
+def test_capacity_reservation_confirm_creates_dry_run_commitment() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 5,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 3}
+    )
+    reservation_id = str(held["reservation"]["reservation_id"])
+
+    reset_default_service(service)
+    router = create_default_router()
+    try:
+        confirmed = router.dispatch("POST", "/market/capacity/confirm", {"reservation_id": reservation_id})
+    finally:
+        reset_default_service(None)
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert confirmed["reservation"]["status"] == "confirmed"
+    assert confirmed["reservation"]["confirmed_at"]
+    assert confirmed["reservation"]["dry_run_only"] is True
+    assert confirmed["reservation"]["funds_moved"] is False
+    assert summary["reserved_capacity_units"] == 3
+    assert summary["held_capacity_units"] == 0
+    assert summary["confirmed_capacity_units"] == 3
+    assert summary["available_capacity_units"] == 2
+    assert summary["utilization_by_provider"]["provider_live_gpu_1"]["confirmed_capacity_units"] == 3
+    assert _metric_total(
+        service,
+        "capacity_confirmed_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 3.0
+
+    try:
+        service.confirm_capacity({"reservation_id": reservation_id})
+    except ValueError as exc:
+        assert "expected held" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("confirmed reservation was confirmed twice")
+
+    released = service.release_capacity({"reservation_id": reservation_id})
+    assert released["reservation"]["status"] == "released"
+    released_summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1"})["summary"]
+    assert released_summary["confirmed_capacity_units"] == 0
+
+    stale_hold = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 1,
+            "hold_expires_at": "2000-01-01T00:00:00Z",
+        }
+    )
+    try:
+        service.confirm_capacity({"reservation_id": stale_hold["reservation"]["reservation_id"]})
+    except ValueError as exc:
+        assert "hold is expired" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("expired capacity hold was confirmed")
+
 
 def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:
     service = _service()

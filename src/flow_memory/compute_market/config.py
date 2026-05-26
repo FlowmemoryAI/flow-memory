@@ -70,6 +70,10 @@ class ComputeMarketConfig:
     stripe_api_base_url: str = "https://api.stripe.com"
     stripe_checkout_product_name: str = "Flow Memory compute credits"
     stripe_webhook_secret: str = ""
+    alert_routing_enabled: bool = False
+    alert_webhook_url: str = ""
+    alert_webhook_secret: str = ""
+    alert_webhook_timeout_ms: int = 2_000
 
     @property
     def storage_backend_effective(self) -> str:
@@ -141,6 +145,8 @@ class ComputeMarketConfig:
             errors.append("audit_export_retention_days must be non-negative")
         if self.audit_checkpoint_interval_seconds < 1:
             errors.append("audit_checkpoint_interval_seconds must be positive")
+        if self.alert_webhook_timeout_ms < 1:
+            errors.append("alert_webhook_timeout_ms must be positive")
         if self.stripe_checkout_enabled:
             if not self.stripe_secret_key:
                 errors.append("stripe_checkout_enabled requires stripe_secret_key")
@@ -226,6 +232,10 @@ class ComputeMarketConfig:
             "stripe_secret_key_configured": bool(self.stripe_secret_key),
             "stripe_checkout_urls_configured": bool(self.stripe_checkout_success_url and self.stripe_checkout_cancel_url),
             "stripe_checkout_timeout_ms": self.stripe_checkout_timeout_ms,
+            "alert_routing_enabled": self.alert_routing_enabled,
+            "alert_webhook_configured": bool(self.alert_webhook_url),
+            "alert_webhook_secret_configured": bool(self.alert_webhook_secret),
+            "alert_webhook_timeout_ms": self.alert_webhook_timeout_ms,
         }
 
 
@@ -296,6 +306,10 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         stripe_api_base_url=source.get("FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL", "https://api.stripe.com"),
         stripe_checkout_product_name=source.get("FLOW_MEMORY_BILLING_STRIPE_PRODUCT_NAME", "Flow Memory compute credits"),
         stripe_webhook_secret=source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET", ""),
+        alert_routing_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"), False),
+        alert_webhook_url=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL", ""),
+        alert_webhook_secret=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET", ""),
+        alert_webhook_timeout_ms=_int(source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS"), 2_000),
     )
 
 

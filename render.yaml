@@ -91,6 +91,14 @@ services:
         value: true
       - key: FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI
         value: /var/lib/flow-memory/audit/compute-market.ndjson
+      - key: FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED
+        value: false
+      - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL
+        value: ""
+      - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS
+        value: 2000
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED
         value: false
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST

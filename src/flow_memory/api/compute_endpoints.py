@@ -350,6 +350,10 @@ def compute_alerts(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any
     return default_service().alert_status(payload or {})
 
 
+def compute_alert_route(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().route_alerts(payload or {})
+
+
 def compute_alert_ack(rule_name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().acknowledge_alert(rule_name, payload)
 

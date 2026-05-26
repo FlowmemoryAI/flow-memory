@@ -2613,6 +2613,10 @@ class ComputeMarketService:
             and not audit_exporter_status.get("immutable", False)
         ):
             failures.append("audit_immutable_retention_not_configured")
+        if self.config.alert_routing_enabled and not self.config.alert_webhook_url.strip():
+            failures.append("alert_webhook_unavailable")
+        if self.config.alert_routing_enabled and self.config.alert_webhook_url.strip() and not _alert_webhook_url_allowed(self.config.alert_webhook_url.strip()):
+            failures.append("alert_webhook_url_not_allowed")
         if self.config.external_provider_quotes_enabled and not self.config.external_provider_allowlist:
             failures.append("external_provider_allowlist_missing")
         if self.config.external_provider_quotes_enabled and not health.get("circuit_breaker_active", False):
@@ -2664,6 +2668,133 @@ class ComputeMarketService:
             "ok": True,
             "alerts": {**evaluation, "firing": firing},
             "acknowledgements": acknowledgements,
+        }
+
+    def route_alerts(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        request_id = _request_id(payload)
+        evaluation = AlertEvaluator().evaluate(self.telemetry).as_record()
+        firing = tuple(item for item in evaluation.get("firing", ()) if isinstance(item, Mapping))
+        if not firing:
+            return {
+                "ok": True,
+                "alerts": evaluation,
+                "routing_enabled": self.config.alert_routing_enabled,
+                "deliveries": (),
+                "delivery_count": 0,
+                "skipped_reason": "no_firing_alerts",
+            }
+        if not self.config.alert_routing_enabled:
+            self._audit(
+                "compute.alert.routing.attempted",
+                payload,
+                request_id=request_id,
+                result="skipped",
+                reason_codes=("alert_routing_disabled",),
+            )
+            return {
+                "ok": True,
+                "alerts": evaluation,
+                "routing_enabled": False,
+                "deliveries": (),
+                "delivery_count": 0,
+                "skipped_reason": "alert_routing_disabled",
+            }
+        webhook_url = self.config.alert_webhook_url.strip()
+        if not webhook_url:
+            self._audit(
+                "compute.alert.routing.attempted",
+                payload,
+                request_id=request_id,
+                result="failed",
+                reason_codes=("alert_webhook_not_configured",),
+            )
+            return {
+                "ok": False,
+                "alerts": evaluation,
+                "routing_enabled": True,
+                "deliveries": (),
+                "delivery_count": 0,
+                "error": "alert_webhook_not_configured",
+            }
+        if not _alert_webhook_url_allowed(webhook_url):
+            self._audit(
+                "compute.alert.routing.attempted",
+                payload,
+                request_id=request_id,
+                result="failed",
+                reason_codes=("alert_webhook_url_not_allowed",),
+            )
+            return {
+                "ok": False,
+                "alerts": evaluation,
+                "routing_enabled": True,
+                "deliveries": (),
+                "delivery_count": 0,
+                "error": "alert_webhook_url_not_allowed",
+            }
+        deliveries: list[Mapping[str, Any]] = []
+        for alert in firing:
+            envelope = _alert_delivery_envelope(alert, request_id=request_id)
+            delivery = _alert_delivery_record(alert, webhook_url=webhook_url, request_id=request_id)
+            self.telemetry.increment("alert_delivery_pending_total", {"rule_name": str(alert.get("rule_name", ""))})
+            if self.config.compute_market_mode == "test":
+                delivery = {
+                    **delivery,
+                    "status": "dry_run_skipped",
+                    "delivery_attempted": False,
+                    "reason_codes": ("test_mode_no_external_webhook",),
+                }
+            else:
+                sent = _post_alert_webhook(
+                    webhook_url,
+                    envelope,
+                    secret=self.config.alert_webhook_secret,
+                    timeout_ms=self.config.alert_webhook_timeout_ms,
+                )
+                delivery = {**delivery, **sent, "delivery_attempted": True}
+            self.store.put_record(
+                "alert_delivery",
+                str(delivery["delivery_id"]),
+                delivery,
+                status=str(delivery["status"]),
+                request_id=request_id,
+                idempotency_key=str(delivery["delivery_id"]),
+            )
+            if str(delivery["status"]) == "delivered":
+                self.telemetry.increment("alert_delivery_sent_total", {"rule_name": str(alert.get("rule_name", ""))})
+                self._audit(
+                    "compute.alert.delivered",
+                    payload,
+                    request_id=request_id,
+                    result="delivered",
+                    reason_codes=(str(alert.get("rule_name", "")),),
+                )
+            elif str(delivery["status"]) == "failed":
+                self.telemetry.increment("alert_delivery_failed_total", {"rule_name": str(alert.get("rule_name", ""))})
+                self._audit(
+                    "compute.alert.delivery_failed",
+                    payload,
+                    request_id=request_id,
+                    result="failed",
+                    reason_codes=(str(alert.get("rule_name", "")),),
+                )
+            deliveries.append(delivery)
+        failed = tuple(item for item in deliveries if str(item.get("status", "")) == "failed")
+        self._audit(
+            "compute.alert.routing.attempted",
+            payload,
+            request_id=request_id,
+            result="failed" if failed else "routed",
+            reason_codes=("alert_delivery_failed",) if failed else (),
+        )
+        return {
+            "ok": not failed,
+            "alerts": evaluation,
+            "routing_enabled": True,
+            "deliveries": tuple(deliveries),
+            "delivery_count": len(deliveries),
+            "failed_count": len(failed),
         }
 
     def acknowledge_alert(self, rule_name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -4189,6 +4320,104 @@ def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
         "amount": amount,
         "currency": str(event_object.get("currency", raw_event.get("currency", "USD"))).upper(),
     }
+
+
+def _alert_delivery_record(alert: Mapping[str, Any], *, webhook_url: str, request_id: str) -> dict[str, Any]:
+    now = utc_now_iso()
+    rule_name = str(alert.get("rule_name", ""))
+    delivery_id = deterministic_id(
+        "alert_delivery",
+        {"rule_name": rule_name, "fired_at": alert.get("fired_at", ""), "request_id": request_id},
+    )
+    return {
+        "delivery_id": delivery_id,
+        "rule_name": rule_name,
+        "metric_name": str(alert.get("metric_name", "")),
+        "severity": str(alert.get("severity", "")),
+        "status": "pending_delivery",
+        "channel": "webhook",
+        "target": _redacted_url(webhook_url),
+        "delivery_attempted": False,
+        "alert": dict(alert),
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _alert_delivery_envelope(alert: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
+    return {
+        "type": "flow_memory.compute_market.alert",
+        "request_id": request_id,
+        "alert": dict(alert),
+        "service": "flow-memory-compute-market",
+        "created_at": utc_now_iso(),
+    }
+
+
+def _post_alert_webhook(
+    webhook_url: str,
+    envelope: Mapping[str, Any],
+    *,
+    secret: str,
+    timeout_ms: int,
+) -> Mapping[str, Any]:
+    body = json.dumps(envelope, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    headers = {"content-type": "application/json", "user-agent": "flow-memory-compute-market-alerts/1"}
+    if secret:
+        headers["x-flow-memory-alert-signature"] = hmac.new(secret.encode("utf-8"), body, "sha256").hexdigest()
+    request = urllib.request.Request(webhook_url, data=body, headers=headers, method="POST")
+    now = utc_now_iso()
+    try:
+        with urllib.request.urlopen(request, timeout=max(0.001, timeout_ms / 1000.0)) as response:
+            status_code = int(getattr(response, "status", 0) or response.getcode())
+            response.read(1024)
+    except urllib.error.HTTPError as exc:
+        return {
+            "status": "failed",
+            "http_status": int(getattr(exc, "code", 0) or 0),
+            "error": type(exc).__name__,
+            "reason_codes": ("alert_webhook_non_2xx",),
+            "updated_at": now,
+        }
+    except (OSError, urllib.error.URLError) as exc:
+        return {
+            "status": "failed",
+            "http_status": 0,
+            "error": type(exc).__name__,
+            "reason_codes": ("alert_webhook_delivery_failed",),
+            "updated_at": now,
+        }
+    if 200 <= status_code < 300:
+        return {
+            "status": "delivered",
+            "http_status": status_code,
+            "delivered_at": now,
+            "reason_codes": (),
+            "updated_at": now,
+        }
+    return {
+        "status": "failed",
+        "http_status": status_code,
+        "reason_codes": ("alert_webhook_non_2xx",),
+        "updated_at": now,
+    }
+
+
+def _alert_webhook_url_allowed(value: str) -> bool:
+    parsed = urllib.parse.urlparse(value)
+    if parsed.scheme == "https" and bool(parsed.netloc):
+        return True
+    if parsed.scheme == "http" and parsed.hostname in {"127.0.0.1", "localhost", "::1"}:
+        return True
+    return False
+
+
+def _redacted_url(value: str) -> str:
+    parsed = urllib.parse.urlparse(value)
+    if not parsed.netloc:
+        return value
+    return urllib.parse.urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
 
 
 def _stripe_event_posts_credit(raw_event: Mapping[str, Any]) -> bool:

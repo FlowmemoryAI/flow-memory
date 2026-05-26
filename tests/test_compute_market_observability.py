@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Any, cast
 
 
 from flow_memory.api.router import create_default_router
@@ -16,6 +19,39 @@ def _service() -> ComputeMarketService:
         store=ComputeMarketStore(":memory:"),
         config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
     )
+
+_ALERT_WEBHOOK_POSTS: list[dict[str, object]] = []
+
+
+class _AlertWebhookHandler(BaseHTTPRequestHandler):
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - inherited API
+        return
+
+    def do_POST(self) -> None:  # noqa: N802 - inherited API
+        length = int(self.headers.get("content-length", "0") or "0")
+        body = self.rfile.read(length).decode("utf-8")
+        _ALERT_WEBHOOK_POSTS.append(
+            {
+                "path": self.path,
+                "signature": self.headers.get("x-flow-memory-alert-signature", ""),
+                "body": json.loads(body),
+                "raw_body": body,
+            }
+        )
+        status_code = 503 if self.path == "/fail" else 202
+        self.send_response(status_code)
+        self.send_header("content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"ok":true}')
+
+
+def _alert_webhook_server() -> tuple[ThreadingHTTPServer, str]:
+    _ALERT_WEBHOOK_POSTS.clear()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _AlertWebhookHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    return server, f"http://{host}:{port}/alerts"
 
 
 def test_metric_and_trace_records_serialize() -> None:
@@ -65,6 +101,9 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "capacity_confirmed_total" in names
     assert "capacity_auction_cleared_total" in names
     assert "provider_sla_penalty_total" in names
+    assert "alert_delivery_pending_total" in names
+    assert "alert_delivery_sent_total" in names
+    assert "alert_delivery_failed_total" in names
     assert "compute.provider_discovery" in set(span_names())
 
 
@@ -87,6 +126,116 @@ def test_alert_evaluator_fires_on_audit_failures_and_acknowledges_route() -> Non
     assert ack["ok"] is True
     assert acknowledged["alerts"]["firing"][0]["acknowledged"] is True
 
+def test_alert_routing_noops_without_firing_alerts_or_when_disabled() -> None:
+    service = _service()
+    reset_default_service(service)
+    router = create_default_router()
+    try:
+        no_alerts = router.dispatch("POST", "/compute/alerts/route", {})
+        service.telemetry.increment("audit_chain_verify_fail_total")
+        disabled = router.dispatch("POST", "/compute/alerts/route", {})
+    finally:
+        reset_default_service(None)
+
+    assert no_alerts["ok"] is True
+    assert no_alerts["delivery_count"] == 0
+    assert no_alerts["skipped_reason"] == "no_firing_alerts"
+    assert disabled["ok"] is True
+    assert disabled["delivery_count"] == 0
+    assert disabled["skipped_reason"] == "alert_routing_disabled"
+    assert service.store.count_records("alert_delivery") == 0
+
+
+def test_alert_routing_delivers_configured_webhook_and_records_evidence() -> None:
+    server, url = _alert_webhook_server()
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                alert_routing_enabled=True,
+                alert_webhook_url=url,
+                alert_webhook_secret="alert-routing-secret",
+            ),
+        )
+        service.telemetry.increment("audit_chain_verify_fail_total")
+        routed = service.route_alerts({})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert routed["ok"] is True
+    assert routed["delivery_count"] == 1
+    delivery = routed["deliveries"][0]
+    assert delivery["status"] == "delivered"
+    assert delivery["target"].endswith("/alerts")
+    assert "alert-routing-secret" not in json.dumps(delivery)
+    assert service.store.count_records("alert_delivery") == 1
+    assert _ALERT_WEBHOOK_POSTS[0]["path"] == "/alerts"
+    assert _ALERT_WEBHOOK_POSTS[0]["signature"]
+    assert _ALERT_WEBHOOK_POSTS[0]["body"]["alert"]["rule_name"] == "audit-chain-verify-failure"
+    assert "alert-routing-secret" not in str(_ALERT_WEBHOOK_POSTS[0]["raw_body"])
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert metric_totals["alert_delivery_pending_total"] == 1.0
+    assert metric_totals["alert_delivery_sent_total"] == 1.0
+
+
+def test_alert_routing_records_failed_webhook_without_leaking_secret() -> None:
+    server, url = _alert_webhook_server()
+    failing_url = url.replace("/alerts", "/fail")
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                alert_routing_enabled=True,
+                alert_webhook_url=failing_url,
+                alert_webhook_secret="alert-routing-secret",
+            ),
+        )
+        service.telemetry.increment("audit_chain_verify_fail_total")
+        routed = service.route_alerts({})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert routed["ok"] is False
+    assert routed["failed_count"] == 1
+    delivery = routed["deliveries"][0]
+    assert delivery["status"] == "failed"
+    assert delivery["http_status"] == 503
+    assert "alert-routing-secret" not in json.dumps(delivery)
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert metric_totals["alert_delivery_failed_total"] == 1.0
+
+
+def test_alert_routing_enabled_readiness_requires_usable_webhook_url() -> None:
+    missing = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            alert_routing_enabled=True,
+        ),
+    )
+    unsafe = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            alert_routing_enabled=True,
+            alert_webhook_url="http://example.com/alerts",
+        ),
+    )
+
+    assert "alert_webhook_unavailable" in missing.readiness()["readiness_failures"]
+    assert "alert_webhook_url_not_allowed" in unsafe.readiness()["readiness_failures"]
 
 def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> None:
     service = _service()
@@ -173,6 +322,9 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "billing_payment_failed_total",
         "billing_webhook_failures_total",
         "provider_sla_penalty_total",
+        "alert_delivery_pending_total",
+        "alert_delivery_sent_total",
+        "alert_delivery_failed_total",
         "audit_chain_verify_fail_total",
         "settlement_attempt_total",
         "unexpected_live_settlement_config_total",

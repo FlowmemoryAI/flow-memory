@@ -171,6 +171,7 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("GET", "/compute/telemetry", "compute_telemetry", "Return Compute Market telemetry samples and summary", response_fields=("ok", "telemetry", "summary")),
     EndpointSpec("GET", "/compute/metrics", "compute_metrics", "Return Compute Market Prometheus-format metrics text", response_fields=("ok", "content_type", "metrics")),
     EndpointSpec("GET", "/compute/alerts", "compute_alerts", "Evaluate Compute Market alert rules against in-process telemetry", response_fields=("ok", "alerts", "acknowledgements")),
+    EndpointSpec("POST", "/compute/alerts/route", "compute_alert_route", "Evaluate alert rules and route firing alerts to configured delivery sinks", response_fields=("ok", "alerts", "deliveries", "delivery_count")),
     EndpointSpec("POST", "/compute/alerts/{rule_name}/ack", "compute_alert_ack", "Acknowledge a firing Compute Market alert rule", request_fields=("acknowledged_by",), response_fields=("ok", "acknowledgement")),
 )
 

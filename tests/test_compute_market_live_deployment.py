@@ -22,6 +22,8 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED=false",
+        "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=false",
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS=2000",
     ):
         assert required in template
 
@@ -43,6 +45,8 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED: \"false\"" in compose
     assert "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED: \"false\"" in compose
     assert "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED: \"false\"" in compose
+    assert "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED: ${FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED:-false}" in compose
+    assert "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS:-2000}" in compose
 
 
 def test_api_server_cli_rejects_public_bind_without_api_key() -> None:

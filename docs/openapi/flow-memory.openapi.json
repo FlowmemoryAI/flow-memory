@@ -930,6 +930,42 @@
         ]
       }
     },
+    "/compute/alerts/route": {
+      "post": {
+        "operationId": "compute_alert_route",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "alerts": {
+                      "type": "string"
+                    },
+                    "deliveries": {
+                      "type": "string"
+                    },
+                    "delivery_count": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Evaluate alert rules and route firing alerts to configured delivery sinks",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/alerts/{rule_name}/ack": {
       "post": {
         "operationId": "compute_alert_ack",

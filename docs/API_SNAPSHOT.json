@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 146,
-  "manifest_hash": "4ab045c660fffc6578990b849770fd4e12bb13e5f003960428bf40e925391d3c",
-  "openapi_hash": "4fa1aa92317e3f3ac0b8b1b969433835573331520e6ee714e23f80f3f7436d9e",
+  "endpoint_count": 147,
+  "manifest_hash": "90f62d9c670ab17a704b5de898044673710e19e9b5b07f2fc5173783fdd8407f",
+  "openapi_hash": "42de628e7dd1a07a6a5f32753b4bb2ef2fdf5086d03f4bda1a03bf8d0e011cf7",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -84,6 +84,7 @@
     "POST /billing/checkout",
     "POST /billing/refund",
     "POST /billing/webhooks/stripe",
+    "POST /compute/alerts/route",
     "POST /compute/alerts/{rule_name}/ack",
     "POST /compute/audit/checkpoint",
     "POST /compute/audit/checkpoint-schedule",
@@ -150,7 +151,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 138,
+  "path_count": 139,
   "paths": [
     "/admin/audit/export",
     "/admin/reconciliation",
@@ -175,6 +176,7 @@
     "/billing/usage",
     "/billing/webhooks/stripe",
     "/compute/alerts",
+    "/compute/alerts/route",
     "/compute/alerts/{rule_name}/ack",
     "/compute/audit",
     "/compute/audit/chain/monitor",

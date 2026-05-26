@@ -91,6 +91,7 @@ def test_compute_database_config_supports_explicit_storage_settings() -> None:
     assert "market_provider_application" in plan["record_types"]
     assert "capacity_auction" in plan["record_types"]
     assert "provider_sla_penalty" in plan["record_types"]
+    assert "alert_delivery" in plan["record_types"]
     assert "compute_jobs" in plan["steps"][0]["postgres_tables"]
     assert "quote replay guard by quote_id/hash" in plan["steps"][0]["indexes"]
     assert "Live settlement" in plan["steps"][0]["managed_sql_notes"][3]
@@ -134,6 +135,7 @@ def test_postgres_schema_generation_contains_required_tables_indexes_and_jsonb()
         "compute_billing_accounts",
         "compute_capacity_auctions",
         "compute_provider_sla_penalties",
+        "compute_alert_deliveries",
         "compute_migrations",
     ):
         assert table in sql

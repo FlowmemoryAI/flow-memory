@@ -428,4 +428,5 @@ def _audit_event(context: RequestContext, ok: bool, status: int, error_code: str
         ok=ok,
         status=status,
         error_code=error_code,
+        tenant_id=context.tenant_id,
     )

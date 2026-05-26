@@ -140,6 +140,7 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header() -> N
 
     assert response.status == 200
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
+    assert gateway.audit_sink.events[-1]["tenant_id"] == "tenant_http"
 
 
 def test_http_gateway_rejects_scope_header_escalation_for_scoped_key() -> None:

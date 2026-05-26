@@ -21,12 +21,14 @@ class AuditEvent:
     ok: bool
     status: int
     error_code: str = ""
+    tenant_id: str = ""
 
     def as_record(self) -> dict[str, Any]:
         return {
             "method": self.method,
             "path": self.path,
             "principal": self.principal,
+            "tenant_id": self.tenant_id,
             "request_id": self.request_id,
             "ok": self.ok,
             "status": self.status,
@@ -79,6 +81,7 @@ def _event(context: RequestContext, *, ok: bool, status: int, error_code: str) -
         ok=ok,
         status=status,
         error_code=error_code,
+        tenant_id=context.tenant_id,
     )
 
 

@@ -6,6 +6,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from collections.abc import Mapping
+from typing import Any
+
 
 import pytest
 
@@ -149,18 +152,24 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []
     jwt_health_calls = 0
 
-    def fake_call_json(method: str, url: str, headers=None, body=None):
+    def fake_call_json(
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        body: object | None = None,
+    ) -> tuple[int, dict[str, object]]:
         nonlocal jwt_health_calls
+        request_headers = headers or {}
         calls.append((method, url, headers, body))
-        scopes = (headers or {}).get("x-flow-memory-scopes", "")
+        scopes = request_headers.get("x-flow-memory-scopes", "")
         if url == "https://api.example.test/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
-        if url.endswith("/compute/health") and (headers or {}).get("authorization"):
+        if url.endswith("/compute/health") and request_headers.get("authorization"):
             jwt_health_calls += 1
             if jwt_health_calls == 1:
                 return 200, {"ok": True, "data": {"ok": True}}
             return 401, {"ok": False, "error": {"code": "auth.invalid"}}
-        if url.endswith("/compute/health") and not (headers or {}).get("x-flow-memory-api-key"):
+        if url.endswith("/compute/health") and not request_headers.get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
         if url.endswith("/compute/health"):
             return 200, {"ok": True, "data": {"ok": True}}
@@ -225,7 +234,11 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             return 200, {"ok": True, "data": {}}
         raise AssertionError(f"unexpected JSON call: {method} {url}")
 
-    def fake_call_text(method: str, url: str, headers=None):
+    def fake_call_text(
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+    ) -> tuple[int, str]:
         calls.append((method, url, headers, None))
         return 200, "compute_plan_requests_total 1\n"
 
@@ -242,12 +255,16 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         },
     )
 
-    jwt_calls = [call for call in calls if call[2] and call[2].get("authorization", "").startswith("Bearer ")]
+    jwt_headers = [
+        headers
+        for _, _, headers, _ in calls
+        if headers is not None and headers.get("authorization", "").startswith("Bearer ")
+    ]
     assert result["ok"] is True
     assert result["statuses"]["jwt_health"] == 200
     assert result["statuses"]["jwt_wrong_audience"] == 401
-    assert len(jwt_calls) == 2
-    assert jwt_calls[0][2]["x-flow-memory-scopes"] == "compute:read"
+    assert len(jwt_headers) == 2
+    assert jwt_headers[0]["x-flow-memory-scopes"] == "compute:read"
 
 
 def test_render_blueprint_preserves_billing_safety_defaults() -> None:
@@ -647,12 +664,18 @@ def test_render_deploy_blocks_insecure_keyvalue_connection_info() -> None:
 def test_render_keyvalue_creation_requires_explicit_external_tls_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
     created_body: dict[str, object] = {}
 
-    def fake_find_named(api_key: str, path: str, envelope: str, owner_id: str, name: str):
+    def fake_find_named(api_key: str, path: str, envelope: str, owner_id: str, name: str) -> None:
         return None
 
-    def fake_render_request(api_key: str, method: str, path: str, body=None):
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
         nonlocal created_body
         if method == "POST" and path == "/key-value":
+            assert body is not None
             created_body = dict(body)
             return {"id": "kv_1", **created_body}
         raise AssertionError(f"unexpected Render call: {method} {path}")
@@ -709,6 +732,7 @@ def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_
 
     env = os.environ.copy()
     env.pop("RENDER_API_KEY", None)
+    assert powershell is not None
     result = subprocess.run(
         [
             powershell,
@@ -776,7 +800,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
         ),
         encoding="utf-8",
     )
-    calls: dict[str, object] = {}
+    calls: dict[str, Any] = {}
 
     def fake_ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str) -> dict[str, str]:
         calls["postgres"] = {"api_key": api_key, "owner_id": owner_id, "region": region, "plan": plan}
@@ -802,7 +826,12 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     def fake_wait_available(api_key: str, path: str, resource_id: str, label: str) -> dict[str, str]:
         return {"id": resource_id, "label": label, "path": path}
 
-    def fake_render_request(api_key: str, method: str, path: str, body=None):
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
         if method == "GET" and path == "/postgres/pg_1/connection-info":
             return {"internalConnectionString": "postgresql://postgres.internal/flow_memory"}
         if method == "GET" and path == "/key-value/kv_1/connection-info":
@@ -890,9 +919,14 @@ def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> Non
 
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls = {"deploy_list": 0, "waited_for": ""}
+    calls: dict[str, Any] = {"deploy_list": 0, "waited_for": ""}
 
-    def fake_render_request(api_key: str, method: str, path: str, body=None):
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> object:
         if method == "GET" and path == "/services/srv_1/deploys?limit=10":
             calls["deploy_list"] = int(calls["deploy_list"]) + 1
             if calls["deploy_list"] == 1:
@@ -905,7 +939,7 @@ def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyP
             return {"deploy": {"status": "created"}}
         raise AssertionError(f"unexpected Render call: {method} {path}")
 
-    def fake_wait_deploy_live(api_key: str, service_id: str, deploy_id: str):
+    def fake_wait_deploy_live(api_key: str, service_id: str, deploy_id: str) -> dict[str, str]:
         calls["waited_for"] = deploy_id
         return {"id": deploy_id, "status": "live"}
 

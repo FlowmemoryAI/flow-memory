@@ -63,6 +63,16 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE:-COMPLIANCE}" in compose
 
+def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
+    blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
+    redis_url_key = "      - key: FLOW_MEMORY_COMPUTE_REDIS_URL\n        sync: false"
+
+    assert redis_url_key in blueprint
+    assert "property: connectionString" not in blueprint[
+        blueprint.index("FLOW_MEMORY_COMPUTE_REDIS_URL") : blueprint.index("FLOW_MEMORY_COMPUTE_REDIS_PREFIX")
+    ]
+
+
 
 def test_api_server_cli_rejects_public_bind_without_api_key() -> None:
     with pytest.raises(SystemExit):

@@ -69,10 +69,7 @@ services:
       - key: FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND
         value: redis
       - key: FLOW_MEMORY_COMPUTE_REDIS_URL
-        fromService:
-          type: keyvalue
-          name: flow-memory-compute-market-redis
-          property: connectionString
+        sync: false
       - key: FLOW_MEMORY_COMPUTE_REDIS_PREFIX
         value: flow-memory:compute-market
       - key: FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED

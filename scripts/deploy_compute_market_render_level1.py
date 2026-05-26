@@ -578,6 +578,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
     checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
     checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)
+    checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
@@ -615,6 +616,8 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             plan_payload.get("private_key_required") is False,
             checks["metrics"][0] == 200,
             "compute_plan_requests_total" in str(checks["metrics"][1]),
+            checks["alerts"][0] == 200,
+            checks["alerts"][1].get("ok") is True,
             audit_ok,
             checks["admin_audit_export"][0] == 200,
             checks["admin_storage_diagnostics"][0] == 200,
@@ -651,6 +654,7 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
         "admin_redis_diagnostics": checks["admin_redis_diagnostics"][0],
         "redis_url_scheme": safety.get("redis_url_scheme"),
         "metrics": checks["metrics"][0],
+        "alerts": checks["alerts"][0],
     }
 
 

@@ -82,14 +82,17 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
 
 
-def test_public_smoke_scripts_verify_prometheus_metrics_endpoint() -> None:
+def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     smoke_script = (ROOT / "scripts" / "smoke_compute_market_public.ps1").read_text(encoding="utf-8")
     render_script = (ROOT / "scripts" / "deploy_compute_market_render_level1.py").read_text(encoding="utf-8")
 
     assert 'Invoke-WebRequest -Uri "$baseUrl/metrics"' in smoke_script
     assert "compute_plan_requests_total" in smoke_script
+    assert "Path '/compute/alerts'" in smoke_script
     assert 'checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)' in render_script
+    assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
+    assert '"alerts": checks["alerts"][0]' in render_script
 
 
 def test_api_server_cli_rejects_public_bind_without_api_key() -> None:

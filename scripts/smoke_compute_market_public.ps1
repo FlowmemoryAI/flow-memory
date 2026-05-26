@@ -163,6 +163,10 @@ $metrics = Invoke-WebRequest -Uri "$baseUrl/metrics" -Method GET -Headers $metri
 Assert-True ([int]$metrics.StatusCode -eq 200) 'Prometheus metrics did not return HTTP 200.'
 Assert-True ([string]$metrics.Content -match 'compute_plan_requests_total') 'Prometheus metrics did not expose compute_plan_requests_total.'
 
+$alerts = Invoke-ComputeMarketRequest -Method GET -Path '/compute/alerts' -Scopes 'compute:read'
+Assert-Status -Response $alerts -Expected 200 -Name 'alerts'
+Assert-True ($alerts.Json.ok -eq $true) 'alerts endpoint did not return ok=true.'
+
 $auditVerify = Invoke-ComputeMarketRequest -Method GET -Path '/compute/audit/verify' -Scopes 'compute:audit'
 Assert-Status -Response $auditVerify -Expected 200 -Name 'audit verify'
 Assert-True (($auditVerify.Json.ok -eq $true) -and ($auditVerify.Json.data.ok -eq $true)) 'audit verify did not return ok=true.'
@@ -206,6 +210,7 @@ $result = [ordered]@{
     plan = $plan.StatusCode
     audit_verify = $auditVerify.StatusCode
     metrics = [int]$metrics.StatusCode
+    alerts = $alerts.StatusCode
     audit_export = $auditExport.StatusCode
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
     admin_redis_diagnostics = $redisDiagnostics.StatusCode

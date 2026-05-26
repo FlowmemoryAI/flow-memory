@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import os
 import sys
+import urllib.parse
 from time import monotonic_ns
 from typing import Any, Mapping
 
@@ -24,6 +26,20 @@ def env_value(names: tuple[str, ...]) -> str:
         if value:
             return value
     return ""
+
+
+def is_loopback_endpoint(value: str) -> bool:
+    parsed = urllib.parse.urlparse(value)
+    host = (parsed.hostname or "").strip().strip("[]").lower().rstrip(".")
+    if not host:
+        return False
+    if host in {"localhost", "ip6-localhost", "ip6-loopback"} or host.endswith(".local"):
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return bool(address.is_loopback or address.is_unspecified)
 
 
 def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mapping[str, Any]:
@@ -201,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--redis-url", default="")
     parser.add_argument("--postgres-ssl-mode", default=os.environ.get("FLOW_MEMORY_COMPUTE_POSTGRES_SSL_MODE", "require"))
     parser.add_argument("--allow-insecure-local-redis", action="store_true")
+    parser.add_argument("--allow-local-postgres", action="store_true")
     args = parser.parse_args(argv)
 
     postgres_url = args.postgres_url.strip() or env_value(POSTGRES_ENV_NAMES)
@@ -213,6 +230,20 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         print(json.dumps({"ok": False, "status": "blocked_missing_live_infra", "missing_values": missing}, indent=2, sort_keys=True))
         return 2
+    if is_loopback_endpoint(postgres_url) and not args.allow_local_postgres:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "status": "blocked_local_postgres",
+                    "postgres_host": urllib.parse.urlparse(postgres_url).hostname or "",
+                    "message": "live managed Postgres validation refuses loopback/local endpoints",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 4
     require_tls = not args.allow_insecure_local_redis and _bool_env(
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION",
         True,
@@ -231,6 +262,20 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         return 3
+    if require_tls and is_loopback_endpoint(redis_url):
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "status": "blocked_local_redis",
+                    "redis_host": urllib.parse.urlparse(redis_url).hostname or "",
+                    "message": "live managed Redis validation refuses loopback/local endpoints",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 5
 
     postgres = validate_postgres(postgres_url, ssl_mode=args.postgres_ssl_mode)
     redis = validate_redis(redis_url, require_tls=require_tls)

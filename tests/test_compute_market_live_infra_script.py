@@ -43,6 +43,42 @@ def test_live_infra_validator_blocks_plain_redis_before_network(monkeypatch: Any
     assert payload["required_scheme"] == "rediss"
 
 
+def test_live_infra_validator_blocks_loopback_postgres_before_network(monkeypatch: Any, capsys: Any) -> None:
+    _clear_live_env(monkeypatch)
+
+    exit_code = validator.main(
+        [
+            "--postgres-url",
+            "postgresql://flow_memory:secret@127.0.0.1:5432/flow_memory",
+            "--redis-url",
+            "rediss://cache.example:6379/0",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 4
+    assert payload["status"] == "blocked_local_postgres"
+    assert payload["postgres_host"] == "127.0.0.1"
+
+
+def test_live_infra_validator_blocks_loopback_rediss_before_network(monkeypatch: Any, capsys: Any) -> None:
+    _clear_live_env(monkeypatch)
+
+    exit_code = validator.main(
+        [
+            "--postgres-url",
+            "postgresql://flow_memory:secret@db.example/flow_memory",
+            "--redis-url",
+            "rediss://localhost:6379/0",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 5
+    assert payload["status"] == "blocked_local_redis"
+    assert payload["redis_host"] == "localhost"
+
+
 def test_live_infra_validator_can_run_local_insecure_redis_when_explicitly_allowed(
     monkeypatch: Any,
     capsys: Any,

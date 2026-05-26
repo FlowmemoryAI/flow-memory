@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import ipaddress
 import json
+import secrets
 import sys
 import time
 import urllib.error
@@ -34,7 +35,7 @@ def nonce_headers(headers: Mapping[str, str], *, label: str) -> dict[str, str]:
     has_auth = "x-flow-memory-api-key" in lowered or "authorization" in lowered
     if has_auth and "x-flow-memory-nonce" not in lowered:
         enriched["x-flow-memory-timestamp"] = str(time.time())
-        enriched["x-flow-memory-nonce"] = f"{label}-{time.time_ns()}"
+        enriched["x-flow-memory-nonce"] = f"{label}-{secrets.token_urlsafe(18)}"
     return enriched
 
 

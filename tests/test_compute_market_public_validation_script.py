@@ -5,6 +5,35 @@ from typing import Any, Mapping
 import scripts.validate_compute_market_public_buildout as validator
 
 
+def test_public_validator_nonce_headers_are_random_per_authenticated_request(monkeypatch: Any) -> None:
+    nonces = iter(("nonce-a", "nonce-b"))
+    monkeypatch.setattr(validator.secrets, "token_urlsafe", lambda _size: next(nonces))
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890.0)
+
+    first = validator.nonce_headers(
+        {"x-flow-memory-api-key": "prod-key", "x-flow-memory-scopes": "compute:read"},
+        label="GET-json",
+    )
+    second = validator.nonce_headers(
+        {"authorization": "Bearer token", "x-flow-memory-scopes": "compute:read"},
+        label="GET-json",
+    )
+    unauthenticated = validator.nonce_headers({"x-flow-memory-scopes": "compute:read"}, label="GET-json")
+    existing = validator.nonce_headers(
+        {"x-flow-memory-api-key": "prod-key", "x-flow-memory-nonce": "caller-nonce"},
+        label="GET-json",
+    )
+
+    assert first["x-flow-memory-timestamp"] == "1234567890.0"
+    assert second["x-flow-memory-timestamp"] == "1234567890.0"
+    assert first["x-flow-memory-nonce"] == "GET-json-nonce-a"
+    assert second["x-flow-memory-nonce"] == "GET-json-nonce-b"
+    assert first["x-flow-memory-nonce"] != second["x-flow-memory-nonce"]
+    assert "x-flow-memory-nonce" not in unauthenticated
+    assert existing["x-flow-memory-nonce"] == "caller-nonce"
+    assert "x-flow-memory-timestamp" not in existing
+
+
 def test_public_buildout_main_blocks_loopback_public_url(tmp_path: Any) -> None:
     env_file = tmp_path / "live.env"
     env_file.write_text("FLOW_MEMORY_API_KEY=prod-key\n", encoding="utf-8")

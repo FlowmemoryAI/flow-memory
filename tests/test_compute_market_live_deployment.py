@@ -18,6 +18,21 @@ import scripts.deploy_compute_market_render_level1 as render_deploy
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _render_blueprint_env_values() -> dict[str, str]:
+    values: dict[str, str] = {}
+    current_key = ""
+    for raw_line in (ROOT / "render.yaml").read_text(encoding="utf-8").splitlines():
+        stripped = raw_line.strip()
+        if stripped.startswith("- key: "):
+            current_key = stripped.removeprefix("- key: ").strip()
+            continue
+        if current_key and stripped.startswith("value: "):
+            values[current_key] = stripped.removeprefix("value: ").strip().strip('"')
+            current_key = ""
+    return values
+
+
+
 def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
     template = (ROOT / "deployments" / "compute-market" / "live.env.example").read_text(encoding="utf-8")
 
@@ -47,9 +62,12 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS=2000",
         "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS=5000",
+        "FLOW_MEMORY_COMPUTE_METRICS_ENABLED=true",
+        "FLOW_MEMORY_COMPUTE_TRACING_ENABLED=true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://CHANGEME-audit-object-lock-bucket/compute-market",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+        "FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS=86400",
         "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
         "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
         "FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL=https://api.stripe.com",
@@ -96,6 +114,10 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS:-2000}" in compose
     assert "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED: ${FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS:-5000}" in compose
+    assert (
+        "FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS: "
+        "${FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS:-86400}"
+    ) in compose
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE:-COMPLIANCE}" in compose
     assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED: ${FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED:-false}" in compose
@@ -126,6 +148,36 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND\n        value: redis" in blueprint
     assert "FLOW_MEMORY_API_NONCE_REQUIRE_TLS\n        value: true" in blueprint
     assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
+
+
+def test_render_blueprint_and_env_builder_match_level1_safety_contract() -> None:
+    blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
+    blueprint_env = _render_blueprint_env_values()
+    deploy_env = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_s3_region="us-east-1",
+        )
+    }
+
+    for key, expected in render_deploy.LEVEL1_EXPECTED_BOOLEAN_SETTINGS.items():
+        assert blueprint_env.get(key) == expected
+        assert deploy_env[key] == expected
+
+    assert "FLOW_MEMORY_METRICS_ENABLED" not in blueprint
+    assert "FLOW_MEMORY_TRACING_ENABLED" not in blueprint
+    assert "FLOW_MEMORY_METRICS_ENABLED" not in deploy_env
+    assert "FLOW_MEMORY_TRACING_ENABLED" not in deploy_env
+    assert blueprint_env["FLOW_MEMORY_COMPUTE_METRICS_ENABLED"] == "true"
+    assert blueprint_env["FLOW_MEMORY_COMPUTE_TRACING_ENABLED"] == "true"
+    assert deploy_env["FLOW_MEMORY_COMPUTE_METRICS_ENABLED"] == "true"
+    assert deploy_env["FLOW_MEMORY_COMPUTE_TRACING_ENABLED"] == "true"
+    assert blueprint_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
+    assert deploy_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
 
 
 def test_render_deploy_requires_https_public_url_before_smoke() -> None:
@@ -278,6 +330,20 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_wrong_audience"] == 401
     assert len(jwt_headers) == 2
     assert jwt_headers[0]["x-flow-memory-scopes"] == "compute:read"
+    authenticated_headers = [
+        headers
+        for _, _, headers, _ in calls
+        if headers is not None
+        and ("x-flow-memory-api-key" in headers or headers.get("authorization", "").startswith("Bearer "))
+    ]
+    nonce_pairs = [
+        (headers.get("x-flow-memory-timestamp"), headers.get("x-flow-memory-nonce"))
+        for headers in authenticated_headers
+    ]
+
+    assert len(authenticated_headers) == 13
+    assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
+    assert len(set(nonce_pairs)) == len(nonce_pairs)
 
 
 def test_render_blueprint_preserves_billing_safety_defaults() -> None:

@@ -1,3 +1,7 @@
+import base64
+import hashlib
+import hmac
+import json
 import unittest
 import time
 
@@ -13,6 +17,19 @@ from flow_memory.api.auth import (
 )
 from flow_memory.api.signed_requests import sign_request
 from flow_memory.crypto import generate_local_keypair
+
+
+def _jwt(secret: str, claims: dict[str, object], header: dict[str, object] | None = None) -> str:
+    jwt_header = {"alg": "HS256", "typ": "JWT", **(header or {})}
+    encoded_header = _b64url(json.dumps(jwt_header, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    encoded_claims = _b64url(json.dumps(claims, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    signed = f"{encoded_header}.{encoded_claims}".encode("ascii")
+    signature = hmac.new(secret.encode("utf-8"), signed, hashlib.sha256).digest()
+    return f"{encoded_header}.{encoded_claims}.{_b64url(signature)}"
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
 
 
 class ApiAuthTests(unittest.TestCase):
@@ -118,6 +135,54 @@ class ApiAuthTests(unittest.TestCase):
         self.assertIn("replayed request nonce", replay.reasons)
         self.assertFalse(stale.ok)
         self.assertIn("stale request timestamp", stale.reasons)
+
+    def test_authorize_request_accepts_valid_hs256_bearer_jwt(self) -> None:
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-123",
+                "tenant_id": "tenant_jwt",
+                "scope": "compute:read compute:plan",
+                "iss": "https://issuer.example",
+                "aud": "flow-memory-api",
+                "exp": time.time() + 300,
+            },
+            {"kid": "gateway-key-1"},
+        )
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(
+                jwt_hs256_secret="jwt-secret",
+                jwt_issuer="https://issuer.example",
+                jwt_audience="flow-memory-api",
+            ),
+        )
+
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.key_id, "gateway-key-1")
+        self.assertEqual(decision.principal, "user-123")
+        self.assertEqual(decision.tenant_id, "tenant_jwt")
+        self.assertEqual(decision.scopes, ("compute:plan", "compute:read"))
+        self.assertTrue(require_api_key({"authorization": f"Bearer {token}"}, ApiAuthConfig(jwt_hs256_secret="jwt-secret")))
+
+    def test_authorize_request_rejects_expired_or_wrong_audience_jwt(self) -> None:
+        expired = _jwt("jwt-secret", {"sub": "user-123", "aud": "flow-memory-api", "exp": time.time() - 300})
+        wrong_audience = _jwt("jwt-secret", {"sub": "user-123", "aud": "other-api", "exp": time.time() + 300})
+
+        expired_decision = authorize_request(
+            {"authorization": f"Bearer {expired}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api", jwt_leeway_seconds=0),
+        )
+        wrong_audience_decision = authorize_request(
+            {"authorization": f"Bearer {wrong_audience}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api"),
+        )
+
+        self.assertFalse(expired_decision.ok)
+        self.assertIn("expired bearer token", expired_decision.reasons)
+        self.assertFalse(wrong_audience_decision.ok)
+        self.assertIn("jwt audience mismatch", wrong_audience_decision.reasons)
 
     def test_api_key_issue_rotate_disable_records_never_expose_hash_publicly(self) -> None:
         issued = issue_api_key_record(

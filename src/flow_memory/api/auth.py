@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import json
+import hmac
 import secrets
 import time
 import hashlib
@@ -30,6 +33,10 @@ class ApiAuthConfig:
     api_key_records: tuple[Mapping[str, Any], ...] = ()
     enable_nonce_check: bool = False
     max_request_age_seconds: int = 300
+    jwt_hs256_secret: str = ""
+    jwt_issuer: str = ""
+    jwt_audience: str = ""
+    jwt_leeway_seconds: int = 60
 
 
 @dataclass(frozen=True)
@@ -43,9 +50,9 @@ class ApiAuthDecision:
 
 
 def require_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> bool:
-    if not config.api_key and not config.api_key_records:
+    if not config.api_key and not config.api_key_records and not config.jwt_hs256_secret:
         return True
-    return resolve_api_key(headers, config) is not None
+    return authorize_request(headers, config).ok
 
 
 def resolve_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> ApiKeyIdentity | None:
@@ -177,9 +184,19 @@ def authorize_request(
     signature_key: LocalKeyPair | None = None,
 ) -> ApiAuthDecision:
     reasons: list[str] = []
-    identity = resolve_api_key(headers, config)
-    if (config.api_key or config.api_key_records) and identity is None:
-        reasons.append("missing or invalid API key")
+    api_identity = resolve_api_key(headers, config)
+    jwt_identity, jwt_reasons = resolve_bearer_jwt(headers, config)
+    identity = api_identity or jwt_identity
+    auth_configured = bool(config.api_key or config.api_key_records or config.jwt_hs256_secret)
+    if auth_configured and identity is None:
+        if jwt_reasons:
+            reasons.extend(jwt_reasons)
+        else:
+            reasons.append(
+                "missing or invalid API key or bearer token"
+                if config.jwt_hs256_secret
+                else "missing or invalid API key"
+            )
     if config.require_signed_requests:
         if signature is None or signature_key is None:
             reasons.append("signed request required")
@@ -195,6 +212,101 @@ def authorize_request(
         scopes=identity.scopes if identity else (),
         key_id=identity.key_id if identity else "",
     )
+
+def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tuple[ApiKeyIdentity | None, tuple[str, ...]]:
+    if not config.jwt_hs256_secret:
+        return None, ()
+    authorization = _header(headers, "authorization")
+    if not authorization.lower().startswith("bearer "):
+        return None, ("missing bearer token",)
+    token = authorization.split(None, 1)[1].strip()
+    if not token:
+        return None, ("missing bearer token",)
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None, ("malformed bearer token",)
+    try:
+        header = _jwt_json_segment(parts[0])
+        claims = _jwt_json_segment(parts[1])
+        signature = _b64url_decode(parts[2])
+    except ValueError as exc:
+        return None, (str(exc),)
+    if str(header.get("alg", "")) != "HS256":
+        return None, ("unsupported jwt alg",)
+    signed = f"{parts[0]}.{parts[1]}".encode("ascii")
+    expected = hmac.new(config.jwt_hs256_secret.encode("utf-8"), signed, "sha256").digest()
+    if not hmac.compare_digest(signature, expected):
+        return None, ("invalid bearer token signature",)
+    claim_errors = _jwt_claim_errors(claims, config)
+    if claim_errors:
+        return None, claim_errors
+    subject = str(claims.get("sub", ""))
+    if not subject:
+        return None, ("jwt sub required",)
+    scopes = _parse_scopes(claims.get("scope", claims.get("scp", ())))
+    return (
+        ApiKeyIdentity(
+            key_id=str(header.get("kid", "jwt")),
+            tenant_id=str(claims.get("tenant_id", claims.get("org_id", ""))),
+            principal=subject,
+            scopes=scopes,
+            key_prefix="bearer",
+        ),
+        (),
+    )
+
+def _b64url_decode(segment: str) -> bytes:
+    try:
+        padding = "=" * ((4 - len(segment) % 4) % 4)
+        return base64.urlsafe_b64decode((segment + padding).encode("ascii"))
+    except (ValueError, UnicodeEncodeError) as exc:
+        raise ValueError("malformed bearer token") from exc
+
+
+def _jwt_json_segment(segment: str) -> Mapping[str, Any]:
+    try:
+        decoded = json.loads(_b64url_decode(segment).decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("malformed bearer token") from exc
+    if not isinstance(decoded, Mapping):
+        raise ValueError("malformed bearer token")
+    return decoded
+
+
+def _jwt_claim_errors(claims: Mapping[str, Any], config: ApiAuthConfig) -> tuple[str, ...]:
+    errors: list[str] = []
+    now = time.time()
+    leeway = max(0, int(config.jwt_leeway_seconds))
+    exp = _numeric_claim(claims.get("exp"))
+    if exp is None:
+        errors.append("jwt exp required")
+    elif exp + leeway < now:
+        errors.append("expired bearer token")
+    nbf = _numeric_claim(claims.get("nbf"))
+    if nbf is not None and nbf - leeway > now:
+        errors.append("bearer token not yet valid")
+    if config.jwt_issuer and str(claims.get("iss", "")) != config.jwt_issuer:
+        errors.append("jwt issuer mismatch")
+    if config.jwt_audience and not _jwt_audience_matches(claims.get("aud"), config.jwt_audience):
+        errors.append("jwt audience mismatch")
+    return tuple(errors)
+
+
+def _numeric_claim(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _jwt_audience_matches(value: object, expected: str) -> bool:
+    if isinstance(value, str):
+        return value == expected
+    if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        return expected in {str(item) for item in value}
+    return False
 
 
 def _header(headers: Mapping[str, str], name: str) -> str:

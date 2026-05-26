@@ -73,6 +73,22 @@ def test_api_server_cli_accepts_public_bind_with_hashed_tenant_key_records() -> 
     assert config.api_key == ""
     assert config.api_key_records[0]["tenant_id"] == "tenant"
 
+def test_api_server_cli_accepts_public_bind_with_jwt_gateway_secret() -> None:
+    config = build_http_api_config(
+        ["--host", "0.0.0.0", "--require-scopes"],
+        env={
+            "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-shared-secret",
+            "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+            "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+        },
+    )
+
+    assert config.host == "0.0.0.0"
+    assert config.api_key == ""
+    assert config.jwt_hs256_secret == "gateway-shared-secret"
+    assert config.jwt_issuer == "https://issuer.example"
+    assert config.jwt_audience == "flow-memory-api"
+
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = {"deploy_list": 0, "waited_for": ""}

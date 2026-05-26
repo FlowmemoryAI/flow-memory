@@ -56,6 +56,14 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         type=int,
         default=_int(source.get("FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS"), 300),
     )
+    parser.add_argument("--jwt-hs256-secret", default=source.get("FLOW_MEMORY_API_JWT_HS256_SECRET", ""))
+    parser.add_argument("--jwt-issuer", default=source.get("FLOW_MEMORY_API_JWT_ISSUER", ""))
+    parser.add_argument("--jwt-audience", default=source.get("FLOW_MEMORY_API_JWT_AUDIENCE", ""))
+    parser.add_argument(
+        "--jwt-leeway-seconds",
+        type=int,
+        default=_int(source.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"), 60),
+    )
     parser.add_argument(
         "--allow-unauthenticated-public-bind",
         action="store_true",
@@ -73,12 +81,22 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         max_body_bytes=int(args.max_body_bytes),
         enable_nonce_check=bool(args.enable_nonce_check),
         max_request_age_seconds=int(args.max_request_age_seconds),
+        jwt_hs256_secret=str(args.jwt_hs256_secret),
+        jwt_issuer=str(args.jwt_issuer),
+        jwt_audience=str(args.jwt_audience),
+        jwt_leeway_seconds=int(args.jwt_leeway_seconds),
     )
     errors = config.validate()
     if errors:
         parser.error("; ".join(errors))
-    if _public_bind(config.host) and not config.api_key and not config.api_key_records and not bool(args.allow_unauthenticated_public_bind):
-        parser.error("FLOW_MEMORY_API_KEY or --api-key is required when binding the API server to a non-local host")
+    if (
+        _public_bind(config.host)
+        and not config.api_key
+        and not config.api_key_records
+        and not config.jwt_hs256_secret
+        and not bool(args.allow_unauthenticated_public_bind)
+    ):
+        parser.error("FLOW_MEMORY_API_KEY, FLOW_MEMORY_API_KEYS_JSON, or FLOW_MEMORY_API_JWT_HS256_SECRET is required when binding the API server to a non-local host")
     return config
 
 

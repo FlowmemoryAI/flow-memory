@@ -36,6 +36,10 @@ class HttpApiConfig:
     max_body_bytes: int = 1_048_576
     enable_nonce_check: bool = False
     max_request_age_seconds: int = 300
+    jwt_hs256_secret: str = ""
+    jwt_issuer: str = ""
+    jwt_audience: str = ""
+    jwt_leeway_seconds: int = 60
 
     def validate(self) -> tuple[str, ...]:
         errors: list[str] = []
@@ -49,6 +53,8 @@ class HttpApiConfig:
             errors.append("max_body_bytes must be positive")
         if self.max_request_age_seconds < 1:
             errors.append("max_request_age_seconds must be positive")
+        if self.jwt_leeway_seconds < 0:
+            errors.append("jwt_leeway_seconds must be non-negative")
         return tuple(errors)
 
 
@@ -111,7 +117,7 @@ class HttpApiGateway:
                     "data": {
                         "service": "Flow Memory Compute Market",
                         "status": "public_level_1_api_live",
-                        "auth": "API key required for /compute/* endpoints",
+                        "auth": "API key or JWT bearer required for /compute/* endpoints",
                         "safe_mode": {
                             "dry_run_required": True,
                             "live_settlement_enabled": False,
@@ -145,6 +151,10 @@ class HttpApiGateway:
                     api_key_records=api_key_records,
                     enable_nonce_check=self.config.enable_nonce_check,
                     max_request_age_seconds=self.config.max_request_age_seconds,
+                    jwt_hs256_secret=self.config.jwt_hs256_secret,
+                    jwt_issuer=self.config.jwt_issuer,
+                    jwt_audience=self.config.jwt_audience,
+                    jwt_leeway_seconds=self.config.jwt_leeway_seconds,
                 ),
                 method=context.method,
                 path=context.path,

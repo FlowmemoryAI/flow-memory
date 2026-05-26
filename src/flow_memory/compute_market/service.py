@@ -662,14 +662,16 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        tenant_id = _payload_tenant_id(payload)
+        workspace_id = str(payload.get("workspace_id", ""))
         _assert_provider_catalog_access(self.store, provider_id, payload)
         stale_marked = _mark_expired_quotes_stale(
             self.store,
             provider_id,
             route_id,
             request_id=request_id,
-            tenant_id=str(payload.get("tenant_id", "")),
-            workspace_id=str(payload.get("workspace_id", "")),
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
         )
         public_key = _provider_public_key(payload, provider_id, self)
         validation = validate_provider_quote_contract(
@@ -680,6 +682,8 @@ class ComputeMarketService:
             public_key=public_key,
         )
         quote_id = str(quote.get("quote_id") or deterministic_id("quote", quote))
+        quote_record_id = _quote_record_id(quote_id, tenant_id)
+        quote_replay_record_id = _quote_replay_record_id(quote_id, tenant_id)
         quote_hash = content_hash(quote)
         cross_provider_replay = _cross_provider_quote_replay(self.store, quote_id, quote_hash, provider_id, payload)
         if cross_provider_replay:
@@ -703,9 +707,13 @@ class ComputeMarketService:
             )
             self._audit("market.quote.cross_provider_replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("cross_provider_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
-        replay_guard = self.store.get_record("quote_replay_guard", quote_id)
-        if replay_guard and not _tenant_can_access_record(payload, replay_guard):
-            replay_guard = {}
+        replay_guard = _get_tenant_scoped_record(
+            self.store,
+            "quote_replay_guard",
+            quote_id,
+            quote_replay_record_id,
+            payload,
+        )
         if replay_guard and str(replay_guard.get("quote_hash", "")) != quote_hash:
             error = compute_error(
                 "quote.replay_detected",
@@ -743,8 +751,9 @@ class ComputeMarketService:
         signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
         record = {
             **_normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid),
-            "tenant_id": str(payload.get("tenant_id", "")),
-            "workspace_id": str(payload.get("workspace_id", "")),
+            "record_id": quote_record_id,
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
         }
         quote_filters = {"provider_id": provider_id, "route_id": route_id}
         if _payload_tenant_id(payload):
@@ -754,33 +763,34 @@ class ComputeMarketService:
         fraud_signals: tuple[Mapping[str, Any], ...] = ()
         self.store.put_record(
             "quote_replay_guard",
-            quote_id,
+            quote_replay_record_id,
             {
                 "quote_id": quote_id,
                 "quote_hash": quote_hash,
                 "provider_id": provider_id,
                 "route_id": route_id,
                 "created_at": utc_now_iso(),
-                "tenant_id": str(payload.get("tenant_id", "")),
-                "workspace_id": str(payload.get("workspace_id", "")),
+                "record_id": quote_replay_record_id,
+                "tenant_id": tenant_id,
+                "workspace_id": workspace_id,
             },
             provider_id=provider_id,
             route_id=route_id,
             request_id=request_id,
-            tenant_id=str(payload.get("tenant_id", "")),
-            workspace_id=str(payload.get("workspace_id", "")),
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
         )
         self.store.put_record(
             "compute_quote",
-            quote_id,
+            quote_record_id,
             record,
             provider_id=provider_id,
             route_id=route_id,
             status=str(record.get("status", "valid")),
             expires_at=str(record.get("expires_at", "")),
             request_id=request_id,
-            tenant_id=str(payload.get("tenant_id", "")),
-            workspace_id=str(payload.get("workspace_id", "")),
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
             idempotency_key=str(payload.get("idempotency_key", "")),
         )
         if drift:
@@ -810,7 +820,7 @@ class ComputeMarketService:
                         workspace_id=str(payload.get("workspace_id", "")),
                     ),
                 )
-        cache_key = self.store.quote_cache_key(provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")))
+        cache_key = _quote_cache_key(self.store, provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")), tenant_id)
         self.store.put_record(
             "quote_cache_entry",
             cache_key,
@@ -827,8 +837,8 @@ class ComputeMarketService:
                 "expires_at": str(record.get("expires_at", "")),
                 "ttl_seconds": int(record.get("quote_ttl_seconds", 300) or 300),
                 "status": str(record.get("status", "valid")),
-                "tenant_id": str(payload.get("tenant_id", "")),
-                "workspace_id": str(payload.get("workspace_id", "")),
+                "tenant_id": tenant_id,
+                "workspace_id": workspace_id,
             },
             provider_id=provider_id,
             route_id=route_id,
@@ -836,8 +846,8 @@ class ComputeMarketService:
             status=str(record.get("status", "valid")),
             expires_at=str(record.get("expires_at", "")),
             request_id=request_id,
-            tenant_id=str(payload.get("tenant_id", "")),
-            workspace_id=str(payload.get("workspace_id", "")),
+            tenant_id=tenant_id,
+            workspace_id=workspace_id
         )
         self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
         self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
@@ -920,13 +930,7 @@ class ComputeMarketService:
         else:
             quote_ids = _tuple(payload.get("quote_ids", ()))
             if quote_ids:
-                records = tuple(self.store.get_record("compute_quote", quote_id) for quote_id in quote_ids)
-                if _payload_tenant_id(payload):
-                    records = tuple(
-                        record
-                        for record in records
-                        if isinstance(record, Mapping) and _tenant_can_access_record(payload, record)
-                    )
+                records = tuple(_get_quote_record(self.store, quote_id, payload) for quote_id in quote_ids)
                 quotes = tuple(record for record in records if isinstance(record, Mapping))
             else:
                 quotes = tuple(
@@ -4033,7 +4037,14 @@ def _cross_provider_quote_replay(
     payload: Mapping[str, Any] | None = None,
 ) -> Mapping[str, Any]:
     access_payload = payload or {}
-    existing = store.get_record("quote_replay_guard", quote_id)
+    tenant_id = _payload_tenant_id(access_payload)
+    existing = _get_tenant_scoped_record(
+        store,
+        "quote_replay_guard",
+        quote_id,
+        _quote_replay_record_id(quote_id, tenant_id),
+        access_payload,
+    )
     if (
         existing
         and _tenant_can_access_record(access_payload, existing)
@@ -4071,7 +4082,7 @@ def _mark_expired_quotes_stale(
         updated = {**dict(quote), "status": "stale", "stale": True, "updated_at": now}
         store.put_record(
             "compute_quote",
-            str(updated["quote_id"]),
+            str(updated.get("record_id", "") or _quote_record_id(str(updated["quote_id"]), tenant_id)),
             updated,
             provider_id=provider_id,
             route_id=route_id,
@@ -4776,6 +4787,79 @@ def _tenant_can_access_catalog_record(payload: Mapping[str, Any], record: Mappin
         return True
     record_tenant_id = str(record.get("tenant_id", "")).strip()
     return not record_tenant_id or record_tenant_id == tenant_id
+
+def _tenant_scoped_record_id(record_type: str, natural_id: str, tenant_id: str) -> str:
+    tenant = tenant_id.strip()
+    if not tenant:
+        return natural_id
+    return deterministic_id(record_type, {"tenant_id": tenant, "record_id": natural_id})
+
+
+def _quote_record_id(quote_id: str, tenant_id: str) -> str:
+    return _tenant_scoped_record_id("compute_quote", quote_id, tenant_id)
+
+
+def _quote_replay_record_id(quote_id: str, tenant_id: str) -> str:
+    return _tenant_scoped_record_id("quote_replay_guard", quote_id, tenant_id)
+
+
+def _quote_cache_key(
+    store: ComputeMarketStoreProtocol,
+    provider_id: str,
+    route_id: str,
+    task_hash: str,
+    policy_hash: str,
+    tenant_id: str,
+) -> str:
+    if not tenant_id:
+        return store.quote_cache_key(provider_id, route_id, task_hash, policy_hash)
+    return deterministic_id(
+        "quote_cache",
+        {
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "task_hash": task_hash,
+            "policy_hash": policy_hash,
+            "tenant_id": tenant_id,
+        },
+    )
+
+
+def _get_tenant_scoped_record(
+    store: ComputeMarketStoreProtocol,
+    record_type: str,
+    natural_id: str,
+    scoped_id: str,
+    payload: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    for record_id in (scoped_id, natural_id):
+        record = store.get_record(record_type, record_id)
+        if record is not None and _tenant_can_access_record(payload, record):
+            return record
+    return None
+
+
+def _get_quote_record(
+    store: ComputeMarketStoreProtocol,
+    quote_id: str,
+    payload: Mapping[str, Any],
+) -> Mapping[str, Any] | None:
+    tenant_id = _payload_tenant_id(payload)
+    record = _get_tenant_scoped_record(
+        store,
+        "compute_quote",
+        quote_id,
+        _quote_record_id(quote_id, tenant_id),
+        payload,
+    )
+    if record is not None:
+        return record
+    if not tenant_id:
+        return None
+    for candidate in store.list_records("compute_quote", filters={"tenant_id": tenant_id}, limit=500).records:
+        if str(candidate.get("quote_id", candidate.get("record_id", ""))) == quote_id:
+            return candidate
+    return None
 
 def _assert_provider_catalog_access(
     store: ComputeMarketStoreProtocol,

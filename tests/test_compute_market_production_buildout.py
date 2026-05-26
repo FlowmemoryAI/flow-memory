@@ -364,7 +364,7 @@ def test_quote_and_capacity_records_are_tenant_scoped() -> None:
             "allowed_networks": ["solana"],
         }
     )
-    replay_guard = service.store.get_record("quote_replay_guard", "quote_live_gpu_1")
+    replay_guard = service.store.list_records("quote_replay_guard", filters={"tenant_id": tenant_a}).records[0]
     tenant_b_comparison = service.compare_quotes(
         {
             "tenant_id": tenant_b,
@@ -382,6 +382,7 @@ def test_quote_and_capacity_records_are_tenant_scoped() -> None:
 
     assert accepted["quote"]["tenant_id"] == tenant_a
     assert accepted["quote"]["workspace_id"] == "workspace_market_a"
+    assert service.store.get_record("compute_quote", str(accepted["quote"]["record_id"])) is not None
     assert replay_guard is not None
     assert replay_guard["tenant_id"] == tenant_a
     assert tenant_b_comparison["quote_comparison"]["summary"]["quote_count"] == 0
@@ -526,6 +527,45 @@ def test_quote_and_capacity_records_are_tenant_scoped() -> None:
         }
     )
     assert auction["clearing"]["tenant_id"] == tenant_a
+
+
+def test_quote_records_use_tenant_scoped_identity_for_shared_providers() -> None:
+    service = _service()
+    tenant_a = "tenant_shared_quote_a"
+    tenant_b = "tenant_shared_quote_b"
+
+    tenant_a_quote = service.broker_quote(
+        {
+            "tenant_id": tenant_a,
+            "quote": _quote(0.18),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )["quote"]
+    tenant_b_quote = service.broker_quote(
+        {
+            "tenant_id": tenant_b,
+            "quote": {**_quote(0.27), "unit_price": 0.135},
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )["quote"]
+    tenant_a_comparison = service.compare_quotes(
+        {"tenant_id": tenant_a, "quote_ids": ["quote_live_gpu_1"], "task": "tenant a quote lookup"}
+    )
+    tenant_b_comparison = service.compare_quotes(
+        {"tenant_id": tenant_b, "quote_ids": ["quote_live_gpu_1"], "task": "tenant b quote lookup"}
+    )
+
+    assert tenant_a_quote["quote_id"] == tenant_b_quote["quote_id"] == "quote_live_gpu_1"
+    assert tenant_a_quote["record_id"] != tenant_b_quote["record_id"]
+    assert tenant_a_quote["tenant_id"] == tenant_a
+    assert tenant_b_quote["tenant_id"] == tenant_b
+    assert service.store.count_records("compute_quote") == 2
+    assert service.store.count_records("quote_replay_guard") == 2
+    assert service.store.count_records("quote_cache_entry") == 2
+    assert tenant_a_comparison["quote_comparison"]["rows"][0]["estimated_total_cost"] == 0.18
+    assert tenant_b_comparison["quote_comparison"]["rows"][0]["estimated_total_cost"] == 0.27
 
 
 def test_quote_comparison_across_unit_types_and_assets() -> None:

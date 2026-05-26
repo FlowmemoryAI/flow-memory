@@ -243,6 +243,9 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     refund = data(checks["billing_refund"][1]).get("refund", {})
     storage_diag = data(checks["admin_storage_diagnostics"][1])
     redis_diag = data(checks["admin_redis_diagnostics"][1])
+    safety_defaults = readiness.get("production_safety_defaults", {})
+    schema_verification = storage_diag.get("schema_verification", {})
+    advisory_lock_probe = schema_verification.get("advisory_lock_probe", {})
 
     audit_export_status = data(checks["admin_audit_export"][1])
     require(checks["root"][0] == 200 and root_data.get("service") == "Flow Memory Compute Market", "root public landing failed")
@@ -251,6 +254,8 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(readiness.get("storage", {}).get("backend") in {"postgres", "postgresql"}, "readiness did not report Postgres")
     require(readiness.get("rate_limiter_status", {}).get("backend") == "redis" or readiness.get("production_safety_defaults", {}).get("rate_limit_backend") == "redis", "readiness did not report Redis limiter")
     require(readiness.get("circuit_breaker_status", {}).get("backend") == "redis" or readiness.get("production_safety_defaults", {}).get("circuit_breaker_backend") == "redis", "readiness did not report Redis circuit breaker")
+    require(safety_defaults.get("require_managed_redis_in_production") is True, "managed Redis requirement is not enabled")
+    require(safety_defaults.get("redis_url_scheme") == "rediss", "managed Redis URL is not rediss://")
     require(plan.get("dry_run_only") is True and plan.get("funds_moved") is False and plan.get("broadcast_allowed") is False and plan.get("private_key_required") is False, "plan safety flags failed")
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
@@ -266,7 +271,20 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(checks["billing_refund"][0] == 200 and refund.get("funds_moved") is False and refund.get("external_refund_created") is False and refund.get("status") == "recorded_no_custody", "billing refund safety failed")
     require(checks["admin_reconciliation"][0] == 200 and checks["admin_reconciliation"][1].get("ok") is True, "admin reconciliation failed")
     require(checks["admin_storage_diagnostics"][0] == 200 and storage_diag.get("ok") is True and storage_diag.get("production_readiness", {}).get("production_ready") is True, "admin storage diagnostics failed")
+    require(
+        schema_verification.get("ok") is True
+        and not schema_verification.get("missing_tables", ())
+        and not schema_verification.get("missing_indexes", ())
+        and isinstance(advisory_lock_probe, Mapping)
+        and advisory_lock_probe.get("acquired") is True,
+        "admin storage schema verification failed",
+    )
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
+    require(
+        redis_diag.get("rate_limit_fail_closed") is True
+        and redis_diag.get("circuit_breaker_fail_closed") is True,
+        "admin redis diagnostics did not report fail-closed Redis controls",
+    )
     require(checks["admin_audit_export"][0] == 200 and "audit_exporter_status" in data(checks["admin_audit_export"][1]), "admin audit export status failed")
     if require_immutable_audit:
         require(
@@ -282,6 +300,8 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
         "storage_backend": readiness.get("storage", {}).get("backend"),
         "rate_limit_backend": readiness.get("rate_limiter_status", {}).get("backend") or readiness.get("production_safety_defaults", {}).get("rate_limit_backend"),
         "circuit_breaker_backend": readiness.get("circuit_breaker_status", {}).get("backend") or readiness.get("production_safety_defaults", {}).get("circuit_breaker_backend"),
+        "require_managed_redis_in_production": safety_defaults.get("require_managed_redis_in_production"),
+        "redis_url_scheme": safety_defaults.get("redis_url_scheme"),
         "dry_run_only": True,
         "funds_moved": False,
         "broadcast_allowed": False,

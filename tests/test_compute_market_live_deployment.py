@@ -16,6 +16,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
     for required in (
         "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
+        "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
         "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND=redis",
         "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND=redis",
         "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
@@ -48,6 +49,7 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "--require-scopes" in compose
     assert "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND: postgres" in compose
     assert "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND: redis" in compose
+    assert "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION: ${FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND: redis" in compose
     assert "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED: \"false\"" in compose
     assert "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED: \"false\"" in compose
@@ -129,6 +131,7 @@ def test_render_deploy_requires_s3_object_lock_audit_export() -> None:
     assert local_file.value.code == 23
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == "s3://flow-memory-audit/compute-market"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "true"
+    assert env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
     assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
 
 

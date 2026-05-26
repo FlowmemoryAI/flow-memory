@@ -168,6 +168,45 @@ def test_production_can_require_managed_sql() -> None:
     assert "production_planning requires managed SQL when require_managed_sql_in_production=true" in errors
 
 
+def test_production_can_require_managed_tls_redis() -> None:
+    missing = ComputeMarketConfig(
+        database_url=":memory:",
+        rate_limit_backend="redis",
+        circuit_breaker_backend="redis",
+        require_managed_redis_in_production=True,
+    ).validate()
+    plain = ComputeMarketConfig(
+        database_url=":memory:",
+        rate_limit_backend="redis",
+        circuit_breaker_backend="redis",
+        redis_url="redis://cache.example:6379/0",
+        require_managed_redis_in_production=True,
+    ).validate()
+    mixed_backends = ComputeMarketConfig(
+        database_url=":memory:",
+        rate_limit_backend="redis",
+        circuit_breaker_backend="in_memory",
+        redis_url="rediss://cache.example:6379/0",
+        require_managed_redis_in_production=True,
+    ).validate()
+
+    assert "production_planning requires redis_url when require_managed_redis_in_production=true" in missing
+    assert "production_planning requires a rediss:// redis_url when require_managed_redis_in_production=true" in plain
+    assert "production_planning requires Redis backends when require_managed_redis_in_production=true" in mixed_backends
+
+    valid = ComputeMarketConfig(
+        database_url=":memory:",
+        rate_limit_backend="redis",
+        circuit_breaker_backend="redis",
+        redis_url="rediss://cache.example:6379/0",
+        require_managed_redis_in_production=True,
+    )
+    assert valid.validate() == ()
+    record = valid.as_record()
+    assert record["require_managed_redis_in_production"] is True
+    assert record["redis_url_scheme"] == "rediss"
+
+
 def test_storage_failure_fails_closed_when_plan_requires_persistence() -> None:
     class FailingStore(ComputeMarketStore):
         fail_writes = False

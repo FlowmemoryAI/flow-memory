@@ -202,6 +202,20 @@ if (-not $auditExportUri.StartsWith('s3://')) {
     exit 14
 }
 
+$redisUri = [string]$envValues['FLOW_MEMORY_COMPUTE_REDIS_URL']
+if (-not $redisUri.StartsWith('rediss://')) {
+    $redisScheme = ''
+    if ($redisUri.Contains('://')) {
+        $redisScheme = $redisUri.Split('://', 2)[0]
+    }
+    Write-Status -Status 'blocked_insecure_redis' -Fields @{
+        public_url = ''
+        redis_url_scheme = $redisScheme
+        required_action = 'FLOW_MEMORY_COMPUTE_REDIS_URL must be a TLS rediss:// managed Redis URL.'
+    }
+    exit 15
+}
+
 $safetyExpectations = @{
     FLOW_MEMORY_API_REQUIRE_SCOPES = 'true'
     FLOW_MEMORY_COMPUTE_MARKET_ENABLED = 'true'
@@ -209,6 +223,7 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_STORAGE_BACKEND = 'postgres'
     FLOW_MEMORY_COMPUTE_POSTGRES_SSL_MODE = 'require'
     FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION = 'true'
+    FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION = 'true'
     FLOW_MEMORY_COMPUTE_MIGRATIONS_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN = 'true'
     FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND = 'redis'
@@ -258,6 +273,7 @@ $composeChecks = @{
     storage_backend_postgres = 'FLOW_MEMORY_COMPUTE_STORAGE_BACKEND:\s+postgres'
     rate_limit_backend_redis = 'FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND:\s+redis'
     circuit_breaker_backend_redis = 'FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND:\s+redis'
+    require_managed_redis = 'FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION:\s+"?true"?'
     dry_run_required_true = 'FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED:\s+"?true"?'
     live_settlement_false = 'FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED:\s+"?false"?'
     broadcast_false = 'FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED:\s+"?false"?'

@@ -25,6 +25,7 @@ class ComputeMarketConfig:
     circuit_breaker_backend: str = "in_memory"
     redis_url: str = ""
     redis_prefix: str = "flow-memory:compute-market"
+    require_managed_redis_in_production: bool = False
     rate_limit_enabled: bool = True
     circuit_breaker_enabled: bool = True
     rate_limit_fail_closed: bool = True
@@ -146,6 +147,25 @@ class ComputeMarketConfig:
             errors.append("rate_limit_backend must be memory, redis, or none")
         if normalized_circuit_backend not in {"memory", "in_memory", "redis", "none"}:
             errors.append("circuit_breaker_backend must be memory, redis, or none")
+        redis_backend_required = normalized_rate_backend == "redis" or normalized_circuit_backend == "redis"
+        if (
+            self.require_managed_redis_in_production
+            and self.compute_market_mode == "production_planning"
+            and (normalized_rate_backend != "redis" or normalized_circuit_backend != "redis")
+        ):
+            errors.append("production_planning requires Redis backends when require_managed_redis_in_production=true")
+        if self.require_managed_redis_in_production and self.compute_market_mode == "production_planning":
+            if not self.redis_url:
+                errors.append("production_planning requires redis_url when require_managed_redis_in_production=true")
+            elif _url_scheme(self.redis_url) != "rediss":
+                errors.append("production_planning requires a rediss:// redis_url when require_managed_redis_in_production=true")
+        if (
+            redis_backend_required
+            and self.compute_market_mode == "production_planning"
+            and self.redis_url
+            and "://" not in self.redis_url
+        ):
+            errors.append("redis_url must include a URL scheme")
         if self.compute_market_mode == "production_planning" and self.stripe_webhook_secret and len(self.stripe_webhook_secret) < 16:
             errors.append("stripe_webhook_secret must be high entropy when configured")
         if self.audit_export_object_lock_mode and self.audit_export_object_lock_mode.upper() not in {"COMPLIANCE", "GOVERNANCE"}:
@@ -205,6 +225,8 @@ class ComputeMarketConfig:
             "circuit_breaker_backend": self.circuit_breaker_backend,
             "redis_configured": bool(self.redis_url),
             "redis_prefix": self.redis_prefix,
+            "require_managed_redis_in_production": self.require_managed_redis_in_production,
+            "redis_url_scheme": _url_scheme(self.redis_url),
             "rate_limit_enabled": self.rate_limit_enabled,
             "circuit_breaker_enabled": self.circuit_breaker_enabled,
             "rate_limit_fail_closed": self.rate_limit_fail_closed,
@@ -285,6 +307,7 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         circuit_breaker_backend=source.get("FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND", "in_memory"),
         redis_url=source.get("FLOW_MEMORY_COMPUTE_REDIS_URL", ""),
         redis_prefix=source.get("FLOW_MEMORY_COMPUTE_REDIS_PREFIX", "flow-memory:compute-market"),
+        require_managed_redis_in_production=_bool(source.get("FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"), False),
         rate_limit_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMIT_ENABLED"), _bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED"), True)),
         circuit_breaker_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED"), True),
         rate_limit_fail_closed=_bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED"), True),
@@ -376,3 +399,7 @@ def _redact_database_url(value: str) -> str:
     if "@" not in rest:
         return value
     return f"{scheme}://***@{rest.rsplit('@', 1)[-1]}"
+
+def _url_scheme(value: str) -> str:
+    scheme, sep, _rest = value.partition("://")
+    return scheme.lower() if sep else ""

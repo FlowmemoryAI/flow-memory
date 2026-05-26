@@ -32,7 +32,12 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                     "storage": {"backend": "postgres"},
                     "rate_limiter_status": {"backend": "redis"},
                     "circuit_breaker_status": {"backend": "redis"},
-                    "production_safety_defaults": {"rate_limit_backend": "redis", "circuit_breaker_backend": "redis"},
+                    "production_safety_defaults": {
+                        "rate_limit_backend": "redis",
+                        "circuit_breaker_backend": "redis",
+                        "require_managed_redis_in_production": True,
+                        "redis_url_scheme": "rediss",
+                    },
                 },
             }
         if url.endswith("/compute/plan") and scopes == "compute:read":
@@ -92,9 +97,30 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                 },
             }
         if url.endswith("/admin/storage/diagnostics"):
-            return 200, {"ok": True, "data": {"ok": True, "production_readiness": {"production_ready": True}}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "production_readiness": {"production_ready": True},
+                    "schema_verification": {
+                        "ok": True,
+                        "missing_tables": [],
+                        "missing_indexes": [],
+                        "advisory_lock_probe": {"acquired": True},
+                    },
+                },
+            }
         if url.endswith("/admin/redis/diagnostics"):
-            return 200, {"ok": True, "data": {"ok": True, "rate_limit_probe": {"ok": True}, "circuit_breaker_probe": {"ok": True}}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "rate_limit_probe": {"ok": True},
+                    "circuit_breaker_probe": {"ok": True},
+                    "rate_limit_fail_closed": True,
+                    "circuit_breaker_fail_closed": True,
+                },
+            }
         if url.endswith("/admin/audit/export"):
             return 200, {
                 "ok": True,
@@ -115,6 +141,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["job_receipt_wrong_scope"] == 403
     assert result["checks"]["job_receipt_unsigned"] == 200
     assert result["audit_export_immutable"] is True
+    assert result["require_managed_redis_in_production"] is True
+    assert result["redis_url_scheme"] == "rediss"
     assert len(receipt_calls) == 2
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
     assert len(refund_calls) == 1

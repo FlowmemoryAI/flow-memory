@@ -139,6 +139,8 @@ if (-not $circuitBreakerBackend -and $null -ne $readinessData.circuit_breaker_st
 Assert-True (($storageBackend -eq 'postgres') -or ($storageBackend -eq 'postgresql')) "readiness storage backend was '$storageBackend', expected postgres/postgresql."
 Assert-True ($rateLimitBackend -eq 'redis') "readiness rate limit backend was '$rateLimitBackend', expected redis."
 Assert-True ($circuitBreakerBackend -eq 'redis') "readiness circuit breaker backend was '$circuitBreakerBackend', expected redis."
+Assert-True ($readinessData.production_safety_defaults.require_managed_redis_in_production -eq $true) 'readiness did not require managed Redis in production.'
+Assert-True ($readinessData.production_safety_defaults.redis_url_scheme -eq 'rediss') 'readiness Redis URL scheme was not rediss.'
 
 $planBody = @{
     task = 'public live Level 1 Flow Memory Compute Market smoke test'
@@ -161,6 +163,23 @@ $auditExport = Invoke-ComputeMarketRequest -Method GET -Path '/admin/audit/expor
 Assert-Status -Response $auditExport -Expected 200 -Name 'admin audit export'
 Assert-True ($auditExport.Json.data.immutable -eq $true) 'admin audit export did not report immutable Object Lock storage.'
 
+$storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
+Assert-Status -Response $storageDiagnostics -Expected 200 -Name 'admin storage diagnostics'
+Assert-True ($storageDiagnostics.Json.data.ok -eq $true) 'admin storage diagnostics did not return ok=true.'
+$schemaVerification = $storageDiagnostics.Json.data.schema_verification
+Assert-True ($schemaVerification.ok -eq $true) 'Postgres schema verification did not return ok=true.'
+Assert-True (($null -eq $schemaVerification.missing_tables) -or ($schemaVerification.missing_tables.Count -eq 0)) 'Postgres schema verification reported missing tables.'
+Assert-True (($null -eq $schemaVerification.missing_indexes) -or ($schemaVerification.missing_indexes.Count -eq 0)) 'Postgres schema verification reported missing indexes.'
+Assert-True ($schemaVerification.advisory_lock_probe.acquired -eq $true) 'Postgres advisory migration lock probe did not acquire.'
+
+$redisDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/redis/diagnostics' -Scopes 'compute:admin'
+Assert-Status -Response $redisDiagnostics -Expected 200 -Name 'admin redis diagnostics'
+Assert-True ($redisDiagnostics.Json.data.ok -eq $true) 'admin redis diagnostics did not return ok=true.'
+Assert-True ($redisDiagnostics.Json.data.rate_limit_probe.ok -eq $true) 'Redis rate-limit probe did not return ok=true.'
+Assert-True ($redisDiagnostics.Json.data.circuit_breaker_probe.ok -eq $true) 'Redis circuit-breaker probe did not return ok=true.'
+Assert-True ($redisDiagnostics.Json.data.rate_limit_fail_closed -eq $true) 'Redis rate limiter is not fail-closed.'
+Assert-True ($redisDiagnostics.Json.data.circuit_breaker_fail_closed -eq $true) 'Redis circuit breaker is not fail-closed.'
+
 $missingKey = Invoke-ComputeMarketRequest -Method GET -Path '/compute/health' -Scopes 'compute:read' -IncludeApiKey $false
 Assert-Status -Response $missingKey -Expected 401 -Name 'missing-key health'
 
@@ -179,6 +198,8 @@ $result = [ordered]@{
     plan = $plan.StatusCode
     audit_verify = $auditVerify.StatusCode
     audit_export = $auditExport.StatusCode
+    admin_storage_diagnostics = $storageDiagnostics.StatusCode
+    admin_redis_diagnostics = $redisDiagnostics.StatusCode
     audit_export_immutable = [bool]$auditExport.Json.data.immutable
     missing_key = $missingKey.StatusCode
     wrong_scope = $wrongScope.StatusCode

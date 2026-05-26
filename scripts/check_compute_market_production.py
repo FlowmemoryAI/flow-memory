@@ -37,6 +37,7 @@ RUFF_TARGETS: tuple[str, ...] = (
     "tests/test_compute_market_settlement_simulator.py",
     "tests/test_compute_market_core.py",
     "tests/test_compute_market_public_validation_script.py",
+    "tests/test_compute_market_live_integration.py",
     "tests/test_cli.py",
 )
 
@@ -66,6 +67,7 @@ PYTEST_TARGETS: tuple[str, ...] = (
     "tests/test_compute_market_settlement_simulator.py",
     "tests/test_compute_market_core.py",
     "tests/test_compute_market_public_validation_script.py",
+    "tests/test_compute_market_live_integration.py",
     "tests/test_cli.py",
 )
 

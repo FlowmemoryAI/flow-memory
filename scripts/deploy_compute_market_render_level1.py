@@ -319,6 +319,7 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_MIGRATIONS_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN": "true",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
+        "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
         "FLOW_MEMORY_COMPUTE_RATE_LIMIT_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND": "redis",
@@ -455,6 +456,8 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, plan_body)
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
+    checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
+    checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, plan_body)
     health_ok = checks["health"][0] == 200 and checks["health"][1].get("ok") is True
@@ -465,6 +468,10 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
     audit_ok = checks["audit_verify"][0] == 200 and checks["audit_verify"][1].get("ok") is True
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
+    storage_diag = checks["admin_storage_diagnostics"][1].get("data", {}) if isinstance(checks["admin_storage_diagnostics"][1], dict) else {}
+    schema_verification = storage_diag.get("schema_verification", {}) if isinstance(storage_diag, dict) else {}
+    advisory_lock_probe = schema_verification.get("advisory_lock_probe", {}) if isinstance(schema_verification, dict) else {}
+    redis_diag = checks["admin_redis_diagnostics"][1].get("data", {}) if isinstance(checks["admin_redis_diagnostics"][1], dict) else {}
     ok = all(
         (
             checks["root"][0] == 200,
@@ -475,6 +482,8 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             storage.get("backend") in {"postgres", "postgresql"},
             (safety.get("rate_limit_backend") or readiness_payload.get("rate_limiter_status", {}).get("backend")) == "redis",
             (safety.get("circuit_breaker_backend") or readiness_payload.get("circuit_breaker_status", {}).get("backend")) == "redis",
+            safety.get("require_managed_redis_in_production") is True,
+            safety.get("redis_url_scheme") == "rediss",
             checks["plan"][0] == 200,
             plan_payload.get("dry_run_only") is True,
             plan_payload.get("funds_moved") is False,
@@ -482,6 +491,20 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
             plan_payload.get("private_key_required") is False,
             audit_ok,
             checks["admin_audit_export"][0] == 200,
+            checks["admin_storage_diagnostics"][0] == 200,
+            isinstance(schema_verification, dict),
+            schema_verification.get("ok") is True,
+            not schema_verification.get("missing_tables", ()),
+            not schema_verification.get("missing_indexes", ()),
+            isinstance(advisory_lock_probe, dict),
+            advisory_lock_probe.get("acquired") is True,
+            checks["admin_redis_diagnostics"][0] == 200,
+            isinstance(redis_diag, dict),
+            redis_diag.get("ok") is True,
+            redis_diag.get("rate_limit_probe", {}).get("ok") is True,
+            redis_diag.get("circuit_breaker_probe", {}).get("ok") is True,
+            redis_diag.get("rate_limit_fail_closed") is True,
+            redis_diag.get("circuit_breaker_fail_closed") is True,
             audit_export_payload.get("immutable") is True,
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
@@ -498,6 +521,9 @@ def smoke_public(base_url: str, api_key_value: str) -> dict[str, Any]:
         "broadcast_allowed": plan_payload.get("broadcast_allowed"),
         "private_key_required": plan_payload.get("private_key_required"),
         "audit_export_immutable": audit_export_payload.get("immutable"),
+        "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
+        "admin_redis_diagnostics": checks["admin_redis_diagnostics"][0],
+        "redis_url_scheme": safety.get("redis_url_scheme"),
     }
 
 

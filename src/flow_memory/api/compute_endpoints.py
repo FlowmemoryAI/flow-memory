@@ -97,6 +97,10 @@ def market_quote_drift(payload: Mapping[str, Any] | None = None) -> Mapping[str,
     return default_service().quote_drift_analytics(payload or {})
 
 
+def market_quote_compare(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().compare_quotes(payload)
+
+
 def market_capacity_list(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().list_capacity(payload)
 

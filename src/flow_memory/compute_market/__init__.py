@@ -63,7 +63,7 @@ from flow_memory.compute_market.provider_contracts import ProviderQuoteContract,
 from flow_memory.compute_market.service import ComputeMarketService
 from flow_memory.compute_market.storage import ComputeMarketStore, audit_event_hash, canonical_audit_payload_hash, migration_plan
 from flow_memory.compute_market.storage_backends import PostgresComputeMarketStore, create_compute_market_store, postgres_schema_sql
-from flow_memory.compute_market.pricing import collect_quote, collect_quotes, normalize_quote, normalize_quotes
+from flow_memory.compute_market.pricing import collect_quote, collect_quotes, compute_quote_comparison, normalize_quote, normalize_quotes
 from flow_memory.compute_market.registry import (
     AssetMetadata,
     ExternalProtocolMetadata,
@@ -157,6 +157,7 @@ __all__ = [
     "metadata_registry",
     "normalize_quote",
     "normalize_quotes",
+    "compute_quote_comparison",
     "query_economic_memory",
     "query_memory",
     "route_metadata",

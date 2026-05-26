@@ -30,6 +30,7 @@ from flow_memory.compute_market.models import (
 )
 from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry
 from flow_memory.compute_market.planner import build_compute_plan, build_task_profile, replay_decision
+from flow_memory.compute_market.pricing import compute_quote_comparison
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
 from flow_memory.compute_market.storage import deterministic_id, migration_plan, schema_hash, utc_now_iso
 from flow_memory.compute_market.storage_backends import ComputeMarketStoreProtocol, create_compute_market_store
@@ -787,6 +788,40 @@ class ComputeMarketService:
                 "by_route": by_route,
             },
         }
+
+    def compare_quotes(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/quotes/compare", request_id=request_id, provider_id=str(payload.get("provider_id", "")), route_id=str(payload.get("route_id", "")))
+        if limited is not None:
+            return limited
+        quotes_payload = payload.get("quotes", ())
+        quotes: tuple[Mapping[str, Any], ...]
+        if isinstance(quotes_payload, tuple | list):
+            quotes = tuple(item for item in quotes_payload if isinstance(item, Mapping))
+        else:
+            quote_ids = _tuple(payload.get("quote_ids", ()))
+            if quote_ids:
+                records = tuple(self.store.get_record("compute_quote", quote_id) for quote_id in quote_ids)
+                quotes = tuple(record for record in records if isinstance(record, Mapping))
+            else:
+                quotes = tuple(
+                    self.store.list_records(
+                        "compute_quote",
+                        filters=payload,
+                        limit=int(payload.get("limit", 100) or 100),
+                    ).records
+                )
+        profile = build_task_profile(payload)
+        comparison = compute_quote_comparison(quotes, profile=profile)
+        self._audit(
+            "market.quote.compared",
+            payload,
+            request_id=request_id,
+            result="completed",
+            reason_codes=tuple(comparison.get("summary", {}).get("warnings", ())) if isinstance(comparison.get("summary"), Mapping) else (),
+        )
+        return {"ok": True, "quote_comparison": comparison, "request_id": request_id}
 
     def request_external_provider_quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)

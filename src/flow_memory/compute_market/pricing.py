@@ -1,7 +1,7 @@
 """Quote collection and normalization for heterogeneous compute prices."""
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Any, Mapping
 
 from flow_memory.compute_market.models import ComputeCapacityWindow, ComputeQuote, ComputeRoute, QuoteStatus, TaskEconomicProfile
 
@@ -134,6 +134,117 @@ def normalize_quote(quote: ComputeQuote) -> ComputeQuote:
 
 def normalize_quotes(quotes: tuple[ComputeQuote, ...]) -> tuple[ComputeQuote, ...]:
     return tuple(normalize_quote(quote) for quote in quotes)
+
+
+def compute_quote_comparison(
+    quotes: tuple[Mapping[str, Any], ...],
+    *,
+    profile: TaskEconomicProfile | None = None,
+) -> Mapping[str, Any]:
+    reference_token_units = estimate_units(profile, "token") if profile is not None else 1_000.0
+    rows: list[dict[str, Any]] = []
+    assets: set[str] = set()
+    unit_types: set[str] = set()
+    for quote in quotes:
+        quote_id = str(quote.get("quote_id", ""))
+        unit_type = str(quote.get("unit_type", ""))
+        asset = str(quote.get("currency_or_asset", quote.get("payment_asset", "")))
+        total_cost = _float_or_none(quote.get("estimated_total_cost"))
+        estimated_units = _float_or_none(quote.get("estimated_units"))
+        unit_price = _float_or_none(quote.get("unit_price"))
+        confidence = _float_or_none(quote.get("confidence")) or 0.0
+        warnings = tuple(str(item) for item in quote.get("comparability_warnings", ()) if str(item))
+        if unit_type not in {"token", "request"}:
+            warnings = tuple(dict.fromkeys((*warnings, "compare heterogeneous units by normalized_total_cost, confidence, and capacity constraints")))
+        if asset:
+            assets.add(asset)
+        if unit_type:
+            unit_types.add(unit_type)
+        cost_per_requested_unit = None
+        if total_cost is not None and estimated_units and estimated_units > 0:
+            cost_per_requested_unit = round(total_cost / estimated_units, 12)
+        cost_per_1000_token_equivalent = None
+        if total_cost is not None and reference_token_units > 0:
+            cost_per_1000_token_equivalent = round((total_cost / reference_token_units) * 1000.0, 12)
+        rows.append(
+            {
+                "quote_id": quote_id,
+                "provider_id": str(quote.get("provider_id", "")),
+                "route_id": str(quote.get("route_id", "")),
+                "unit_type": unit_type,
+                "unit_family": _unit_family(unit_type),
+                "currency_or_asset": asset,
+                "unit_price": unit_price,
+                "estimated_units": estimated_units,
+                "estimated_total_cost": total_cost,
+                "normalized_total_cost": total_cost,
+                "cost_per_requested_unit": cost_per_requested_unit,
+                "cost_per_1000_token_equivalent": cost_per_1000_token_equivalent,
+                "confidence": confidence,
+                "status": str(quote.get("status", "")),
+                "source": str(quote.get("source", "")),
+                "capacity_available": bool(quote.get("capacity_available", True)),
+                "reservation_required": bool(quote.get("reservation_required", False)),
+                "comparability_warnings": warnings,
+            }
+        )
+    comparable_rows = tuple(row for row in rows if row["normalized_total_cost"] is not None)
+    best_by_asset: dict[str, dict[str, Any]] = {}
+    for asset in sorted(assets):
+        asset_rows = tuple(row for row in comparable_rows if row["currency_or_asset"] == asset)
+        if asset_rows:
+            best_by_asset[asset] = dict(min(asset_rows, key=lambda row: float(row["normalized_total_cost"])))
+    ranked_rows = tuple(
+        {**row, "rank": index + 1}
+        for index, row in enumerate(sorted(rows, key=_quote_comparison_sort_key))
+    )
+    cross_asset_warning = ("cross-asset quotes require FX/treasury policy before direct price ranking",) if len(assets) > 1 else ()
+    return {
+        "reference_unit": "token",
+        "reference_units": reference_token_units,
+        "rows": ranked_rows,
+        "best_by_asset": best_by_asset,
+        "summary": {
+            "quote_count": len(rows),
+            "comparable_quote_count": len(comparable_rows),
+            "unit_types": tuple(sorted(unit_types)),
+            "assets": tuple(sorted(assets)),
+            "cross_asset": len(assets) > 1,
+            "warnings": cross_asset_warning,
+        },
+    }
+
+
+def _quote_comparison_sort_key(row: Mapping[str, Any]) -> tuple[str, float, float, str]:
+    cost = row.get("normalized_total_cost")
+    comparable_cost = float(cost) if cost is not None else float("inf")
+    return (
+        str(row.get("currency_or_asset", "")),
+        comparable_cost,
+        -float(row.get("confidence", 0.0) or 0.0),
+        str(row.get("quote_id", "")),
+    )
+
+
+def _unit_family(unit_type: str) -> str:
+    if unit_type == "token":
+        return "token"
+    if unit_type in {"request", "tool_call", "agent_step", "inference_job", "batch_job"}:
+        return "request"
+    if unit_type.startswith("gpu_") or unit_type in {"cpu_second", "memory_gb_hour"}:
+        return "compute_time"
+    if unit_type == "reserved_capacity_slot":
+        return "reserved_capacity"
+    return "other"
+
+
+def _float_or_none(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def task_roi_from_cost(estimated_value: float | None, estimated_total_cost: float | None) -> float:

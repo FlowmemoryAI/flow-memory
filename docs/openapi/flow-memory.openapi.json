@@ -4711,6 +4711,67 @@
         ]
       }
     },
+    "/market/quotes/compare": {
+      "post": {
+        "operationId": "market_quote_compare",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "estimated_units": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "quote_ids": {
+                    "type": "string"
+                  },
+                  "quotes": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "quote_comparison": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Compare token, request, GPU-time, and reserved-capacity quotes by normalized total cost and unit-family warnings",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/quotes/drift-observations": {
       "get": {
         "operationId": "market_quote_drift",

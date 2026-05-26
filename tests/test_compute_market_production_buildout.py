@@ -345,6 +345,63 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["fraud_signal_count"] == 2
 
 
+def test_quote_comparison_across_unit_types_and_assets() -> None:
+    service = _service()
+    token_quote = {
+        **_quote(0.0054),
+        "quote_id": "quote_token_compare",
+        "provider_id": "provider_token_compare",
+        "route_id": "route_token_compare",
+        "unit_type": "token",
+        "unit_price": 0.00000045,
+        "estimated_units": 12000,
+        "currency_or_asset": "USDC",
+        "comparability_warnings": (),
+    }
+    request_quote = {
+        **_quote(0.015),
+        "quote_id": "quote_request_compare",
+        "provider_id": "provider_request_compare",
+        "route_id": "route_request_compare",
+        "unit_type": "request",
+        "unit_price": 0.015,
+        "estimated_units": 1,
+        "currency_or_asset": "USDC",
+        "comparability_warnings": (),
+    }
+    reserved_quote = {
+        **_quote(2.5),
+        "quote_id": "quote_reserved_compare",
+        "provider_id": "provider_reserved_compare",
+        "route_id": "route_reserved_compare",
+        "unit_type": "reserved_capacity_slot",
+        "unit_price": 2.5,
+        "estimated_units": 1,
+        "currency_or_asset": "USD",
+        "comparability_warnings": ("reserved capacity quote normalized as slot cost; unused capacity is not credited",),
+    }
+
+    compared = service.compare_quotes(
+        {
+            "quotes": [token_quote, request_quote, _quote(), reserved_quote],
+            "task": "compare heterogeneous compute quotes",
+            "estimated_units": {"token": 12000, "request": 1, "gpu_minute": 2, "reserved_capacity_slot": 1},
+        }
+    )
+    comparison = compared["quote_comparison"]
+    rows = {row["quote_id"]: row for row in comparison["rows"]}
+
+    assert comparison["summary"]["quote_count"] == 4
+    assert comparison["summary"]["comparable_quote_count"] == 4
+    assert comparison["summary"]["cross_asset"] is True
+    assert "cross-asset quotes require FX/treasury policy before direct price ranking" in comparison["summary"]["warnings"]
+    assert set(comparison["summary"]["unit_types"]) == {"gpu_minute", "request", "reserved_capacity_slot", "token"}
+    assert comparison["best_by_asset"]["USDC"]["quote_id"] == "quote_token_compare"
+    assert rows["quote_token_compare"]["cost_per_1000_token_equivalent"] == 0.00045
+    assert rows["quote_live_gpu_1"]["unit_family"] == "compute_time"
+    assert rows["quote_reserved_compare"]["unit_family"] == "reserved_capacity"
+    assert rows["quote_reserved_compare"]["comparability_warnings"]
+
 def test_plan_records_route_rejection_metrics() -> None:
     service = _service()
     result = service.plan(

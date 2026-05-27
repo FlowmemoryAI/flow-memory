@@ -2544,9 +2544,24 @@ class ComputeMarketService:
     def retry_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
+        credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_retried")
         retry_at = utc_now_iso()
         attempts = int(job.get("attempt", 0) or 0) + 1
-        job.update({"status": "queued", "attempt": attempts, "retried_at": retry_at, "updated_at": retry_at, "claimed_by": "", "lease_expires_at": "", "worker_capabilities": ()})
+        job.update(
+            {
+                "status": "queued",
+                "attempt": attempts,
+                "retried_at": retry_at,
+                "updated_at": retry_at,
+                "claimed_by": "",
+                "lease_expires_at": "",
+                "worker_capabilities": (),
+            }
+        )
+        job.pop("credit_reservation_id", None)
+        job.pop("credit_reserved_amount", None)
+        if credit_release:
+            job["credit_release"] = credit_release
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2560,7 +2575,13 @@ class ComputeMarketService:
             tenant_id=str(job.get("tenant_id", "")),
             workspace_id=str(job.get("workspace_id", "")),
         )
-        event = _job_event(job_id, "job.retry_queued", status="queued", request_id=request_id, details={"attempt": attempts})
+        event = _job_event(
+            job_id,
+            "job.retry_queued",
+            status="queued",
+            request_id=request_id,
+            details={"attempt": attempts, "credit_release": credit_release},
+        )
         self.store.put_record(
             "compute_job_event",
             str(event["event_id"]),
@@ -2573,7 +2594,7 @@ class ComputeMarketService:
             workspace_id=str(job.get("workspace_id", "")),
         )
         self._audit("compute.job.retry_queued", payload, request_id=request_id, result="queued", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
-        return {"ok": True, "job": job, "event": event}
+        return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
 
     def claim_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)

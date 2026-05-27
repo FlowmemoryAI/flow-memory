@@ -2424,6 +2424,52 @@ def test_prepaid_credit_preauthorization_releases_hold_on_cancel() -> None:
     assert balance["available_credits"] == 1.0
     assert balance["reserved_credits"] == 0.0
 
+
+def test_prepaid_credit_preauthorization_releases_hold_on_retry() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_credit_preauth_retry",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_preauth_retry"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_paid_compute_preauth_retry",
+                "account_id": "acct_preauth_retry",
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+
+    dispatched = service.dispatch_job(job_id, {})
+    reservation_id = str(dispatched["credit_reservation"]["credit_transaction_id"])
+    retried = service.retry_job(job_id, {})
+
+    assert retried["job"]["status"] == "queued"
+    assert retried["job"]["attempt"] == 1
+    assert "credit_reservation_id" not in retried["job"]
+    assert retried["credit_release"]["reservation_transaction_id"] == reservation_id
+    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "released"
+    released_balance = service.billing_balance({"account_id": "acct_preauth_retry"})["balance"]
+    assert released_balance["available_credits"] == 1.0
+    assert released_balance["reserved_credits"] == 0.0
+
+    redispatched = service.dispatch_job(job_id, {})
+    assert redispatched["credit_reservation"]["status"] == "reserved"
+    assert redispatched["credit_reservation"]["credit_transaction_id"] != reservation_id
+    redispatched_balance = service.billing_balance({"account_id": "acct_preauth_retry"})["balance"]
+    assert redispatched_balance["available_credits"] == 0.82
+    assert redispatched_balance["reserved_credits"] == 0.18
+
 def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody() -> None:
     service = _service()
     raw_event = {"id": "evt_credit_payout", "type": "checkout.session.completed", "amount": 1.0, "currency": "usd", "metadata": {"account_id": "acct_payout"}}

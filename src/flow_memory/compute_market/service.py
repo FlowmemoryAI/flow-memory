@@ -1049,6 +1049,7 @@ class ComputeMarketService:
                 details={"quote_hash": quote_hash, "matched_provider_id": str(cross_provider_replay.get("provider_id", ""))},
                 tenant_id=str(payload.get("tenant_id", "")),
                 workspace_id=str(payload.get("workspace_id", "")),
+                telemetry=self.telemetry,
             )
             error = compute_error(
                 "quote.cross_provider_replay_detected",
@@ -1083,6 +1084,7 @@ class ComputeMarketService:
                 details={"quote_hash": quote_hash, "previous_hash": str(replay_guard.get("quote_hash", ""))},
                 tenant_id=str(payload.get("tenant_id", "")),
                 workspace_id=str(payload.get("workspace_id", "")),
+                telemetry=self.telemetry,
             )
             self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
@@ -1096,6 +1098,7 @@ class ComputeMarketService:
                 request_id=request_id,
                 tenant_id=str(payload.get("tenant_id", "")),
                 workspace_id=str(payload.get("workspace_id", "")),
+                telemetry=self.telemetry,
             )
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
             return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": validation_fraud_signals}
@@ -1169,6 +1172,7 @@ class ComputeMarketService:
                         details={"drift": drift},
                         tenant_id=str(payload.get("tenant_id", "")),
                         workspace_id=str(payload.get("workspace_id", "")),
+                        telemetry=self.telemetry,
                     ),
                 )
         cache_key = _quote_cache_key(self.store, provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")), tenant_id)
@@ -5445,6 +5449,7 @@ def _record_provider_fraud_signal(
     details: Mapping[str, Any],
     tenant_id: str = "",
     workspace_id: str = "",
+    telemetry: ComputeMarketTelemetry | None = None,
 ) -> dict[str, Any]:
     now = utc_now_iso()
     signal = {
@@ -5484,6 +5489,16 @@ def _record_provider_fraud_signal(
         tenant_id=tenant_id,
         workspace_id=workspace_id,
     )
+    if telemetry is not None:
+        telemetry.increment(
+            "provider_fraud_signal_total",
+            {
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "signal_type": signal_type,
+                "severity": severity,
+            },
+        )
     return signal
 
 
@@ -5574,6 +5589,7 @@ def _fraud_signals_from_validation(
     request_id: str,
     tenant_id: str = "",
     workspace_id: str = "",
+    telemetry: ComputeMarketTelemetry | None = None,
 ) -> tuple[Mapping[str, Any], ...]:
     signals: list[Mapping[str, Any]] = []
     for error_code in tuple(dict.fromkeys(validation_errors)):
@@ -5593,6 +5609,7 @@ def _fraud_signals_from_validation(
                 details={"validation_error": error_code, "validation_errors": validation_errors},
                 tenant_id=tenant_id,
                 workspace_id=workspace_id,
+                telemetry=telemetry,
             )
         )
     return tuple(signals)

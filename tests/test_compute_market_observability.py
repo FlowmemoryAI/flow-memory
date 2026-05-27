@@ -113,6 +113,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "audit_chain_verify_fail_total" in names
     assert "billing_webhook_failures_total" in names
     assert "provider_execution_failure_total" in names
+    assert "provider_fraud_signal_total" in names
     assert "redis_unavailable_total" in names
     assert "external_provider_allowlist_missing_total" in names
     assert "compute_provider_receipt_accepted_total" in names
@@ -646,6 +647,61 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     assert "billing-webhook-failures" in rule_names
     assert "redis-unavailable" in rule_names
 
+def test_provider_fraud_signal_metric_alert_and_route_on_quote_drift() -> None:
+    server, url = _alert_webhook_server()
+    try:
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(
+                database_url=":memory:",
+                compute_market_mode="production_planning",
+                rate_limits_enabled=False,
+                alert_routing_enabled=True,
+                alert_webhook_url=url,
+                alert_webhook_secret="alert-routing-secret",
+            ),
+        )
+        base_quote = {
+            "quote_id": "quote_observability_drift_1",
+            "provider_id": "provider_observability_gpu",
+            "route_id": "route_observability_gpu",
+            "unit_type": "gpu_minute",
+            "unit_price": 0.09,
+            "estimated_units": 2,
+            "estimated_total_cost": 0.18,
+            "confidence": 0.93,
+            "currency_or_asset": "USDC",
+            "network": "solana",
+            "capacity_available": True,
+            "quote_ttl_seconds": 300,
+            "expires_at": "2099-01-01T00:00:00Z",
+            "settlement_modes": ["generic_dry_run"],
+            "dry_run_supported": True,
+            "assumptions": [],
+        }
+        accepted = service.broker_quote({"quote": base_quote})
+        drifted = service.broker_quote(
+            {"quote": {**base_quote, "quote_id": "quote_observability_drift_2", "estimated_total_cost": 0.27}}
+        )
+        evaluated = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
+        routed = service.route_alerts({})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
+    rule_names = {item["rule_name"] for item in evaluated["firing"]}
+    alert_body = cast(dict[str, Any], _ALERT_WEBHOOK_POSTS[0]["body"])
+
+    assert accepted["ok"] is True
+    assert drifted["ok"] is True
+    assert drifted["fraud_signals"][0]["signal_type"] == "quote_price_manipulation"
+    assert metric_totals["provider_fraud_signal_total"] == 1.0
+    assert "provider-fraud-signal" in rule_names
+    assert routed["ok"] is True
+    assert routed["delivery_count"] == 1
+    assert alert_body["alert"]["rule_name"] == "provider-fraud-signal"
+
 def test_compute_telemetry_and_metrics_routes_expose_service_samples() -> None:
     service = _service()
     reset_default_service(service)
@@ -683,6 +739,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "provider_quote_latency_ms",
         "provider_quote_failure_total",
         "provider_circuit_open_total",
+        "provider_fraud_signal_total",
         "quote_stale_total",
         "capacity_reserved_total",
         "capacity_confirmed_total",
@@ -728,6 +785,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "FlowMemoryComputeMarketAuditChainBreak",
         "FlowMemoryComputeMarketProviderQuoteErrorSpike",
         "FlowMemoryComputeMarketProviderCircuitOpen",
+        "FlowMemoryComputeMarketProviderFraudSignal",
         "FlowMemoryComputeMarketStaleQuotes",
         "FlowMemoryComputeMarketBillingWebhookFailures",
         "FlowMemoryComputeMarketPolicyDenialSpike",
@@ -743,6 +801,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "audit_chain_verify_fail_total",
         "provider_quote_failure_total",
         "provider_circuit_open_total",
+        "provider_fraud_signal_total",
         "quote_stale_total",
         "billing_webhook_failures_total",
         "billing_insufficient_credit_total",

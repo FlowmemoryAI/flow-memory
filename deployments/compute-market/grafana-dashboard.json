@@ -61,7 +61,8 @@
         {"expr": "sum(rate(provider_quote_failure_total[5m]))", "legendFormat": "quote failures", "refId": "A"},
         {"expr": "sum(provider_circuit_open_total)", "legendFormat": "open circuits", "refId": "B"},
         {"expr": "sum(rate(quote_stale_total[5m]))", "legendFormat": "stale quotes", "refId": "C"},
-        {"expr": "sum(rate(quote_cache_invalidated_total[5m]))", "legendFormat": "cache invalidations", "refId": "D"}
+        {"expr": "sum(rate(quote_cache_invalidated_total[5m]))", "legendFormat": "cache invalidations", "refId": "D"},
+        {"expr": "sum(rate(provider_fraud_signal_total[5m]))", "legendFormat": "fraud signals", "refId": "E"}
       ],
       "title": "Provider quote health",
       "type": "timeseries"

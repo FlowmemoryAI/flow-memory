@@ -31,6 +31,15 @@ groups:
         annotations:
           summary: Provider quote failures spiked.
           description: Check provider health, external allowlists, provider credentials, and circuit-breaker state.
+      - alert: FlowMemoryComputeMarketProviderFraudSignal
+        expr: provider_fraud_signal_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: providers
+        annotations:
+          summary: Provider fraud or quote manipulation signal was recorded.
+          description: Review quote replay, provider spoofing, stale quote, signature, and price-manipulation fraud signals before routing provider supply.
 
       - alert: FlowMemoryComputeMarketProviderCircuitOpen
         expr: provider_circuit_open_total > 0

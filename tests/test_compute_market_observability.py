@@ -108,6 +108,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "compute_job_completed_total" in names
     assert "compute_job_lease_expired_total" in names
     assert "billing_debit_total" in names
+    assert "billing_payout_settled_total" in names
     assert "billing_insufficient_credit_total" in names
     assert "audit_chain_verify_fail_total" in names
     assert "billing_webhook_failures_total" in names
@@ -690,6 +691,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "capacity_released_total",
         "capacity_hold_expired_total",
         "billing_debit_total",
+        "billing_payout_settled_total",
         "billing_insufficient_credit_total",
         "billing_payment_failed_total",
         "billing_webhook_failures_total",

@@ -14,6 +14,7 @@ from flow_memory.compute_market.service import ComputeMarketService, reset_defau
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import sign_payload
+from flow_memory.crypto.hashes import content_hash
 
 
 def test_http_gateway_health_response() -> None:
@@ -708,6 +709,154 @@ def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
     assert denied_cancel.status == 404
     assert denied_claim.status == 400
     assert service.get_job(queued_job_id)["job"]["status"] == "queued"
+
+
+def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    key_a = "fmk_tenant_billing_lifecycle_a"
+    key_b = "fmk_tenant_billing_lifecycle_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-billing-lifecycle-a-key",
+                    "key_prefix": "fmk_tenant_billing_lifecycle_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_billing_lifecycle_a",
+                    "principal": "svc-billing-lifecycle-a",
+                    "scopes": ("compute:billing", "compute:execute", "compute:read"),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "tenant-billing-lifecycle-b-key",
+                    "key_prefix": "fmk_tenant_billing_lifecycle_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_billing_lifecycle_b",
+                    "principal": "svc-billing-lifecycle-b",
+                    "scopes": ("compute:billing", "compute:execute", "compute:read"),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    job_payload = {
+        "job_id": "job_gateway_paid_compute_a",
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/gateway-paid.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "route_gateway_paid",
+        "provider_id": "provider_gateway_paid",
+        "account_id": "tenant_billing_lifecycle_a",
+        "estimated_total_cost": 0.18,
+        "currency": "USD",
+    }
+    raw_event = {
+        "id": "evt_gateway_paid_compute_a",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "tenant_billing_lifecycle_a"},
+    }
+    webhook_secret = "whsec_gateway_lifecycle"
+    stripe_signature = hmac.new(
+        webhook_secret.encode("utf-8"),
+        content_hash(raw_event).encode("utf-8"),
+        "sha256",
+    ).hexdigest()
+    try:
+        webhook = gateway.handle(
+            "POST",
+            "/billing/webhooks/stripe",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps(
+                {
+                    "raw_event": raw_event,
+                    "webhook_secret": webhook_secret,
+                    "stripe_signature": stripe_signature,
+                }
+            ).encode("utf-8"),
+        )
+        created = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps(job_payload).encode("utf-8"),
+        )
+        job_id = str(created.body["data"]["job"]["job_id"])
+        dispatched = gateway.handle("POST", f"/compute/jobs/{job_id}/dispatch", {"x-flow-memory-api-key": key_a})
+        completed = gateway.handle(
+            "POST",
+            f"/compute/jobs/{job_id}/complete",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps(
+                {
+                    "account_id": "tenant_billing_lifecycle_a",
+                    "actual_units": 2,
+                    "actual_total_cost": 0.18,
+                    "currency": "USD",
+                }
+            ).encode("utf-8"),
+        )
+        balance = gateway.handle("GET", "/billing/balance", {"x-flow-memory-api-key": key_a})
+        payouts = gateway.handle("GET", "/billing/provider-payouts?status=accrued", {"x-flow-memory-api-key": key_a})
+        payout_id = str(completed.body["data"]["provider_payout"]["provider_payout_id"])
+        settled = gateway.handle(
+            "POST",
+            f"/billing/provider-payouts/{payout_id}/settle",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps(
+                {
+                    "external_payout_reference": "manual-ledger-gateway-1",
+                    "settled_by": "ops",
+                }
+            ).encode("utf-8"),
+        )
+        tenant_b_job = gateway.handle("GET", f"/compute/jobs/{job_id}", {"x-flow-memory-api-key": key_b})
+        tenant_b_dispatch = gateway.handle("POST", f"/compute/jobs/{job_id}/dispatch", {"x-flow-memory-api-key": key_b})
+        tenant_b_mismatched_job = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_b},
+            json.dumps({**job_payload, "job_id": "job_gateway_paid_compute_b_mismatch"}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert webhook.status == 200
+    assert created.status == 200
+    assert created.body["data"]["job"]["tenant_id"] == "tenant_billing_lifecycle_a"
+    assert dispatched.status == 200
+    assert dispatched.body["data"]["credit_reservation"]["status"] == "reserved"
+    assert completed.status == 200
+    assert completed.body["data"]["credit_debit"]["status"] == "posted"
+    assert completed.body["data"]["provider_payout"]["status"] == "accrued"
+    assert completed.body["data"]["provider_payout"]["funds_moved"] is False
+    assert balance.status == 200
+    assert balance.body["data"]["balance"]["available_credits"] == 0.82
+    assert balance.body["data"]["balance"]["reserved_credits"] == 0.0
+    assert payouts.status == 200
+    assert [payout["provider_payout_id"] for payout in payouts.body["data"]["provider_payouts"]] == [payout_id]
+    assert settled.status == 200
+    assert settled.body["data"]["provider_payout"]["status"] == "settled"
+    assert settled.body["data"]["provider_payout"]["funds_moved"] is False
+    assert tenant_b_job.status == 404
+    assert tenant_b_dispatch.status == 404
+    assert tenant_b_mismatched_job.status == 400
+    assert tenant_b_mismatched_job.body["error"]["message"] == "account_id must match tenant_id"
+    assert any(
+        metric.get("name") == "billing_payout_settled_total"
+        and metric.get("labels", {}).get("provider_id") == "provider_gateway_paid"
+        and metric.get("value") == 0.18
+        for metric in service.telemetry.snapshot(reset=False)["metrics"]
+    )
 
 
 def test_http_gateway_accepts_direct_stripe_webhook_body_with_signature_header() -> None:

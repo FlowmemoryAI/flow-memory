@@ -1701,6 +1701,11 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /compute/jobs", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
+        _billing_account_id(
+            payload,
+            fallback_account_id=str(payload.get("tenant_id", "")).strip(),
+            required=False,
+        )
         job = _compute_job(payload, request_id=request_id)
         self.store.put_record(
             "compute_job",
@@ -3125,6 +3130,11 @@ class ComputeMarketService:
             request_id=request_id,
             actor_id=str(settled.get("settled_by", "")),
             idempotency_key=str(payload.get("idempotency_key", payout_id)),
+        )
+        self.telemetry.increment(
+            "billing_payout_settled_total",
+            {"provider_id": str(settled.get("provider_id", ""))},
+            value=float(settled.get("amount", 0.0) or 0.0),
         )
         self._audit(
             "billing.provider_payout.settled",

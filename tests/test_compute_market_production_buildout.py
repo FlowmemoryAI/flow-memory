@@ -1525,6 +1525,46 @@ def test_compute_job_expire_leases_requeues_claims_and_expires_running_jobs() ->
         raise AssertionError("expired running job accepted completion")
 
 
+def test_compute_job_expires_after_max_dispatch_attempts() -> None:
+    service = _service()
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_dispatch_attempt_limit",
+                "max_dispatch_attempts": 1,
+            }
+        )["job"]["job_id"]
+    )
+
+    claimed = service.claim_job({"job_id": job_id, "worker_id": "worker_limit", "ttl_seconds": 30})
+    expired_at = "2000-01-01T00:00:00Z"
+    claimed_job = dict(claimed["job"])
+    claimed_job["lease_expires_at"] = expired_at
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        claimed_job,
+        provider_id=str(claimed_job.get("provider_id", "")),
+        route_id=str(claimed_job.get("route_id", "")),
+        task_type=str(claimed_job.get("task_type", "")),
+        status="dispatched",
+        expires_at=expired_at,
+        actor_id="worker_limit",
+    )
+
+    expired = service.expire_job_leases({"job_id": job_id})
+
+    job = service.get_job(job_id)["job"]
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+    assert expired["expired_count"] == 1
+    assert job["status"] == "expired"
+    assert job["error_code"] == "max_dispatch_attempts_exceeded"
+    assert job["dispatch_attempt"] == 1
+    assert "job.dispatch_attempts_exhausted" in event_types
+    assert "job.lease_expired_requeued" not in event_types
+
+
 def test_compute_job_listing_filters_by_tenant_status_and_paginates() -> None:
     service = _service()
     first = service.create_job(
@@ -2053,6 +2093,24 @@ def test_compute_job_retry_and_cancel_remain_dry_run_safe() -> None:
     assert len(tenant_jobs) == 1
     assert tenant_jobs[0]["status"] == "cancelled"
     assert {event["event_type"] for event in tenant_events} == {"job.queued", "job.retry_queued", "job.cancelled"}
+
+
+def test_compute_job_retry_respects_max_retries() -> None:
+    service = _service()
+    job_id = str(
+        service.create_job({**_job_payload(), "job_id": "job_retry_limit", "max_retries": 1})["job"]["job_id"]
+    )
+
+    retried = service.retry_job(job_id, {})
+    rejected = service.retry_job(job_id, {})
+
+    assert retried["ok"] is True
+    assert retried["job"]["attempt"] == 1
+    assert rejected["ok"] is False
+    assert rejected["error"]["error_code"] == "policy.max_retries_exceeded"
+    assert rejected["job"]["attempt"] == 1
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+    assert "job.max_retries_exceeded" in event_types
 
 
 def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signature() -> None:

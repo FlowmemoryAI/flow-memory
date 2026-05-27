@@ -1788,6 +1788,96 @@ class ComputeMarketService:
         expired_jobs, events = self._expire_job_leases(payload, request_id=request_id)
         return {"ok": True, "expired_jobs": expired_jobs, "events": events, "expired_count": len(expired_jobs)}
 
+    def _mark_job_dispatch_attempts_exceeded(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> tuple[Mapping[str, Any], Mapping[str, Any], Mapping[str, Any]]:
+        job_id = str(job.get("job_id", job.get("record_id", "")))
+        exhausted_at = utc_now_iso()
+        previous_status = str(job.get("status", ""))
+        dispatch_attempts = int(job.get("dispatch_attempt", 0) or 0)
+        max_dispatch_attempts = _job_max_dispatch_attempts(job)
+        updated_job = dict(job)
+        updated_job.update(
+            {
+                "status": "expired",
+                "expired_at": exhausted_at,
+                "updated_at": exhausted_at,
+                "error_code": "max_dispatch_attempts_exceeded",
+                "failure_reason": "Compute job exceeded its maximum dispatch attempts.",
+                "lease_expires_at": "",
+                "claimed_by": "",
+                "claim_token": "",
+                "worker_capabilities": (),
+                "lifecycle": _append_lifecycle(job, "expired"),
+            }
+        )
+        self.store.put_record_if_state(
+            "compute_job",
+            job_id,
+            (previous_status,),
+            updated_job,
+            expires_at_before=utc_now_iso() if previous_status == "dispatched" else "",
+            provider_id=str(updated_job.get("provider_id", "")),
+            route_id=str(updated_job.get("route_id", "")),
+            task_type=str(updated_job.get("task_type", "")),
+            status="expired",
+            expires_at="",
+            request_id=request_id,
+            tenant_id=str(updated_job.get("tenant_id", "")),
+            workspace_id=str(updated_job.get("workspace_id", "")),
+        )
+        event = _job_event(
+            job_id,
+            "job.dispatch_attempts_exhausted",
+            status="expired",
+            request_id=request_id,
+            details={
+                "dispatch_attempts": dispatch_attempts,
+                "max_dispatch_attempts": max_dispatch_attempts,
+                "dry_run_only": True,
+            },
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=str(updated_job.get("provider_id", "")),
+            route_id=str(updated_job.get("route_id", "")),
+            status="expired",
+            request_id=request_id,
+            tenant_id=str(updated_job.get("tenant_id", "")),
+            workspace_id=str(updated_job.get("workspace_id", "")),
+        )
+        self.telemetry.increment(
+            "compute_job_failed_total",
+            {"task_type": str(updated_job.get("task_type", "")), "error_code": "max_dispatch_attempts_exceeded"},
+        )
+        self._audit(
+            "compute.job.dispatch_attempts_exhausted",
+            {**dict(payload), "job_id": job_id},
+            request_id=request_id,
+            result="expired",
+            reason_codes=("max_dispatch_attempts_exceeded",),
+            provider_id=str(updated_job.get("provider_id", "")),
+            route_id=str(updated_job.get("route_id", "")),
+        )
+        error = compute_error(
+            "policy.max_dispatch_attempts_exceeded",
+            "Compute job exceeded its maximum dispatch attempts.",
+            details={
+                "job_id": job_id,
+                "dispatch_attempts": dispatch_attempts,
+                "max_dispatch_attempts": max_dispatch_attempts,
+            },
+            request_id=request_id,
+            retryable=False,
+        )
+        return updated_job, event, error.as_record()
+
     def _expire_job_leases(self, payload: Mapping[str, Any], *, request_id: str) -> tuple[tuple[Mapping[str, Any], ...], tuple[Mapping[str, Any], ...]]:
         now = utc_now_iso()
         target_job_id = str(payload.get("job_id", "")).strip()
@@ -1821,6 +1911,16 @@ class ComputeMarketService:
                 "lease_expires_at": lease_expires_at,
                 "started_by_worker_id": str(job.get("started_by_worker_id", "")),
             }
+            if status == "dispatched" and int(job.get("dispatch_attempt", 0) or 0) >= _job_max_dispatch_attempts(job):
+                exhausted_job, event, _error = self._mark_job_dispatch_attempts_exceeded(
+                    job,
+                    {**dict(payload), "expired_lease": previous_claim},
+                    request_id=request_id,
+                )
+                self.telemetry.increment("compute_job_lease_expired_total", {"status": status, "next_status": "expired"})
+                expired_jobs.append(exhausted_job)
+                events.append(event)
+                continue
             if status == "dispatched":
                 next_status = "queued"
                 event_type = "job.lease_expired_requeued"
@@ -2567,11 +2667,50 @@ class ComputeMarketService:
         return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
 
     def retry_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
+        current_attempts = int(job.get("attempt", 0) or 0)
+        max_retries = _job_max_retries(job)
+        if current_attempts >= max_retries:
+            error = compute_error(
+                "policy.max_retries_exceeded",
+                "Compute job exceeded its maximum retry attempts.",
+                details={"job_id": job_id, "attempt": current_attempts, "max_retries": max_retries},
+                request_id=request_id,
+                retryable=False,
+            )
+            event = _job_event(
+                job_id,
+                "job.max_retries_exceeded",
+                status=str(job.get("status", "")),
+                request_id=request_id,
+                details={"attempt": current_attempts, "max_retries": max_retries},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(job.get("status", "")),
+                request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            self._audit(
+                "compute.job.max_retries_exceeded",
+                payload,
+                request_id=request_id,
+                result="rejected",
+                reason_codes=("max_retries_exceeded",),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            return {"ok": False, "job": job, "event": event, "error": error.as_record()}
         credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_retried")
         retry_at = utc_now_iso()
-        attempts = int(job.get("attempt", 0) or 0) + 1
+        attempts = current_attempts + 1
         job.update(
             {
                 "status": "queued",
@@ -2643,6 +2782,15 @@ class ComputeMarketService:
                 expected_statuses = ("dispatched",)
                 expires_at_before = utc_now_iso()
             else:
+                continue
+            if status == "queued" and int(job.get("dispatch_attempt", 0) or 0) >= _job_max_dispatch_attempts(job):
+                exhausted_job, event, error = self._mark_job_dispatch_attempts_exceeded(
+                    job,
+                    payload,
+                    request_id=request_id,
+                )
+                if requested_job_id:
+                    return {"ok": False, "job": exhausted_job, "event": event, "error": error}
                 continue
             claimed_at = utc_now_iso()
             claim_token = deterministic_id(
@@ -6048,6 +6196,31 @@ def _lease_ttl_seconds(payload: Mapping[str, Any]) -> int:
     return min(3_600, max(30, int(_positive_float(payload.get("ttl_seconds", 300), "ttl_seconds"))))
 
 
+def _positive_int(value: object, name: str, *, default: int) -> int:
+    try:
+        amount = int(str(value if value not in (None, "") else default))
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be an integer") from None
+    if amount <= 0:
+        raise ValueError(f"{name} must be positive")
+    return amount
+
+
+def _retry_policy_value(payload: Mapping[str, Any], key: str, default: int) -> object:
+    retry_policy = payload.get("retry_policy", {})
+    if isinstance(retry_policy, Mapping):
+        return retry_policy.get(key, default)
+    return default
+
+
+def _job_max_retries(job: Mapping[str, Any]) -> int:
+    return _positive_int(job.get("max_retries", 2), "max_retries", default=2)
+
+
+def _job_max_dispatch_attempts(job: Mapping[str, Any]) -> int:
+    return _positive_int(job.get("max_dispatch_attempts", 3), "max_dispatch_attempts", default=3)
+
+
 def _future_utc_iso(seconds: int) -> str:
     return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -6101,6 +6274,16 @@ def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, An
         "broadcast_allowed": False,
         "private_key_required": False,
         "attempt": 0,
+        "max_retries": _positive_int(
+            payload.get("max_retries", _retry_policy_value(payload, "max_retries", 2)),
+            "max_retries",
+            default=2,
+        ),
+        "max_dispatch_attempts": _positive_int(
+            payload.get("max_dispatch_attempts", _retry_policy_value(payload, "max_dispatch_attempts", 3)),
+            "max_dispatch_attempts",
+            default=3,
+        ),
         "created_at": now,
         "updated_at": now,
         "request_id": request_id,

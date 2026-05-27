@@ -643,9 +643,13 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     assert cast(dict[str, float], allowlist_service.telemetry.summary()["metric_totals"])["external_provider_allowlist_missing_total"] == 1.0
 
     service.telemetry.increment("redis_unavailable_total")
+    service.telemetry.increment("billing_checkout_failed_total")
+    service.telemetry.increment("billing_payment_failed_total")
     alerts = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
     rule_names = {item["rule_name"] for item in alerts["firing"]}
     assert "billing-webhook-failures" in rule_names
+    assert "billing-checkout-failures" in rule_names
+    assert "billing-payment-failures" in rule_names
     assert "redis-unavailable" in rule_names
 
 def test_provider_fraud_signal_metric_alert_and_route_on_quote_drift() -> None:
@@ -790,6 +794,8 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "FlowMemoryComputeMarketProviderFraudSignal",
         "FlowMemoryComputeMarketStaleQuotes",
         "FlowMemoryComputeMarketBillingWebhookFailures",
+        "FlowMemoryComputeMarketBillingCheckoutFailures",
+        "FlowMemoryComputeMarketBillingPaymentFailures",
         "FlowMemoryComputeMarketPolicyDenialSpike",
         "FlowMemoryComputeMarketBillingInsufficientCredit",
         "FlowMemoryComputeMarketUnexpectedSettlementConfig",
@@ -806,6 +812,8 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "provider_fraud_signal_total",
         "quote_stale_total",
         "billing_webhook_failures_total",
+        "billing_checkout_failed_total",
+        "billing_payment_failed_total",
         "billing_insufficient_credit_total",
         "compute_policy_denials_total",
         "policy_denied_total",

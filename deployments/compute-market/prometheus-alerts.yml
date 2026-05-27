@@ -71,6 +71,26 @@ groups:
           summary: Stripe billing webhook verification failed.
           description: Verify Stripe-Signature, webhook secret, replay window, and raw body preservation at the gateway.
 
+      - alert: FlowMemoryComputeMarketBillingCheckoutFailures
+        expr: billing_checkout_failed_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: billing
+        annotations:
+          summary: Stripe Checkout session creation is failing.
+          description: Verify Stripe API credentials, checkout endpoint reachability, and idempotency handling before allowing paid compute signup.
+
+      - alert: FlowMemoryComputeMarketBillingPaymentFailures
+        expr: billing_payment_failed_total > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: billing
+        annotations:
+          summary: Stripe reported failed payment events.
+          description: Review payment failure reasons, credit top-up conversion, customer notification, and abuse signals.
+
       - alert: FlowMemoryComputeMarketBillingInsufficientCredit
         expr: rate(billing_insufficient_credit_total[5m]) > 0
         for: 5m

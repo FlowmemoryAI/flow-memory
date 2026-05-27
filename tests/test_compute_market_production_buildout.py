@@ -225,7 +225,6 @@ def test_provider_reapplication_tracks_new_pending_version_without_settlement_si
     assert len(service.store.list_records("compute_provider", filters={"provider_id": "provider_live_gpu_1"}).records) == 1
     assert len(service.store.list_records("provider_reputation", filters={"provider_id": "provider_live_gpu_1"}).records) == 1
     assert service.store.count_records("compute_quote") == 0
-
     audit_events = service.store.list_records("audit_event", limit=10).records
     applied_events = sorted(
         (event for event in audit_events if event["action"] == "market.provider.applied"),
@@ -242,6 +241,56 @@ def test_provider_reapplication_tracks_new_pending_version_without_settlement_si
         assert event["funds_moved"] is False
         assert event["broadcast_allowed"] is False
         assert event["private_key_required"] is False
+
+
+def test_provider_application_revision_and_rejection_gate_verification() -> None:
+    service = _service()
+    service.apply_market_provider({**_provider_application(), "request_id": "provider-review-v1"})
+
+    revision = service.request_market_provider_revision(
+        "provider_live_gpu_1",
+        {"revision_notes": "Add KYB evidence before verification.", "reviewed_by": "provider-admin"},
+    )
+    assert revision["provider_application"]["status"] == "revision_requested"
+    assert revision["provider_application"]["verified"] is False
+    assert revision["provider_application"]["revision_notes"] == "Add KYB evidence before verification."
+
+    try:
+        service.verify_market_provider("provider_live_gpu_1", {})
+    except ValueError as exc:
+        assert "pending or probation" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("revision-requested provider application was verified")
+
+    service.apply_market_provider(
+        {
+            **_provider_application(),
+            "provider_name": "Live GPU Provider 1 Revised",
+            "quote_endpoint": "https://provider.example.com/quote-revised",
+            "health_endpoint": "https://provider.example.com/health-revised",
+            "request_id": "provider-review-v2",
+        }
+    )
+    rejected = service.reject_market_provider(
+        "provider_live_gpu_1",
+        {"rejection_reason": "KYB evidence failed review.", "reviewed_by": "provider-admin"},
+    )
+    fetched = service.market_provider("provider_live_gpu_1")
+    audit_actions = tuple(event["action"] for event in service.store.list_records("audit_event", limit=100).records)
+
+    assert rejected["provider_application"]["status"] == "rejected"
+    assert rejected["provider_application"]["verified"] is False
+    assert rejected["provider_application"]["rejection_reason"] == "KYB evidence failed review."
+    assert fetched["provider_application"]["status"] == "rejected"
+    assert fetched["provider"] == {}
+    assert "market.provider.revision_requested" in audit_actions
+    assert "market.provider.rejected" in audit_actions
+    try:
+        service.verify_market_provider("provider_live_gpu_1", {})
+    except ValueError as exc:
+        assert "pending or probation" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("rejected provider application was verified")
 
 def test_provider_onboarding_rejects_inline_credentials() -> None:
     service = _service()
@@ -2567,6 +2616,8 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/billing/provider-payouts/payout_1/settle") == ("compute:billing",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
+        assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/reject") == ("compute:provider-admin",)
+        assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/request-revision") == ("compute:provider-admin",)
         assert required_scopes_for("GET", "/market/prices") == ("compute:read",)
         assert required_scopes_for("POST", "/compute/intelligence-plan") == ("compute:plan",)
         assert required_scopes_for("GET", "/compute/prices") == ("compute:read",)
@@ -2579,6 +2630,26 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert verified["provider"]["verified"] is True
         fetched = router.dispatch("GET", "/market/providers/provider_live_gpu_1")
         assert fetched["provider"]["provider_id"] == "provider_live_gpu_1"
+        router.dispatch(
+            "POST",
+            "/market/providers/apply",
+            {**_provider_application(), "provider_id": "provider_review_api", "provider_name": "Review API Provider", "request_id": "api-review-v1"},
+        )
+        revision = router.dispatch(
+            "POST",
+            "/market/providers/provider_review_api/request-revision",
+            {"revision_notes": "Need updated compliance package."},
+        )
+        router.dispatch(
+            "POST",
+            "/market/providers/apply",
+            {**_provider_application(), "provider_id": "provider_review_api", "provider_name": "Review API Provider Revised", "request_id": "api-review-v2"},
+        )
+        rejected = router.dispatch(
+            "POST",
+            "/market/providers/provider_review_api/reject",
+            {"rejection_reason": "Compliance package rejected."},
+        )
         job = router.dispatch("POST", "/compute/jobs", _job_payload())
         job_id = str(job["job"]["job_id"])
         claimed = router.dispatch("POST", "/compute/jobs/claim", {"worker_id": "worker_api"})
@@ -2597,6 +2668,8 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
         assert expired_leases["expired_count"] == 0
+        assert revision["provider_application"]["status"] == "revision_requested"
+        assert rejected["provider_application"]["status"] == "rejected"
         assert tuple(str(item["job_id"]) for item in jobs["jobs"]) == (job_id,)
         assert telemetry["summary"]["metric_sample_count"] >= 1
         assert intelligence["intelligence_plan"]["recommended_intelligence_tier"]

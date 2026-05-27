@@ -114,10 +114,13 @@ def _compute(argv: list[str]) -> int:
     contract.add_argument("--json", action="store_true", help="Print JSON output")
     contract.add_argument("--provider", default="")
     provider_admin = subparsers.add_parser("provider-admin", help="Administer market provider onboarding")
-    provider_admin.add_argument("provider_action", choices=("apply", "verify", "disable", "conformance", "get", "reputation"))
+    provider_admin.add_argument("provider_action", choices=("apply", "verify", "reject", "request-revision", "disable", "conformance", "get", "reputation"))
     _add_compute_query_args(provider_admin)
     provider_admin.add_argument("--file", default="", help="JSON provider application, conformance request, or raw quote")
     provider_admin.add_argument("--verification-notes", default="")
+    provider_admin.add_argument("--rejection-reason", default="")
+    provider_admin.add_argument("--revision-notes", default="")
+    provider_admin.add_argument("--reviewed-by", default="")
     provider_admin.add_argument("--asset", action="append", default=[])
     provider_admin.add_argument("--network", action="append", default=[])
     billing = subparsers.add_parser("billing", help="Operate no-custody billing ledgers")
@@ -334,11 +337,24 @@ def _provider_admin_output(service: Any, args: Any, payload: dict[str, Any]) -> 
     verification_notes = str(getattr(args, "verification_notes", ""))
     if verification_notes:
         provider_payload["verification_notes"] = verification_notes
+    rejection_reason = str(getattr(args, "rejection_reason", ""))
+    if rejection_reason:
+        provider_payload["rejection_reason"] = rejection_reason
+    revision_notes = str(getattr(args, "revision_notes", ""))
+    if revision_notes:
+        provider_payload["revision_notes"] = revision_notes
+    reviewed_by = str(getattr(args, "reviewed_by", ""))
+    if reviewed_by:
+        provider_payload["reviewed_by"] = reviewed_by
 
     if action == "apply":
         return _mapping_output(service.apply_market_provider(provider_payload))
     if action == "verify":
         return _mapping_output(service.verify_market_provider(_required_provider_id(provider_id), provider_payload))
+    if action == "reject":
+        return _mapping_output(service.reject_market_provider(_required_provider_id(provider_id), provider_payload))
+    if action == "request-revision":
+        return _mapping_output(service.request_market_provider_revision(_required_provider_id(provider_id), provider_payload))
     if action == "disable":
         return _mapping_output(service.disable_market_provider(_required_provider_id(provider_id), provider_payload))
     if action == "get":

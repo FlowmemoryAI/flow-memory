@@ -134,6 +134,11 @@ class CLITests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as temp_dir:
                 application_path = Path(temp_dir) / "provider.json"
                 application_path.write_text(json.dumps(application), encoding="utf-8")
+                review_application_path = Path(temp_dir) / "provider-review.json"
+                review_application_path.write_text(
+                    json.dumps({**application, "provider_id": "provider_cli_review", "provider_name": "CLI Review Provider"}),
+                    encoding="utf-8",
+                )
 
                 apply_code, apply_output = self._run_cli(
                     ["compute", "provider-admin", "apply", "--file", str(application_path)]
@@ -155,6 +160,33 @@ class CLITests(unittest.TestCase):
                 disable_code, disable_output = self._run_cli(
                     ["compute", "provider-admin", "disable", "--provider", "provider_cli_gpu_1"]
                 )
+                review_apply_code, review_apply_output = self._run_cli(
+                    ["compute", "provider-admin", "apply", "--file", str(review_application_path)]
+                )
+                revision_code, revision_output = self._run_cli(
+                    [
+                        "compute",
+                        "provider-admin",
+                        "request-revision",
+                        "--provider",
+                        "provider_cli_review",
+                        "--revision-notes",
+                        "add compliance package",
+                        "--reviewed-by",
+                        "cli-admin",
+                    ]
+                )
+                reject_code, reject_output = self._run_cli(
+                    [
+                        "compute",
+                        "provider-admin",
+                        "reject",
+                        "--provider",
+                        "provider_cli_review",
+                        "--rejection-reason",
+                        "compliance package rejected",
+                    ]
+                )
         finally:
             reset_default_service(None)
 
@@ -162,15 +194,24 @@ class CLITests(unittest.TestCase):
         verified = json.loads(verify_output)
         reputation = json.loads(reputation_output)
         disabled = json.loads(disable_output)
+        review_applied = json.loads(review_apply_output)
+        revision = json.loads(revision_output)
+        rejected = json.loads(reject_output)
         self.assertEqual(apply_code, 0)
         self.assertEqual(verify_code, 0)
         self.assertEqual(reputation_code, 0)
         self.assertEqual(disable_code, 0)
+        self.assertEqual(review_apply_code, 0)
+        self.assertEqual(revision_code, 0)
+        self.assertEqual(reject_code, 0)
         self.assertFalse(applied["inline_secrets_stored"])
         self.assertEqual(applied["credential_storage"], "external_secret_reference_only")
         self.assertTrue(verified["provider"]["verified"])
         self.assertEqual(reputation["reputation"]["provider_id"], "provider_cli_gpu_1")
         self.assertEqual(disabled["provider_application"]["status"], "disabled")
+        self.assertEqual(review_applied["provider_application"]["status"], "pending")
+        self.assertEqual(revision["provider_application"]["status"], "revision_requested")
+        self.assertEqual(rejected["provider_application"]["status"], "rejected")
 
     def test_billing_cli_lists_usage_payouts_refunds_and_settles(self) -> None:
         import hmac

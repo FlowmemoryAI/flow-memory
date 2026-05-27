@@ -609,6 +609,8 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         application = self._latest_provider_application(provider_id, payload)
+        if str(application.get("status", "")) not in {"pending", "probation"}:
+            raise ValueError("provider application must be pending or probation before verification")
         verified_at = utc_now_iso()
         updated_application = {
             **application,
@@ -652,6 +654,73 @@ class ComputeMarketService:
         )
         self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
+
+    def reject_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/reject", request_id=request_id, provider_id=provider_id)
+        if limited is not None:
+            return limited
+        application = self._latest_provider_application(provider_id, payload)
+        if str(application.get("status", "")) in {"verified", "disabled"}:
+            raise ValueError("verified or disabled provider applications must be disabled, not rejected")
+        rejected_at = utc_now_iso()
+        reason = str(payload.get("rejection_reason", payload.get("reason", ""))).strip()
+        updated_application = {
+            **application,
+            "status": "rejected",
+            "verified": False,
+            "rejected_at": rejected_at,
+            "rejection_reason": reason,
+            "review_notes": str(payload.get("review_notes", "")),
+            "reviewed_by": str(payload.get("reviewed_by", payload.get("actor_id", ""))),
+            "updated_at": rejected_at,
+        }
+        self.store.put_record(
+            "market_provider_application",
+            str(updated_application["application_id"]),
+            updated_application,
+            provider_id=provider_id,
+            status="rejected",
+            request_id=request_id,
+            tenant_id=str(updated_application.get("tenant_id", "")),
+            workspace_id=str(updated_application.get("workspace_id", "")),
+        )
+        self._audit("market.provider.rejected", payload, request_id=request_id, result="rejected", reason_codes=("provider_application_rejected",), provider_id=provider_id)
+        return {"ok": True, "provider_application": updated_application}
+
+    def request_market_provider_revision(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /market/providers/{provider_id}/request-revision", request_id=request_id, provider_id=provider_id)
+        if limited is not None:
+            return limited
+        application = self._latest_provider_application(provider_id, payload)
+        if str(application.get("status", "")) in {"verified", "disabled", "rejected"}:
+            raise ValueError("provider application revisions can only be requested for active pending reviews")
+        revision_requested_at = utc_now_iso()
+        revision_notes = str(payload.get("revision_notes", payload.get("review_notes", ""))).strip()
+        updated_application = {
+            **application,
+            "status": "revision_requested",
+            "verified": False,
+            "revision_requested_at": revision_requested_at,
+            "revision_notes": revision_notes,
+            "reviewed_by": str(payload.get("reviewed_by", payload.get("actor_id", ""))),
+            "updated_at": revision_requested_at,
+        }
+        self.store.put_record(
+            "market_provider_application",
+            str(updated_application["application_id"]),
+            updated_application,
+            provider_id=provider_id,
+            status="revision_requested",
+            request_id=request_id,
+            tenant_id=str(updated_application.get("tenant_id", "")),
+            workspace_id=str(updated_application.get("workspace_id", "")),
+        )
+        self._audit("market.provider.revision_requested", payload, request_id=request_id, result="revision_requested", reason_codes=("provider_application_revision_requested",), provider_id=provider_id)
+        return {"ok": True, "provider_application": updated_application}
 
     def provider_conformance(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)

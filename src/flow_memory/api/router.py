@@ -143,6 +143,8 @@ from flow_memory.api.compute_endpoints import (
     market_provider,
     market_provider_apply,
     market_provider_disable,
+    market_provider_reject,
+    market_provider_request_revision,
     market_provider_conformance,
     market_provider_reputation,
     market_provider_verify,
@@ -564,6 +566,14 @@ class LocalApiRouter:
 
     def _market_provider_verify(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_provider_verify(params["provider_id"], payload)
+
+
+    def _market_provider_reject(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_reject(params["provider_id"], payload)
+
+
+    def _market_provider_request_revision(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return market_provider_request_revision(params["provider_id"], payload)
 
     def _market_provider_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_provider_disable(params["provider_id"], payload)
@@ -1092,6 +1102,8 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/market/providers/apply", router._market_provider_apply, "market_provider_apply")
     router.register("GET", "/market/providers/{provider_id}", router._market_provider, "market_provider")
     router.register("POST", "/market/providers/{provider_id}/verify", router._market_provider_verify, "market_provider_verify")
+    router.register("POST", "/market/providers/{provider_id}/reject", router._market_provider_reject, "market_provider_reject")
+    router.register("POST", "/market/providers/{provider_id}/request-revision", router._market_provider_request_revision, "market_provider_request_revision")
     router.register("POST", "/market/providers/{provider_id}/conformance", router._market_provider_conformance, "market_provider_conformance")
     router.register("POST", "/market/providers/{provider_id}/disable", router._market_provider_disable, "market_provider_disable")
     router.register("GET", "/market/providers/{provider_id}/reputation", router._market_provider_reputation, "market_provider_reputation")

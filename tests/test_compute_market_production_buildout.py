@@ -12,6 +12,7 @@ from typing import Any, Mapping, cast
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.config import ComputeMarketConfig
+from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.models import IntelligenceTier, ProviderClass, ReasoningBudget, RunDecision, TaskEconomicProfile
 from flow_memory.compute_market.storage import ComputeMarketStore
@@ -2685,6 +2686,85 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     else:  # pragma: no cover
         raise AssertionError("over-refund was accepted")
 
+def test_billing_ledger_audit_export_readback_verifies_custody_safety(tmp_path: Any) -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_billing_audit_export",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_billing_audit"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_billing_audit_export",
+                "account_id": "acct_billing_audit",
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": "acct_billing_audit",
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+        },
+    )
+    usage_charge_id = str(completed["usage_charge"]["usage_charge_id"])
+    provider_payout_id = str(completed["provider_payout"]["provider_payout_id"])
+
+    refund = service.billing_refund(
+        {"usage_charge_id": usage_charge_id, "reason": "sla_credit", "idempotency_key": "refund-billing-audit"}
+    )
+    settled = service.settle_provider_payout(
+        provider_payout_id,
+        {"external_payout_reference": "ops-ledger-audit-1", "settled_by": "ops"},
+    )
+    export_path = tmp_path / "billing-audit.ndjson"
+
+    exported = service.audit_export({"out": str(export_path), "chain_id": "all"})
+    verified = service.audit_verify_export({"path": str(export_path)})
+    exported_events = audit_events_from_export_file(export_path)
+    chain = verify_exported_chain(exported_events)
+    actions = {str(event.get("action", "")) for event in exported_events}
+    billing_events = tuple(event for event in exported_events if str(event.get("action", "")).startswith("billing."))
+
+    assert dispatched["credit_reservation"]["status"] == "reserved"
+    assert completed["credit_debit"]["status"] == "posted"
+    assert completed["provider_payout"]["funds_moved"] is False
+    assert refund["refund"]["funds_moved"] is False
+    assert settled["provider_payout"]["funds_moved"] is False
+    assert exported["ok"] is True
+    assert exported["manifest_hash"]
+    assert exported["checkpoint"]["checkpoint_hash"]
+    assert exported["checkpoint_record"]["manifest_hash"] == exported["manifest_hash"]
+    assert verified["ok"] is True
+    assert verified["checkpoint_hash"] == exported["checkpoint"]["checkpoint_hash"]
+    assert chain["ok"] is True
+    assert chain["event_count"] == exported["event_count"]
+    assert {
+        "billing.credit.added",
+        "billing.webhook.received",
+        "billing.usage.debited",
+        "billing.provider_payout.accrued",
+        "billing.refund.recorded",
+        "billing.provider_payout.settled",
+    }.issubset(actions)
+    assert billing_events
+    assert all(event["funds_moved"] is False for event in billing_events)
+    assert all(event["broadcast_allowed"] is False for event in billing_events)
+    assert all(event["private_key_required"] is False for event in billing_events)
+    assert all(event["dry_run_only"] is True for event in billing_events)
 
 def test_billing_refund_rejects_invalid_or_unowned_requests() -> None:
     service = _service()

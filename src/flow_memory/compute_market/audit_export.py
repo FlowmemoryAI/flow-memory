@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass, field
 from urllib.parse import parse_qs, unquote, urlparse
@@ -11,6 +12,8 @@ from typing import Any, Mapping, Protocol
 from flow_memory.compute_market.storage import audit_event_hash, canonical_audit_payload_hash, utc_now_iso
 from flow_memory.compute_market.storage_backends import ComputeMarketStoreProtocol
 from flow_memory.crypto.hashes import content_hash
+from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.signatures import sign_payload, verify_payload
 
 _EXPORT_FORMAT = "flow-memory-compute-market-audit-export-v1"
 _SECRET_KEY_FRAGMENTS = (
@@ -251,6 +254,8 @@ class S3WormAuditExporter:
     client: Any | None = None
     region_name: str = ""
     endpoint_url: str = ""
+    manifest_signing_key_id: str = ""
+    manifest_signing_secret_env: str = ""
     _last_export_key: str = field(default="", init=False, repr=False)
 
     def export_events(
@@ -299,6 +304,9 @@ class S3WormAuditExporter:
         }
         manifest_hash = content_hash(manifest)
         manifest = {**manifest, "manifest_hash": manifest_hash}
+        signing_key = self._manifest_signing_key()
+        if signing_key is not None:
+            manifest = _sign_record(manifest, "manifest_signature", signing_key)
         body = "\n".join(
             [
                 _canonical_json(manifest),
@@ -313,6 +321,8 @@ class S3WormAuditExporter:
             "checkpoint-id": checkpoint.checkpoint_id,
             "audit-format": _EXPORT_FORMAT,
         }
+        if signing_key is not None:
+            metadata["manifest-signature-key-id"] = signing_key.key_id
         client.put_object(
             Bucket=self.bucket,
             Key=key,
@@ -329,17 +339,21 @@ class S3WormAuditExporter:
     def write_checkpoint(self, checkpoint: AuditCheckpoint) -> Mapping[str, Any]:
         retention_until = _retention_until(self.retention_days)
         key = self._key(f"checkpoints/{checkpoint.checkpoint_id}.json")
-        body = _canonical_json(
-            {
-                **checkpoint.as_record(),
-                "storage_uri": f"s3://{self.bucket}/{key}",
-                "object_lock_mode": self.object_lock_mode,
-                "retention_until": checkpoint.retention_until or _iso_timestamp(retention_until),
-            }
-        ) + "\n"
+        checkpoint_record = {
+            **checkpoint.as_record(),
+            "storage_uri": f"s3://{self.bucket}/{key}",
+            "object_lock_mode": self.object_lock_mode,
+            "retention_until": checkpoint.retention_until or _iso_timestamp(retention_until),
+        }
+        signing_key = self._manifest_signing_key()
+        if signing_key is not None:
+            checkpoint_record = _sign_record(checkpoint_record, "checkpoint_signature", signing_key)
+        body = _canonical_json(checkpoint_record) + "\n"
         self._assert_bucket_object_lock_enabled()
         client = self._client()
         metadata = {"checkpoint-id": checkpoint.checkpoint_id, "audit-format": _EXPORT_FORMAT}
+        if signing_key is not None:
+            metadata["checkpoint-signature-key-id"] = signing_key.key_id
         client.put_object(
             Bucket=self.bucket,
             Key=key,
@@ -350,7 +364,7 @@ class S3WormAuditExporter:
             ObjectLockRetainUntilDate=retention_until,
         )
         self._assert_object_lock_readback(client, key, expected_metadata=metadata)
-        return {"ok": True, "path": f"s3://{self.bucket}/{key}", "checkpoint": checkpoint.as_record(), "object_lock_mode": self.object_lock_mode}
+        return {"ok": True, "path": f"s3://{self.bucket}/{key}", "checkpoint": checkpoint.as_record(), "checkpoint_record": checkpoint_record, "object_lock_mode": self.object_lock_mode}
 
     def verify_export(self) -> AuditExportVerification:
         if not self._last_export_key:
@@ -367,6 +381,17 @@ class S3WormAuditExporter:
             manifest_error = _verify_manifest_hash(manifest)
             if manifest_error:
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=manifest_error[0], message=manifest_error[1])
+            signing_key = self._manifest_signing_key()
+            if signing_key is not None:
+                signature_error = _verify_signed_record(
+                    manifest,
+                    "manifest_signature",
+                    signing_key,
+                    missing_code="missing_manifest_signature",
+                    mismatch_code="manifest_signature_mismatch",
+                )
+                if signature_error:
+                    return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=signature_error[0], message=signature_error[1])
             if any(event is None for event in events):
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code="invalid_event_line", message="audit export contains a malformed event line")
             event_records = tuple(event for event in events if event is not None)
@@ -381,14 +406,17 @@ class S3WormAuditExporter:
             chain_error = _verify_exported_chain(event_records)
             if chain_error:
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash, chain_error[0], chain_error[1])
+            expected_metadata = {
+                "manifest-hash": str(manifest.get("manifest_hash", "")),
+                "checkpoint-id": str(checkpoint_map.get("checkpoint_id", "")),
+                "audit-format": _EXPORT_FORMAT,
+            }
+            if signing_key is not None:
+                expected_metadata["manifest-signature-key-id"] = signing_key.key_id
             self._assert_object_lock_readback(
                 client,
                 self._last_export_key,
-                expected_metadata={
-                    "manifest-hash": str(manifest.get("manifest_hash", "")),
-                    "checkpoint-id": str(checkpoint_map.get("checkpoint_id", "")),
-                    "audit-format": _EXPORT_FORMAT,
-                },
+                expected_metadata=expected_metadata,
             )
             return AuditExportVerification(True, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash)
         except Exception as exc:
@@ -408,8 +436,21 @@ class S3WormAuditExporter:
             "region_configured": bool(self.region_name),
             "endpoint_configured": bool(self.endpoint_url),
             "object_lock_enabled": object_lock_enabled,
+            "manifest_signing_configured": bool(self.manifest_signing_key_id and self.manifest_signing_secret_env),
             "immutable": configured and self.object_lock_mode in {"COMPLIANCE", "GOVERNANCE"} and self.retention_days >= 1,
         }
+
+    def _manifest_signing_key(self) -> LocalKeyPair | None:
+        key_id = self.manifest_signing_key_id.strip()
+        secret_env = self.manifest_signing_secret_env.strip()
+        if not key_id and not secret_env:
+            return None
+        if not key_id or not secret_env:
+            raise RuntimeError("S3 audit manifest signing requires both manifest_signing_key_id and manifest_signing_secret_env")
+        secret = os.environ.get(secret_env, "")
+        if not secret:
+            raise RuntimeError(f"S3 audit manifest signing secret env is not set: {secret_env}")
+        return LocalKeyPair(key_id=key_id, secret=secret)
 
     def _key(self, suffix: str) -> str:
         prefix = self.prefix.strip("/")
@@ -513,6 +554,8 @@ def create_audit_exporter(
         query = parse_qs(parsed.query)
         object_lock_mode_resolved = (object_lock_mode or str(query.get("object_lock_mode", query.get("mode", ["COMPLIANCE"]))[0])).upper()
         retention_days_resolved = retention_days or _int_query_value(query.get("retention_days", query.get("retention", ["365"]))[0], default=365)
+        manifest_signing_key_id = str(query.get("manifest_signing_key_id", query.get("signing_key_id", [""]))[0])
+        manifest_signing_secret_env = str(query.get("manifest_signing_secret_env", query.get("signing_secret_env", [""]))[0])
         return S3WormAuditExporter(
             bucket=parsed.netloc,
             prefix=parsed.path.lstrip("/"),
@@ -520,6 +563,8 @@ def create_audit_exporter(
             retention_days=retention_days_resolved,
             region_name=s3_region,
             endpoint_url=s3_endpoint_url,
+            manifest_signing_key_id=manifest_signing_key_id,
+            manifest_signing_secret_env=manifest_signing_secret_env,
         )
     return NoopAuditExporter(f"unsupported_audit_export_uri:{parsed.scheme}")
 
@@ -630,11 +675,37 @@ def _checkpoint_hash(events: tuple[Mapping[str, Any], ...], chain_id: str, expor
     return checkpoint.checkpoint_hash
 
 
+def _signature_payload(record: Mapping[str, Any], *excluded_fields: str) -> dict[str, Any]:
+    excluded = set(excluded_fields)
+    return {key: value for key, value in record.items() if key not in excluded}
+
+
+def _sign_record(record: Mapping[str, Any], signature_field: str, key: LocalKeyPair) -> dict[str, Any]:
+    payload = _signature_payload(record, signature_field)
+    return {**payload, signature_field: dict(sign_payload(payload, key).as_record())}
+
+
+def _verify_signed_record(
+    record: Mapping[str, Any],
+    signature_field: str,
+    key: LocalKeyPair,
+    *,
+    missing_code: str,
+    mismatch_code: str,
+) -> tuple[str, str] | None:
+    signature = record.get(signature_field)
+    if not isinstance(signature, Mapping):
+        return (missing_code, f"audit export {signature_field} is missing")
+    if not verify_payload(_signature_payload(record, signature_field), signature, key):
+        return (mismatch_code, f"audit export {signature_field} does not match payload")
+    return None
+
+
 def _verify_manifest_hash(manifest: Mapping[str, Any]) -> tuple[str, str] | None:
     manifest_hash = str(manifest.get("manifest_hash", ""))
     if not manifest_hash:
         return ("missing_manifest_hash", "audit export manifest is missing manifest_hash")
-    expected = content_hash({key: value for key, value in manifest.items() if key != "manifest_hash"})
+    expected = content_hash(_signature_payload(manifest, "manifest_hash", "manifest_signature"))
     if manifest_hash != expected:
         return ("manifest_hash_mismatch", "manifest hash does not match manifest payload")
     return None

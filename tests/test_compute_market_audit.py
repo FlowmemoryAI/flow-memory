@@ -296,6 +296,70 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     assert tampered.error_code == "manifest_hash_mismatch"
 
 
+def test_s3_object_lock_exporter_signs_manifest_and_checkpoint(monkeypatch: Any) -> None:
+    monkeypatch.setenv("FLOW_MEMORY_AUDIT_SIGNING_SECRET", "audit-signing-secret")
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter(
+        "flow-memory-audit",
+        "compute-market",
+        retention_days=30,
+        client=client,
+        manifest_signing_key_id="audit-key-1",
+        manifest_signing_secret_env="FLOW_MEMORY_AUDIT_SIGNING_SECRET",
+    )
+    service = _service()
+    service.plan({"task": "s3 signed object lock export", "request_id": "s3-signed-worm"})
+
+    exported = exporter.export_events(service.store, chain_id="all")
+    checkpoint_written = exporter.write_checkpoint(exported.checkpoint)
+    verified = exporter.verify_export()
+
+    assert verified.ok is True
+    export_put = next(put for put in client.puts if put["ContentType"] == "application/x-ndjson")
+    export_bucket = str(export_put["Bucket"])
+    export_key = str(export_put["Key"])
+    export_lines = client.objects[(export_bucket, export_key)].decode("utf-8").splitlines()
+    manifest = json.loads(export_lines[0])
+    assert manifest["manifest_signature"]["key_id"] == "audit-key-1"
+    assert client.heads[(export_bucket, export_key)]["Metadata"]["manifest-signature-key-id"] == "audit-key-1"
+
+    checkpoint_put = next(put for put in client.puts if put["ContentType"] == "application/json")
+    checkpoint_bucket = str(checkpoint_put["Bucket"])
+    checkpoint_key = str(checkpoint_put["Key"])
+    checkpoint_record = json.loads(client.objects[(checkpoint_bucket, checkpoint_key)].decode("utf-8"))
+    assert checkpoint_record["checkpoint_signature"]["key_id"] == "audit-key-1"
+    assert checkpoint_written["checkpoint_record"]["checkpoint_signature"]["key_id"] == "audit-key-1"
+    assert client.heads[(checkpoint_bucket, checkpoint_key)]["Metadata"]["checkpoint-signature-key-id"] == "audit-key-1"
+
+    manifest["manifest_signature"] = {**manifest["manifest_signature"], "signature": "bad-signature"}
+    export_lines[0] = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+    client.objects[(export_bucket, export_key)] = ("\n".join(export_lines) + "\n").encode("utf-8")
+    tampered = exporter.verify_export()
+
+    assert tampered.ok is False
+    assert tampered.error_code == "manifest_signature_mismatch"
+
+
+def test_s3_object_lock_exporter_fails_closed_when_manifest_signing_secret_missing(monkeypatch: Any) -> None:
+    monkeypatch.delenv("FLOW_MEMORY_MISSING_AUDIT_SIGNING_SECRET", raising=False)
+    exporter = S3WormAuditExporter(
+        "flow-memory-audit",
+        "compute-market",
+        retention_days=30,
+        client=FakeS3Client(),
+        manifest_signing_key_id="audit-key-1",
+        manifest_signing_secret_env="FLOW_MEMORY_MISSING_AUDIT_SIGNING_SECRET",
+    )
+    service = _service()
+    service.plan({"task": "s3 missing signing secret", "request_id": "s3-missing-signing-secret"})
+
+    try:
+        exporter.export_events(service.store, chain_id="all")
+    except RuntimeError as exc:
+        assert "signing secret env" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("S3 exporter wrote a signed manifest without a signing secret")
+
 
 def test_s3_object_lock_exporter_fails_closed_without_bucket_object_lock() -> None:
     class UnlockedS3Client(FakeS3Client):
@@ -363,7 +427,7 @@ def test_s3_object_lock_verify_export_fails_closed_without_retention_readback() 
 
 def test_s3_exporter_factory_uses_first_class_region_endpoint_and_retention_config() -> None:
     exporter = create_audit_exporter(
-        "s3://flow-memory-audit/compute-market?retention_days=7",
+        "s3://flow-memory-audit/compute-market?retention_days=7&signing_key_id=audit-key-1&signing_secret_env=FLOW_MEMORY_AUDIT_SIGNING_SECRET",
         s3_region="us-east-1",
         s3_endpoint_url="https://s3.us-east-1.amazonaws.com",
         object_lock_mode="GOVERNANCE",
@@ -375,6 +439,8 @@ def test_s3_exporter_factory_uses_first_class_region_endpoint_and_retention_conf
     assert exporter.endpoint_url == "https://s3.us-east-1.amazonaws.com"
     assert exporter.object_lock_mode == "GOVERNANCE"
     assert exporter.retention_days == 90
+    assert exporter.manifest_signing_key_id == "audit-key-1"
+    assert exporter.manifest_signing_secret_env == "FLOW_MEMORY_AUDIT_SIGNING_SECRET"
 
 
 def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> None:

@@ -625,12 +625,7 @@ def public_api_url_from_env(values: dict[str, str]) -> str:
     if not url:
         return ""
     if has_placeholder(url):
-        emit(
-            "blocked_invalid_public_api_url",
-            39,
-            invalid_value="FLOW_MEMORY_PUBLIC_API_URL",
-            required_action="set FLOW_MEMORY_PUBLIC_API_URL to the real public HTTPS API URL or leave it empty for Render's generated URL",
-        )
+        return ""
     assert_https_public_url(url)
     return url
 
@@ -1133,6 +1128,12 @@ def main() -> int:
     render_keyvalue_plan = env_values.get("RENDER_KEYVALUE_PLAN", "") or DEFAULT_KEYVALUE_PLAN
     render_service_plan = env_values.get("RENDER_SERVICE_PLAN", "") or DEFAULT_SERVICE_PLAN
     render_keyvalue_ip_allowlist = env_values.get("RENDER_KEYVALUE_IP_ALLOWLIST", "") or DEFAULT_KEYVALUE_IP_ALLOWLIST
+    if has_placeholder(render_owner_id):
+        render_owner_id = ""
+    if has_placeholder(render_repo_url):
+        render_repo_url = ""
+    if has_placeholder(render_keyvalue_ip_allowlist):
+        render_keyvalue_ip_allowlist = DEFAULT_KEYVALUE_IP_ALLOWLIST
     render_enable_disk = _bool_setting(env_values, "RENDER_ENABLE_DISK", ENABLE_RENDER_DISK)
     render_allow_free_plans = args.allow_free_plans or _bool_setting(env_values, "RENDER_ALLOW_FREE_PLANS", ALLOW_FREE_RENDER_PLANS)
 

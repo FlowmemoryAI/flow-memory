@@ -1063,11 +1063,8 @@ def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> Non
     assert postgres_blocked.value.code == 25
 
 
-def test_render_deploy_blocks_placeholder_public_api_url() -> None:
-    with pytest.raises(SystemExit) as blocked:
-        render_deploy.public_api_url_from_env({"FLOW_MEMORY_PUBLIC_API_URL": "https://api.yourdomain.com"})
-
-    assert blocked.value.code == 39
+def test_render_deploy_ignores_placeholder_public_api_url_for_generated_render_url() -> None:
+    assert render_deploy.public_api_url_from_env({"FLOW_MEMORY_PUBLIC_API_URL": "https://api.yourdomain.com"}) == ""
 
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:

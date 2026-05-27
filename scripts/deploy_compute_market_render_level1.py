@@ -28,6 +28,11 @@ DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "starter")
 DEFAULT_KEYVALUE_IP_ALLOWLIST = os.environ.get("RENDER_KEYVALUE_IP_ALLOWLIST", "0.0.0.0/32").strip()
 ALLOW_FREE_RENDER_PLANS = os.environ.get("RENDER_ALLOW_FREE_PLANS", "").strip().lower() in {"1", "true", "yes"}
 ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
+FREE_RENDER_PLANS = {"free"}
+RENDER_AUDIT_DISK_NAME = "compute-market-audit"
+RENDER_AUDIT_DISK_MOUNT_PATH = "/var/lib/flow-memory/audit"
+RENDER_AUDIT_DISK_SIZE_GB = 10
+
 DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE = os.environ.get(
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", ""
 )
@@ -530,11 +535,58 @@ def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
     return wait_deploy_live(api_key, service_id, deploy_id)
 
 
+def _plan_name(resource: dict[str, Any]) -> str:
+    return str(resource.get("plan", "") or "").strip().lower()
+
+
+def _requires_paid_plan_update(resource: dict[str, Any], target_plan: str) -> bool:
+    return _plan_name(resource) in FREE_RENDER_PLANS and target_plan.strip().lower() not in FREE_RENDER_PLANS
+
+
+def _service_disk_details() -> dict[str, object]:
+    return {
+        "name": RENDER_AUDIT_DISK_NAME,
+        "mountPath": RENDER_AUDIT_DISK_MOUNT_PATH,
+        "sizeGB": RENDER_AUDIT_DISK_SIZE_GB,
+    }
+
+
+def _disk_payload(service_id: str) -> dict[str, object]:
+    payload = _service_disk_details()
+    payload["serviceId"] = service_id
+    return payload
+
+
+def ensure_service_disk(api_key: str, service_id: str) -> dict[str, Any] | None:
+    disks = render_request(
+        api_key,
+        "GET",
+        f"/disks?{query({'serviceId': service_id, 'limit': '100'})}",
+    )
+    for item in disks if isinstance(disks, list) else []:
+        disk = item.get("disk", item) if isinstance(item, dict) else {}
+        if (
+            isinstance(disk, dict)
+            and disk.get("serviceId") == service_id
+            and disk.get("mountPath") == RENDER_AUDIT_DISK_MOUNT_PATH
+        ):
+            return disk
+    created = render_request(api_key, "POST", "/disks", _disk_payload(service_id))
+    return created.get("disk", created) if isinstance(created, dict) else None
+
+
 def ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str | None = None) -> dict[str, Any]:
+    plan = DEFAULT_POSTGRES_PLAN if plan is None else plan
     existing = find_named(api_key, "/postgres", "postgres", owner_id, POSTGRES_NAME)
     if existing is not None:
+        if _requires_paid_plan_update(existing, plan):
+            return render_request(
+                api_key,
+                "PATCH",
+                f"/postgres/{urllib.parse.quote(str(existing['id']))}",
+                {"plan": plan},
+            )
         return existing
-    plan = DEFAULT_POSTGRES_PLAN if plan is None else plan
     body = {
         "name": POSTGRES_NAME,
         "ownerId": owner_id,
@@ -594,17 +646,30 @@ def ensure_keyvalue(
     plan: str | None = None,
     ip_allowlist: str | None = None,
 ) -> dict[str, Any]:
+    plan = DEFAULT_KEYVALUE_PLAN if plan is None else plan
+    ip_allow_list = keyvalue_ip_allow_list(ip_allowlist)
     existing = find_named(api_key, "/key-value", "keyValue", owner_id, KEYVALUE_NAME)
     if existing is not None:
+        if _requires_paid_plan_update(existing, plan):
+            return render_request(
+                api_key,
+                "PATCH",
+                f"/key-value/{urllib.parse.quote(str(existing['id']))}",
+                {
+                    "plan": plan,
+                    "maxmemoryPolicy": "noeviction",
+                    "persistenceMode": "journal_snapshot",
+                    "ipAllowList": ip_allow_list,
+                },
+            )
         return existing
-    plan = DEFAULT_KEYVALUE_PLAN if plan is None else plan
     body = {
         "name": KEYVALUE_NAME,
         "ownerId": owner_id,
         "plan": plan,
         "region": region,
         "maxmemoryPolicy": "noeviction",
-        "ipAllowList": keyvalue_ip_allow_list(ip_allowlist),
+        "ipAllowList": ip_allow_list,
     }
     if plan != "free":
         body["persistenceMode"] = "journal_snapshot"
@@ -851,9 +916,27 @@ def ensure_service(
         },
     }
     if enable_disk:
-        service_details["disk"] = {"name": "compute-market-audit", "mountPath": "/var/lib/flow-memory/audit", "sizeGB": 10}
+        service_details["disk"] = _service_disk_details()
     if existing is not None:
         service_id = str(existing["id"])
+        if enable_disk:
+            ensure_service_disk(api_key, service_id)
+        render_request(
+            api_key,
+            "PATCH",
+            f"/services/{urllib.parse.quote(service_id)}",
+            {
+                "branch": branch,
+                "repo": repo,
+                "autoDeploy": "no",
+                "serviceDetails": {
+                    "runtime": "docker",
+                    "plan": plan,
+                    "healthCheckPath": "/healthz",
+                    "envSpecificDetails": service_details["envSpecificDetails"],
+                },
+            },
+        )
         render_request(api_key, "PUT", f"/services/{urllib.parse.quote(service_id)}/env-vars", env_vars)
         return render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}")
     body = {

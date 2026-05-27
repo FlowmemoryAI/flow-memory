@@ -835,6 +835,96 @@ def test_render_keyvalue_creation_defaults_to_non_world_open_external_tls_allowl
         {"source": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
     ]
 
+def test_render_deploy_upgrades_existing_free_resources_and_attaches_audit_disk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str, Mapping[str, object] | None]] = []
+
+    def fake_find_named(
+        api_key: str,
+        path: str,
+        envelope: str,
+        owner_id: str,
+        name: str,
+    ) -> dict[str, object] | None:
+        if path == "/postgres":
+            return {"id": "pg_free", "name": name, "plan": "free"}
+        if path == "/key-value":
+            return {"id": "kv_free", "name": name, "plan": "free"}
+        if path == "/services":
+            return {"id": "srv_free", "name": name, "serviceDetails": {"plan": "free"}}
+        return None
+
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> dict[str, object] | list[dict[str, object]]:
+        calls.append((method, path, body))
+        if method == "PATCH" and path == "/postgres/pg_free":
+            assert body == {"plan": "starter"}
+            return {"id": "pg_free", "plan": "starter"}
+        if method == "PATCH" and path == "/key-value/kv_free":
+            assert body is not None
+            assert body["plan"] == "starter"
+            assert body["persistenceMode"] == "journal_snapshot"
+            assert body["maxmemoryPolicy"] == "noeviction"
+            return {"id": "kv_free", "plan": "starter"}
+        if method == "GET" and path == "/disks?serviceId=srv_free&limit=100":
+            return []
+        if method == "POST" and path == "/disks":
+            assert body == {
+                "name": "compute-market-audit",
+                "mountPath": "/var/lib/flow-memory/audit",
+                "sizeGB": 10,
+                "serviceId": "srv_free",
+            }
+            return {"disk": {"id": "disk_1", **dict(body)}}
+        if method == "PATCH" and path == "/services/srv_free":
+            assert body is not None
+            service_details = body["serviceDetails"]
+            assert isinstance(service_details, Mapping)
+            assert service_details["plan"] == "starter"
+            return {"id": "srv_free"}
+        if method == "PUT" and path == "/services/srv_free/env-vars":
+            return {}
+        if method == "GET" and path == "/services/srv_free":
+            return {"id": "srv_free", "serviceDetails": {"plan": "starter"}}
+        raise AssertionError(f"unexpected Render call: {method} {path}")
+
+    monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+
+    postgres = render_deploy.ensure_postgres("render-key", "owner", "oregon", plan="starter")
+    keyvalue = render_deploy.ensure_keyvalue(
+        "render-key",
+        "owner",
+        "oregon",
+        plan="starter",
+        ip_allowlist="0.0.0.0/32",
+    )
+    service = render_deploy.ensure_service(
+        "render-key",
+        "owner",
+        "oregon",
+        "https://github.com/FlowmemoryAI/flow-memory",
+        "work/squire-v2",
+        [render_deploy.env_var("FLOW_MEMORY_API_KEY", "fmk_test")],
+        plan="starter",
+        enable_disk=True,
+    )
+
+    assert postgres["plan"] == "starter"
+    assert keyvalue["plan"] == "starter"
+    assert service["serviceDetails"]["plan"] == "starter"
+    assert ("POST", "/disks", {
+        "name": "compute-market-audit",
+        "mountPath": "/var/lib/flow-memory/audit",
+        "sizeGB": 10,
+        "serviceId": "srv_free",
+    }) in calls
+
 
 def test_render_keyvalue_external_allowlist_rejects_invalid_or_world_open_cidrs() -> None:
     with pytest.raises(SystemExit) as missing_prefix:

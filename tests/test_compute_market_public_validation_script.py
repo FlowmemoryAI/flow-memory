@@ -107,6 +107,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             }
         if url.endswith("/compute/audit/verify"):
             return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/audit/export"):
+            assert method == "POST"
+            assert scopes == "compute:audit"
+            assert body == {"chain_id": "all"}
+            return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 2}}
         if url.endswith("/market/capacity/reserve"):
             return 200, {"ok": True, "data": {"reservation": {"reservation_id": "res_public"}}}
         if url.endswith("/compute/providers/external/quote"):
@@ -234,6 +239,9 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["job_receipt_wrong_scope"] == 403
     assert result["checks"]["job_receipt_unsigned"] == 200
     assert result["audit_export_immutable"] is True
+    assert result["checks"]["audit_export_write"] == 200
+    assert result["audit_export_write_manifest_hash_present"] is True
+    assert result["audit_export_write_event_count"] == 2
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"
     assert result["require_managed_sql_in_production"] is True
@@ -260,6 +268,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
         for call in calls
     )
     assert len(receipt_calls) == 2
+    audit_export_write_calls = [call for call in calls if call[1].endswith("/compute/audit/export")]
+    assert len(audit_export_write_calls) == 1
+    assert audit_export_write_calls[0][2] is not None
+    assert audit_export_write_calls[0][2]["x-flow-memory-scopes"] == "compute:audit"
+    assert audit_export_write_calls[0][3] == {"chain_id": "all"}
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
     assert len(refund_calls) == 1
     assert refund_calls[0][2] is not None and refund_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"

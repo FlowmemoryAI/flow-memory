@@ -285,6 +285,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", headers_admin)
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
+    checks["audit_export_write"] = call_json("POST", f"{base}/compute/audit/export", headers_audit, {"chain_id": "all"})
 
     root_data = data(checks["root"][1])
     readiness = data(checks["readiness"][1])
@@ -301,6 +302,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {})
 
     audit_export_status = data(checks["admin_audit_export"][1])
+    audit_export_write = data(checks["audit_export_write"][1])
     require(checks["root"][0] == 200 and root_data.get("service") == "Flow Memory Compute Market", "root public landing failed")
     require(checks["health"][0] == 200 and data(checks["health"][1]).get("ok") is True, "health failed")
     require(checks["readiness"][0] == 200 and readiness.get("ready") is True, "readiness failed")
@@ -361,7 +363,14 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
         and redis_diag.get("circuit_breaker_fail_closed") is True,
         "admin redis diagnostics did not report fail-closed Redis controls",
     )
-    require(checks["admin_audit_export"][0] == 200 and "audit_exporter_status" in data(checks["admin_audit_export"][1]), "admin audit export status failed")
+    require(checks["admin_audit_export"][0] == 200 and "audit_exporter_status" in audit_export_status, "admin audit export status failed")
+    require(
+        checks["audit_export_write"][0] == 200
+        and audit_export_write.get("ok") is True
+        and bool(audit_export_write.get("manifest_hash"))
+        and int(audit_export_write.get("event_count", 0) or 0) >= 1,
+        "audit export write failed",
+    )
     if require_immutable_audit:
         require(
             audit_export_status.get("immutable") is True
@@ -394,6 +403,8 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
         "broadcast_allowed": False,
         "private_key_required": False,
         "audit_export_immutable": audit_export_status.get("immutable"),
+        "audit_export_write_manifest_hash_present": bool(audit_export_write.get("manifest_hash")),
+        "audit_export_write_event_count": audit_export_write.get("event_count"),
     }
 
 

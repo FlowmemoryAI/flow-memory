@@ -181,6 +181,60 @@ def test_http_provider_accepts_valid_quote_and_injects_secret_without_exposing_i
     assert "super-secret-token" not in json.dumps(quotes[0].as_record())
 
 
+def test_service_external_quote_uses_provider_secret_ref_env_binding(monkeypatch: Any) -> None:
+    server, base = _server()
+    store = ComputeMarketStore(":memory:")
+    service = ComputeMarketService(
+        store=store,
+        config=ComputeMarketConfig(
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_quotes_enabled=True,
+            external_provider_allowlist=("127.0.0.1",),
+            external_provider_quote_timeout_ms=1_000,
+        ),
+    )
+    monkeypatch.setenv("FLOW_MEMORY_TEST_PROVIDER_TOKEN", "super-secret-token")
+    try:
+        created = service.create_provider(
+            {
+                "provider_id": "market-token-provider",
+                "provider_name": "Market Token Provider",
+                "provider_type": "marketplace",
+                "status": "active",
+                "supported_unit_types": ("token",),
+                "supported_assets": ("USDC",),
+                "supported_networks": ("solana",),
+                "quote_endpoint": f"{base}/valid",
+                "credentials": {
+                    "secret_ref": "render/env/FLOW_MEMORY_TEST_PROVIDER_TOKEN",
+                    "auth_header_name": "x-provider-token",
+                },
+            }
+        )
+        result = service.request_external_provider_quote(
+            {
+                "provider_id": "market-token-provider",
+                "task": "credential-bound quote",
+                "allowed_assets": ("USDC",),
+                "allowed_networks": ("solana",),
+            }
+        )
+    finally:
+        server.shutdown()
+
+    provider = cast(Mapping[str, Any], created["provider"])
+    metadata = cast(Mapping[str, Any], provider["metadata"])
+    secret_ref = store.list_records("provider_secret_ref", filters={"provider_id": "market-token-provider"}).records[0]
+    assert result["ok"] is True
+    assert _CAPTURED_AUTH == ["super-secret-token"]
+    assert metadata["auth_header_name"] == "x-provider-token"
+    assert metadata["auth_header_value_env"] == "FLOW_MEMORY_TEST_PROVIDER_TOKEN"
+    assert secret_ref["credential_bindings"]["auth_header_value_env"] == "FLOW_MEMORY_TEST_PROVIDER_TOKEN"
+    assert "super-secret-token" not in json.dumps(provider)
+    assert "super-secret-token" not in json.dumps(result)
+
+
 
 def test_http_provider_signs_outbound_quote_requests() -> None:
     server, base = _server()

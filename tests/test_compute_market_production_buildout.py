@@ -164,11 +164,14 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
     assert applied["inline_secrets_stored"] is False
     assert applied["provider_application"]["status"] == "pending"
     assert service.store.count_records("provider_secret_ref") == 1
+    assert applied["provider_application"]["credential_bindings"]["auth_header_value_env"] == "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN"
 
     verified = service.verify_market_provider("provider_live_gpu_1", {"verification_notes": "contract reviewed"})
     assert verified["ok"] is True
     assert verified["provider"]["verified"] is True
     assert verified["provider"]["dry_run_only"] is True
+    assert verified["provider"]["metadata"]["auth_header_value_env"] == "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN"
+    assert "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN" not in json.dumps(verified["provider"].get("credential_bindings", {}))
 
     fetched = service.market_provider("provider_live_gpu_1")
     assert fetched["provider_application"]["status"] == "verified"

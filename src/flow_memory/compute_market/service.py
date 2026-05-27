@@ -440,7 +440,7 @@ class ComputeMarketService:
             return limited
         provider_id = str(payload.get("provider_id") or deterministic_id("provider", payload))
         provider_payload = _provider_admin_payload(payload)
-        provider = {**provider_payload, "provider_id": provider_id, "status": str(provider_payload.get("status", "active"))}
+        provider = _provider_with_credential_bindings({**provider_payload, "provider_id": provider_id, "status": str(provider_payload.get("status", "active"))}, payload)
         self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status=str(provider["status"]), request_id=request_id)
         secret_ref = _provider_secret_reference(payload, provider_id=provider_id, request_id=request_id)
         if secret_ref:
@@ -456,7 +456,7 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         current = dict(self.get_provider(provider_id, payload)["provider"])
-        updated = {**current, **_provider_admin_payload(payload), "provider_id": provider_id}
+        updated = _provider_with_credential_bindings({**current, **_provider_admin_payload(payload), "provider_id": provider_id}, payload)
         for key in ("credentials", *_CREDENTIAL_VALUE_KEYS):
             updated.pop(key, None)
         self.store.put_record("compute_provider", provider_id, updated, provider_id=provider_id, status=str(updated.get("status", "")), request_id=request_id)
@@ -4390,6 +4390,7 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
     if execution_endpoint and not execution_endpoint.startswith("https://"):
         raise ValueError("provider execution_endpoint must be an https:// URL")
     now = utc_now_iso()
+    credential_bindings = _provider_credential_bindings(payload)
     return {
         "application_id": str(payload.get("application_id") or deterministic_id("provider_application", {"provider_id": provider_id, "request_id": request_id})),
         "provider_id": provider_id,
@@ -4406,6 +4407,7 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
         "execution_endpoint": execution_endpoint,
         "public_key": str(payload.get("public_key", "")),
         "sla": dict(payload.get("sla", {})) if isinstance(payload.get("sla"), Mapping) else {},
+        "credential_bindings": credential_bindings,
         "tenant_id": str(payload.get("tenant_id", "")),
         "workspace_id": str(payload.get("workspace_id", "")),
         "configured_by": str(payload.get("configured_by", "provider-admin")),
@@ -4422,17 +4424,90 @@ def _provider_secret_reference(payload: Mapping[str, Any], *, provider_id: str, 
     secret_ref = str(credentials.get("secret_ref") or credentials.get("vault_path") or credentials.get("env_var") or "")
     if not secret_ref:
         return {}
+    bindings = _provider_credential_bindings(payload)
     return {
         "secret_ref_id": deterministic_id("provider_secret_ref", {"provider_id": provider_id, "secret_ref": secret_ref}),
         "provider_id": provider_id,
         "secret_ref": secret_ref,
         "secret_ref_hash": content_hash({"provider_id": provider_id, "secret_ref": secret_ref}),
         "storage": "external_secret_manager",
+        "credential_bindings": bindings,
         "tenant_id": str(payload.get("tenant_id", "")),
         "workspace_id": str(payload.get("workspace_id", "")),
         "created_at": utc_now_iso(),
         "request_id": request_id,
     }
+
+
+_PROVIDER_CREDENTIAL_BINDING_KEYS = frozenset(
+    {
+        "auth_header_name",
+        "auth_header_value_env",
+        "execution_auth_header_name",
+        "execution_auth_header_value_env",
+        "outbound_signing_key_id",
+        "outbound_signing_key_env",
+        "execution_outbound_signing_key_id",
+        "execution_outbound_signing_key_env",
+        "outbound_signing_required",
+        "execution_outbound_signing_required",
+    }
+)
+
+
+def _provider_credential_bindings(payload: Mapping[str, Any]) -> dict[str, Any]:
+    credentials = payload.get("credentials", {})
+    if not isinstance(credentials, Mapping):
+        return {}
+    secret_ref = str(credentials.get("secret_ref") or credentials.get("vault_path") or credentials.get("env_var") or "").strip()
+    env_var = _env_var_from_secret_ref(secret_ref)
+    auth_header_name = str(credentials.get("auth_header_name", credentials.get("header_name", ""))).strip()
+    execution_auth_header_name = str(credentials.get("execution_auth_header_name", auth_header_name)).strip()
+    bindings: dict[str, Any] = {}
+    if env_var:
+        bindings["auth_header_value_env"] = env_var
+        bindings["execution_auth_header_value_env"] = str(credentials.get("execution_env_var", env_var)).strip() or env_var
+    if auth_header_name:
+        bindings["auth_header_name"] = auth_header_name
+    if execution_auth_header_name:
+        bindings["execution_auth_header_name"] = execution_auth_header_name
+    for key in (
+        "outbound_signing_key_id",
+        "outbound_signing_key_env",
+        "execution_outbound_signing_key_id",
+        "execution_outbound_signing_key_env",
+    ):
+        value = str(credentials.get(key, "")).strip()
+        if value:
+            bindings[key] = value
+    for key in ("outbound_signing_required", "execution_outbound_signing_required"):
+        if key in credentials:
+            bindings[key] = bool(credentials.get(key))
+    return bindings
+
+
+def _env_var_from_secret_ref(secret_ref: str) -> str:
+    value = secret_ref.strip()
+    if not value:
+        return ""
+    for prefix in ("render/env/", "env://", "env:"):
+        if value.startswith(prefix):
+            return value[len(prefix):].strip()
+    if "/" not in value and ":" not in value:
+        return value
+    return ""
+
+
+def _provider_with_credential_bindings(provider: Mapping[str, Any], payload: Mapping[str, Any]) -> dict[str, Any]:
+    bindings = _provider_credential_bindings(payload)
+    updated = dict(provider)
+    if not bindings:
+        return updated
+    metadata = dict(updated.get("metadata", {})) if isinstance(updated.get("metadata"), Mapping) else {}
+    metadata.update(bindings)
+    updated["metadata"] = metadata
+    updated["credential_bindings"] = {key: bindings[key] for key in sorted(bindings)}
+    return updated
 
 
 def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]:
@@ -4445,6 +4520,9 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "sla": dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {},
         "provider_class": str(application.get("provider_class", "")),
     }
+    credential_bindings = application.get("credential_bindings", {})
+    if isinstance(credential_bindings, Mapping):
+        metadata.update({key: credential_bindings[key] for key in _PROVIDER_CREDENTIAL_BINDING_KEYS if key in credential_bindings})
     if public_key:
         metadata["public_key"] = public_key
     return {

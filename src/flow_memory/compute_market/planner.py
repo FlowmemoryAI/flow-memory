@@ -42,6 +42,7 @@ _UNSAFE_PAYMENT_PAYLOAD_KEYS = frozenset(
         "secret_key",
         "wallet_private_key",
         "live_settlement",
+        "live_settlement_required",
         "broadcast",
         "broadcast_allowed",
         "broadcastAllowed",
@@ -53,6 +54,7 @@ _UNSAFE_PAYMENT_PAYLOAD_KEYS = frozenset(
         "transfer",
         "settle",
         "settlement_broadcast",
+        "settlement_mode",
     }
 )
 

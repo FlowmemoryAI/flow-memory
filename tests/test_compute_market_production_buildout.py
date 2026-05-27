@@ -186,6 +186,12 @@ def test_provider_onboarding_rejects_inline_credentials() -> None:
         assert "external secret references" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("inline provider credential was accepted")
+    try:
+        service.broker_quote({"quote": {**_quote(), "settlement_mode": "live_broadcast"}})
+    except ValueError as exc:
+        assert "settlement_mode" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("unsafe settlement_mode quote was accepted")
 
 
 def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only() -> None:

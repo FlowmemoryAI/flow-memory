@@ -328,3 +328,7 @@ def test_compute_market_rejects_live_payment_inputs() -> None:
         build_compute_plan({"task": "unsafe", "private_key": "not-accepted"})
     with pytest.raises(ValueError, match="dry_run=true"):
         build_compute_plan({"task": "unsafe", "dry_run": False})
+    with pytest.raises(ValueError, match="settlement_mode"):
+        build_compute_plan({"task": "unsafe", "settlement_mode": "live_broadcast"})
+    with pytest.raises(ValueError, match="live_settlement_required"):
+        build_compute_plan({"task": "unsafe", "quote": {"live_settlement_required": True}})

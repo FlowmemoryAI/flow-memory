@@ -61,6 +61,7 @@ _UNSAFE_KEYS = frozenset(
         "secret_key",
         "wallet_private_key",
         "live_settlement",
+        "live_settlement_required",
         "broadcast",
         "broadcast_allowed",
         "sendTransaction",
@@ -69,8 +70,22 @@ _UNSAFE_KEYS = frozenset(
         "transfer",
         "withdraw",
         "deposit",
+        "settle",
+        "settlement_broadcast",
+        "settlement_mode",
     }
 )
+_SAFE_DRY_RUN_SETTLEMENT_MODES = frozenset(
+    {
+        "generic_dry_run",
+        "http_402_dry_run",
+        "solana_usdc_dry_run",
+        "base_sepolia_erc4337_dry_run",
+        "no_payment",
+        "dry_run",
+    }
+)
+
 
 
 class ComputeMarketService:
@@ -6320,6 +6335,8 @@ def _non_negative_float(value: object, name: str) -> float:
 
 def _assert_no_unsafe(payload: Mapping[str, Any]) -> None:
     for key, value in _walk(payload):
+        if key == "settlement_mode" and str(value) in _SAFE_DRY_RUN_SETTLEMENT_MODES:
+            continue
         if key in _UNSAFE_KEYS or (isinstance(value, str) and "seed phrase" in value.lower()):
             raise ValueError(f"Unsafe compute market payload rejected: {key}")
         if key in {"dry_run", "dry_run_required"} and value is False:

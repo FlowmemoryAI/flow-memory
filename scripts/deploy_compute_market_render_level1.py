@@ -919,8 +919,6 @@ def ensure_service(
         service_details["disk"] = _service_disk_details()
     if existing is not None:
         service_id = str(existing["id"])
-        if enable_disk:
-            ensure_service_disk(api_key, service_id)
         render_request(
             api_key,
             "PATCH",
@@ -937,6 +935,8 @@ def ensure_service(
                 },
             },
         )
+        if enable_disk:
+            ensure_service_disk(api_key, service_id)
         render_request(api_key, "PUT", f"/services/{urllib.parse.quote(service_id)}/env-vars", env_vars)
         return render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}")
     body = {

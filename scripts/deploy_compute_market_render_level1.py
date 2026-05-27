@@ -458,6 +458,19 @@ def find_named(api_key: str, path: str, envelope: str, owner_id: str, name: str)
     return None
 
 
+def service_env_value(api_key: str, service_id: str, key: str) -> str:
+    items = render_request(
+        api_key,
+        "GET",
+        f"/services/{urllib.parse.quote(service_id)}/env-vars?{query({'limit': '100'})}",
+    )
+    for item in items if isinstance(items, list) else []:
+        env_var = item.get("envVar", item) if isinstance(item, dict) else {}
+        if isinstance(env_var, dict) and env_var.get("key") == key:
+            return str(env_var.get("value", "") or "")
+    return ""
+
+
 def wait_available(api_key: str, path: str, resource_id: str, label: str) -> dict[str, Any]:
     for _ in range(90):
         obj = render_request(api_key, "GET", f"{path}/{urllib.parse.quote(resource_id)}")
@@ -1209,7 +1222,17 @@ def main() -> int:
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
     if not api_key_value or has_placeholder(api_key_value):
-        api_key_value = "fmk_live_" + secrets.token_urlsafe(48)
+        existing_service = find_named(render_api_key, "/services", "service", owner_id, SERVICE_NAME)
+        existing_api_key = (
+            service_env_value(render_api_key, str(existing_service["id"]), "FLOW_MEMORY_API_KEY")
+            if existing_service is not None
+            else ""
+        )
+        api_key_value = (
+            existing_api_key
+            if existing_api_key and not has_placeholder(existing_api_key)
+            else "fmk_live_" + secrets.token_urlsafe(48)
+        )
 
     branch = render_branch or current_branch()
     repo = render_repo_url or public_repo_url()

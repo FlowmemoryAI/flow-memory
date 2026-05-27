@@ -918,7 +918,6 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "RENDER_BRANCH=work/squire-v2",
                 "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
                 "RENDER_ENABLE_DISK=true",
-                "FLOW_MEMORY_API_KEY=fmk_live_test_key",
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
                 "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
@@ -937,6 +936,32 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
         encoding="utf-8",
     )
     calls: dict[str, Any] = {}
+
+    def fake_find_named(
+        api_key: str,
+        path: str,
+        envelope: str,
+        owner_id: str,
+        name: str,
+    ) -> dict[str, str] | None:
+        calls["existing_service_lookup"] = {
+            "api_key": api_key,
+            "path": path,
+            "envelope": envelope,
+            "owner_id": owner_id,
+            "name": name,
+        }
+        return {"id": "srv_existing"} if path == "/services" else None
+
+
+    def fake_service_env_value(api_key: str, service_id: str, key: str) -> str:
+        calls["existing_api_key_lookup"] = {
+            "api_key": api_key,
+            "service_id": service_id,
+            "key": key,
+        }
+        return "fmk_existing_render_service_key" if key == "FLOW_MEMORY_API_KEY" else ""
+
 
     def fake_ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str) -> dict[str, str]:
         calls["postgres"] = {"api_key": api_key, "owner_id": owner_id, "region": region, "plan": plan}
@@ -1007,6 +1032,8 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     monkeypatch.setattr(render_deploy, "wait_available", fake_wait_available)
     monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
     monkeypatch.setattr(render_deploy, "ensure_service", fake_ensure_service)
+    monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
+    monkeypatch.setattr(render_deploy, "service_env_value", fake_service_env_value)
     monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
     def fake_smoke_public(url: str, api_key: str, gateway_jwt: Mapping[str, str] | None = None) -> dict[str, object]:
         calls["smoke"] = {"url": url, "api_key": api_key, "gateway_jwt": gateway_jwt}
@@ -1038,6 +1065,8 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert calls["env_put"]["api_key"] == "render_live_key_from_env_file"
     env_vars_by_key = {item["key"]: item["value"] for item in calls["env_put"]["body"]}
     assert env_vars_by_key["FLOW_MEMORY_PUBLIC_API_URL"] == "https://api.flowmemory.example"
+    assert env_vars_by_key["FLOW_MEMORY_API_KEY"] == "fmk_existing_render_service_key"
+    assert calls["smoke"]["api_key"] == "fmk_existing_render_service_key"
     assert calls["smoke"]["url"] == "https://api.flowmemory.example"
 
 

@@ -1143,7 +1143,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert payload["postgres"] == "managed_render_postgres:pro"
     assert payload["redis"] == "managed_render_keyvalue:pro"
     assert payload["service_plan"] == "professional"
-    assert payload["public_url"] == "https://api.flowmemory.example"
+    assert payload["public_url"] == "https://flow-memory-api.onrender.com"
     assert calls["postgres"] == {
         "api_key": "render_live_key_from_env_file",
         "owner_id": "owner_from_env_file",
@@ -1155,10 +1155,10 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert calls["service"]["enable_disk"] is True
     assert calls["env_put"]["api_key"] == "render_live_key_from_env_file"
     env_vars_by_key = {item["key"]: item["value"] for item in calls["env_put"]["body"]}
-    assert env_vars_by_key["FLOW_MEMORY_PUBLIC_API_URL"] == "https://api.flowmemory.example"
+    assert env_vars_by_key["FLOW_MEMORY_PUBLIC_API_URL"] == "https://flow-memory-api.onrender.com"
     assert env_vars_by_key["FLOW_MEMORY_API_KEY"] == "fmk_existing_render_service_key"
     assert calls["smoke"]["api_key"] == "fmk_existing_render_service_key"
-    assert calls["smoke"]["url"] == "https://api.flowmemory.example"
+    assert calls["smoke"]["url"] == "https://flow-memory-api.onrender.com"
 
 
 

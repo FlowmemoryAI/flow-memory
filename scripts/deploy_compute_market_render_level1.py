@@ -1368,7 +1368,7 @@ def main() -> int:
             url = public_url(service)
         if not url:
             emit("failed_deployment", 33, public_url="", reason="render_service_url_missing")
-        deployment_public_url = configured_public_api_url or url
+        deployment_public_url = url
         assert_https_public_url(deployment_public_url)
         env_vars = build_env_vars(
             api_key_value,

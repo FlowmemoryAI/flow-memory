@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 API_BASE = "https://api.render.com/v1"
-SERVICE_NAME = "flow-memory-compute-market-api"
+SERVICE_NAME = os.environ.get("RENDER_SERVICE_NAME", "flow-memory-compute-market-api")
 POSTGRES_NAME = "flow-memory-compute-market-postgres"
 KEYVALUE_NAME = "flow-memory-compute-market-redis"
 DEFAULT_AUDIT_EXPORT_URI = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "")

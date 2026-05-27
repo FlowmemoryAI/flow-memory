@@ -78,6 +78,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "RENDER_POSTGRES_PLAN=basic_256mb",
         "RENDER_KEYVALUE_PLAN=starter",
         "RENDER_SERVICE_PLAN=starter",
+        "RENDER_SERVICE_NAME=flow-memory-compute-market-api",
         "RENDER_BRANCH=work/squire-v2",
         "RENDER_REPO_URL=CHANGEME-render-connected-repository-url",
         "RENDER_ENABLE_DISK=false",

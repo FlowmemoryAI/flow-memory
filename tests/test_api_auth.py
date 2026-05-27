@@ -234,6 +234,44 @@ class ApiAuthTests(unittest.TestCase):
         self.assertEqual(decision.scopes, ("compute:plan", "compute:read"))
         self.assertTrue(require_api_key({"authorization": f"Bearer {token}"}, ApiAuthConfig(jwt_hs256_secret="jwt-secret")))
 
+    def test_authorize_request_accepts_valid_bearer_jwt_and_signature_when_required(self) -> None:
+        key = generate_local_keypair("api-auth-jwt-signed")
+        payload = {"goal": "local"}
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-signed",
+                "tenant_id": "tenant_signed",
+                "scope": "compute:execute compute:read",
+                "iss": "https://issuer.example",
+                "aud": "flow-memory-api",
+                "exp": time.time() + 300,
+            },
+            {"kid": "gateway-key-signed"},
+        )
+        signature = sign_request("POST", "/compute/jobs", payload, key)
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(
+                require_signed_requests=True,
+                jwt_hs256_secret="jwt-secret",
+                jwt_issuer="https://issuer.example",
+                jwt_audience="flow-memory-api",
+            ),
+            method="POST",
+            path="/compute/jobs",
+            payload=payload,
+            signature=signature,
+            signature_key=key,
+        )
+
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.key_id, "gateway-key-signed")
+        self.assertEqual(decision.principal, "user-signed")
+        self.assertEqual(decision.tenant_id, "tenant_signed")
+        self.assertEqual(decision.scopes, ("compute:execute", "compute:read"))
+
     def test_authorize_request_rejects_expired_or_wrong_audience_jwt(self) -> None:
         expired = _jwt("jwt-secret", {"sub": "user-123", "aud": "flow-memory-api", "exp": time.time() - 300})
         wrong_audience = _jwt("jwt-secret", {"sub": "user-123", "aud": "other-api", "exp": time.time() + 300})

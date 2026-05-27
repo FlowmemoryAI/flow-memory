@@ -758,10 +758,19 @@ class ComputeMarketService:
 
     def _latest_provider_application(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         applications = self.store.list_records("market_provider_application", filters={"provider_id": provider_id}, limit=500).records
-        for application in applications:
-            if _tenant_can_access_catalog_record(payload or {}, application):
-                return application
-        raise KeyError(f"Unknown market provider application: {provider_id}")
+        accessible = tuple(
+            application for application in applications if _tenant_can_access_catalog_record(payload or {}, application)
+        )
+        if not accessible:
+            raise KeyError(f"Unknown market provider application: {provider_id}")
+        return max(
+            accessible,
+            key=lambda application: (
+                str(application.get("updated_at", "")),
+                str(application.get("created_at", "")),
+                str(application.get("application_id", "")),
+            ),
+        )
 
     def list_routes(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         page = self.store.list_records("compute_route", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))

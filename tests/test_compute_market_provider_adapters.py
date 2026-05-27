@@ -380,12 +380,41 @@ def test_external_provider_adapter_factory_and_service_quote_flow() -> None:
     assert len(direct_quotes) == 1
     assert direct_quotes[0].status == "valid"
     assert direct_quotes[0].source == "live"
+    assert direct_quotes[0].dry_run_only is True
+    assert direct_quotes[0].provider_id == "market-token-provider"
+    assert direct_quotes[0].route_id == "market-token-route"
+    assert direct_quotes[0].network == "solana"
+    assert direct_quotes[0].payment_asset == "USDC"
     assert response["ok"] is True
     assert response["provider_id"] == "market-token-provider"
+    assert response["dry_run_only"] is True
+    assert response["funds_moved"] is False
+    assert response["broadcast_allowed"] is False
+    assert response["private_key_required"] is False
     assert response["quotes"][0]["source"] == "live_provider"
+    assert response["quotes"][0]["dry_run_only"] is True
+    assert response["quotes"][0]["provider_id"] == "market-token-provider"
+    assert response["quotes"][0]["route_id"] == "market-token-route"
+    assert response["quotes"][0]["settlement_mode"] == "generic_dry_run"
+    assert response["quotes"][0]["settlement_options"] == ("generic_dry_run",)
+    assert response["raw_quotes"][0]["dry_run_only"] is True
+    assert response["raw_quotes"][0]["provider_id"] == "market-token-provider"
+    assert response["raw_quotes"][0]["route_id"] == "market-token-route"
     quote_record = store.get_record("compute_quote", "http-quote")
     assert quote_record is not None
     assert quote_record["source"] == "live_provider"
+    assert quote_record["dry_run_only"] is True
+    assert quote_record["provider_id"] == "market-token-provider"
+    assert quote_record["route_id"] == "market-token-route"
+    assert quote_record["settlement_mode"] == "generic_dry_run"
+    assert tuple(quote_record["settlement_options"]) == ("generic_dry_run",)
+    cache_entry = store.list_records("quote_cache_entry", filters={"provider_id": "market-token-provider"}, limit=1).records[0]
+    cached_quote = cache_entry["quote"]
+    assert cache_entry["source"] == "live_provider"
+    assert cache_entry["route_id"] == "market-token-route"
+    assert cached_quote["dry_run_only"] is True
+    assert cached_quote["provider_id"] == "market-token-provider"
+    assert cached_quote["route_id"] == "market-token-route"
     assert store.count_records("quote_cache_entry") == 1
 
 

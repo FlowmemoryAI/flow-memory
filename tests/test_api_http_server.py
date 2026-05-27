@@ -350,6 +350,17 @@ def test_http_gateway_rejects_scope_header_escalation_for_scoped_key() -> None:
     assert escalated.body["error"]["details"]["unauthorized"] == ("compute:admin",)
     assert escalated.body["error"]["details"]["granted"] == ("compute:read",)
     assert allowed_subset.status == 200
+    denied_execute = gateway.handle(
+        "POST",
+        "/compute/jobs",
+        {"x-flow-memory-api-key": key, "x-flow-memory-scopes": "compute:execute"},
+        json.dumps({"job_id": "job_scope_escalation"}).encode("utf-8"),
+    )
+
+    assert denied_execute.status == 403
+    assert denied_execute.body["error"]["code"] == "auth.forbidden"
+    assert denied_execute.body["error"]["details"]["unauthorized"] == ("compute:execute",)
+    assert denied_execute.body["error"]["details"]["granted"] == ("compute:read",)
 
 
 def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> None:

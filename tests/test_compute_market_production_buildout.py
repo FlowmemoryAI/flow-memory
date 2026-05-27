@@ -174,6 +174,74 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
     assert fetched["provider_application"]["status"] == "verified"
     assert fetched["reputation"]["provider_id"] == "provider_live_gpu_1"
 
+def test_provider_reapplication_tracks_new_pending_version_without_settlement_side_effects() -> None:
+    service = _service()
+    original = {**_provider_application(), "request_id": "provider-apply-v1"}
+    reapplied = {
+        **_provider_application(),
+        "provider_name": "Live GPU Provider 1 Updated",
+        "supported_assets": ["USD", "CREDITS"],
+        "supported_networks": ["offchain", "base"],
+        "quote_endpoint": "https://provider.example.com/quote-v2",
+        "health_endpoint": "https://provider.example.com/health-v2",
+        "credentials": {"secret_ref": "render/env/FLOW_MEMORY_PROVIDER_GPU_1_TOKEN_V2"},
+        "sla": {"uptime_target": 0.995, "max_latency_ms": 750, "refund_policy": "credit"},
+        "request_id": "provider-apply-v2",
+    }
+
+    first = service.apply_market_provider(original)
+    verified = service.verify_market_provider("provider_live_gpu_1", {"request_id": "provider-verify-v1"})
+    second = service.apply_market_provider(reapplied)
+
+    assert first["provider_application"]["status"] == "pending"
+    assert verified["provider"]["provider_name"] == "Live GPU Provider 1"
+    assert verified["provider"]["dry_run_only"] is True
+    assert second["provider_application"]["status"] == "pending"
+    assert second["provider_application"]["provider_name"] == "Live GPU Provider 1 Updated"
+    assert second["provider_application"]["quote_endpoint"] == "https://provider.example.com/quote-v2"
+    assert second["provider_application"]["supported_assets"] == ("USD", "CREDITS")
+    assert second["provider_application"]["supported_networks"] == ("offchain", "base")
+    assert second["inline_secrets_stored"] is False
+
+    fetched = service.market_provider("provider_live_gpu_1")
+    assert fetched["provider_application"]["status"] == "pending"
+    assert fetched["provider_application"]["provider_name"] == "Live GPU Provider 1 Updated"
+    assert fetched["provider"]["provider_name"] == "Live GPU Provider 1"
+    assert fetched["provider"]["dry_run_only"] is True
+    assert fetched["reputation"]["provider_id"] == "provider_live_gpu_1"
+
+    applications = service.store.list_records(
+        "market_provider_application",
+        filters={"provider_id": "provider_live_gpu_1"},
+        limit=10,
+    ).records
+    assert [application["request_id"] for application in applications] == [
+        "provider-apply-v1",
+        "provider-apply-v2",
+    ]
+    assert [application["status"] for application in applications] == ["verified", "pending"]
+    assert applications[-1]["status"] == "pending"
+    assert service.store.count_records("provider_secret_ref") == 2
+    assert len(service.store.list_records("compute_provider", filters={"provider_id": "provider_live_gpu_1"}).records) == 1
+    assert len(service.store.list_records("provider_reputation", filters={"provider_id": "provider_live_gpu_1"}).records) == 1
+    assert service.store.count_records("compute_quote") == 0
+
+    audit_events = service.store.list_records("audit_event", limit=10).records
+    applied_events = sorted(
+        (event for event in audit_events if event["action"] == "market.provider.applied"),
+        key=lambda event: int(event["sequence_number"]),
+    )
+    verified_events = sorted(
+        (event for event in audit_events if event["action"] == "market.provider.verified"),
+        key=lambda event: int(event["sequence_number"]),
+    )
+    assert [event["request_id"] for event in applied_events] == ["provider-apply-v1", "provider-apply-v2"]
+    assert [event["request_id"] for event in verified_events] == ["provider-verify-v1"]
+    for event in (*applied_events, *verified_events):
+        assert event["dry_run_only"] is True
+        assert event["funds_moved"] is False
+        assert event["broadcast_allowed"] is False
+        assert event["private_key_required"] is False
 
 def test_provider_onboarding_rejects_inline_credentials() -> None:
     service = _service()
@@ -760,6 +828,113 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     assert replacement["reservation"]["status"] == "held"
 
 
+def test_expire_capacity_only_expires_elapsed_held_reservations() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    active = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 2,
+            "hold_expires_at": "2099-01-01T00:00:00Z",
+        }
+    )["reservation"]
+    released = service.release_capacity({"reservation_id": active["reservation_id"]})["reservation"]
+    stale = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 3,
+            "hold_expires_at": "2000-01-01T00:00:00Z",
+        }
+    )["reservation"]
+
+    expired = service.expire_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})
+    stale_after = service.store.get_record("compute_reservation", str(stale["reservation_id"]))
+    released_after = service.store.get_record("compute_reservation", str(released["reservation_id"]))
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert expired["ok"] is True
+    assert expired["expired_count"] == 1
+    assert expired["expired_reservations"][0]["reservation_id"] == stale["reservation_id"]
+    assert expired["expired_reservations"][0]["status"] == "expired"
+    assert expired["expired_reservations"][0]["dry_run_only"] is True
+    assert expired["expired_reservations"][0]["funds_moved"] is False
+    assert stale_after is not None
+    assert stale_after["status"] == "expired"
+    assert released_after is not None
+    assert released_after["status"] == "released"
+    assert summary["expired_capacity_units"] == 3
+    assert summary["reserved_capacity_units"] == 0
+    assert summary["held_capacity_units"] == 0
+    assert summary["available_capacity_units"] == 10
+    assert _metric_total(
+        service,
+        "capacity_hold_expired_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 3.0
+
+
+def test_release_capacity_is_safe_for_replay_and_unknown_reservations() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 4,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 4}
+    )["reservation"]
+
+    first_release = service.release_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    second_release = service.release_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    stored_after_second_release = service.store.get_record("compute_reservation", str(held["reservation_id"]))
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert first_release["status"] == "released"
+    assert first_release["dry_run_only"] is True
+    assert first_release["funds_moved"] is False
+    assert second_release["reservation_id"] == first_release["reservation_id"]
+    assert second_release["status"] == "released"
+    assert second_release["dry_run_only"] is True
+    assert second_release["funds_moved"] is False
+    assert stored_after_second_release is not None
+    assert stored_after_second_release["status"] == "released"
+    assert summary["held_capacity_units"] == 0
+    assert summary["reserved_capacity_units"] == 0
+    assert summary["available_capacity_units"] == 4
+
+    try:
+        service.release_capacity({"reservation_id": "reservation_missing"})
+    except KeyError as exc:
+        assert "Unknown capacity reservation: reservation_missing" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("unknown capacity reservation was released")
+
 def test_capacity_listing_expires_stale_holds_before_publishing_inventory() -> None:
     service = _service()
     service.list_capacity(
@@ -952,6 +1127,100 @@ def test_capacity_auction_clears_highest_bids_without_mutating_reservations() ->
     assert service.store.count_records("capacity_auction") == 1
     assert service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})["ok"] is True
 
+
+def test_capacity_auction_tie_breaks_by_submission_time_then_bid_id() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 4,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+
+    auction = service.auction_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 3,
+            "reserve_price": 2.4,
+            "bids": [
+                {
+                    "bid_id": "bid_z_late",
+                    "account_id": "acct_z",
+                    "capacity_units": 2,
+                    "max_unit_price": 3.0,
+                    "submitted_at": "2099-01-01T00:00:03Z",
+                },
+                {
+                    "bid_id": "bid_b",
+                    "account_id": "acct_b",
+                    "capacity_units": 2,
+                    "max_unit_price": 3.0,
+                    "submitted_at": "2099-01-01T00:00:01Z",
+                },
+                {
+                    "bid_id": "bid_a",
+                    "account_id": "acct_a",
+                    "capacity_units": 2,
+                    "max_unit_price": 3.0,
+                    "submitted_at": "2099-01-01T00:00:01Z",
+                },
+            ],
+        }
+    )
+    clearing = auction["clearing"]
+
+    assert clearing["status"] == "cleared"
+    assert clearing["dry_run_only"] is True
+    assert clearing["funds_moved"] is False
+    assert clearing["reservations_created"] is False
+    assert clearing["total_units_cleared"] == 3
+    assert clearing["clearing_unit_price"] == 3.0
+    assert [bid["bid_id"] for bid in clearing["winning_bids"]] == ["bid_a", "bid_b"]
+    assert clearing["winning_bids"][1]["partial_fill"] is True
+    assert clearing["rejected_bids"][0]["bid_id"] == "bid_z_late"
+    assert clearing["rejected_bids"][0]["rejection_reason"] == "capacity_exhausted"
+
+
+def test_capacity_auction_rejects_when_requested_interval_has_no_window() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 4,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+
+    try:
+        service.auction_capacity(
+            {
+                "provider_id": "provider_live_gpu_1",
+                "route_id": "route_live_gpu_1",
+                "capacity_units": 1,
+                "reserve_price": 2.4,
+                "starts_at": "2099-01-02T00:00:00Z",
+                "ends_at": "2099-01-02T01:00:00Z",
+                "bids": [{"bid_id": "bid_1", "account_id": "acct_1", "capacity_units": 1, "max_unit_price": 3.0}],
+            }
+        )
+    except ValueError as exc:
+        assert "no unexpired active capacity window overlaps requested auction interval" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("capacity auction cleared without a suitable window")
 
 def test_capacity_reservations_only_consume_overlapping_windows() -> None:
     service = _service()

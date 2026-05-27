@@ -1169,6 +1169,64 @@ def test_capacity_reservation_confirm_creates_dry_run_commitment() -> None:
     else:  # pragma: no cover
         raise AssertionError("expired capacity hold was confirmed")
 
+
+def test_expire_capacity_transitions_elapsed_confirmed_reservations() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 5,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 3}
+    )["reservation"]
+    confirmed = service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    elapsed = {**dict(confirmed), "reserved_until": "2000-01-01T00:00:00Z", "updated_at": "2000-01-01T00:00:00Z"}
+    reservation_id = str(confirmed["reservation_id"])
+    service.store.put_record(
+        "compute_reservation",
+        reservation_id,
+        elapsed,
+        provider_id="provider_live_gpu_1",
+        route_id="route_live_gpu_1",
+        status="confirmed",
+    )
+
+    expired = service.expire_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})
+    stored = service.store.get_record("compute_reservation", reservation_id)
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert expired["expired_count"] == 1
+    assert expired["expired_reservations"][0]["reservation_id"] == reservation_id
+    assert expired["expired_reservations"][0]["status"] == "expired"
+    assert expired["expired_reservations"][0]["expiration_reason"] == "reservation_window_elapsed"
+    assert stored is not None
+    assert stored["status"] == "expired"
+    assert stored["expiration_reason"] == "reservation_window_elapsed"
+    assert summary["confirmed_capacity_units"] == 0
+    assert summary["expired_capacity_units"] == 3
+    assert summary["available_capacity_units"] == 5
+    assert _metric_total(
+        service,
+        "capacity_reservation_expired_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 3.0
+    assert _metric_total(
+        service,
+        "capacity_hold_expired_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 0.0
+
 def test_capacity_auction_clears_highest_bids_without_mutating_reservations() -> None:
     service = _service()
     service.list_capacity(

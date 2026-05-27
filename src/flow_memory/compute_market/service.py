@@ -1509,7 +1509,7 @@ class ComputeMarketService:
             payload,
             request_id=request_id,
             result="expired" if expired_reservations else "noop",
-            reason_codes=() if expired_reservations else ("no_expired_holds",),
+            reason_codes=() if expired_reservations else ("no_expired_reservations",),
             provider_id=provider_id,
             route_id=route_id,
         )
@@ -1644,12 +1644,13 @@ class ComputeMarketService:
         for current in page.records:
             if restrict_to_interval and not _capacity_reservation_overlaps(current, interval_start, interval_end):
                 continue
-            if not _capacity_hold_expired(current, now):
+            expiration_reason = _capacity_expiration_reason(current, now)
+            if not expiration_reason:
                 continue
             reservation_id = str(current.get("reservation_id", current.get("record_id", "")))
             if not reservation_id:
                 continue
-            updated = {**dict(current), "status": "expired", "expired_at": now, "updated_at": now}
+            updated = {**dict(current), "status": "expired", "expiration_reason": expiration_reason, "expired_at": now, "updated_at": now}
             self.store.put_record(
                 "compute_reservation",
                 reservation_id,
@@ -1661,11 +1662,19 @@ class ComputeMarketService:
                 tenant_id=str(updated.get("tenant_id", "")),
                 workspace_id=str(updated.get("workspace_id", "")),
             )
+            expiration_labels = {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))}
+            expired_units = float(updated.get("capacity_units", 0.0) or 0.0)
             self.telemetry.increment(
-                "capacity_hold_expired_total",
-                {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
-                value=float(updated.get("capacity_units", 0.0) or 0.0),
+                "capacity_reservation_expired_total",
+                expiration_labels,
+                value=expired_units,
             )
+            if expiration_reason == "hold_expired":
+                self.telemetry.increment(
+                    "capacity_hold_expired_total",
+                    expiration_labels,
+                    value=expired_units,
+                )
             expired.append(updated)
         return tuple(expired)
 
@@ -5900,9 +5909,23 @@ def _capacity_reservation_active(reservation: Mapping[str, Any], now: str) -> bo
     return not hold_expires_at or hold_expires_at > now
 
 
+def _capacity_expiration_reason(reservation: Mapping[str, Any], now: str) -> str:
+    status = str(reservation.get("status", ""))
+    if status == "held":
+        hold_expires_at = str(reservation.get("hold_expires_at", reservation.get("expires_at", "")))
+        return "hold_expired" if hold_expires_at and hold_expires_at <= now else ""
+    if status == "confirmed":
+        reserved_until = str(reservation.get("reserved_until", ""))
+        return "reservation_window_elapsed" if reserved_until and reserved_until <= now else ""
+    return ""
+
+
+def _capacity_reservation_expired(reservation: Mapping[str, Any], now: str) -> bool:
+    return bool(_capacity_expiration_reason(reservation, now))
+
+
 def _capacity_hold_expired(reservation: Mapping[str, Any], now: str) -> bool:
-    hold_expires_at = str(reservation.get("hold_expires_at", reservation.get("expires_at", "")))
-    return str(reservation.get("status", "")) == "held" and bool(hold_expires_at) and hold_expires_at <= now
+    return _capacity_expiration_reason(reservation, now) == "hold_expired"
 
 
 def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
@@ -6124,7 +6147,7 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
     active_windows = tuple(window for window in windows if str(window.get("status", "active")) == "active" and str(window.get("ends_at", "")) > now)
     total_capacity = sum(float(item.get("capacity_units", 0.0) or 0.0) for item in active_windows)
     active_reservations = tuple(item for item in reservations if _capacity_reservation_active(item, now))
-    expired_reservations = tuple(item for item in reservations if _capacity_hold_expired(item, now) or str(item.get("status", "")) == "expired")
+    expired_reservations = tuple(item for item in reservations if _capacity_reservation_expired(item, now) or str(item.get("status", "")) == "expired")
     reserved_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
     held_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations if str(item.get("status", "")) == "held")
     confirmed_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations if str(item.get("status", "")) == "confirmed")

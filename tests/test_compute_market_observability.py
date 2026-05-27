@@ -119,6 +119,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "compute_provider_receipt_accepted_total" in names
     assert "compute_provider_receipt_rejected_total" in names
     assert "capacity_hold_expired_total" in names
+    assert "capacity_reservation_expired_total" in names
     assert "quote_cache_invalidated_total" in names
     assert "capacity_confirmed_total" in names
     assert "capacity_auction_cleared_total" in names
@@ -747,6 +748,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "quote_cache_invalidated_total",
         "capacity_released_total",
         "capacity_hold_expired_total",
+        "capacity_reservation_expired_total",
         "billing_debit_total",
         "billing_payout_settled_total",
         "billing_insufficient_credit_total",

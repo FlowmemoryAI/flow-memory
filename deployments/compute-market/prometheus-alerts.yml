@@ -103,7 +103,7 @@ groups:
           description: Disable external quotes or configure a strict provider allowlist before accepting provider supply.
 
       - alert: FlowMemoryComputeMarketComputeJobFailures
-        expr: rate(compute_job_failed_total[5m]) > 5
+        expr: rate(compute_job_failed_total[5m]) > 5 or rate(compute_job_lease_expired_total[5m]) > 0
         for: 5m
         labels:
           severity: warning

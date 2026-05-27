@@ -32,7 +32,8 @@
       "targets": [
         {"expr": "sum(rate(compute_job_started_total[5m]))", "legendFormat": "started", "refId": "A"},
         {"expr": "sum(rate(compute_job_completed_total[5m]))", "legendFormat": "completed", "refId": "B"},
-        {"expr": "sum(rate(compute_job_failed_total[5m]))", "legendFormat": "failed", "refId": "C"}
+        {"expr": "sum(rate(compute_job_failed_total[5m]))", "legendFormat": "failed", "refId": "C"},
+        {"expr": "sum(rate(compute_job_lease_expired_total[5m]))", "legendFormat": "lease expired", "refId": "D"}
       ],
       "title": "Compute job lifecycle",
       "type": "timeseries"

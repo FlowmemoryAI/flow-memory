@@ -196,6 +196,13 @@ $auditExporter = $auditExport.Json.data.audit_exporter_status
 $auditExportConfigured = ($auditExport.Json.data.immutable -eq $true) -or ($auditExporter.exporter -eq 'local_file')
 Assert-True $auditExportConfigured 'admin audit export did not report configured immutable Object Lock or Render disk local-file storage.'
 
+$auditExportWrite = Invoke-ComputeMarketRequest -Method POST -Path '/compute/audit/export' -Scopes 'compute:audit' -Body @{ chain_id = 'all' }
+Assert-Status -Response $auditExportWrite -Expected 200 -Name 'audit export write'
+$auditExportWriteData = $auditExportWrite.Json.data
+Assert-True (($auditExportWrite.Json.ok -eq $true) -and ($auditExportWriteData.ok -eq $true)) 'audit export write did not return ok=true.'
+Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)) 'audit export write did not return a manifest_hash.'
+Assert-True ([int]$auditExportWriteData.event_count -ge 1) 'audit export write did not export any audit events.'
+
 $storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
 Assert-Status -Response $storageDiagnostics -Expected 200 -Name 'admin storage diagnostics'
 Assert-True ($storageDiagnostics.Json.data.ok -eq $true) 'admin storage diagnostics did not return ok=true.'
@@ -235,6 +242,8 @@ $result = [ordered]@{
     metrics = [int]$metrics.StatusCode
     alerts = $alerts.StatusCode
     audit_export = $auditExport.StatusCode
+    audit_export_write = $auditExportWrite.StatusCode
+    audit_export_write_manifest_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
     admin_redis_diagnostics = $redisDiagnostics.StatusCode
     audit_export_immutable = [bool]$auditExport.Json.data.immutable

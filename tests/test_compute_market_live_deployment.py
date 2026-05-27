@@ -293,6 +293,10 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             }
         if url.endswith("/compute/audit/verify"):
             return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/audit/export"):
+            assert method == "POST"
+            assert body == {"chain_id": "all"}
+            return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 3}}
         if url.endswith("/admin/audit/export"):
             return 200, {"ok": True, "data": {"immutable": True}}
         if url.endswith("/admin/storage/diagnostics"):
@@ -364,7 +368,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 13
+    assert len(authenticated_headers) == 14
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
 
@@ -416,11 +420,15 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "Path '/compute/alerts'" in smoke_script
     assert "Path '/compute/telemetry'" in smoke_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "metrics")' in render_script
+    assert "Path '/compute/audit/export'" in smoke_script
+    assert "audit_export_write_manifest_hash_present" in smoke_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "alerts")' in render_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "telemetry")' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
     assert '"alerts": checks["alerts"][0]' in render_script
     assert '"telemetry": checks["telemetry"][0]' in render_script
+    assert '"audit_export_write": checks["audit_export_write"][0]' in render_script
+    assert '"audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash"))' in render_script
     assert "deployments/compute-market/prometheus-alerts.yml" in render_script
     assert 'checks["jwt_health"] = call_json(' in render_script
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script

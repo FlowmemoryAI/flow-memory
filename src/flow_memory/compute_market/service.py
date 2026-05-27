@@ -636,6 +636,18 @@ class ComputeMarketService:
             public_key=public_key,
         )
         signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
+        fraud_signals: tuple[Mapping[str, Any], ...] = ()
+        if not validation.ok:
+            fraud_signals = _fraud_signals_from_validation(
+                self.store,
+                provider_id=provider_id,
+                route_id=str(quote.get("route_id", "")),
+                quote_id=str(quote.get("quote_id", "")),
+                validation_errors=validation.error_codes,
+                request_id=request_id,
+                tenant_id=str(payload.get("tenant_id", "")),
+                workspace_id=str(payload.get("workspace_id", "")),
+            )
         status = "conformant" if validation.ok else "failed"
         snapshot = {
             "health_snapshot_id": deterministic_id("provider_conformance", {"provider_id": provider_id, "request_id": request_id}),
@@ -651,6 +663,7 @@ class ComputeMarketService:
             "request_id": request_id,
             "error_codes": validation.error_codes,
             "warnings": validation.warnings,
+            "fraud_signal_count": len(fraud_signals),
         }
         self.store.put_record(
             "provider_health_snapshot",
@@ -663,7 +676,14 @@ class ComputeMarketService:
             request_id=request_id,
         )
         self._audit("market.provider.conformance_checked", payload, request_id=request_id, result=status, reason_codes=validation.error_codes, provider_id=provider_id)
-        return {"ok": validation.ok, "provider_id": provider_id, "validation": validation.as_record(), "signed_quote_valid": signed_quote_valid, "conformance": snapshot}
+        return {
+            "ok": validation.ok,
+            "provider_id": provider_id,
+            "validation": validation.as_record(),
+            "signed_quote_valid": signed_quote_valid,
+            "conformance": snapshot,
+            "fraud_signals": fraud_signals,
+        }
 
     def disable_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)

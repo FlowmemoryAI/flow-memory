@@ -244,6 +244,33 @@ def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
     assert ingested["ok"] is True
     assert ingested["quote"]["signed_quote_valid"] is True
 
+def test_provider_conformance_records_fraud_signal_on_invalid_quote() -> None:
+    signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")
+    service = _service()
+    application = _provider_application()
+    application["public_key"] = signer.public_record().public_key
+    service.apply_market_provider(application)
+    service.verify_market_provider("provider_live_gpu_1", {})
+
+    rejected = service.provider_conformance(
+        "provider_live_gpu_1",
+        {
+            "sample_quote": _quote(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        },
+    )
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+
+    assert rejected["ok"] is False
+    assert rejected["validation"]["error_codes"] == ("missing_signature",)
+    assert rejected["conformance"]["status"] == "failed"
+    assert rejected["conformance"]["fraud_signal_count"] == 1
+    assert rejected["fraud_signals"][0]["signal_type"] == "signature_failure"
+    assert reputation["signature_failure_count"] == 1
+    assert reputation["critical_fraud_signal_count"] == 1
+    assert reputation["status"] == "degraded"
+
 
 def test_quote_broker_records_missing_signature_fraud_signal_for_verified_provider() -> None:
     signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")

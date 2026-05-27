@@ -13,6 +13,7 @@ from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+from flow_memory.compute_market.models import IntelligenceTier, ReasoningBudget, RunDecision, TaskEconomicProfile
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server
@@ -1988,6 +1989,162 @@ def test_prepaid_credit_debit_insufficient_balance_does_not_overdraw() -> None:
     )
 
 
+def test_intelligence_tier_reasoning_budget_serialization() -> None:
+    budget = ReasoningBudget(reasoning_level="high", max_reasoning_steps=32, max_tool_calls=12)
+    profile = TaskEconomicProfile(
+        task_id="compute_task_research",
+        task_description="research competitor repo",
+        agent_id="agent_researcher",
+        goal_id="goal_architecture",
+        intelligence_tier=IntelligenceTier.DEEP_REASONING.value,
+        reasoning_level="high",
+        reasoning_budget=budget.as_record(),
+    )
+
+    record = profile.as_record()
+    assert record["intelligence_tier"] == "deep_reasoning"
+    assert record["reasoning_budget"]["max_reasoning_steps"] == 32
+    assert budget.as_record()["max_tool_calls"] == 12
+
+
+def test_intelligence_plan_run_now_and_usage_ledger() -> None:
+    service = _service()
+
+    result = service.intelligence_plan(
+        {
+            "task": "research competitor repo and produce architecture plan",
+            "agent_id": "agent_researcher",
+            "goal_id": "goal_architecture",
+            "estimated_value": 50.0,
+            "budget": 5.0,
+            "allow_background": True,
+            "dry_run": True,
+        }
+    )
+
+    plan = result["intelligence_plan"]
+    usage = result["usage_record"]
+    assert result["ok"] is True
+    assert plan["recommended_intelligence_tier"] == "background_agent"
+    assert plan["recommended_reasoning_budget"]["reasoning_level"] == "high"
+    assert plan["run_decision"] == RunDecision.RUN_NOW.value
+    assert usage["agent_id"] == "agent_researcher"
+    assert usage["intelligence_tier"] == "background_agent"
+    assert usage["actual_cost"] is None
+    assert result["funds_moved"] is False
+    assert result["broadcast_allowed"] is False
+    assert result["private_key_required"] is False
+
+    ledger = service.compute_usage_by_agent("agent_researcher")
+    assert tuple(record["usage_record_id"] for record in ledger["usage_records"]) == (usage["usage_record_id"],)
+
+
+def test_intelligence_plan_run_decision_variants() -> None:
+    service = _service()
+    direct = {"provider_constraints": ("direct-request-provider",), "estimated_units": {"request": 1}}
+
+    negative_roi = service.intelligence_plan({**direct, "task": "direct paid request", "estimated_value": 0.001, "budget": 1.0})
+    assert negative_roi["intelligence_plan"]["run_decision"] == RunDecision.REJECT_NEGATIVE_ROI.value
+
+    approval = service.intelligence_plan({**direct, "task": "direct approval request", "estimated_value": 10.0, "budget": 1.0, "require_human_approval_above": 0.01})
+    assert approval["intelligence_plan"]["run_decision"] == RunDecision.REQUIRE_HUMAN_APPROVAL.value
+
+    downgrade = service.intelligence_plan(
+        {
+            **direct,
+            "task": "deep but too cheap",
+            "intelligence_tier": "deep_reasoning",
+            "estimated_value": 10.0,
+            "budget": 0.001,
+        }
+    )
+    assert downgrade["intelligence_plan"]["run_decision"] == RunDecision.DOWNGRADE_TIER.value
+
+    reserved = service.intelligence_plan(
+        {
+            "task": "reserve capacity for long background run",
+            "intelligence_tier": "reserved_capacity",
+            "provider_constraints": ("reserved-capacity-provider",),
+            "allow_reserved_capacity": True,
+            "estimated_value": 100.0,
+            "budget": 10.0,
+            "human_approval_granted": True,
+        }
+    )
+    assert reserved["intelligence_plan"]["run_decision"] == RunDecision.RESERVE_CAPACITY.value
+    assert reserved["intelligence_plan"]["reserve_capacity_recommended"] is True
+
+    for index in range(5):
+        service.store.put_record(
+            "compute_price_snapshot",
+            f"direct_low_{index}",
+            {
+                "price_snapshot_id": f"direct_low_{index}",
+                "provider_id": "direct-request-provider",
+                "route_id": "direct-request-route",
+                "unit_type": "request",
+                "unit_price": 0.001,
+                "payment_asset": "USD",
+                "network": "offchain",
+                "created_at": f"2026-05-24T00:00:0{index}Z",
+            },
+            provider_id="direct-request-provider",
+            route_id="direct-request-route",
+            task_type="request",
+        )
+    defer = service.intelligence_plan(
+        {
+            **direct,
+            "task": "defer direct request until cheaper",
+            "estimated_value": 10.0,
+            "budget": 1.0,
+            "urgency": {"defer_allowed": True},
+        }
+    )
+    assert defer["intelligence_plan"]["run_decision"] == RunDecision.DEFER_UNTIL_CHEAPER.value
+    assert defer["intelligence_plan"]["defer_until"]
+
+
+def test_compute_price_history_anomalies_forecast_and_usage_statement() -> None:
+    service = _service()
+    for snapshot_id, price in (("price_base_1", 0.09), ("price_base_2", 0.09), ("price_spike", 0.9)):
+        service.store.put_record(
+            "compute_price_snapshot",
+            snapshot_id,
+            {
+                "price_snapshot_id": snapshot_id,
+                "provider_id": "gpu-time-provider",
+                "route_id": "gpu-minute-route",
+                "unit_type": "gpu_minute",
+                "unit_price": price,
+                "payment_asset": "USDC",
+                "network": "solana",
+                "created_at": "2026-05-24T00:00:00Z",
+            },
+            provider_id="gpu-time-provider",
+            route_id="gpu-minute-route",
+            task_type="gpu_minute",
+        )
+
+    history = service.compute_price_history({"provider_id": "gpu-time-provider", "route_id": "gpu-minute-route", "unit_type": "gpu_minute"})
+    prices = service.compute_prices({"provider_id": "gpu-time-provider", "route_id": "gpu-minute-route", "unit_type": "gpu_minute"})
+    anomalies = service.compute_price_anomalies({"provider_id": "gpu-time-provider", "route_id": "gpu-minute-route", "unit_type": "gpu_minute"})
+    forecast = service.compute_price_forecast({"provider_id": "gpu-time-provider", "route_id": "gpu-minute-route", "unit_type": "gpu_minute"})
+
+    assert tuple(record["price_snapshot_id"] for record in history["price_history"]) == ("price_base_1", "price_base_2", "price_spike")
+    assert prices["prices"][0]["median_unit_price"] == 0.09
+    assert anomalies["anomaly_count"] == 1
+    assert anomalies["price_anomalies"][0]["direction"] == "above_median"
+    assert forecast["price_forecast"]["forecast_unit_price"] == 0.09
+
+    service.intelligence_plan({"task": "standard usage statement", "workspace_id": "workspace_utility", "agent_id": "agent_utility", "goal_id": "goal_utility", "estimated_value": 5.0, "budget": 1.0})
+    usage = service.compute_usage({"workspace_id": "workspace_utility"})
+    statement = service.compute_usage_statement({"workspace_id": "workspace_utility", "period": "2026-05"})
+
+    assert usage["summary"]["record_count"] == 1
+    assert statement["statement"]["workspace_id"] == "workspace_utility"
+    assert statement["statement"]["record_count"] == 1
+
 def test_marketplace_api_routes_and_scopes() -> None:
     reset_default_service(_service())
     router = create_default_router()
@@ -2006,6 +2163,10 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
         assert required_scopes_for("GET", "/market/prices") == ("compute:read",)
+        assert required_scopes_for("POST", "/compute/intelligence-plan") == ("compute:plan",)
+        assert required_scopes_for("GET", "/compute/prices") == ("compute:read",)
+        assert required_scopes_for("POST", "/compute/prices/forecast") == ("compute:read",)
+        assert required_scopes_for("GET", "/compute/usage") == ("compute:read",)
 
         applied = router.dispatch("POST", "/market/providers/apply", _provider_application())
         assert applied["ok"] is True
@@ -2020,10 +2181,22 @@ def test_marketplace_api_routes_and_scopes() -> None:
         completed = router.dispatch("POST", f"/compute/jobs/{job_id}/complete", {"actual_total_cost": 0.12, "worker_id": "worker_api"})
         telemetry = router.dispatch("GET", "/compute/telemetry")
         jobs = router.dispatch("GET", "/compute/jobs", {"status": "succeeded"})
+        intelligence = router.dispatch("POST", "/compute/intelligence-plan", {"task": "research route api", "agent_id": "agent_api", "estimated_value": 5.0, "budget": 1.0})
+        price_index = router.dispatch("GET", "/compute/prices")
+        price_history = router.dispatch("GET", "/compute/prices/history")
+        price_forecast = router.dispatch("POST", "/compute/prices/forecast", {})
+        usage = router.dispatch("GET", "/compute/usage/by-agent/agent_api")
+        statement = router.dispatch("GET", "/compute/usage/statement")
         assert dispatched["job"]["status"] == "running"
         assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
         assert tuple(str(item["job_id"]) for item in jobs["jobs"]) == (job_id,)
         assert telemetry["summary"]["metric_sample_count"] >= 1
+        assert intelligence["intelligence_plan"]["recommended_intelligence_tier"]
+        assert price_index["ok"] is True
+        assert price_history["ok"] is True
+        assert price_forecast["ok"] is True
+        assert tuple(record["agent_id"] for record in usage["usage_records"]) == ("agent_api",)
+        assert statement["statement"]["record_count"] >= 1
     finally:
         reset_default_service(None)

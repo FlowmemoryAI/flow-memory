@@ -96,6 +96,7 @@ from flow_memory.api.compute_endpoints import (
     compute_job_heartbeat,
     compute_job_release_claim,
     compute_marketplace_plan,
+    compute_intelligence_plan,
     compute_metrics,
     compute_payment_plan,
     compute_plan,
@@ -113,6 +114,10 @@ from flow_memory.api.compute_endpoints import (
     compute_providers,
     compute_quote,
     compute_readiness,
+    compute_prices,
+    compute_prices_anomalies,
+    compute_prices_forecast,
+    compute_prices_history,
     compute_telemetry,
     compute_route,
     compute_route_create,
@@ -121,6 +126,10 @@ from flow_memory.api.compute_endpoints import (
     compute_route_update,
     compute_routes,
     compute_simulate_settlement,
+    compute_usage,
+    compute_usage_by_agent,
+    compute_usage_by_goal,
+    compute_usage_statement,
     market_capacity_confirm,
     market_capacity_auction,
     market_capacity_expire,
@@ -510,6 +519,9 @@ class LocalApiRouter:
         self.audit_events.append({"event": "compute_marketplace_plan_requested"})
         return compute_marketplace_plan(payload)
 
+    def _compute_intelligence_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_intelligence_plan(payload)
+
     def _compute_quote(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_quote(payload)
 
@@ -597,6 +609,30 @@ class LocalApiRouter:
 
     def _market_prices_history(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return market_prices_history(payload)
+
+    def _compute_prices(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_prices(payload)
+
+    def _compute_prices_history(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_prices_history(payload)
+
+    def _compute_prices_anomalies(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_prices_anomalies(payload)
+
+    def _compute_prices_forecast(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_prices_forecast(payload)
+
+    def _compute_usage(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_usage(payload)
+
+    def _compute_usage_by_agent(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_usage_by_agent(params["agent_id"], payload)
+
+    def _compute_usage_by_goal(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_usage_by_goal(params["goal_id"], payload)
+
+    def _compute_usage_statement(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_usage_statement(payload)
 
     def _compute_routes(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_routes(payload)
@@ -1021,6 +1057,7 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/dashboard/snapshot", router._dashboard_snapshot, "dashboard_snapshot")
     router.register("POST", "/compute/plan", router._compute_plan, "compute_plan")
     router.register("POST", "/compute/marketplace-plan", router._compute_marketplace_plan, "compute_marketplace_plan")
+    router.register("POST", "/compute/intelligence-plan", router._compute_intelligence_plan, "compute_intelligence_plan")
     router.register("POST", "/compute/quote", router._compute_quote, "compute_quote")
     router.register("POST", "/compute/route", router._compute_route, "compute_route")
     router.register("POST", "/compute/payment-plan", router._compute_payment_plan, "compute_payment_plan")
@@ -1065,6 +1102,14 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/market/capacity/order-book", router._market_capacity_order_book, "market_capacity_order_book")
     router.register("GET", "/market/prices", router._market_prices, "market_prices")
     router.register("GET", "/market/prices/history", router._market_prices_history, "market_prices_history")
+    router.register("GET", "/compute/prices", router._compute_prices, "compute_prices")
+    router.register("GET", "/compute/prices/history", router._compute_prices_history, "compute_prices_history")
+    router.register("GET", "/compute/prices/anomalies", router._compute_prices_anomalies, "compute_prices_anomalies")
+    router.register("POST", "/compute/prices/forecast", router._compute_prices_forecast, "compute_prices_forecast")
+    router.register("GET", "/compute/usage", router._compute_usage, "compute_usage")
+    router.register("GET", "/compute/usage/by-agent/{agent_id}", router._compute_usage_by_agent, "compute_usage_by_agent")
+    router.register("GET", "/compute/usage/by-goal/{goal_id}", router._compute_usage_by_goal, "compute_usage_by_goal")
+    router.register("GET", "/compute/usage/statement", router._compute_usage_statement, "compute_usage_statement")
     router.register("GET", "/compute/routes", router._compute_routes, "compute_routes")
     router.register("GET", "/compute/routes/{route_id}", router._compute_route_get, "compute_route_get")
     router.register("POST", "/compute/routes", router._compute_route_create, "compute_route_create")

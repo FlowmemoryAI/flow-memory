@@ -2688,6 +2688,85 @@
         ]
       }
     },
+    "/compute/intelligence-plan": {
+      "post": {
+        "operationId": "compute_intelligence_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "allow_background": {
+                    "type": "string"
+                  },
+                  "allow_reserved_capacity": {
+                    "type": "string"
+                  },
+                  "budget": {
+                    "type": "string"
+                  },
+                  "dry_run": {
+                    "type": "string"
+                  },
+                  "estimated_value": {
+                    "type": "string"
+                  },
+                  "goal_id": {
+                    "type": "string"
+                  },
+                  "quality_target": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  },
+                  "urgency": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "dry_run_only": {
+                      "type": "string"
+                    },
+                    "intelligence_plan": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "usage_record": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Plan intelligence tier, reasoning budget, and run/defer decision before route planning",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/jobs": {
       "get": {
         "operationId": "compute_jobs",
@@ -3896,6 +3975,163 @@
         ]
       }
     },
+    "/compute/prices": {
+      "get": {
+        "operationId": "compute_prices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "prices": {
+                      "type": "string"
+                    },
+                    "provider_prices": {
+                      "type": "string"
+                    },
+                    "snapshot_count": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return compute route and provider price indexes",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/prices/anomalies": {
+      "get": {
+        "operationId": "compute_prices_anomalies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "anomaly_count": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "price_anomalies": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Detect route/provider price anomalies from price history",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/prices/forecast": {
+      "post": {
+        "operationId": "compute_prices_forecast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "horizon_seconds": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "unit_type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "price_forecast": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Forecast compute route price from recent snapshots",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/prices/history": {
+      "get": {
+        "operationId": "compute_prices_history",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "price_history": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List compute price history snapshots",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/providers": {
       "get": {
         "operationId": "compute_providers",
@@ -4696,6 +4932,164 @@
           }
         },
         "summary": "Return Compute Market telemetry samples and summary",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/usage": {
+      "get": {
+        "operationId": "compute_usage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "usage_records": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List metered intelligence utility ledger records",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/usage/by-agent/{agent_id}": {
+      "get": {
+        "operationId": "compute_usage_by_agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "usage_records": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List metered intelligence utility usage for one agent",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/usage/by-goal/{goal_id}": {
+      "get": {
+        "operationId": "compute_usage_by_goal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "next_cursor": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "usage_records": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List metered intelligence utility usage for one goal",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
+    "/compute/usage/statement": {
+      "get": {
+        "operationId": "compute_usage_statement",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "statement": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return a monthly intelligence utility statement",
         "tags": [
           "compute"
         ]

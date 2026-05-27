@@ -28,6 +28,8 @@ Default mode is `production_planning`:
 - structured logs, metrics, and tracing hooks
 - health/readiness checks
 
+Intelligence utility planning is also dry-run planning infrastructure. It recommends how much intelligence a task should buy, records price snapshots and usage records, and can recommend run-now/defer/downgrade/reserve decisions without executing work, moving funds, or enabling settlement.
+
 Payment and settlement are dry-run only. No funds are moved. Transaction broadcast is disabled.
 
 All payment and settlement flows are dry-run only. Flow Memory does not accept private keys, does not move funds, and does not broadcast transactions unless a future live-settlement mode is explicitly enabled through documented security gates.
@@ -71,6 +73,18 @@ Planning:
 - `POST /compute/route`
 - `POST /compute/payment-plan`
 - `POST /compute/simulate-settlement`
+
+Intelligence utility:
+
+- `POST /compute/intelligence-plan`
+- `GET /compute/prices`
+- `GET /compute/prices/history`
+- `GET /compute/prices/anomalies`
+- `POST /compute/prices/forecast`
+- `GET /compute/usage`
+- `GET /compute/usage/by-agent/{agent_id}`
+- `GET /compute/usage/by-goal/{goal_id}`
+- `GET /compute/usage/statement`
 
 Providers:
 
@@ -141,6 +155,10 @@ Health:
 - `flow-memory compute audit checkpoint --chain-id all`
 - `flow-memory compute audit verify-export --path <path>`
 - `flow-memory compute provider-contract validate <quote.json>`
+- `flow-memory compute intelligence-plan`
+- `flow-memory compute prices`
+- `flow-memory compute usage`
+- `flow-memory compute statement`
 - `flow-memory compute health`
 - `flow-memory compute readiness`
 
@@ -161,6 +179,16 @@ Common options:
 - `--cursor`
 - `--allow-no-route`
 
+- `--budget`
+- `--estimated-value`
+- `--intelligence-tier`
+- `--reasoning-level`
+- `--max-reasoning-steps`
+- `--max-tool-calls`
+- `--allow-background`
+- `--allow-reserved-capacity`
+- `--max-background-runtime-seconds`
+- `--checkpoint-interval-seconds`
 CLI fail-closed denials exit nonzero unless `--allow-no-route` is explicitly used for a valid no-route outcome.
 
 ## Policy behavior
@@ -195,7 +223,7 @@ Every rejection includes a machine-readable reason and a human-readable explanat
 - providers by status
 - audit events by actor, request, action, creation time, chain ID, sequence number, and event hash
 
-Stored record types include provider, route, quote, capacity window, reservation, compute intent, payment intent, payment plan, settlement intent, task economic profile, budget policy, market policy, route decision, provider capability, price snapshots, price curves, economic memory, audit events, provider health, and quote cache entries.
+Stored record types include provider, route, quote, capacity window, reservation, compute intent, payment intent, payment plan, settlement intent, task economic profile, budget policy, market policy, route decision, provider capability, price snapshots, price curves, intelligence plans, route/provider price indexes, price anomalies, price forecasts, intelligence usage records, compute statements, economic memory, audit events, provider health, and quote cache entries.
 
 SQLite is the default local/single-node store. Multi-node production deployments can use the PostgreSQL-compatible adapter through `FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres` and `FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://...`; install the optional `flow-memory[postgres]` extra and run migrations before serving traffic. Production can fail readiness on SQLite by setting `FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true`.
 
@@ -215,6 +243,49 @@ Responses include:
 - next recommended action
 
 Analytics include cheapest route, best ROI route, latency-adjusted cost, provider reliability, route rejection rates, fallback frequency, stale quote frequency, policy failure distribution, marketplace route performance, budget overrun attempts, estimated versus actual cost/latency, provider drift, task classes to defer, and routes needing human approval.
+
+## Intelligence as a metered utility
+
+`POST /compute/intelligence-plan` sits above `/compute/plan`. It asks what tier of intelligence a task should buy before choosing a route. Supported tiers are `instant`, `standard`, `deep_reasoning`, `background_agent`, `batch`, `premium`, and `reserved_capacity`.
+
+An intelligence plan includes:
+
+- `recommended_intelligence_tier`
+- `recommended_reasoning_budget`
+- `recommended_route_types`
+- `max_recommended_spend`
+- `run_decision`
+- `defer_until`
+- `downgrade_options`
+- `reserve_capacity_recommended`
+- `rationale`
+- `next_safe_actions`
+
+Reasoning budgets constrain agent-native work with `reasoning_level`, `max_reasoning_steps`, `max_parallel_branches`, `max_reflection_passes`, `max_tool_calls`, `max_wall_time_seconds`, `max_background_runtime_seconds`, and `checkpoint_interval_seconds`.
+
+Run decisions are `run_now`, `defer_until_cheaper`, `downgrade_tier`, `reserve_capacity`, `require_human_approval`, and `reject_negative_roi`. The planner considers estimated value, estimated cost, quote freshness, capacity availability, policy constraints, and stored price history.
+
+Background compute remains planning-only unless the separate compute job execution layer is used. `allow_background`, `background_deadline`, `checkpoint_interval_seconds`, and `max_background_runtime_seconds` influence tiering and route preferences without starting background work.
+
+## Compute price history and utility ledger
+
+Flow Memory records compute price snapshots when plans observe quotes. Price APIs expose current route/provider indexes, history, anomaly detection, and simple forecasts:
+
+- `GET /compute/prices`
+- `GET /compute/prices/history`
+- `GET /compute/prices/anomalies`
+- `POST /compute/prices/forecast`
+
+The intelligence usage ledger records the economics of intelligence use: workspace, agent, goal, task, tier, reasoning level, metered units, estimated and actual cost, estimated value, ROI, selected route, provider, route, background runtime, and creation time.
+
+Usage APIs provide utility-bill views:
+
+- `GET /compute/usage`
+- `GET /compute/usage/by-agent/{agent_id}`
+- `GET /compute/usage/by-goal/{goal_id}`
+- `GET /compute/usage/statement`
+
+These records are accounting and planning records. They do not debit real credits, move funds, accept private keys, broadcast transactions, or enable live settlement.
 
 ## Rate limits, circuit breakers, and external quotes
 

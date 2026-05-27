@@ -25,8 +25,18 @@ from flow_memory.compute_market.models import (
     AuditEvent,
     ComputeMarketHealth,
     ComputeMarketPolicy,
+    ComputePriceSnapshot,
     ComputeProvider,
+    ComputeStatement,
+    IntelligencePlan,
+    IntelligenceTier,
+    IntelligenceUsageRecord,
+    PriceAnomaly,
+    PriceForecast,
     ProviderHealthSnapshot,
+    ProviderPriceIndex,
+    RoutePriceIndex,
+    RunDecision,
 )
 from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry
 from flow_memory.compute_market.planner import build_compute_plan, build_task_profile, replay_decision
@@ -174,6 +184,158 @@ class ComputeMarketService:
 
     def marketplace_plan(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.plan({**dict(payload), "marketplace_only": True, "selection_strategy": payload.get("selection_strategy", "marketplace_preferred")})
+
+    def intelligence_plan(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /compute/intelligence-plan", request_id=request_id)
+        if limited is not None:
+            return limited
+        idempotency_key = str(payload.get("idempotency_key", ""))
+        if idempotency_key:
+            existing = self.store.find_by_idempotency("intelligence_plan", idempotency_key)
+            if existing:
+                return {"ok": True, "intelligence_plan": existing, "idempotent_replay": True}
+        profile = build_task_profile({**dict(payload), "request_id": request_id})
+        tier = _recommended_intelligence_tier(payload, profile.as_record())
+        reasoning_budget = _recommended_reasoning_budget(payload, tier)
+        urgency = _intelligence_urgency(payload)
+        quality_target = _intelligence_quality_target(payload)
+        plan_payload = _intelligence_plan_payload(payload, tier, reasoning_budget, urgency, quality_target)
+        compute_result = self.plan({**plan_payload, "request_id": request_id, "idempotency_key": idempotency_key})
+        compute_plan = compute_result.get("compute_plan", {}) if isinstance(compute_result.get("compute_plan"), Mapping) else {}
+        price_context = self._price_context(compute_plan, payload)
+        run_decision = _intelligence_run_decision(payload, tier, reasoning_budget, urgency, compute_plan, price_context)
+        intelligence_plan = IntelligencePlan(
+            intelligence_plan_id=deterministic_id("intelligence_plan", {"request_id": request_id, "task_id": profile.task_id, "tier": tier, "decision": run_decision}),
+            task_id=profile.task_id,
+            agent_id=profile.agent_id,
+            goal_id=profile.goal_id,
+            recommended_intelligence_tier=tier,
+            recommended_reasoning_budget=reasoning_budget,
+            recommended_route_types=_recommended_route_types(tier, payload),
+            max_recommended_spend=_max_recommended_spend(payload, tier, profile.estimated_value),
+            run_decision=run_decision,
+            defer_until=_defer_until(payload, urgency, run_decision),
+            downgrade_options=_downgrade_options(tier, compute_plan),
+            reserve_capacity_recommended=run_decision == RunDecision.RESERVE_CAPACITY.value or tier == IntelligenceTier.RESERVED_CAPACITY.value,
+            rationale=_intelligence_rationale(tier, run_decision, compute_plan, price_context),
+            next_safe_actions=_intelligence_next_safe_actions(run_decision, compute_plan),
+            compute_plan=compute_plan,
+            price_context=price_context,
+            dry_run_only=True,
+            funds_moved=False,
+            broadcast_allowed=False,
+            private_key_required=False,
+            created_at=utc_now_iso(),
+            tenant_id=profile.tenant_id,
+            workspace_id=profile.workspace_id,
+            request_id=request_id,
+            idempotency_key=idempotency_key,
+        ).as_record()
+        self.store.put_record(
+            "intelligence_plan",
+            str(intelligence_plan["intelligence_plan_id"]),
+            intelligence_plan,
+            tenant_id=str(intelligence_plan.get("tenant_id", "")),
+            workspace_id=str(intelligence_plan.get("workspace_id", "")),
+            agent_id=profile.agent_id,
+            goal_id=profile.goal_id,
+            task_type=profile.task_type,
+            task_hash=profile.task_hash,
+            status=run_decision,
+            idempotency_key=idempotency_key,
+            request_id=request_id,
+        )
+        usage_record = _intelligence_usage_record(intelligence_plan, compute_plan).as_record()
+        self.store.put_record(
+            "intelligence_usage_record",
+            str(usage_record["usage_record_id"]),
+            usage_record,
+            tenant_id=str(usage_record.get("tenant_id", "")),
+            workspace_id=str(usage_record.get("workspace_id", "")),
+            agent_id=profile.agent_id,
+            goal_id=profile.goal_id,
+            provider_id=str(usage_record.get("provider_id", "")),
+            route_id=str(usage_record.get("route_id", "")),
+            task_hash=profile.task_hash,
+            status="planned",
+            request_id=request_id,
+        )
+        self.telemetry.increment("compute_intelligence_plan_created_total", {"tier": tier, "run_decision": run_decision})
+        selected_route_raw = compute_plan.get("selected_route")
+        selected_route = selected_route_raw if isinstance(selected_route_raw, Mapping) else {}
+        self._audit(
+            "compute.intelligence_plan.created",
+            payload,
+            request_id=request_id,
+            result=run_decision,
+            decision_id=str(compute_plan.get("decision_id", "")),
+            route_id=str(selected_route.get("route_id", "")),
+        )
+        return {
+            "ok": True,
+            "intelligence_plan": intelligence_plan,
+            "usage_record": usage_record,
+            "dry_run_only": True,
+            "funds_moved": False,
+            "broadcast_allowed": False,
+            "private_key_required": False,
+        }
+
+    def compute_prices(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        filters = dict(payload or {})
+        snapshots = self._price_snapshots(filters)
+        route_indexes = tuple(_route_price_index(group).as_record() for group in _price_groups(snapshots, "route_id") if group)
+        provider_indexes = tuple(_provider_price_index(group).as_record() for group in _price_groups(snapshots, "provider_id") if group)
+        for index in route_indexes:
+            self.store.put_record("route_price_index", deterministic_id("route_price_index", index), index, provider_id=str(index.get("provider_id", "")), route_id=str(index.get("route_id", "")), task_type=str(index.get("unit_type", "")))
+        for index in provider_indexes:
+            self.store.put_record("provider_price_index", deterministic_id("provider_price_index", index), index, provider_id=str(index.get("provider_id", "")), task_type=str(index.get("unit_type", "")))
+        return {"ok": True, "prices": route_indexes, "provider_prices": provider_indexes, "snapshot_count": len(snapshots)}
+
+    def compute_price_history(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        filters = dict(payload or {})
+        limit = int(filters.get("limit", 100) or 100)
+        page = self.store.list_records("compute_price_snapshot", filters=filters, limit=limit, cursor=str(filters.get("cursor", "")))
+        return {"ok": True, "price_history": page.records, "next_cursor": page.next_cursor}
+
+    def compute_price_anomalies(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        filters = dict(payload or {})
+        snapshots = self._price_snapshots(filters)
+        anomalies = tuple(_price_anomaly(snapshot, _median_price_for_snapshot(snapshot, snapshots)).as_record() for snapshot in snapshots if _price_is_anomalous(snapshot, _median_price_for_snapshot(snapshot, snapshots)))
+        for anomaly in anomalies:
+            self.store.put_record("price_anomaly", str(anomaly["anomaly_id"]), anomaly, provider_id=str(anomaly.get("provider_id", "")), route_id=str(anomaly.get("route_id", "")), task_type=str(anomaly.get("unit_type", "")), status=str(anomaly.get("severity", "")))
+        return {"ok": True, "price_anomalies": anomalies, "anomaly_count": len(anomalies)}
+
+    def compute_price_forecast(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        filters = {key: value for key, value in dict(payload).items() if key in {"tenant_id", "workspace_id", "provider_id", "route_id", "task_type"} and value not in (None, "")}
+        snapshots = self._price_snapshots(filters)
+        forecast = _price_forecast(payload, snapshots).as_record()
+        self.store.put_record("price_forecast", str(forecast["forecast_id"]), forecast, provider_id=str(forecast.get("provider_id", "")), route_id=str(forecast.get("route_id", "")), task_type=str(forecast.get("unit_type", "")), request_id=str(payload.get("request_id", "")))
+        return {"ok": True, "price_forecast": forecast}
+
+    def compute_usage(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        filters = _usage_filters(payload or {})
+        page = self.store.list_records("intelligence_usage_record", filters=filters, limit=int((payload or {}).get("limit", 100) or 100), cursor=str((payload or {}).get("cursor", "")))
+        summary = _usage_summary(page.records)
+        return {"ok": True, "usage_records": page.records, "summary": summary, "next_cursor": page.next_cursor}
+
+    def compute_usage_by_agent(self, agent_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        return self.compute_usage({**dict(payload or {}), "agent_id": agent_id})
+
+    def compute_usage_by_goal(self, goal_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        return self.compute_usage({**dict(payload or {}), "goal_id": goal_id})
+
+    def compute_usage_statement(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        request = dict(payload or {})
+        filters = _usage_filters(request)
+        records = self._all_records("intelligence_usage_record", filters=filters)
+        period = str(request.get("period") or utc_now_iso()[:7])
+        workspace_id = str(request.get("workspace_id", request.get("tenant_id", "")))
+        statement = _compute_statement(records, workspace_id=workspace_id, period=period).as_record()
+        self.store.put_record("compute_statement", str(statement["statement_id"]), statement, tenant_id=str(request.get("tenant_id", "")), workspace_id=workspace_id, status=period)
+        return {"ok": True, "statement": statement}
 
     def quote(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -3622,6 +3784,46 @@ class ComputeMarketService:
             return tuple(str(provider_id) for provider_id in open_ids())
         return ()
 
+    def _persist_price_snapshot(self, quote: Mapping[str, Any], *, request_id: str = "") -> None:
+        if quote.get("unit_price") in (None, ""):
+            return
+        snapshot = _price_snapshot_from_quote(quote).as_record()
+        self.store.put_record(
+            "compute_price_snapshot",
+            str(snapshot["price_snapshot_id"]),
+            snapshot,
+            tenant_id=str(snapshot.get("tenant_id", "")),
+            workspace_id=str(snapshot.get("workspace_id", "")),
+            provider_id=str(snapshot.get("provider_id", "")),
+            route_id=str(snapshot.get("route_id", "")),
+            task_type=str(snapshot.get("unit_type", "")),
+            task_hash=str(snapshot.get("task_hash", "")),
+            request_id=request_id,
+        )
+
+    def _price_snapshots(self, payload: Mapping[str, Any] | None = None) -> tuple[Mapping[str, Any], ...]:
+        filters = _price_filters(payload or {})
+        return self._all_records("compute_price_snapshot", filters=filters)
+
+    def _price_context(self, compute_plan: Mapping[str, Any], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        quote = compute_plan.get("normalized_quote", {}) if isinstance(compute_plan.get("normalized_quote"), Mapping) else {}
+        filters = _price_filters({**dict(payload), **_quote_price_filter(quote)})
+        snapshots = self._price_snapshots(filters)
+        median = _median_price_for_snapshot(quote, snapshots)
+        unit_price = _optional_price(quote.get("unit_price"))
+        ratio = _ratio(unit_price, median)
+        return {
+            "provider_id": str(quote.get("provider_id", "")),
+            "route_id": str(quote.get("route_id", "")),
+            "unit_type": str(quote.get("unit_type", "")),
+            "unit_price": unit_price,
+            "median_unit_price": median,
+            "ratio_to_median": ratio,
+            "sample_count": len(snapshots),
+            "price_above_history": ratio >= 3.0,
+            "capacity_available": bool(quote.get("capacity_available", False)),
+            "quote_fresh": not bool(quote.get("stale", False) or quote.get("expired", False)),
+        }
     def _persist_plan(self, plan: Mapping[str, Any]) -> None:
         profile = plan.get("profile", {}) if isinstance(plan.get("profile"), Mapping) else {}
         decision = plan.get("route_decision", {}) if isinstance(plan.get("route_decision"), Mapping) else {}
@@ -3636,6 +3838,11 @@ class ComputeMarketService:
             self.store.put_record("task_economic_profile", str(profile.get("task_id", deterministic_id("profile", profile))), profile, agent_id=str(profile.get("agent_id", "")), goal_id=str(profile.get("goal_id", "")), task_type=str(profile.get("task_type", "")), task_hash=str(profile.get("task_hash", "")), request_id=request_id)
         if quote:
             self.store.put_record("compute_quote", str(quote.get("quote_id", deterministic_id("quote", quote))), quote, provider_id=str(quote.get("provider_id", "")), route_id=str(quote.get("route_id", "")), status=str(quote.get("status", "")), expires_at=str(quote.get("expires_at", "")), request_id=request_id)
+            self._persist_price_snapshot(quote, request_id=request_id)
+        if decision:
+            for candidate_quote in tuple(decision.get("normalized_quotes", ())):
+                if isinstance(candidate_quote, Mapping):
+                    self._persist_price_snapshot(candidate_quote, request_id=request_id)
         if payment_plan:
             self.store.put_record("payment_plan", str(payment_plan.get("payment_plan_id", deterministic_id("payment_plan", payment_plan))), payment_plan, request_id=request_id, idempotency_key=idempotency_key)
         if settlement:
@@ -6098,6 +6305,542 @@ def _tuple(value: object) -> tuple[str, ...]:
     if isinstance(value, (tuple, list, set)):
         return tuple(str(item) for item in value if str(item))
     return (str(value),)
+
+
+def _recommended_intelligence_tier(payload: Mapping[str, Any], profile: Mapping[str, Any]) -> str:
+    requested = str(payload.get("intelligence_tier") or profile.get("intelligence_tier") or "")
+    if requested in {item.value for item in IntelligenceTier}:
+        return requested
+    estimated_value = _optional_price(payload.get("estimated_value"))
+    max_latency_ms = int(float(payload.get("max_latency_ms", 0) or 0))
+    if bool(payload.get("allow_background", False)):
+        return IntelligenceTier.BACKGROUND_AGENT.value
+    if bool(payload.get("allow_reserved_capacity", False)):
+        return IntelligenceTier.RESERVED_CAPACITY.value
+    if max_latency_ms and max_latency_ms <= 2_000:
+        return IntelligenceTier.INSTANT.value
+    if estimated_value is not None and estimated_value >= 100:
+        return IntelligenceTier.PREMIUM.value
+    task = str(payload.get("task") or payload.get("task_description") or "").lower()
+    if "batch" in task:
+        return IntelligenceTier.BATCH.value
+    if any(marker in task for marker in ("research", "architecture", "competitor", "deep")):
+        return IntelligenceTier.DEEP_REASONING.value
+    return IntelligenceTier.STANDARD.value
+
+
+def _recommended_reasoning_budget(payload: Mapping[str, Any], tier: str) -> Mapping[str, Any]:
+    raw = payload.get("reasoning_budget", {})
+    source = dict(raw) if isinstance(raw, Mapping) else {}
+    reasoning_level = str(source.get("reasoning_level") or payload.get("reasoning_level") or _default_reasoning_level(tier))
+    default_steps = {
+        IntelligenceTier.INSTANT.value: 2,
+        IntelligenceTier.STANDARD.value: 8,
+        IntelligenceTier.DEEP_REASONING.value: 32,
+        IntelligenceTier.BACKGROUND_AGENT.value: 64,
+        IntelligenceTier.BATCH.value: 16,
+        IntelligenceTier.PREMIUM.value: 48,
+        IntelligenceTier.RESERVED_CAPACITY.value: 96,
+    }.get(tier, 8)
+    background_runtime = int(source.get("max_background_runtime_seconds", payload.get("max_background_runtime_seconds", 3600 if tier == IntelligenceTier.BACKGROUND_AGENT.value else 0)) or 0)
+    return {
+        "reasoning_level": reasoning_level,
+        "max_reasoning_steps": int(source.get("max_reasoning_steps", default_steps) or default_steps),
+        "max_parallel_branches": int(source.get("max_parallel_branches", 4 if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value, IntelligenceTier.PREMIUM.value, IntelligenceTier.RESERVED_CAPACITY.value} else 1) or 1),
+        "max_reflection_passes": int(source.get("max_reflection_passes", 3 if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.PREMIUM.value, IntelligenceTier.RESERVED_CAPACITY.value} else 1) or 1),
+        "max_tool_calls": int(source.get("max_tool_calls", 16 if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value, IntelligenceTier.RESERVED_CAPACITY.value} else 4) or 4),
+        "max_wall_time_seconds": int(source.get("max_wall_time_seconds", payload.get("max_wall_time_seconds", 600 if tier != IntelligenceTier.INSTANT.value else 30)) or 60),
+        "max_background_runtime_seconds": background_runtime,
+        "checkpoint_interval_seconds": int(source.get("checkpoint_interval_seconds", payload.get("checkpoint_interval_seconds", 300 if background_runtime else 0)) or 0),
+    }
+
+
+def _default_reasoning_level(tier: str) -> str:
+    if tier == IntelligenceTier.INSTANT.value:
+        return "low"
+    if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value, IntelligenceTier.PREMIUM.value}:
+        return "high"
+    if tier == IntelligenceTier.RESERVED_CAPACITY.value:
+        return "extreme"
+    return "medium"
+
+
+def _intelligence_urgency(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    raw = payload.get("urgency", {})
+    source = dict(raw) if isinstance(raw, Mapping) else {}
+    return {
+        "run_now": bool(source.get("run_now", payload.get("run_now", True))),
+        "defer_allowed": bool(source.get("defer_allowed", payload.get("defer_allowed", False))),
+        "deadline": str(source.get("deadline", payload.get("deadline", ""))),
+        "max_latency_ms": int(source.get("max_latency_ms", payload.get("max_latency_ms", 0)) or 0),
+        "off_peak_allowed": bool(source.get("off_peak_allowed", payload.get("off_peak_allowed", False))),
+    }
+
+
+def _intelligence_quality_target(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    raw = payload.get("quality_target", {})
+    source = dict(raw) if isinstance(raw, Mapping) else {}
+    return {
+        "target": str(source.get("target", raw if isinstance(raw, str) else payload.get("quality_requirement", "standard"))),
+        "min_confidence": float(source.get("min_confidence", 0.0) or 0.0),
+        "require_audit_trail": bool(source.get("require_audit_trail", True)),
+        "require_verified_provider": bool(source.get("require_verified_provider", payload.get("require_verified_provider", False))),
+    }
+
+
+def _intelligence_plan_payload(
+    payload: Mapping[str, Any],
+    tier: str,
+    reasoning_budget: Mapping[str, Any],
+    urgency: Mapping[str, Any],
+    quality_target: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    plan_payload = dict(payload)
+    max_spend = _max_recommended_spend(payload, tier, _optional_price(payload.get("estimated_value")))
+    policy = dict(plan_payload.get("policy", {})) if isinstance(plan_payload.get("policy"), Mapping) else {}
+    policy.setdefault("max_total_cost", max_spend)
+    policy.setdefault("max_latency_ms", int(urgency.get("max_latency_ms", 0) or payload.get("max_latency_ms", 0) or 0))
+    policy.setdefault("dry_run_required", True)
+    policy.setdefault("require_verified_provider", bool(quality_target.get("require_verified_provider", False)))
+    if tier in {IntelligenceTier.RESERVED_CAPACITY.value, IntelligenceTier.BACKGROUND_AGENT.value}:
+        policy.setdefault("require_capacity_confirmation", bool(payload.get("allow_reserved_capacity", tier == IntelligenceTier.RESERVED_CAPACITY.value)))
+    plan_payload["policy"] = policy
+    plan_payload["selection_strategy"] = str(payload.get("selection_strategy") or _selection_strategy_for_tier(tier))
+    plan_payload["quality_requirement"] = str(quality_target.get("target", "standard"))
+    plan_payload["reasoning_budget"] = reasoning_budget
+    plan_payload["intelligence_tier"] = tier
+    plan_payload["dry_run"] = True
+    return plan_payload
+
+
+def _selection_strategy_for_tier(tier: str) -> str:
+    if tier == IntelligenceTier.INSTANT.value:
+        return "best_latency"
+    if tier == IntelligenceTier.BATCH.value:
+        return "lowest_cost"
+    if tier in {IntelligenceTier.RESERVED_CAPACITY.value, IntelligenceTier.BACKGROUND_AGENT.value}:
+        return "capacity_guaranteed"
+    if tier == IntelligenceTier.PREMIUM.value:
+        return "reliability_weighted"
+    if tier == IntelligenceTier.DEEP_REASONING.value:
+        return "best_roi"
+    return "balanced"
+
+
+def _recommended_route_types(tier: str, payload: Mapping[str, Any]) -> tuple[str, ...]:
+    if tier == IntelligenceTier.INSTANT.value:
+        return ("direct", "token", "local")
+    if tier == IntelligenceTier.BATCH.value:
+        return ("batch_job", "gpu_minute", "marketplace")
+    if tier == IntelligenceTier.DEEP_REASONING.value:
+        return ("agent_runtime", "gpu_minute", "marketplace", "reserved_capacity")
+    if tier == IntelligenceTier.BACKGROUND_AGENT.value:
+        return ("background_agent", "reserved_capacity", "gpu_minute", "batch_job")
+    if tier == IntelligenceTier.RESERVED_CAPACITY.value or bool(payload.get("allow_reserved_capacity", False)):
+        return ("reserved_capacity", "gpu_hour", "reserved_capacity_slot")
+    if tier == IntelligenceTier.PREMIUM.value:
+        return ("reasoning_model", "marketplace", "reserved_capacity")
+    return ("request", "token", "marketplace")
+
+
+def _max_recommended_spend(payload: Mapping[str, Any], tier: str, estimated_value: float | None) -> float:
+    explicit_budget = _optional_price(payload.get("budget", payload.get("max_total_cost", None)))
+    if explicit_budget is not None and explicit_budget > 0:
+        return round(explicit_budget, 6)
+    value = float(estimated_value or 0.0)
+    if value <= 0:
+        return {
+            IntelligenceTier.INSTANT.value: 0.05,
+            IntelligenceTier.STANDARD.value: 0.5,
+            IntelligenceTier.DEEP_REASONING.value: 5.0,
+            IntelligenceTier.BACKGROUND_AGENT.value: 10.0,
+            IntelligenceTier.BATCH.value: 2.0,
+            IntelligenceTier.PREMIUM.value: 15.0,
+            IntelligenceTier.RESERVED_CAPACITY.value: 25.0,
+        }.get(tier, 1.0)
+    multiplier = {
+        IntelligenceTier.INSTANT.value: 0.01,
+        IntelligenceTier.STANDARD.value: 0.05,
+        IntelligenceTier.DEEP_REASONING.value: 0.2,
+        IntelligenceTier.BACKGROUND_AGENT.value: 0.2,
+        IntelligenceTier.BATCH.value: 0.08,
+        IntelligenceTier.PREMIUM.value: 0.3,
+        IntelligenceTier.RESERVED_CAPACITY.value: 0.35,
+    }.get(tier, 0.05)
+    return round(max(0.01, value * multiplier), 6)
+
+
+def _intelligence_run_decision(
+    payload: Mapping[str, Any],
+    tier: str,
+    reasoning_budget: Mapping[str, Any],
+    urgency: Mapping[str, Any],
+    compute_plan: Mapping[str, Any],
+    price_context: Mapping[str, Any],
+) -> str:
+    fail_closed = tuple(str(item) for item in compute_plan.get("fail_closed_errors", ()) if str(item))
+    if fail_closed:
+        if any("capacity" in reason for reason in fail_closed) and bool(payload.get("allow_reserved_capacity", False)):
+            return RunDecision.RESERVE_CAPACITY.value
+        if any(reason in {"budget_exceeded", "unit_price_exceeded"} for reason in fail_closed):
+            return RunDecision.DOWNGRADE_TIER.value
+        return RunDecision.REJECT_NEGATIVE_ROI.value
+    quote = compute_plan.get("normalized_quote", {}) if isinstance(compute_plan.get("normalized_quote"), Mapping) else {}
+    estimated_cost = _optional_price(quote.get("estimated_total_cost")) or 0.0
+    estimated_value = _optional_price(payload.get("estimated_value"))
+    approval_threshold = float(payload.get("require_human_approval_above", 0.0) or 0.0)
+    if approval_threshold > 0 and estimated_cost > approval_threshold and not bool(payload.get("human_approval_granted", False)):
+        return RunDecision.REQUIRE_HUMAN_APPROVAL.value
+    if estimated_value is not None and estimated_value >= 0 and estimated_cost > estimated_value:
+        return RunDecision.REJECT_NEGATIVE_ROI.value
+    max_spend = _max_recommended_spend(payload, tier, estimated_value)
+    if estimated_cost > max_spend and tier not in {IntelligenceTier.INSTANT.value, IntelligenceTier.STANDARD.value}:
+        return RunDecision.DOWNGRADE_TIER.value
+    if bool(urgency.get("defer_allowed", False)) and bool(price_context.get("price_above_history", False)):
+        return RunDecision.DEFER_UNTIL_CHEAPER.value
+    if tier == IntelligenceTier.RESERVED_CAPACITY.value or (
+        bool(payload.get("allow_reserved_capacity", False)) and str(quote.get("market_type", "")) == "reserved_capacity"
+    ):
+        return RunDecision.RESERVE_CAPACITY.value
+    if str(reasoning_budget.get("reasoning_level", "")) == "extreme" and estimated_cost > 0 and not bool(payload.get("human_approval_granted", False)):
+        return RunDecision.REQUIRE_HUMAN_APPROVAL.value
+    return RunDecision.RUN_NOW.value
+
+
+def _defer_until(payload: Mapping[str, Any], urgency: Mapping[str, Any], run_decision: str) -> str:
+    if run_decision != RunDecision.DEFER_UNTIL_CHEAPER.value:
+        return ""
+    explicit = str(payload.get("defer_until") or payload.get("next_best_window") or "")
+    if explicit:
+        return explicit
+    deadline = str(urgency.get("deadline", ""))
+    if deadline:
+        return deadline
+    return (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _downgrade_options(tier: str, compute_plan: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
+    if tier in {IntelligenceTier.INSTANT.value, IntelligenceTier.STANDARD.value}:
+        return ()
+    quote = compute_plan.get("normalized_quote", {}) if isinstance(compute_plan.get("normalized_quote"), Mapping) else {}
+    cost = _optional_price(quote.get("estimated_total_cost")) or 0.0
+    return (
+        {"intelligence_tier": IntelligenceTier.STANDARD.value, "reasoning_level": "medium", "estimated_cost_cap": round(max(0.01, cost * 0.5), 6)},
+        {"intelligence_tier": IntelligenceTier.INSTANT.value, "reasoning_level": "low", "estimated_cost_cap": round(max(0.01, cost * 0.2), 6)},
+    )
+
+
+def _intelligence_rationale(tier: str, run_decision: str, compute_plan: Mapping[str, Any], price_context: Mapping[str, Any]) -> tuple[str, ...]:
+    reasons = [f"tier={tier}", f"run_decision={run_decision}"]
+    if bool(compute_plan.get("ok", False)):
+        selected = compute_plan.get("selected_route", {}) if isinstance(compute_plan.get("selected_route"), Mapping) else {}
+        reasons.append(f"selected_route={selected.get('route_id', '')}")
+    else:
+        reasons.append("planner_fail_closed")
+    if price_context.get("median_unit_price") is not None:
+        reasons.append(f"price_ratio={float(price_context.get('ratio_to_median', 0.0) or 0.0):.3f}")
+    return tuple(reasons)
+
+
+def _intelligence_next_safe_actions(run_decision: str, compute_plan: Mapping[str, Any]) -> tuple[str, ...]:
+    base = tuple(str(item) for item in compute_plan.get("next_safe_actions", ()) if str(item))
+    if run_decision == RunDecision.DEFER_UNTIL_CHEAPER.value:
+        return ("wait for the next cheaper capacity window before dispatch", *base)
+    if run_decision == RunDecision.DOWNGRADE_TIER.value:
+        return ("retry with a lower intelligence tier or smaller reasoning budget", *base)
+    if run_decision == RunDecision.REQUIRE_HUMAN_APPROVAL.value:
+        return ("obtain explicit human approval before spending this reasoning budget", *base)
+    if run_decision == RunDecision.RESERVE_CAPACITY.value:
+        return ("hold or confirm reserved capacity before background execution", *base)
+    if run_decision == RunDecision.REJECT_NEGATIVE_ROI.value:
+        return ("do not run until expected task value exceeds estimated intelligence cost", *base)
+    return ("run using dry-run compute planning; no funds moved", *base)
+
+
+def _price_snapshot_from_quote(quote: Mapping[str, Any]) -> ComputePriceSnapshot:
+    created_at = utc_now_iso()
+    stable = {
+        "quote_id": str(quote.get("quote_id", "")),
+        "provider_id": str(quote.get("provider_id", "")),
+        "route_id": str(quote.get("route_id", "")),
+        "unit_type": str(quote.get("unit_type", "")),
+        "unit_price": _optional_price(quote.get("unit_price")),
+        "created_at": created_at,
+    }
+    return ComputePriceSnapshot(
+        price_snapshot_id=deterministic_id("price_snapshot", stable),
+        provider_id=str(quote.get("provider_id", "")),
+        route_id=str(quote.get("route_id", "")),
+        unit_type=str(quote.get("unit_type", "")),
+        unit_price=_optional_price(quote.get("unit_price")),
+        payment_asset=str(quote.get("payment_asset", quote.get("currency_or_asset", ""))),
+        network=str(quote.get("network", "")),
+        latency_ms=int(float(quote.get("estimated_latency_ms", 0) or 0)),
+        reliability_score=float(quote.get("reliability_score", quote.get("confidence", 0.0)) or 0.0),
+        capacity_available=bool(quote.get("capacity_available", True)),
+        market_type=str(quote.get("market_type", "")),
+        quote_source=str(quote.get("source", quote.get("quote_source", ""))),
+        confidence=float(quote.get("confidence", 1.0) or 1.0),
+        created_at=created_at,
+        tenant_id=str(quote.get("tenant_id", "")),
+        workspace_id=str(quote.get("workspace_id", "")),
+        quote_id=str(quote.get("quote_id", "")),
+        task_hash=str(quote.get("task_hash", "")),
+    )
+
+
+def _price_filters(payload: Mapping[str, Any]) -> dict[str, Any]:
+    filters: dict[str, Any] = {}
+    for key in ("tenant_id", "workspace_id", "provider_id", "route_id", "task_hash"):
+        value = payload.get(key)
+        if value not in (None, ""):
+            filters[key] = value
+    unit_type = payload.get("unit_type", payload.get("task_type", ""))
+    if unit_type not in (None, ""):
+        filters["task_type"] = str(unit_type)
+    return filters
+
+
+def _quote_price_filter(quote: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not quote:
+        return {}
+    return {
+        "provider_id": str(quote.get("provider_id", "")),
+        "route_id": str(quote.get("route_id", "")),
+        "unit_type": str(quote.get("unit_type", "")),
+        "tenant_id": str(quote.get("tenant_id", "")),
+        "workspace_id": str(quote.get("workspace_id", "")),
+    }
+
+
+def _price_groups(snapshots: tuple[Mapping[str, Any], ...], key: str) -> tuple[tuple[Mapping[str, Any], ...], ...]:
+    groups: dict[str, list[Mapping[str, Any]]] = {}
+    for snapshot in snapshots:
+        group_key = f"{snapshot.get(key, '')}:{snapshot.get('unit_type', '')}"
+        groups.setdefault(group_key, []).append(snapshot)
+    return tuple(tuple(group) for group in groups.values())
+
+
+def _route_price_index(group: tuple[Mapping[str, Any], ...]) -> RoutePriceIndex:
+    latest = group[-1]
+    prices = _prices(group)
+    return RoutePriceIndex(
+        route_id=str(latest.get("route_id", "")),
+        provider_id=str(latest.get("provider_id", "")),
+        unit_type=str(latest.get("unit_type", "")),
+        latest_unit_price=_optional_price(latest.get("unit_price")),
+        median_unit_price=_median(prices),
+        sample_count=len(prices),
+        payment_asset=str(latest.get("payment_asset", "")),
+        network=str(latest.get("network", "")),
+        created_at=utc_now_iso(),
+    )
+
+
+def _provider_price_index(group: tuple[Mapping[str, Any], ...]) -> ProviderPriceIndex:
+    latest = group[-1]
+    prices = _prices(group)
+    return ProviderPriceIndex(
+        provider_id=str(latest.get("provider_id", "")),
+        unit_type=str(latest.get("unit_type", "")),
+        latest_unit_price=_optional_price(latest.get("unit_price")),
+        median_unit_price=_median(prices),
+        sample_count=len(prices),
+        payment_asset=str(latest.get("payment_asset", "")),
+        network=str(latest.get("network", "")),
+        created_at=utc_now_iso(),
+    )
+
+
+def _prices(records: tuple[Mapping[str, Any], ...]) -> tuple[float, ...]:
+    return tuple(price for price in (_optional_price(record.get("unit_price")) for record in records) if price is not None)
+
+
+def _median(values: tuple[float, ...]) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    midpoint = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[midpoint]
+    return (ordered[midpoint - 1] + ordered[midpoint]) / 2.0
+
+
+def _median_price_for_snapshot(snapshot: Mapping[str, Any], snapshots: tuple[Mapping[str, Any], ...]) -> float | None:
+    comparable = tuple(
+        item
+        for item in snapshots
+        if str(item.get("provider_id", "")) == str(snapshot.get("provider_id", ""))
+        and str(item.get("route_id", "")) == str(snapshot.get("route_id", ""))
+        and str(item.get("unit_type", "")) == str(snapshot.get("unit_type", ""))
+    )
+    return _median(_prices(comparable))
+
+
+def _price_is_anomalous(snapshot: Mapping[str, Any], median: float | None) -> bool:
+    price = _optional_price(snapshot.get("unit_price"))
+    if price is None or median is None or median <= 0:
+        return False
+    ratio = price / median
+    return ratio >= 2.5 or ratio <= 0.4
+
+
+def _price_anomaly(snapshot: Mapping[str, Any], median: float | None) -> PriceAnomaly:
+    price = _optional_price(snapshot.get("unit_price")) or 0.0
+    baseline = median or price or 1.0
+    ratio = price / baseline if baseline else 0.0
+    return PriceAnomaly(
+        anomaly_id=deterministic_id("price_anomaly", {"snapshot": snapshot.get("price_snapshot_id", ""), "ratio": ratio}),
+        provider_id=str(snapshot.get("provider_id", "")),
+        route_id=str(snapshot.get("route_id", "")),
+        unit_type=str(snapshot.get("unit_type", "")),
+        unit_price=price,
+        median_unit_price=baseline,
+        ratio_to_median=round(ratio, 6),
+        direction="above_median" if ratio >= 1 else "below_median",
+        severity="review" if 2.5 <= ratio < 5.0 or 0.2 < ratio <= 0.4 else "critical",
+        created_at=utc_now_iso(),
+    )
+
+
+def _price_forecast(payload: Mapping[str, Any], snapshots: tuple[Mapping[str, Any], ...]) -> PriceForecast:
+    prices = _prices(snapshots)
+    forecast = _median(prices)
+    return PriceForecast(
+        forecast_id=deterministic_id("price_forecast", {"payload": payload, "count": len(prices), "median": forecast}),
+        provider_id=str(payload.get("provider_id", "")),
+        route_id=str(payload.get("route_id", "")),
+        unit_type=str(payload.get("unit_type", payload.get("task_type", ""))),
+        forecast_unit_price=forecast,
+        confidence=min(1.0, len(prices) / 10.0) if prices else 0.0,
+        sample_count=len(prices),
+        horizon_seconds=int(payload.get("horizon_seconds", 3600) or 3600),
+        created_at=utc_now_iso(),
+    )
+
+
+def _optional_price(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float, Decimal, str)):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
+def _ratio(value: float | None, baseline: float | None) -> float:
+    if value is None or baseline is None or baseline == 0:
+        return 1.0
+    return round(value / baseline, 6)
+
+
+def _intelligence_usage_record(intelligence_plan: Mapping[str, Any], compute_plan: Mapping[str, Any]) -> IntelligenceUsageRecord:
+    quote = compute_plan.get("normalized_quote", {}) if isinstance(compute_plan.get("normalized_quote"), Mapping) else {}
+    profile = compute_plan.get("profile", {}) if isinstance(compute_plan.get("profile"), Mapping) else {}
+    metered_units = _metered_units(profile, intelligence_plan.get("recommended_reasoning_budget", {}))
+    estimated_cost = _optional_price(quote.get("estimated_total_cost")) or 0.0
+    estimated_value = _optional_price(profile.get("estimated_value"))
+    roi = round(estimated_value / estimated_cost, 6) if estimated_value is not None and estimated_cost > 0 else 0.0
+    return IntelligenceUsageRecord(
+        usage_record_id=deterministic_id("intelligence_usage", {"plan": intelligence_plan.get("intelligence_plan_id", ""), "decision": compute_plan.get("decision_id", "")}),
+        workspace_id=str(profile.get("workspace_id", intelligence_plan.get("workspace_id", ""))),
+        tenant_id=str(profile.get("tenant_id", intelligence_plan.get("tenant_id", ""))),
+        agent_id=str(profile.get("agent_id", intelligence_plan.get("agent_id", ""))),
+        goal_id=str(profile.get("goal_id", intelligence_plan.get("goal_id", ""))),
+        task_id=str(profile.get("task_id", intelligence_plan.get("task_id", ""))),
+        intelligence_tier=str(intelligence_plan.get("recommended_intelligence_tier", "")),
+        reasoning_level=str((intelligence_plan.get("recommended_reasoning_budget", {}) or {}).get("reasoning_level", "")) if isinstance(intelligence_plan.get("recommended_reasoning_budget", {}), Mapping) else "",
+        metered_units=metered_units,
+        estimated_cost=estimated_cost,
+        actual_cost=None,
+        estimated_value=estimated_value,
+        task_roi=roi,
+        selected_route=str(quote.get("route_id", "")),
+        provider_id=str(quote.get("provider_id", "")),
+        route_id=str(quote.get("route_id", "")),
+        background_runtime_seconds=int(metered_units.get("background_runtime_seconds", 0.0)),
+        created_at=utc_now_iso(),
+        request_id=str(intelligence_plan.get("request_id", "")),
+        decision_id=str(compute_plan.get("decision_id", "")),
+    )
+
+
+def _metered_units(profile: Mapping[str, Any], reasoning_budget: object) -> Mapping[str, float]:
+    estimated_units = profile.get("estimated_units", {})
+    units: dict[str, float] = {}
+    if isinstance(estimated_units, Mapping):
+        for key, value in estimated_units.items():
+            price = _optional_price(value)
+            if price is not None:
+                units[str(key)] = price
+    budget = reasoning_budget if isinstance(reasoning_budget, Mapping) else {}
+    units.setdefault("agent_steps", float(budget.get("max_reasoning_steps", 0) or 0))
+    units.setdefault("tool_calls", float(budget.get("max_tool_calls", 0) or 0))
+    units.setdefault("parallel_branches", float(budget.get("max_parallel_branches", 0) or 0))
+    units.setdefault("background_runtime_seconds", float(budget.get("max_background_runtime_seconds", 0) or 0))
+    return units
+
+
+def _usage_filters(payload: Mapping[str, Any]) -> dict[str, Any]:
+    filters: dict[str, Any] = {}
+    for key in ("tenant_id", "workspace_id", "agent_id", "goal_id", "provider_id", "route_id", "task_hash"):
+        value = payload.get(key)
+        if value not in (None, ""):
+            filters[key] = value
+    return filters
+
+
+def _usage_summary(records: tuple[Mapping[str, Any], ...]) -> Mapping[str, Any]:
+    estimated = sum(float(record.get("estimated_cost", 0.0) or 0.0) for record in records)
+    actual = sum(float(record.get("actual_cost", record.get("estimated_cost", 0.0)) or 0.0) for record in records)
+    return {
+        "record_count": len(records),
+        "total_estimated_cost": round(estimated, 6),
+        "total_actual_cost": round(actual, 6),
+        "highest_roi_agent": _highest_roi_agent(records),
+        "waste_detected": _waste_detected(records),
+    }
+
+
+def _highest_roi_agent(records: tuple[Mapping[str, Any], ...]) -> str:
+    best_agent = ""
+    best_roi = float("-inf")
+    for record in records:
+        roi = float(record.get("task_roi", 0.0) or 0.0)
+        if roi > best_roi:
+            best_roi = roi
+            best_agent = str(record.get("agent_id", ""))
+    return best_agent
+
+
+def _waste_detected(records: tuple[Mapping[str, Any], ...]) -> float:
+    waste = 0.0
+    for record in records:
+        actual = float(record.get("actual_cost", record.get("estimated_cost", 0.0)) or 0.0)
+        value = _optional_price(record.get("estimated_value"))
+        if value is not None and actual > value:
+            waste += actual - value
+    return round(waste, 6)
+
+
+def _compute_statement(records: tuple[Mapping[str, Any], ...], *, workspace_id: str, period: str) -> ComputeStatement:
+    summary = _usage_summary(records)
+    return ComputeStatement(
+        statement_id=deterministic_id("compute_statement", {"workspace_id": workspace_id, "period": period}),
+        workspace_id=workspace_id,
+        period=period,
+        total_estimated_cost=float(summary["total_estimated_cost"]),
+        total_actual_cost=float(summary["total_actual_cost"]),
+        record_count=int(summary["record_count"]),
+        highest_roi_agent=str(summary["highest_roi_agent"]),
+        waste_detected=float(summary["waste_detected"]),
+        recommended_budget_changes=(),
+        created_at=utc_now_iso(),
+    )
 
 
 

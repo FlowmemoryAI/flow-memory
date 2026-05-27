@@ -62,6 +62,52 @@ class CLITests(unittest.TestCase):
             self.assertTrue(json.loads(output)["ok"])
 
 
+    def test_intelligence_utility_cli_commands(self) -> None:
+        from flow_memory.compute_market.config import ComputeMarketConfig
+        from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+        from flow_memory.compute_market.storage import ComputeMarketStore
+
+        service = ComputeMarketService(
+            store=ComputeMarketStore(":memory:"),
+            config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+        )
+        reset_default_service(service)
+        try:
+            plan_code, plan_output = self._run_cli(
+                [
+                    "compute",
+                    "intelligence-plan",
+                    "--task",
+                    "research competitor repo",
+                    "--agent-id",
+                    "agent_cli_intelligence",
+                    "--estimated-value",
+                    "50",
+                    "--budget",
+                    "5",
+                    "--allow-background",
+                ]
+            )
+            prices_code, prices_output = self._run_cli(["compute", "prices"])
+            usage_code, usage_output = self._run_cli(["compute", "usage", "--agent-id", "agent_cli_intelligence"])
+            statement_code, statement_output = self._run_cli(["compute", "statement"])
+        finally:
+            reset_default_service(None)
+
+        plan = json.loads(plan_output)
+        prices = json.loads(prices_output)
+        usage = json.loads(usage_output)
+        statement = json.loads(statement_output)
+
+        self.assertEqual(plan_code, 0)
+        self.assertEqual(prices_code, 0)
+        self.assertEqual(usage_code, 0)
+        self.assertEqual(statement_code, 0)
+        self.assertEqual(plan["intelligence_plan"]["recommended_intelligence_tier"], "background_agent")
+        self.assertTrue(prices["ok"])
+        self.assertEqual(usage["usage_records"][0]["agent_id"], "agent_cli_intelligence")
+        self.assertGreaterEqual(statement["statement"]["record_count"], 1)
+
     def test_provider_admin_cli_applies_verifies_and_disables_provider(self) -> None:
         from flow_memory.compute_market.config import ComputeMarketConfig
         from flow_memory.compute_market.service import ComputeMarketService, reset_default_service

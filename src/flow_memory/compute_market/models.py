@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any, Mapping
 
 UTC_EPOCH = "2026-05-24T00:00:00Z"
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 PLANNER_VERSION = "compute-market-planner-v2"
 SUPPORTED_UNIT_TYPES: tuple[str, ...] = (
     "token",
@@ -40,6 +40,32 @@ class SelectionStrategy(str, Enum):
     CAPACITY_GUARANTEED = "capacity_guaranteed"
     RELIABILITY_WEIGHTED = "reliability_weighted"
     BALANCED = "balanced"
+class IntelligenceTier(str, Enum):
+    INSTANT = "instant"
+    STANDARD = "standard"
+    DEEP_REASONING = "deep_reasoning"
+    BACKGROUND_AGENT = "background_agent"
+    BATCH = "batch"
+    PREMIUM = "premium"
+    RESERVED_CAPACITY = "reserved_capacity"
+
+
+class ReasoningLevel(str, Enum):
+    NONE = "none"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    EXTREME = "extreme"
+
+
+class RunDecision(str, Enum):
+    RUN_NOW = "run_now"
+    DEFER_UNTIL_CHEAPER = "defer_until_cheaper"
+    DOWNGRADE_TIER = "downgrade_tier"
+    RESERVE_CAPACITY = "reserve_capacity"
+    REQUIRE_HUMAN_APPROVAL = "require_human_approval"
+    REJECT_NEGATIVE_ROI = "reject_negative_roi"
+
 
 
 class QuoteStatus(str, Enum):
@@ -426,6 +452,228 @@ class TaskEconomicProfile:
     workspace_id: str = ""
     task_type: str = "generic"
     task_hash: str = ""
+
+    intelligence_tier: str = IntelligenceTier.STANDARD.value
+    reasoning_level: str = ReasoningLevel.MEDIUM.value
+    reasoning_budget: Mapping[str, Any] = field(default_factory=dict)
+    background_run_policy: Mapping[str, Any] = field(default_factory=dict)
+    urgency: Mapping[str, Any] = field(default_factory=dict)
+    quality_target: Mapping[str, Any] = field(default_factory=dict)
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class ReasoningBudget:
+    reasoning_level: str = ReasoningLevel.MEDIUM.value
+    max_reasoning_steps: int = 8
+    max_parallel_branches: int = 1
+    max_reflection_passes: int = 1
+    max_tool_calls: int = 4
+    max_wall_time_seconds: int = 60
+    max_background_runtime_seconds: int = 0
+    checkpoint_interval_seconds: int = 0
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class BackgroundRunPolicy:
+    allow_background: bool = False
+    background_deadline: str = ""
+    checkpoint_interval_seconds: int = 0
+    max_background_runtime_seconds: int = 0
+    defer_policy: str = "run_now"
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class TaskUrgency:
+    run_now: bool = True
+    defer_allowed: bool = False
+    deadline: str = ""
+    max_latency_ms: int = 0
+    off_peak_allowed: bool = False
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class QualityTarget:
+    target: str = "standard"
+    min_confidence: float = 0.0
+    require_audit_trail: bool = True
+    require_verified_provider: bool = False
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class IntelligencePlan:
+    intelligence_plan_id: str
+    task_id: str
+    agent_id: str
+    goal_id: str
+    recommended_intelligence_tier: str
+    recommended_reasoning_budget: Mapping[str, Any]
+    recommended_route_types: tuple[str, ...]
+    max_recommended_spend: float
+    run_decision: str
+    defer_until: str = ""
+    downgrade_options: tuple[Mapping[str, Any], ...] = ()
+    reserve_capacity_recommended: bool = False
+    rationale: tuple[str, ...] = ()
+    next_safe_actions: tuple[str, ...] = ()
+    compute_plan: Mapping[str, Any] = field(default_factory=dict)
+    price_context: Mapping[str, Any] = field(default_factory=dict)
+    dry_run_only: bool = True
+    funds_moved: bool = False
+    broadcast_allowed: bool = False
+    private_key_required: bool = False
+    created_at: str = UTC_EPOCH
+    tenant_id: str = ""
+    workspace_id: str = ""
+    request_id: str = ""
+    idempotency_key: str = ""
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class ComputePriceSnapshot:
+    price_snapshot_id: str
+    provider_id: str
+    route_id: str
+    unit_type: str
+    unit_price: float | None
+    payment_asset: str
+    network: str
+    latency_ms: int = 0
+    reliability_score: float = 0.0
+    capacity_available: bool = True
+    market_type: str = ""
+    quote_source: str = ""
+    confidence: float = 1.0
+    created_at: str = UTC_EPOCH
+    tenant_id: str = ""
+    workspace_id: str = ""
+    quote_id: str = ""
+    task_hash: str = ""
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class RoutePriceIndex:
+    route_id: str
+    unit_type: str
+    latest_unit_price: float | None
+    median_unit_price: float | None
+    sample_count: int
+    payment_asset: str = ""
+    network: str = ""
+    provider_id: str = ""
+    created_at: str = UTC_EPOCH
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class ProviderPriceIndex:
+    provider_id: str
+    latest_unit_price: float | None
+    median_unit_price: float | None
+    sample_count: int
+    unit_type: str = ""
+    payment_asset: str = ""
+    network: str = ""
+    created_at: str = UTC_EPOCH
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class PriceAnomaly:
+    anomaly_id: str
+    provider_id: str
+    route_id: str
+    unit_type: str
+    unit_price: float
+    median_unit_price: float
+    ratio_to_median: float
+    direction: str
+    severity: str
+    created_at: str = UTC_EPOCH
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class PriceForecast:
+    forecast_id: str
+    provider_id: str
+    route_id: str
+    unit_type: str
+    forecast_unit_price: float | None
+    confidence: float
+    sample_count: int
+    horizon_seconds: int = 3600
+    created_at: str = UTC_EPOCH
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class IntelligenceUsageRecord:
+    usage_record_id: str
+    workspace_id: str
+    agent_id: str
+    goal_id: str
+    task_id: str
+    intelligence_tier: str
+    reasoning_level: str
+    metered_units: Mapping[str, float]
+    estimated_cost: float
+    actual_cost: float | None
+    estimated_value: float | None
+    task_roi: float
+    selected_route: str
+    provider_id: str
+    route_id: str
+    background_runtime_seconds: int = 0
+    created_at: str = UTC_EPOCH
+    tenant_id: str = ""
+    request_id: str = ""
+    decision_id: str = ""
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+
+@dataclass(frozen=True)
+class ComputeStatement:
+    statement_id: str
+    workspace_id: str
+    period: str
+    total_estimated_cost: float
+    total_actual_cost: float
+    record_count: int
+    highest_roi_agent: str = ""
+    waste_detected: float = 0.0
+    recommended_budget_changes: tuple[Mapping[str, Any], ...] = ()
+    created_at: str = UTC_EPOCH
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)

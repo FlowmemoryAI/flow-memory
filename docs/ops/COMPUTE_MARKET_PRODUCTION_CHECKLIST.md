@@ -19,6 +19,8 @@ Recommended release label: Flow Memory Compute Market Multi-Node Production Plan
 - [ ] Audit chain verification
 - [ ] Rate-limit/circuit-breaker hardening tests
 - [ ] HTTP provider SSRF/validation tests
+- [ ] Intelligence utility API, CLI, and usage-ledger tests
+- [ ] Price history, anomaly, and forecast tests
 
 - [ ] PostgreSQL storage adapter tests
 - [ ] Redis rate limiter/circuit breaker tests
@@ -58,6 +60,9 @@ Production code must pass `python -m ruff check .`. Benchmark files may be exemp
 - [ ] audit hash-chain verification passes
 - [ ] rate-limited requests create audit events
 - [ ] open provider circuits are skipped in planning
+- [ ] intelligence-plan dry-run safety tests confirm no funds, private keys, or broadcast
+- [ ] intelligence usage ledger records estimated/actual economics without debiting real credits
+- [ ] price history/anomaly APIs work from persisted quote snapshots
 ## Deployment checks
 
 - [ ] Database migration creates compute market records and indexes.
@@ -77,6 +82,9 @@ Production code must pass `python -m ruff check .`. Benchmark files may be exemp
 - [ ] Redis URL is configured when `FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND=redis` or `FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND=redis`.
 - [ ] Audit export/checkpoint files verify before deployment and are shipped to immutable object storage.
 - [ ] Provider quote contract validation passes for every external provider sample.
+- [ ] `/compute/intelligence-plan` returns a tier, reasoning budget, run decision, and safe next actions.
+- [ ] `/compute/prices`, `/compute/prices/history`, `/compute/prices/anomalies`, and `/compute/prices/forecast` return persisted price memory.
+- [ ] `/compute/usage`, `/compute/usage/by-agent/{agent_id}`, `/compute/usage/by-goal/{goal_id}`, and `/compute/usage/statement` return usage ledger accounting records.
 ## OpenAPI/API snapshot
 
 Regenerate after API changes:
@@ -84,6 +92,15 @@ Regenerate after API changes:
 ```bash
 python scripts/export_api_snapshot.py --write docs/API_SNAPSHOT.json
 python -c "import json; from pathlib import Path; from flow_memory.api.openapi import openapi_schema; Path('docs/openapi/flow-memory.openapi.json').write_text(json.dumps(openapi_schema(), indent=2, sort_keys=True)+'\\n', encoding='utf-8')"
+```
+
+Intelligence utility snapshot changes must include the endpoints above plus CLI smoke coverage for:
+
+```bash
+flow-memory compute intelligence-plan --task "research competitor repo" --estimated-value 50 --budget 5 --allow-background --json
+flow-memory compute prices --json
+flow-memory compute usage --agent-id research-agent --json
+flow-memory compute statement --json
 ```
 ## Hardening test slice
 

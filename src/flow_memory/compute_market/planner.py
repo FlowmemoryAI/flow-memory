@@ -12,10 +12,16 @@ from flow_memory.compute_market.models import (
     ComputeProvider,
     ComputeQuote,
     ComputeRoute,
+    BackgroundRunPolicy,
     PLANNER_VERSION,
     RouteDecision,
     SelectionStrategy,
     TaskEconomicProfile,
+    IntelligenceTier,
+    QualityTarget,
+    ReasoningBudget,
+    ReasoningLevel,
+    TaskUrgency,
 )
 from flow_memory.compute_market.payment import build_payment_plan, simulate_settlement
 from flow_memory.compute_market.policy import build_policy_trace, evaluate_quote, explain_rejections
@@ -86,6 +92,12 @@ def build_task_profile(payload: Mapping[str, Any] | None = None) -> TaskEconomic
         workspace_id=str(payload.get("workspace_id", payload.get("tenant_id", ""))),
         task_type=task_type,
         task_hash=task_hash,
+        intelligence_tier=_intelligence_tier(payload),
+        reasoning_level=_reasoning_level(payload),
+        reasoning_budget=_reasoning_budget(payload).as_record(),
+        background_run_policy=_background_run_policy(payload).as_record(),
+        urgency=_task_urgency(payload).as_record(),
+        quality_target=_quality_target(payload).as_record(),
     )
 
 
@@ -475,6 +487,109 @@ def _infer_task_type(task: str) -> str:
     if "tool" in lowered:
         return "tool_call"
     return "generic"
+
+
+def _intelligence_tier(payload: Mapping[str, Any]) -> str:
+    value = str(payload.get("intelligence_tier") or payload.get("tier") or "")
+    if value in {item.value for item in IntelligenceTier}:
+        return value
+    task = str(payload.get("task") or payload.get("task_description") or "").lower()
+    if bool(payload.get("allow_background", False)):
+        return IntelligenceTier.BACKGROUND_AGENT.value
+    if bool(payload.get("allow_reserved_capacity", False)):
+        return IntelligenceTier.RESERVED_CAPACITY.value
+    if "batch" in task:
+        return IntelligenceTier.BATCH.value
+    if "deep" in task or "research" in task or "architecture" in task:
+        return IntelligenceTier.DEEP_REASONING.value
+    return IntelligenceTier.STANDARD.value
+
+
+def _reasoning_level(payload: Mapping[str, Any]) -> str:
+    value = str(payload.get("reasoning_level") or "")
+    if value in {item.value for item in ReasoningLevel}:
+        return value
+    tier = _intelligence_tier(payload)
+    if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value, IntelligenceTier.PREMIUM.value}:
+        return ReasoningLevel.HIGH.value
+    if tier == IntelligenceTier.RESERVED_CAPACITY.value:
+        return ReasoningLevel.EXTREME.value
+    if tier == IntelligenceTier.INSTANT.value:
+        return ReasoningLevel.LOW.value
+    return ReasoningLevel.MEDIUM.value
+
+
+def _reasoning_budget(payload: Mapping[str, Any]) -> ReasoningBudget:
+    raw = payload.get("reasoning_budget", {})
+    source = dict(raw) if isinstance(raw, Mapping) else {}
+    tier = _intelligence_tier(payload)
+    defaults: dict[str, int] = {
+        IntelligenceTier.INSTANT.value: 2,
+        IntelligenceTier.STANDARD.value: 8,
+        IntelligenceTier.DEEP_REASONING.value: 32,
+        IntelligenceTier.BACKGROUND_AGENT.value: 64,
+        IntelligenceTier.BATCH.value: 16,
+        IntelligenceTier.PREMIUM.value: 48,
+        IntelligenceTier.RESERVED_CAPACITY.value: 96,
+    }
+    steps = int(source.get("max_reasoning_steps", defaults.get(tier, 8)) or defaults.get(tier, 8))
+    background_runtime = int(
+        source.get(
+            "max_background_runtime_seconds",
+            payload.get("max_background_runtime_seconds", 3600 if tier == IntelligenceTier.BACKGROUND_AGENT.value else 0),
+        )
+        or 0
+    )
+    return ReasoningBudget(
+        reasoning_level=str(source.get("reasoning_level") or _reasoning_level(payload)),
+        max_reasoning_steps=steps,
+        max_parallel_branches=int(source.get("max_parallel_branches", 4 if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value, IntelligenceTier.PREMIUM.value} else 1) or 1),
+        max_reflection_passes=int(source.get("max_reflection_passes", 3 if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.PREMIUM.value} else 1) or 1),
+        max_tool_calls=int(source.get("max_tool_calls", 16 if tier in {IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value} else 4) or 4),
+        max_wall_time_seconds=int(source.get("max_wall_time_seconds", payload.get("max_wall_time_seconds", 600 if tier != IntelligenceTier.INSTANT.value else 30)) or 60),
+        max_background_runtime_seconds=background_runtime,
+        checkpoint_interval_seconds=int(source.get("checkpoint_interval_seconds", payload.get("checkpoint_interval_seconds", 300 if background_runtime else 0)) or 0),
+    )
+
+
+def _background_run_policy(payload: Mapping[str, Any]) -> BackgroundRunPolicy:
+    raw = payload.get("background_run_policy", {})
+    source = dict(raw) if isinstance(raw, Mapping) else {}
+    allow_background = bool(source.get("allow_background", payload.get("allow_background", False)))
+    return BackgroundRunPolicy(
+        allow_background=allow_background,
+        background_deadline=str(source.get("background_deadline", payload.get("background_deadline", ""))),
+        checkpoint_interval_seconds=int(source.get("checkpoint_interval_seconds", payload.get("checkpoint_interval_seconds", 300 if allow_background else 0)) or 0),
+        max_background_runtime_seconds=int(source.get("max_background_runtime_seconds", payload.get("max_background_runtime_seconds", 3600 if allow_background else 0)) or 0),
+        defer_policy=str(source.get("defer_policy", payload.get("defer_policy", "run_now"))),
+    )
+
+
+def _task_urgency(payload: Mapping[str, Any]) -> TaskUrgency:
+    raw = payload.get("urgency", {})
+    source = dict(raw) if isinstance(raw, Mapping) else {}
+    return TaskUrgency(
+        run_now=bool(source.get("run_now", payload.get("run_now", True))),
+        defer_allowed=bool(source.get("defer_allowed", payload.get("defer_allowed", False))),
+        deadline=str(source.get("deadline", payload.get("deadline", ""))),
+        max_latency_ms=int(source.get("max_latency_ms", payload.get("max_latency_ms", 0)) or 0),
+        off_peak_allowed=bool(source.get("off_peak_allowed", payload.get("off_peak_allowed", False))),
+    )
+
+
+def _quality_target(payload: Mapping[str, Any]) -> QualityTarget:
+    raw = payload.get("quality_target", {})
+    if isinstance(raw, Mapping):
+        target = str(raw.get("target", payload.get("quality_requirement", "standard")))
+        min_confidence = float(raw.get("min_confidence", 0.0) or 0.0)
+        require_audit = bool(raw.get("require_audit_trail", True))
+        require_verified = bool(raw.get("require_verified_provider", payload.get("require_verified_provider", False)))
+    else:
+        target = str(raw or payload.get("quality_requirement", "standard"))
+        min_confidence = 0.0
+        require_audit = True
+        require_verified = bool(payload.get("require_verified_provider", False))
+    return QualityTarget(target=target, min_confidence=min_confidence, require_audit_trail=require_audit, require_verified_provider=require_verified)
 
 
 def _decision_id(profile: TaskEconomicProfile, policy: ComputeMarketPolicy, quotes: tuple[ComputeQuote, ...], request_id: str, idempotency_key: str) -> str:

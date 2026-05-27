@@ -18,6 +18,9 @@ def compute_plan(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 def compute_marketplace_plan(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().marketplace_plan(payload)
 
+def compute_intelligence_plan(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().intelligence_plan(payload)
+
 
 def compute_quote(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().quote(payload)
@@ -129,12 +132,43 @@ def market_capacity_order_book(payload: Mapping[str, Any] | None = None) -> Mapp
 
 
 def market_prices(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-    quotes = default_service().store.list_records("compute_quote", filters=payload or {}, limit=int((payload or {}).get("limit", 100))).records
-    return {"ok": True, "prices": quotes}
+    return default_service().compute_prices(payload or {})
 
 
 def market_prices_history(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-    return market_prices(payload)
+    return default_service().compute_price_history(payload or {})
+
+
+def compute_prices(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_prices(payload or {})
+
+
+def compute_prices_history(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_price_history(payload or {})
+
+
+def compute_prices_anomalies(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_price_anomalies(payload or {})
+
+
+def compute_prices_forecast(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().compute_price_forecast(payload)
+
+
+def compute_usage(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_usage(payload or {})
+
+
+def compute_usage_by_agent(agent_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_usage_by_agent(agent_id, payload or {})
+
+
+def compute_usage_by_goal(goal_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_usage_by_goal(goal_id, payload or {})
+
+
+def compute_usage_statement(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().compute_usage_statement(payload or {})
 
 
 def compute_routes(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:

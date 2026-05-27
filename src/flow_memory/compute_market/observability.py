@@ -28,6 +28,7 @@ _METRIC_NAMES: tuple[str, ...] = (
     "compute_estimated_cost",
     "compute_actual_cost",
     "compute_roi",
+    "compute_intelligence_plan_created_total",
     "compute_job_started_total",
     "compute_job_completed_total",
     "compute_job_failed_total",

@@ -212,6 +212,7 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
     if path_key in {
         "/compute/plan",
         "/compute/marketplace-plan",
+        "/compute/intelligence-plan",
         "/compute/quote",
         "/compute/route",
         "/compute/payment-plan",

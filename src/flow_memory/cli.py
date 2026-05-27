@@ -84,11 +84,11 @@ def _compute(argv: list[str]) -> int:
         epilog='Example: flow-memory compute plan --task "run agent batch inference" --marketplace-only --asset USDC --network solana --dry-run --json',
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
-    planning_commands = ("plan", "quote", "route", "payment-plan", "simulate-settlement")
+    planning_commands = ("plan", "quote", "route", "payment-plan", "simulate-settlement", "intelligence-plan")
     for name in planning_commands:
         sub = subparsers.add_parser(name, help=f"Run compute-market {name} planning")
         _add_compute_common_args(sub)
-    for name in ("providers", "routes", "policies", "economic-memory", "health", "readiness"):
+    for name in ("providers", "routes", "policies", "economic-memory", "health", "readiness", "prices", "usage", "statement"):
         sub = subparsers.add_parser(name, help=f"Inspect compute-market {name}")
         _add_compute_query_args(sub)
     provider_health = subparsers.add_parser("provider-health", help="Run a provider health check")
@@ -217,6 +217,12 @@ def _compute(argv: list[str]) -> int:
             output = service.health()
         elif args.command == "readiness":
             output = service.readiness()
+        elif args.command == "prices":
+            output = service.compute_prices(payload)
+        elif args.command == "usage":
+            output = service.compute_usage(payload)
+        elif args.command == "statement":
+            output = service.compute_usage_statement(payload)
         elif args.command == "replay-decision":
             output = service.replay_decision(str(args.decision_id), payload)
         elif args.command == "provider-contract":
@@ -229,6 +235,8 @@ def _compute(argv: list[str]) -> int:
             output = _job_output(service, args, payload)
         elif args.command == "capacity":
             output = _capacity_output(service, args, payload)
+        elif args.command == "intelligence-plan":
+            output = service.intelligence_plan(payload)
         elif args.command == "quote":
             output = service.quote(payload)
         elif args.command == "route":
@@ -271,6 +279,16 @@ def _add_compute_common_args(sub: argparse.ArgumentParser) -> None:
     sub.add_argument("--asset", action="append", default=[])
     sub.add_argument("--network", action="append", default=[])
     sub.add_argument("--max-total-cost", type=float, default=0.0)
+    sub.add_argument("--budget", type=float, default=0.0)
+    sub.add_argument("--estimated-value", type=float, default=0.0)
+    sub.add_argument("--intelligence-tier", default="")
+    sub.add_argument("--reasoning-level", default="")
+    sub.add_argument("--max-reasoning-steps", type=int, default=0)
+    sub.add_argument("--max-tool-calls", type=int, default=0)
+    sub.add_argument("--allow-background", action="store_true")
+    sub.add_argument("--allow-reserved-capacity", action="store_true")
+    sub.add_argument("--max-background-runtime-seconds", type=int, default=0)
+    sub.add_argument("--checkpoint-interval-seconds", type=int, default=0)
     sub.add_argument("--max-unit-price", type=float, default=0.0)
     sub.add_argument("--selection-strategy", "--strategy", dest="selection_strategy", default="balanced")
     sub.add_argument("--scenario", default="provider_quote_available")
@@ -538,6 +556,21 @@ def _compute_payload(args: Any) -> dict[str, Any]:
         "allowed_networks": tuple(getattr(args, "network", ()) or ()),
         "allow_unknown_price": bool(getattr(args, "allow_unknown_price", False)),
         "allow_stale_quote": bool(getattr(args, "allow_stale_quote", False)),
+        "estimated_value": float(getattr(args, "estimated_value", 0.0) or 0.0),
+        "budget": float(getattr(args, "budget", 0.0) or 0.0),
+        "intelligence_tier": str(getattr(args, "intelligence_tier", "")),
+        "reasoning_level": str(getattr(args, "reasoning_level", "")),
+        "allow_background": bool(getattr(args, "allow_background", False)),
+        "allow_reserved_capacity": bool(getattr(args, "allow_reserved_capacity", False)),
+        "max_background_runtime_seconds": int(getattr(args, "max_background_runtime_seconds", 0) or 0),
+        "checkpoint_interval_seconds": int(getattr(args, "checkpoint_interval_seconds", 0) or 0),
+        "reasoning_budget": {
+            "reasoning_level": str(getattr(args, "reasoning_level", "")),
+            "max_reasoning_steps": int(getattr(args, "max_reasoning_steps", 0) or 0),
+            "max_tool_calls": int(getattr(args, "max_tool_calls", 0) or 0),
+            "max_background_runtime_seconds": int(getattr(args, "max_background_runtime_seconds", 0) or 0),
+            "checkpoint_interval_seconds": int(getattr(args, "checkpoint_interval_seconds", 0) or 0),
+        },
     }
     return {
         "task": str(getattr(args, "task", "plan compute for agent task")),
@@ -563,6 +596,21 @@ def _compute_payload(args: Any) -> dict[str, Any]:
         "interval_seconds": int(getattr(args, "interval_seconds", 0) or 0),
         "min_events": int(getattr(args, "min_events", 0) or 0),
         "account_id": str(getattr(args, "account_id", "")),
+        "estimated_value": float(getattr(args, "estimated_value", 0.0) or 0.0),
+        "budget": float(getattr(args, "budget", 0.0) or 0.0),
+        "intelligence_tier": str(getattr(args, "intelligence_tier", "")),
+        "reasoning_level": str(getattr(args, "reasoning_level", "")),
+        "allow_background": bool(getattr(args, "allow_background", False)),
+        "allow_reserved_capacity": bool(getattr(args, "allow_reserved_capacity", False)),
+        "max_background_runtime_seconds": int(getattr(args, "max_background_runtime_seconds", 0) or 0),
+        "checkpoint_interval_seconds": int(getattr(args, "checkpoint_interval_seconds", 0) or 0),
+        "reasoning_budget": {
+            "reasoning_level": str(getattr(args, "reasoning_level", "")),
+            "max_reasoning_steps": int(getattr(args, "max_reasoning_steps", 0) or 0),
+            "max_tool_calls": int(getattr(args, "max_tool_calls", 0) or 0),
+            "max_background_runtime_seconds": int(getattr(args, "max_background_runtime_seconds", 0) or 0),
+            "checkpoint_interval_seconds": int(getattr(args, "checkpoint_interval_seconds", 0) or 0),
+        },
         "dry_run": True,
     }
 

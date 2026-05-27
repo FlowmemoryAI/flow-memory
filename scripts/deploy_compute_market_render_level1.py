@@ -635,7 +635,7 @@ def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
             required_action="Set RENDER_KEYVALUE_IP_ALLOWLIST to explicit non-world-open CIDR ranges.",
         )
 
-    return [{"source": entry, "description": "flow-memory-compute-market-redis-tls"} for entry in entries]
+    return [{"cidrBlock": entry, "description": "flow-memory-compute-market-redis-tls"} for entry in entries]
 
 
 def ensure_keyvalue(

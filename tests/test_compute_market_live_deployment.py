@@ -828,11 +828,11 @@ def test_render_keyvalue_creation_defaults_to_non_world_open_external_tls_allowl
     explicit_created = render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
 
     assert default_created["ipAllowList"] == [
-        {"source": "0.0.0.0/32", "description": "flow-memory-compute-market-redis-tls"},
+        {"cidrBlock": "0.0.0.0/32", "description": "flow-memory-compute-market-redis-tls"},
     ]
     assert explicit_created["ipAllowList"] == [
-        {"source": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"},
-        {"source": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
+        {"cidrBlock": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"},
+        {"cidrBlock": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
     ]
 
 def test_render_deploy_upgrades_existing_free_resources_and_attaches_audit_disk(

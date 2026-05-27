@@ -2657,6 +2657,58 @@ def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:
     assert service.reconciliation()["reconciliation"]["billing_invoice_count"] == 1
     assert service.billing_balance({"account_id": "acct_paid"})["balance"]["available_credits"] == 0.82
 
+
+def test_reconciliation_detects_credit_balance_drift_and_emits_alert_metric() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_credit_balance_drift",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_drift"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_credit_balance_drift",
+                "account_id": "acct_drift",
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+    service.complete_job(job_id, {"account_id": "acct_drift", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
+    balanced = service.reconciliation({})["reconciliation"]
+
+    assert balanced["ledger_balanced"] is True
+    assert balanced["credit_ledger_integrity"]["ok"] is True
+
+    balance = dict(service.store.get_record("credit_balance", "acct_drift") or {})
+    balance["available_credits"] = 0.12
+    service.store.put_record(
+        "credit_balance",
+        "acct_drift",
+        balance,
+        tenant_id="acct_drift",
+        status="active",
+    )
+
+    drifted = service.reconciliation({})["reconciliation"]
+    mismatch = drifted["credit_ledger_integrity"]["mismatches"][0]
+
+    assert drifted["ledger_balanced"] is False
+    assert drifted["status"] == "dry_run_reconciliation_attention"
+    assert drifted["credit_ledger_integrity"]["mismatch_count"] == 1
+    assert mismatch["account_id"] == "acct_drift"
+    assert mismatch["expected_available_credits"] == 0.82
+    assert mismatch["actual_available_credits"] == 0.12
+    assert _metric_total(service, "billing_ledger_mismatch_total") == 1.0
+
 def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> None:
     service = _service()
     raw_event = {

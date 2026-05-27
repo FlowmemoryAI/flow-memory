@@ -3938,28 +3938,38 @@ class ComputeMarketService:
         refunds = self._all_records("refund")
         provider_sla_penalties = self._all_records("provider_sla_penalty")
         billing_invoices = self._all_records("billing_invoice")
+        credit_balances = self._all_records("credit_balance")
+        credit_transactions = self._all_records("credit_transaction")
         usage_total = _record_amount_total(usage_charges)
         refund_total = _record_amount_total(refunds)
         provider_payout_total = _record_amount_total(provider_payouts)
         invoice_total = _record_amount_total(billing_invoices)
+        credit_ledger_integrity = _credit_ledger_integrity(credit_balances, credit_transactions)
+        credit_ledger_mismatch_count = int(credit_ledger_integrity.get("mismatch_count", 0) or 0)
+        if credit_ledger_mismatch_count:
+            self.telemetry.increment("billing_ledger_mismatch_total", value=float(credit_ledger_mismatch_count))
         ledger_balance_delta = round(usage_total - refund_total - provider_payout_total, 6)
+        ledger_balanced = abs(ledger_balance_delta) <= 0.000001 and bool(credit_ledger_integrity.get("ok", False))
         run_id = deterministic_id("reconciliation", {"created_at": utc_now_iso(), "scope": payload})
         run = {
             "reconciliation_run_id": run_id,
-            "status": "dry_run_reconciled" if abs(ledger_balance_delta) <= 0.000001 else "dry_run_reconciliation_attention",
+            "status": "dry_run_reconciled" if ledger_balanced else "dry_run_reconciliation_attention",
             "usage_charge_count": len(usage_charges),
             "payment_event_count": len(payment_events),
             "provider_payout_count": len(provider_payouts),
             "refund_count": len(refunds),
             "provider_sla_penalty_count": len(provider_sla_penalties),
             "billing_invoice_count": len(billing_invoices),
+            "credit_balance_count": len(credit_balances),
+            "credit_transaction_count": len(credit_transactions),
             "usage_charge_total": usage_total,
             "refund_total": refund_total,
             "provider_payout_total": provider_payout_total,
             "provider_payout_summary": _provider_payout_summary(provider_payouts),
             "billing_invoice_total": invoice_total,
+            "credit_ledger_integrity": credit_ledger_integrity,
             "ledger_balance_delta": ledger_balance_delta,
-            "ledger_balanced": abs(ledger_balance_delta) <= 0.000001,
+            "ledger_balanced": ledger_balanced,
             "funds_moved": False,
             "created_at": utc_now_iso(),
         }
@@ -8185,6 +8195,87 @@ def _accrue_provider_payout(
 
 def _record_amount_total(records: tuple[Mapping[str, Any], ...]) -> float:
     return round(sum(float(record.get("amount", 0.0) or 0.0) for record in records), 6)
+
+
+def _credit_ledger_integrity(
+    credit_balances: tuple[Mapping[str, Any], ...],
+    credit_transactions: tuple[Mapping[str, Any], ...],
+) -> Mapping[str, Any]:
+    balances_by_account = {
+        str(balance.get("account_id", "")).strip(): balance
+        for balance in credit_balances
+        if str(balance.get("account_id", "")).strip()
+    }
+    accounts = set(balances_by_account)
+    for transaction in credit_transactions:
+        account_id = str(transaction.get("account_id", "")).strip()
+        if account_id:
+            accounts.add(account_id)
+    reserve_by_id = {
+        str(transaction.get("credit_transaction_id", "")): transaction
+        for transaction in credit_transactions
+        if str(transaction.get("transaction_type", "")) == "reserve"
+    }
+    mismatches: list[Mapping[str, Any]] = []
+    for account_id in sorted(accounts):
+        expected_available = 0.0
+        expected_reserved = 0.0
+        account_transactions = sorted(
+            (
+                transaction
+                for transaction in credit_transactions
+                if str(transaction.get("account_id", "")).strip() == account_id
+            ),
+            key=lambda transaction: (
+                str(transaction.get("created_at", "")),
+                str(transaction.get("credit_transaction_id", "")),
+            ),
+        )
+        for transaction in account_transactions:
+            transaction_type = str(transaction.get("transaction_type", ""))
+            status = str(transaction.get("status", ""))
+            amount = _safe_non_negative_float(transaction.get("amount", 0.0))
+            if transaction_type in {"credit", "refund_credit"} and status == "posted":
+                expected_available += amount
+            elif transaction_type == "reserve" and status == "reserved":
+                expected_available -= amount
+                expected_reserved += amount
+            elif transaction_type == "debit" and status == "posted":
+                reservation_id = str(transaction.get("reservation_transaction_id", ""))
+                reservation = reserve_by_id.get(reservation_id)
+                if reservation is not None and str(reservation.get("status", "")) == "reserved":
+                    expected_reserved = max(
+                        0.0,
+                        expected_reserved - _safe_non_negative_float(reservation.get("amount", 0.0)),
+                    )
+                expected_available -= amount
+        expected_available = round(expected_available, 6)
+        expected_reserved = round(expected_reserved, 6)
+        balance = balances_by_account.get(account_id, {})
+        actual_available = round(_safe_non_negative_float(balance.get("available_credits", 0.0)), 6)
+        actual_reserved = round(_safe_non_negative_float(balance.get("reserved_credits", 0.0)), 6)
+        available_delta = round(actual_available - expected_available, 6)
+        reserved_delta = round(actual_reserved - expected_reserved, 6)
+        if abs(available_delta) > 0.000001 or abs(reserved_delta) > 0.000001:
+            mismatches.append(
+                {
+                    "account_id": account_id,
+                    "expected_available_credits": expected_available,
+                    "actual_available_credits": actual_available,
+                    "available_delta": available_delta,
+                    "expected_reserved_credits": expected_reserved,
+                    "actual_reserved_credits": actual_reserved,
+                    "reserved_delta": reserved_delta,
+                    "currency": str(balance.get("currency", "USD")),
+                }
+            )
+    return {
+        "ok": not mismatches,
+        "account_count": len(accounts),
+        "transaction_count": len(credit_transactions),
+        "mismatch_count": len(mismatches),
+        "mismatches": tuple(mismatches),
+    }
 
 
 def _provider_payout_summary(records: tuple[Mapping[str, Any], ...]) -> Mapping[str, Any]:

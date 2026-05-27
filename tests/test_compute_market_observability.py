@@ -112,6 +112,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "billing_insufficient_credit_total" in names
     assert "audit_chain_verify_fail_total" in names
     assert "billing_webhook_failures_total" in names
+    assert "billing_ledger_mismatch_total" in names
     assert "provider_execution_failure_total" in names
     assert "provider_fraud_signal_total" in names
     assert "redis_unavailable_total" in names
@@ -646,11 +647,13 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     service.telemetry.increment("redis_unavailable_total")
     service.telemetry.increment("billing_checkout_failed_total")
     service.telemetry.increment("billing_payment_failed_total")
+    service.telemetry.increment("billing_ledger_mismatch_total")
     alerts = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
     rule_names = {item["rule_name"] for item in alerts["firing"]}
     assert "billing-webhook-failures" in rule_names
     assert "billing-checkout-failures" in rule_names
     assert "billing-payment-failures" in rule_names
+    assert "billing-ledger-mismatch" in rule_names
     assert "redis-unavailable" in rule_names
 
 def test_provider_fraud_signal_metric_alert_and_route_on_quote_drift() -> None:
@@ -760,6 +763,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "billing_insufficient_credit_total",
         "billing_payment_failed_total",
         "billing_webhook_failures_total",
+        "billing_ledger_mismatch_total",
         "provider_sla_penalty_total",
         "alert_delivery_pending_total",
         "alert_delivery_sent_total",
@@ -798,6 +802,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "FlowMemoryComputeMarketBillingWebhookFailures",
         "FlowMemoryComputeMarketBillingCheckoutFailures",
         "FlowMemoryComputeMarketBillingPaymentFailures",
+        "FlowMemoryComputeMarketBillingLedgerMismatch",
         "FlowMemoryComputeMarketPolicyDenialSpike",
         "FlowMemoryComputeMarketBillingInsufficientCredit",
         "FlowMemoryComputeMarketUnexpectedSettlementConfig",
@@ -817,6 +822,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "billing_checkout_failed_total",
         "billing_payment_failed_total",
         "billing_insufficient_credit_total",
+        "billing_ledger_mismatch_total",
         "compute_policy_denials_total",
         "policy_denied_total",
         "unexpected_live_settlement_config_total",

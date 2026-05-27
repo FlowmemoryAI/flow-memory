@@ -91,6 +91,15 @@ groups:
           summary: Stripe reported failed payment events.
           description: Review payment failure reasons, credit top-up conversion, customer notification, and abuse signals.
 
+      - alert: FlowMemoryComputeMarketBillingLedgerMismatch
+        expr: billing_ledger_mismatch_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: billing
+        annotations:
+          summary: Billing credit ledger drift was detected.
+          description: Freeze paid-compute dispatch, compare credit_balance records against credit_transaction history, and reconcile before accepting more prepaid usage.
       - alert: FlowMemoryComputeMarketBillingInsufficientCredit
         expr: rate(billing_insufficient_credit_total[5m]) > 0
         for: 5m

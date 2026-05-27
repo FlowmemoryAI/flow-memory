@@ -79,7 +79,8 @@
         {"expr": "sum(rate(capacity_released_total[5m]))", "legendFormat": "released", "refId": "C"},
         {"expr": "sum(rate(capacity_hold_expired_total[5m]))", "legendFormat": "expired holds", "refId": "D"},
         {"expr": "sum(rate(capacity_reservation_expired_total[5m]))", "legendFormat": "expired reservations", "refId": "E"},
-        {"expr": "sum(rate(capacity_auction_cleared_total[5m]))", "legendFormat": "auction cleared", "refId": "F"}
+        {"expr": "sum(rate(capacity_consumed_total[5m]))", "legendFormat": "consumed", "refId": "F"},
+        {"expr": "sum(rate(capacity_auction_cleared_total[5m]))", "legendFormat": "auction cleared", "refId": "G"}
       ],
       "title": "Capacity reservations",
       "type": "timeseries"

@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.adapters import build_external_provider_adapter
@@ -1579,9 +1579,12 @@ class ComputeMarketService:
         confirmed_at = utc_now_iso()
         if _capacity_hold_expired(current, confirmed_at):
             raise ValueError("capacity reservation hold is expired")
+        reservation_units = _capacity_reservation_units(current)
         reservation = {
             **dict(current),
             "status": "confirmed",
+            "remaining_capacity_units": _capacity_reservation_remaining_units(current) or reservation_units,
+            "consumed_capacity_units": _capacity_consumed_units(current),
             "confirmed_at": confirmed_at,
             "updated_at": confirmed_at,
         }
@@ -1626,7 +1629,15 @@ class ComputeMarketService:
         if not _tenant_can_access_record(payload, current):
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
         released_at = utc_now_iso()
-        reservation = {**dict(current), "status": "released", "released_at": released_at, "updated_at": released_at}
+        released_capacity_units = _capacity_reservation_remaining_units(current)
+        reservation = {
+            **dict(current),
+            "status": "released",
+            "released_at": released_at,
+            "released_capacity_units": released_capacity_units,
+            "remaining_capacity_units": 0.0,
+            "updated_at": released_at,
+        }
         self.store.put_record(
             "compute_reservation",
             reservation_id,
@@ -1693,6 +1704,294 @@ class ComputeMarketService:
                 )
             expired.append(updated)
         return tuple(expired)
+
+    def _record_job_capacity_error(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+        error: Mapping[str, Any],
+        event_type: str,
+        audit_action: str,
+        reservation: Mapping[str, Any] | None = None,
+    ) -> Mapping[str, Any]:
+        job_id = str(job.get("job_id", ""))
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        error_code = str(error.get("error_code", "capacity.reservation_unavailable"))
+        event = _job_event(
+            job_id,
+            event_type,
+            status=str(job.get("status", "queued")),
+            request_id=request_id,
+            details={
+                "error": dict(error),
+                "reservation_id": str(job.get("capacity_reservation_id", "")),
+                "capacity_reservation": dict(reservation or {}),
+                "funds_moved": False,
+            },
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=provider_id,
+            route_id=route_id,
+            status=str(job.get("status", "queued")),
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
+        self._audit(
+            audit_action,
+            {**dict(payload), "job_id": job_id},
+            request_id=request_id,
+            result="rejected",
+            reason_codes=(error_code,),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return event
+
+    def _validate_job_capacity_reservation(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> Mapping[str, Any]:
+        reservation_id = str(job.get("capacity_reservation_id", "")).strip()
+        if not reservation_id:
+            return {"ok": True, "reservation_id": "", "reservation": {}}
+        current = self.store.get_record("compute_reservation", reservation_id)
+        access_payload = {**dict(payload)}
+        if not _payload_tenant_id(access_payload) and str(job.get("tenant_id", "")):
+            access_payload["tenant_id"] = str(job.get("tenant_id", ""))
+        if current is None or not _tenant_can_access_record(access_payload, current):
+            error = compute_error(
+                "capacity.reservation_not_found",
+                "Capacity reservation was not found for the compute job.",
+                details={"reservation_id": reservation_id, "job_id": str(job.get("job_id", ""))},
+                request_id=request_id,
+            )
+            return {"ok": False, "reservation_id": reservation_id, "reservation": {}, "error": error.as_record()}
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        current_provider_id = str(current.get("provider_id", ""))
+        current_route_id = str(current.get("route_id", ""))
+        if current_provider_id != provider_id or current_route_id != route_id:
+            error = compute_error(
+                "capacity.reservation_route_mismatch",
+                "Capacity reservation provider_id and route_id must match the compute job.",
+                details={
+                    "reservation_id": reservation_id,
+                    "job_id": str(job.get("job_id", "")),
+                    "job_provider_id": provider_id,
+                    "job_route_id": route_id,
+                    "reservation_provider_id": current_provider_id,
+                    "reservation_route_id": current_route_id,
+                },
+                request_id=request_id,
+            )
+            return {
+                "ok": False,
+                "reservation_id": reservation_id,
+                "reservation": current,
+                "error": error.as_record(),
+            }
+        status = str(current.get("status", ""))
+        if status != "confirmed":
+            error = compute_error(
+                "capacity.reservation_unconfirmed",
+                "Capacity reservation must be confirmed before compute dispatch.",
+                details={"reservation_id": reservation_id, "job_id": str(job.get("job_id", "")), "status": status},
+                request_id=request_id,
+            )
+            return {
+                "ok": False,
+                "reservation_id": reservation_id,
+                "reservation": current,
+                "error": error.as_record(),
+            }
+        now = utc_now_iso()
+        if not _capacity_reservation_active(current, now):
+            error = compute_error(
+                "capacity.reservation_unavailable",
+                "Capacity reservation is expired or depleted.",
+                details={
+                    "reservation_id": reservation_id,
+                    "job_id": str(job.get("job_id", "")),
+                    "status": status,
+                    "remaining_capacity_units": _capacity_reservation_remaining_units(current),
+                    "reserved_until": str(current.get("reserved_until", "")),
+                },
+                request_id=request_id,
+            )
+            return {
+                "ok": False,
+                "reservation_id": reservation_id,
+                "reservation": current,
+                "error": error.as_record(),
+            }
+        return {"ok": True, "reservation_id": reservation_id, "reservation": current}
+
+    def _consume_job_capacity_reservation(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> Mapping[str, Any]:
+        validation = self._validate_job_capacity_reservation(job, payload, request_id=request_id)
+        if validation.get("ok") is not True or not validation.get("reservation_id"):
+            return validation
+        reservation = dict(cast(Mapping[str, Any], validation["reservation"]))
+        reservation_id = str(validation["reservation_id"])
+        remaining_before = _capacity_reservation_remaining_units(reservation)
+        raw_units = payload.get(
+            "capacity_units_consumed",
+            payload.get("actual_capacity_units", payload.get("capacity_units", None)),
+        )
+        consumed_now = remaining_before if raw_units is None else _positive_float(raw_units, "capacity_units_consumed")
+        if consumed_now > remaining_before + 1e-9:
+            error = compute_error(
+                "capacity.reservation_overconsumed",
+                "Capacity consumption exceeds the reservation's remaining capacity units.",
+                details={
+                    "reservation_id": reservation_id,
+                    "job_id": str(job.get("job_id", "")),
+                    "requested_capacity_units": consumed_now,
+                    "remaining_capacity_units": remaining_before,
+                },
+                request_id=request_id,
+            )
+            return {"ok": False, "reservation_id": reservation_id, "reservation": reservation, "error": error.as_record()}
+        consumed_before = _capacity_consumed_units(reservation)
+        total_capacity = _capacity_reservation_units(reservation)
+        consumed_total = round(consumed_before + consumed_now, 8)
+        remaining_after = max(0.0, round(total_capacity - consumed_total, 8))
+        completed = remaining_after <= 1e-9
+        now = utc_now_iso()
+        raw_job_ids = reservation.get("consumed_job_ids", ())
+        consumed_job_ids = (
+            tuple(str(item) for item in raw_job_ids if str(item))
+            if isinstance(raw_job_ids, (list, tuple))
+            else ()
+        )
+        job_id = str(job.get("job_id", ""))
+        if job_id and job_id not in consumed_job_ids:
+            consumed_job_ids = (*consumed_job_ids, job_id)
+        updated = {
+            **reservation,
+            "status": "consumed" if completed else "confirmed",
+            "consumed_capacity_units": consumed_total,
+            "remaining_capacity_units": 0.0 if completed else remaining_after,
+            "last_consumed_capacity_units": consumed_now,
+            "last_consumed_job_id": job_id,
+            "consumed_job_ids": consumed_job_ids,
+            "consumed_at": now if completed else str(reservation.get("consumed_at", "")),
+            "last_consumed_at": now,
+            "updated_at": now,
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
+        self.store.put_record(
+            "compute_reservation",
+            reservation_id,
+            updated,
+            provider_id=str(updated.get("provider_id", "")),
+            route_id=str(updated.get("route_id", "")),
+            status=str(updated.get("status", "")),
+            request_id=request_id,
+            tenant_id=str(updated.get("tenant_id", "")),
+            workspace_id=str(updated.get("workspace_id", "")),
+        )
+        self.telemetry.increment(
+            "capacity_consumed_total",
+            {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
+            value=consumed_now,
+        )
+        self._audit(
+            "market.capacity.consumed",
+            {**dict(payload), "job_id": job_id, "reservation_id": reservation_id},
+            request_id=request_id,
+            result=str(updated.get("status", "")),
+            provider_id=str(updated.get("provider_id", "")),
+            route_id=str(updated.get("route_id", "")),
+        )
+        return {
+            "ok": True,
+            "reservation_id": reservation_id,
+            "reservation": updated,
+            "capacity_consumption": {
+                "reservation_id": reservation_id,
+                "capacity_units": consumed_now,
+                "previous_consumed_capacity_units": consumed_before,
+                "consumed_capacity_units": consumed_total,
+                "remaining_capacity_units": 0.0 if completed else remaining_after,
+                "status": str(updated.get("status", "")),
+                "dry_run_only": True,
+                "funds_moved": False,
+            },
+        }
+
+    def _release_job_capacity_reservation(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+        reason: str,
+    ) -> Mapping[str, Any]:
+        reservation_id = str(job.get("capacity_reservation_id", "")).strip()
+        if not reservation_id:
+            return {}
+        current = self.store.get_record("compute_reservation", reservation_id)
+        access_payload = {**dict(payload)}
+        if not _payload_tenant_id(access_payload) and str(job.get("tenant_id", "")):
+            access_payload["tenant_id"] = str(job.get("tenant_id", ""))
+        if current is None or not _tenant_can_access_record(access_payload, current):
+            return {}
+        if str(current.get("status", "")) in {"released", "expired", "consumed"}:
+            return {}
+        released_at = utc_now_iso()
+        released_capacity_units = _capacity_reservation_remaining_units(current)
+        updated = {
+            **dict(current),
+            "status": "released",
+            "released_at": released_at,
+            "release_reason": reason,
+            "released_by_job_id": str(job.get("job_id", "")),
+            "released_capacity_units": released_capacity_units,
+            "remaining_capacity_units": 0.0,
+            "updated_at": released_at,
+        }
+        self.store.put_record(
+            "compute_reservation",
+            reservation_id,
+            updated,
+            provider_id=str(updated.get("provider_id", "")),
+            route_id=str(updated.get("route_id", "")),
+            status="released",
+            request_id=request_id,
+            tenant_id=str(updated.get("tenant_id", "")),
+            workspace_id=str(updated.get("workspace_id", "")),
+        )
+        self.telemetry.increment(
+            "capacity_released_total",
+            {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
+            value=released_capacity_units,
+        )
+        self._audit(
+            "market.capacity.released",
+            {**dict(payload), "job_id": str(job.get("job_id", "")), "reservation_id": reservation_id},
+            request_id=request_id,
+            result="released",
+            provider_id=str(updated.get("provider_id", "")),
+            route_id=str(updated.get("route_id", "")),
+        )
+        return updated
 
     def _invalidate_quote_cache_entries(self, payload: Mapping[str, Any], *, request_id: str) -> tuple[Mapping[str, Any], ...]:
         provider_id = str(payload.get("provider_id", ""))
@@ -2215,6 +2514,25 @@ class ComputeMarketService:
         job = dict(self.get_job(job_id, payload)["job"])
         _assert_job_status(job, ("queued", "dispatched"), "dispatch")
         worker_id = _assert_claim_owner(job, payload, "dispatch")
+        capacity_check = self._validate_job_capacity_reservation(job, payload, request_id=request_id)
+        if capacity_check.get("ok") is not True:
+            error_record = cast(Mapping[str, Any], capacity_check.get("error", {}))
+            event = self._record_job_capacity_error(
+                job,
+                payload,
+                request_id=request_id,
+                error=error_record,
+                event_type="job.capacity_reservation_rejected",
+                audit_action="compute.job.capacity_reservation_rejected",
+                reservation=cast(Mapping[str, Any], capacity_check.get("reservation", {})),
+            )
+            return {
+                "ok": False,
+                "job": job,
+                "event": event,
+                "capacity_reservation": capacity_check.get("reservation", {}),
+                "error": error_record,
+            }
         credit_reservation = _reserve_credit_for_job(self.store, job, payload, request_id=request_id)
         if str(credit_reservation.get("status", "")) == "insufficient_credit":
             amount = float(credit_reservation.get("amount", 0.0) or 0.0)
@@ -2291,6 +2609,9 @@ class ComputeMarketService:
             details["worker_id"] = worker_id
         if credit_reservation:
             details["credit_reservation"] = credit_reservation
+        capacity_reservation = capacity_check.get("reservation", {})
+        if isinstance(capacity_reservation, Mapping) and capacity_reservation:
+            details["capacity_reservation"] = capacity_reservation
         if execution.get("external_provider_called") is True:
             details.update(
                 {
@@ -2321,6 +2642,11 @@ class ComputeMarketService:
             job["credit_reservation_id"] = str(credit_reservation.get("credit_transaction_id", ""))
             job["credit_reserved_amount"] = float(credit_reservation.get("amount", 0.0) or 0.0)
             job["account_id"] = str(credit_reservation.get("account_id", job.get("account_id", "")))
+        if isinstance(capacity_reservation, Mapping) and capacity_reservation:
+            job["capacity_reservation_id"] = str(
+                capacity_reservation.get("reservation_id", job.get("capacity_reservation_id", ""))
+            )
+            job["reserved_capacity_units"] = _capacity_reservation_remaining_units(capacity_reservation)
         if execution.get("external_provider_called") is True:
             job["provider_execution"] = details["provider_execution"]
         self.store.put_record(
@@ -2386,6 +2712,25 @@ class ComputeMarketService:
             return callback_rejection
         _assert_job_status(job, ("running",), "complete")
         worker_id = _assert_claim_owner(job, payload, "complete")
+        capacity_consumption_result = self._consume_job_capacity_reservation(job, payload, request_id=request_id)
+        if capacity_consumption_result.get("ok") is not True:
+            error_record = cast(Mapping[str, Any], capacity_consumption_result.get("error", {}))
+            event = self._record_job_capacity_error(
+                job,
+                payload,
+                request_id=request_id,
+                error=error_record,
+                event_type="job.capacity_consumption_rejected",
+                audit_action="compute.job.capacity_consumption_rejected",
+                reservation=cast(Mapping[str, Any], capacity_consumption_result.get("reservation", {})),
+            )
+            return {
+                "ok": False,
+                "job": job,
+                "event": event,
+                "capacity_reservation": capacity_consumption_result.get("reservation", {}),
+                "error": error_record,
+            }
         completed_at = utc_now_iso()
         cost = _job_cost(payload)
         actual_units = _non_negative_float(payload.get("actual_units", payload.get("units", 0.0)), "actual_units")
@@ -2413,6 +2758,10 @@ class ComputeMarketService:
             job["last_lease_expires_at"] = previous_lease_expires_at
         if worker_id:
             job["completed_by_worker_id"] = worker_id
+        capacity_consumption = capacity_consumption_result.get("capacity_consumption", {})
+        if isinstance(capacity_consumption, Mapping) and capacity_consumption:
+            job["capacity_consumption"] = capacity_consumption
+            job["capacity_reservation_id"] = str(capacity_consumption.get("reservation_id", ""))
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2549,6 +2898,7 @@ class ComputeMarketService:
                 "credit_release_recorded": bool(credit_release),
                 "provider_payout_recorded": bool(provider_payout),
                 "provider_sla_penalty_recorded": bool(provider_sla_penalty),
+                "capacity_consumption_recorded": bool(capacity_consumption),
                 "actual_total_cost": cost,
                 "funds_moved": False,
                 "provider_sla_max_latency_ms": sla_max_latency_ms,
@@ -2587,6 +2937,7 @@ class ComputeMarketService:
             "provider_payout": provider_payout,
             "provider_sla_penalty": provider_sla_penalty,
             "credit_release": credit_release,
+            "capacity_consumption": capacity_consumption,
         }
 
     def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -2609,6 +2960,12 @@ class ComputeMarketService:
         _assert_job_status(job, ("queued", "dispatched", "running"), "fail")
         worker_id = _assert_claim_owner(job, payload, "fail")
         credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_failed")
+        capacity_release = self._release_job_capacity_reservation(
+            job,
+            payload,
+            request_id=request_id,
+            reason="job_failed",
+        )
         failed_at = utc_now_iso()
         error_code = str(payload.get("error_code", "provider_execution_failed"))
         previous_lease_expires_at = str(job.get("lease_expires_at", ""))
@@ -2629,6 +2986,8 @@ class ComputeMarketService:
             job["failed_by_worker_id"] = worker_id
         if credit_release:
             job["credit_release"] = credit_release
+        if capacity_release:
+            job["capacity_release"] = capacity_release
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2650,6 +3009,7 @@ class ComputeMarketService:
                 "reason": str(payload.get("reason", "")),
                 "worker_id": worker_id,
                 "credit_release": credit_release,
+                "capacity_release": capacity_release,
             },
         )
         self.store.put_record(
@@ -2672,7 +3032,7 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
+        return {"ok": True, "job": job, "event": event, "credit_release": credit_release, "capacity_release": capacity_release}
 
     def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
@@ -2680,6 +3040,12 @@ class ComputeMarketService:
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
         credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_cancelled")
+        capacity_release = self._release_job_capacity_reservation(
+            job,
+            payload,
+            request_id=request_id,
+            reason="job_cancelled",
+        )
         cancelled_at = utc_now_iso()
         job.update(
             {
@@ -2691,6 +3057,8 @@ class ComputeMarketService:
         )
         if credit_release:
             job["credit_release"] = credit_release
+        if capacity_release:
+            job["capacity_release"] = capacity_release
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2709,7 +3077,7 @@ class ComputeMarketService:
             "job.cancelled",
             status="cancelled",
             request_id=request_id,
-            details={"reason": str(payload.get("reason", "")), "credit_release": credit_release},
+            details={"reason": str(payload.get("reason", "")), "credit_release": credit_release, "capacity_release": capacity_release},
         )
         self.store.put_record(
             "compute_job_event",
@@ -2723,7 +3091,7 @@ class ComputeMarketService:
             workspace_id=str(job.get("workspace_id", "")),
         )
         self._audit("compute.job.cancelled", payload, request_id=request_id, result="cancelled", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
-        return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
+        return {"ok": True, "job": job, "event": event, "credit_release": credit_release, "capacity_release": capacity_release}
 
     def retry_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -5914,11 +6282,27 @@ def _capacity_reservation_overlaps(reservation: Mapping[str, Any], start: str, e
     )
 
 
+def _capacity_reservation_units(reservation: Mapping[str, Any]) -> float:
+    return _safe_non_negative_float(reservation.get("capacity_units", reservation.get("units_reserved", 0.0)))
+
+
+def _capacity_consumed_units(reservation: Mapping[str, Any]) -> float:
+    return _safe_non_negative_float(reservation.get("consumed_capacity_units", 0.0))
+
+
+def _capacity_reservation_remaining_units(reservation: Mapping[str, Any]) -> float:
+    if "remaining_capacity_units" in reservation:
+        return _safe_non_negative_float(reservation.get("remaining_capacity_units", 0.0))
+    if str(reservation.get("status", "")) == "consumed":
+        return 0.0
+    return max(0.0, _capacity_reservation_units(reservation) - _capacity_consumed_units(reservation))
+
+
 def _capacity_reservation_active(reservation: Mapping[str, Any], now: str) -> bool:
     status = str(reservation.get("status", ""))
     if status == "confirmed":
         reserved_until = str(reservation.get("reserved_until", ""))
-        return not reserved_until or reserved_until > now
+        return _capacity_reservation_remaining_units(reservation) > 0 and (not reserved_until or reserved_until > now)
     if status != "held":
         return False
     hold_expires_at = str(reservation.get("hold_expires_at", reservation.get("expires_at", "")))
@@ -5944,6 +6328,20 @@ def _capacity_hold_expired(reservation: Mapping[str, Any], now: str) -> bool:
     return _capacity_expiration_reason(reservation, now) == "hold_expired"
 
 
+def _capacity_reservation_reserved_units(reservation: Mapping[str, Any], now: str) -> float:
+    if not _capacity_reservation_active(reservation, now):
+        return 0.0
+    return _capacity_reservation_remaining_units(reservation)
+
+
+def _capacity_reservation_blocking_units(reservation: Mapping[str, Any], now: str) -> float:
+    consumed = _capacity_consumed_units(reservation)
+    status = str(reservation.get("status", ""))
+    if status in {"held", "confirmed"} and _capacity_reservation_active(reservation, now):
+        return consumed + _capacity_reservation_remaining_units(reservation)
+    return consumed
+
+
 def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str, Any], ...], reservations: tuple[Mapping[str, Any], ...]) -> dict[str, Any]:
     if not windows:
         raise ValueError("no active capacity window found for provider_id and route_id")
@@ -5964,13 +6362,12 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
     reservation_start = requested_start or str(window.get("starts_at", now))
     reservation_end = requested_end or str(window.get("ends_at", ""))
     requested_units = _positive_float(payload.get("capacity_units"), "capacity_units")
-    active_reservations = tuple(
+    blocking_reservations = tuple(
         item
         for item in reservations
-        if _capacity_reservation_active(item, now)
-        and _capacity_reservation_overlaps(item, reservation_start, reservation_end)
+        if _capacity_reservation_overlaps(item, reservation_start, reservation_end)
     )
-    reserved = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
+    reserved = sum(_capacity_reservation_blocking_units(item, now) for item in blocking_reservations)
     available = float(window.get("capacity_units", window.get("available_units", 0.0)) or 0.0) - reserved
     allow_partial = bool(payload.get("allow_partial", payload.get("partial_fill_allowed", False)))
     capacity_units = requested_units
@@ -5987,6 +6384,8 @@ def _capacity_reservation(payload: Mapping[str, Any], windows: tuple[Mapping[str
         "route_id": str(payload.get("route_id", "")),
         "capacity_units": capacity_units,
         "requested_capacity_units": requested_units,
+        "remaining_capacity_units": capacity_units,
+        "consumed_capacity_units": 0.0,
         "partial_fill": partial_fill,
         "partial_fill_reason": "capacity_shortfall" if partial_fill else "",
         "unit_type": str(payload.get("unit_type", window.get("resource_type", "gpu_hour"))),
@@ -6164,10 +6563,12 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
     total_capacity = sum(float(item.get("capacity_units", 0.0) or 0.0) for item in active_windows)
     active_reservations = tuple(item for item in reservations if _capacity_reservation_active(item, now))
     expired_reservations = tuple(item for item in reservations if _capacity_reservation_expired(item, now) or str(item.get("status", "")) == "expired")
-    reserved_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations)
-    held_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations if str(item.get("status", "")) == "held")
-    confirmed_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in active_reservations if str(item.get("status", "")) == "confirmed")
-    expired_units = sum(float(item.get("capacity_units", item.get("units_reserved", 0.0)) or 0.0) for item in expired_reservations)
+    consumed_reservations = tuple(item for item in reservations if _capacity_consumed_units(item) > 0)
+    reserved_units = sum(_capacity_reservation_reserved_units(item, now) for item in active_reservations)
+    held_units = sum(_capacity_reservation_reserved_units(item, now) for item in active_reservations if str(item.get("status", "")) == "held")
+    confirmed_units = sum(_capacity_reservation_reserved_units(item, now) for item in active_reservations if str(item.get("status", "")) == "confirmed")
+    consumed_units = sum(_capacity_consumed_units(item) for item in consumed_reservations)
+    expired_units = sum(_capacity_reservation_units(item) for item in expired_reservations)
     utilization_by_provider: dict[str, dict[str, float]] = {}
     for window in active_windows:
         provider_id = str(window.get("provider_id", ""))
@@ -6182,6 +6583,7 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
                 "confirmed_capacity_units": 0.0,
                 "available_capacity_units": 0.0,
                 "expired_capacity_units": 0.0,
+                "consumed_capacity_units": 0.0,
                 "utilization_ratio": 0.0,
             },
         )
@@ -6202,7 +6604,7 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
                 "utilization_ratio": 0.0,
             },
         )
-        units = float(reservation.get("capacity_units", reservation.get("units_reserved", 0.0)) or 0.0)
+        units = _capacity_reservation_reserved_units(reservation, now)
         provider["reserved_capacity_units"] += units
         if str(reservation.get("status", "")) == "confirmed":
             provider["confirmed_capacity_units"] += units
@@ -6221,19 +6623,39 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
                 "confirmed_capacity_units": 0.0,
                 "available_capacity_units": 0.0,
                 "expired_capacity_units": 0.0,
+                "consumed_capacity_units": 0.0,
                 "utilization_ratio": 0.0,
             },
         )
         provider["expired_capacity_units"] += float(
             reservation.get("capacity_units", reservation.get("units_reserved", 0.0)) or 0.0
         )
+    for reservation in consumed_reservations:
+        provider_id = str(reservation.get("provider_id", ""))
+        if not provider_id:
+            continue
+        provider = utilization_by_provider.setdefault(
+            provider_id,
+            {
+                "total_capacity_units": 0.0,
+                "reserved_capacity_units": 0.0,
+                "held_capacity_units": 0.0,
+                "confirmed_capacity_units": 0.0,
+                "available_capacity_units": 0.0,
+                "expired_capacity_units": 0.0,
+                "consumed_capacity_units": 0.0,
+                "utilization_ratio": 0.0,
+            },
+        )
+        provider["consumed_capacity_units"] += _capacity_consumed_units(reservation)
     for provider in utilization_by_provider.values():
+        committed_units = provider["reserved_capacity_units"] + provider["consumed_capacity_units"]
         provider["available_capacity_units"] = max(
             0.0,
-            provider["total_capacity_units"] - provider["reserved_capacity_units"],
+            provider["total_capacity_units"] - committed_units,
         )
         provider["utilization_ratio"] = (
-            round(provider["reserved_capacity_units"] / provider["total_capacity_units"], 6)
+            round(committed_units / provider["total_capacity_units"], 6)
             if provider["total_capacity_units"]
             else 0.0
         )
@@ -6247,8 +6669,9 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
         "held_capacity_units": held_units,
         "confirmed_capacity_units": confirmed_units,
         "expired_capacity_units": expired_units,
-        "available_capacity_units": max(0.0, total_capacity - reserved_units),
-        "utilization_ratio": round(reserved_units / total_capacity, 6) if total_capacity else 0.0,
+        "consumed_capacity_units": consumed_units,
+        "available_capacity_units": max(0.0, total_capacity - reserved_units - consumed_units),
+        "utilization_ratio": round((reserved_units + consumed_units) / total_capacity, 6) if total_capacity else 0.0,
         "utilization_by_provider": utilization_by_provider,
     }
 
@@ -6494,6 +6917,7 @@ def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, An
         "input_ref": input_ref,
         "model_or_runtime": runtime,
         "resource_request": dict(payload.get("resource_request", {})) if isinstance(payload.get("resource_request"), Mapping) else {},
+        "capacity_reservation_id": str(payload.get("capacity_reservation_id", payload.get("reservation_id", ""))).strip(),
         "budget_policy_id": str(payload.get("budget_policy_id", "")),
         "route_id": route_id,
         "provider_id": provider_id,

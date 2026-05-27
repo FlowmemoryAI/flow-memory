@@ -2926,6 +2926,70 @@
         ]
       }
     },
+    "/compute/jobs/expire-leases": {
+      "post": {
+        "operationId": "compute_job_expire_leases",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "job_id": {
+                    "type": "string"
+                  },
+                  "limit": {
+                    "type": "string"
+                  },
+                  "provider_id": {
+                    "type": "string"
+                  },
+                  "route_id": {
+                    "type": "string"
+                  },
+                  "tenant_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "events": {
+                      "type": "string"
+                    },
+                    "expired_count": {
+                      "type": "string"
+                    },
+                    "expired_jobs": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Expire timed-out worker leases, requeue unstarted claims, and mark running jobs expired",
+        "tags": [
+          "compute"
+        ]
+      }
+    },
     "/compute/jobs/{job_id}": {
       "get": {
         "operationId": "compute_job",
@@ -5967,6 +6031,68 @@
         ]
       }
     },
+    "/market/providers/{provider_id}/reject": {
+      "post": {
+        "operationId": "market_provider_reject",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "rejection_reason": {
+                    "type": "string"
+                  },
+                  "review_notes": {
+                    "type": "string"
+                  },
+                  "reviewed_by": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider_application": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Reject a pending provider application without activating supply",
+        "tags": [
+          "market"
+        ]
+      }
+    },
     "/market/providers/{provider_id}/reputation": {
       "get": {
         "operationId": "market_provider_reputation",
@@ -6002,6 +6128,65 @@
           }
         },
         "summary": "Get provider reputation metrics",
+        "tags": [
+          "market"
+        ]
+      }
+    },
+    "/market/providers/{provider_id}/request-revision": {
+      "post": {
+        "operationId": "market_provider_request_revision",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "reviewed_by": {
+                    "type": "string"
+                  },
+                  "revision_notes": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "provider_application": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Request application changes before provider verification",
         "tags": [
           "market"
         ]

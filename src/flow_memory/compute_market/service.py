@@ -2031,9 +2031,72 @@ class ComputeMarketService:
         job = dict(self.get_job(job_id, payload)["job"])
         _assert_job_status(job, ("queued", "dispatched"), "dispatch")
         worker_id = _assert_claim_owner(job, payload, "dispatch")
+        credit_reservation = _reserve_credit_for_job(self.store, job, payload, request_id=request_id)
+        if str(credit_reservation.get("status", "")) == "insufficient_credit":
+            amount = float(credit_reservation.get("amount", 0.0) or 0.0)
+            currency = str(credit_reservation.get("currency", job.get("currency", "USD")))
+            error = compute_error(
+                "billing.credit_preauthorization_failed",
+                "Insufficient prepaid credits to dispatch compute job.",
+                details={
+                    "job_id": job_id,
+                    "account_id": str(credit_reservation.get("account_id", "")),
+                    "amount": amount,
+                    "currency": currency,
+                },
+                request_id=request_id,
+            )
+            event = _job_event(
+                job_id,
+                "job.credit_preauthorization_failed",
+                status=str(job.get("status", "queued")),
+                request_id=request_id,
+                details={"credit_reservation": credit_reservation, "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(job.get("status", "queued")),
+                request_id=request_id,
+                actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            self.telemetry.increment(
+                "billing_insufficient_credit_total",
+                {"provider_id": str(job.get("provider_id", "")), "currency": currency},
+                value=amount,
+            )
+            self._audit(
+                "billing.credit_preauthorization_failed",
+                {**dict(payload), "job_id": job_id},
+                request_id=request_id,
+                result="rejected",
+                reason_codes=("insufficient_credit",),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            return {"ok": False, "job": job, "event": event, "credit_reservation": credit_reservation, "error": error.as_record()}
         execution = self._dispatch_external_provider_execution(job, payload, request_id=request_id)
         if execution.get("required") is True and execution.get("ok") is not True:
-            return {"ok": False, "job": job, "event": {}, "execution": execution.get("execution", {}), "error": execution.get("error", {})}
+            credit_release = _release_credit_reservation(
+                self.store,
+                {**dict(job), "credit_reservation_id": str(credit_reservation.get("credit_transaction_id", ""))},
+                request_id=request_id,
+                reason="external_execution_failed",
+            )
+            return {
+                "ok": False,
+                "job": job,
+                "event": {},
+                "execution": execution.get("execution", {}),
+                "credit_reservation": credit_reservation,
+                "credit_release": credit_release,
+                "error": execution.get("error", {}),
+            }
         dispatched_at = utc_now_iso()
         details: dict[str, Any] = {
             "provider_dispatch": "dry_run_provider_dispatch",
@@ -2042,6 +2105,8 @@ class ComputeMarketService:
         }
         if worker_id:
             details["worker_id"] = worker_id
+        if credit_reservation:
+            details["credit_reservation"] = credit_reservation
         if execution.get("external_provider_called") is True:
             details.update(
                 {
@@ -2061,11 +2126,17 @@ class ComputeMarketService:
                 "started_at": dispatched_at,
                 "updated_at": dispatched_at,
                 "lifecycle": _append_lifecycle(job, "running"),
-                "provider_dispatch": "external_provider_execution" if execution.get("external_provider_called") is True else "dry_run_provider_dispatch",
+                "provider_dispatch": "external_provider_execution"
+                if execution.get("external_provider_called") is True
+                else "dry_run_provider_dispatch",
             }
         )
         if worker_id:
             job["started_by_worker_id"] = worker_id
+        if credit_reservation:
+            job["credit_reservation_id"] = str(credit_reservation.get("credit_transaction_id", ""))
+            job["credit_reserved_amount"] = float(credit_reservation.get("amount", 0.0) or 0.0)
+            job["account_id"] = str(credit_reservation.get("account_id", job.get("account_id", "")))
         if execution.get("external_provider_called") is True:
             job["provider_execution"] = details["provider_execution"]
         self.store.put_record(
@@ -2110,7 +2181,7 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event}
+        return {"ok": True, "job": job, "event": event, "credit_reservation": credit_reservation}
 
     def complete_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -2184,6 +2255,7 @@ class ComputeMarketService:
         credit_debit: Mapping[str, Any] = {}
         provider_payout: Mapping[str, Any] = {}
         provider_sla_penalty: Mapping[str, Any] = {}
+        credit_release: Mapping[str, Any] = {}
         if usage_charge:
             self.store.put_record(
                 "usage_charge",
@@ -2248,6 +2320,7 @@ class ComputeMarketService:
                     currency=str(usage_charge["currency"]),
                     request_id=request_id,
                     usage_charge_id=str(usage_charge["usage_charge_id"]),
+                    reservation_transaction_id=str(job.get("credit_reservation_id", "")),
                 )
                 if str(credit_debit.get("status", "")) == "insufficient_credit":
                     self.telemetry.increment(
@@ -2273,6 +2346,13 @@ class ComputeMarketService:
                     self._audit("billing.usage.debited", payload, request_id=request_id, result=str(credit_debit.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
                 if provider_payout:
                     self._audit("billing.provider_payout.accrued", payload, request_id=request_id, result=str(provider_payout.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
+        if not usage_charge:
+            credit_release = _release_credit_reservation(
+                self.store,
+                job,
+                request_id=request_id,
+                reason="job_completed_without_charge",
+            )
         event = _job_event(
             job_id,
             "job.completed",
@@ -2282,6 +2362,7 @@ class ComputeMarketService:
                 "artifact_recorded": bool(artifact),
                 "usage_charge_recorded": bool(usage_charge),
                 "credit_debit_recorded": bool(credit_debit),
+                "credit_release_recorded": bool(credit_release),
                 "provider_payout_recorded": bool(provider_payout),
                 "provider_sla_penalty_recorded": bool(provider_sla_penalty),
                 "actual_total_cost": cost,
@@ -2321,6 +2402,7 @@ class ComputeMarketService:
             "credit_debit": credit_debit,
             "provider_payout": provider_payout,
             "provider_sla_penalty": provider_sla_penalty,
+            "credit_release": credit_release,
         }
 
     def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -2342,6 +2424,7 @@ class ComputeMarketService:
             return callback_rejection
         _assert_job_status(job, ("queued", "dispatched", "running"), "fail")
         worker_id = _assert_claim_owner(job, payload, "fail")
+        credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_failed")
         failed_at = utc_now_iso()
         error_code = str(payload.get("error_code", "provider_execution_failed"))
         previous_lease_expires_at = str(job.get("lease_expires_at", ""))
@@ -2360,6 +2443,8 @@ class ComputeMarketService:
             job["last_lease_expires_at"] = previous_lease_expires_at
         if worker_id:
             job["failed_by_worker_id"] = worker_id
+        if credit_release:
+            job["credit_release"] = credit_release
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2376,7 +2461,12 @@ class ComputeMarketService:
             "job.failed",
             status="failed",
             request_id=request_id,
-            details={"error_code": error_code, "reason": str(payload.get("reason", "")), "worker_id": worker_id},
+            details={
+                "error_code": error_code,
+                "reason": str(payload.get("reason", "")),
+                "worker_id": worker_id,
+                "credit_release": credit_release,
+            },
         )
         self.store.put_record(
             "compute_job_event",
@@ -2398,15 +2488,25 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event}
+        return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
 
     def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
+        credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_cancelled")
         cancelled_at = utc_now_iso()
-        job.update({"status": "cancelled", "cancelled_at": cancelled_at, "updated_at": cancelled_at, "lease_expires_at": ""})
+        job.update(
+            {
+                "status": "cancelled",
+                "cancelled_at": cancelled_at,
+                "updated_at": cancelled_at,
+                "lease_expires_at": "",
+            }
+        )
+        if credit_release:
+            job["credit_release"] = credit_release
         self.store.put_record(
             "compute_job",
             job_id,
@@ -2420,7 +2520,13 @@ class ComputeMarketService:
             tenant_id=str(job.get("tenant_id", "")),
             workspace_id=str(job.get("workspace_id", "")),
         )
-        event = _job_event(job_id, "job.cancelled", status="cancelled", request_id=request_id, details={"reason": str(payload.get("reason", ""))})
+        event = _job_event(
+            job_id,
+            "job.cancelled",
+            status="cancelled",
+            request_id=request_id,
+            details={"reason": str(payload.get("reason", "")), "credit_release": credit_release},
+        )
         self.store.put_record(
             "compute_job_event",
             str(event["event_id"]),
@@ -2433,7 +2539,7 @@ class ComputeMarketService:
             workspace_id=str(job.get("workspace_id", "")),
         )
         self._audit("compute.job.cancelled", payload, request_id=request_id, result="cancelled", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
-        return {"ok": True, "job": job, "event": event}
+        return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
 
     def retry_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
@@ -5858,6 +5964,12 @@ def _compute_job(payload: Mapping[str, Any], *, request_id: str) -> dict[str, An
         "provider_id": provider_id,
         "tenant_id": str(payload.get("tenant_id", "")).strip(),
         "workspace_id": str(payload.get("workspace_id", payload.get("tenant_id", ""))).strip(),
+        "account_id": str(payload.get("account_id", payload.get("tenant_id", ""))).strip(),
+        "estimated_units": _safe_non_negative_float(payload.get("estimated_units", 0.0)),
+        "estimated_total_cost": _safe_non_negative_float(
+            payload.get("estimated_total_cost", payload.get("estimated_cost", 0.0))
+        ),
+        "currency": str(payload.get("currency", payload.get("asset", "USD"))).upper(),
         "status": "queued",
         "lifecycle": ("planned", "quoted", "approved", "reserved", "queued"),
         "allowed_lifecycle": ("planned", "quoted", "approved", "reserved", "queued", "dispatched", "running", "succeeded", "failed", "cancelled", "expired", "settled", "reconciled"),
@@ -6581,6 +6693,183 @@ def _apply_credit(
     return transaction
 
 
+def _job_estimated_total_cost(job: Mapping[str, Any], payload: Mapping[str, Any]) -> float:
+    fallback = payload.get(
+        "estimated_total_cost",
+        payload.get("estimated_cost", job.get("estimated_total_cost", 0.0)),
+    )
+    cost_data = payload.get("cost_data", {})
+    if isinstance(cost_data, Mapping):
+        value = cost_data.get("estimated_total_cost", cost_data.get("amount", fallback))
+    else:
+        value = fallback
+    return _safe_non_negative_float(value)
+
+
+def _reserve_credit_for_job(
+    store: ComputeMarketStoreProtocol,
+    job: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    *,
+    request_id: str,
+) -> Mapping[str, Any]:
+    amount = _job_estimated_total_cost(job, payload)
+    account_id = _billing_account_id(
+        payload,
+        fallback_account_id=str(job.get("account_id", job.get("tenant_id", ""))).strip(),
+        required=False,
+    )
+    if not account_id or amount <= 0:
+        return {}
+    currency = str(payload.get("currency", job.get("currency", "USD"))).upper()
+    job_id = str(job.get("job_id", ""))
+    attempt = int(job.get("attempt", 0) or 0)
+    transaction_id = deterministic_id(
+        "credit_transaction",
+        {
+            "account_id": account_id,
+            "job_id": job_id,
+            "attempt": attempt,
+            "request_id": request_id,
+            "type": "reserve",
+        },
+    )
+    existing = store.get_record("credit_transaction", transaction_id)
+    if existing is not None:
+        return existing
+    now = utc_now_iso()
+    current = store.get_record("credit_balance", account_id) or {
+        "account_id": account_id,
+        "available_credits": 0.0,
+        "reserved_credits": 0.0,
+        "currency": currency,
+        "created_at": now,
+    }
+    available = float(current.get("available_credits", 0.0) or 0.0)
+    reserved = float(current.get("reserved_credits", 0.0) or 0.0)
+    sufficient = available >= amount
+    transaction = {
+        "credit_transaction_id": transaction_id,
+        "account_id": account_id,
+        "transaction_type": "reserve",
+        "amount": amount,
+        "currency": currency,
+        "job_id": job_id,
+        "attempt": attempt,
+        "status": "reserved" if sufficient else "insufficient_credit",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "request_id": request_id,
+    }
+    if sufficient:
+        balance = {
+            **dict(current),
+            "account_id": account_id,
+            "available_credits": round(available - amount, 6),
+            "reserved_credits": round(reserved + amount, 6),
+            "currency": currency,
+            "updated_at": now,
+        }
+        store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
+    store.put_record(
+        "credit_transaction",
+        transaction_id,
+        transaction,
+        tenant_id=account_id,
+        status=str(transaction["status"]),
+        request_id=request_id,
+        idempotency_key=transaction_id,
+    )
+    return transaction
+
+
+def _release_credit_reservation(
+    store: ComputeMarketStoreProtocol,
+    job: Mapping[str, Any],
+    *,
+    request_id: str,
+    reason: str,
+) -> Mapping[str, Any]:
+    reservation_id = str(job.get("credit_reservation_id", ""))
+    if not reservation_id:
+        return {}
+    reservation = store.get_record("credit_transaction", reservation_id)
+    if reservation is None or str(reservation.get("status", "")) != "reserved":
+        return {}
+    account_id = str(reservation.get("account_id", ""))
+    amount = _safe_non_negative_float(reservation.get("amount", 0.0))
+    if not account_id or amount <= 0:
+        return {}
+    release_id = deterministic_id(
+        "credit_transaction",
+        {"account_id": account_id, "reservation_transaction_id": reservation_id, "type": "reserve_release"},
+    )
+    existing = store.get_record("credit_transaction", release_id)
+    if existing is not None:
+        return existing
+    now = utc_now_iso()
+    currency = str(reservation.get("currency", "USD"))
+    current = store.get_record("credit_balance", account_id) or {
+        "account_id": account_id,
+        "available_credits": 0.0,
+        "reserved_credits": 0.0,
+        "currency": currency,
+        "created_at": now,
+    }
+    available = float(current.get("available_credits", 0.0) or 0.0)
+    reserved = float(current.get("reserved_credits", 0.0) or 0.0)
+    balance = {
+        **dict(current),
+        "account_id": account_id,
+        "available_credits": round(available + amount, 6),
+        "reserved_credits": round(max(0.0, reserved - amount), 6),
+        "currency": currency,
+        "updated_at": now,
+    }
+    released_reservation = {
+        **dict(reservation),
+        "status": "released",
+        "released_at": now,
+        "release_reason": reason,
+        "updated_at": now,
+    }
+    release = {
+        "credit_transaction_id": release_id,
+        "account_id": account_id,
+        "transaction_type": "reserve_release",
+        "amount": amount,
+        "currency": currency,
+        "job_id": str(reservation.get("job_id", job.get("job_id", ""))),
+        "reservation_transaction_id": reservation_id,
+        "status": "posted",
+        "reason": reason,
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "request_id": request_id,
+    }
+    store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
+    store.put_record(
+        "credit_transaction",
+        reservation_id,
+        released_reservation,
+        tenant_id=account_id,
+        status="released",
+        request_id=request_id,
+        idempotency_key=reservation_id,
+    )
+    store.put_record(
+        "credit_transaction",
+        release_id,
+        release,
+        tenant_id=account_id,
+        status="posted",
+        request_id=request_id,
+        idempotency_key=release_id,
+    )
+    return release
+
 def _debit_credit(
     store: ComputeMarketStoreProtocol,
     account_id: str,
@@ -6589,6 +6878,7 @@ def _debit_credit(
     currency: str,
     request_id: str,
     usage_charge_id: str,
+    reservation_transaction_id: str = "",
 ) -> Mapping[str, Any]:
     if not account_id or amount <= 0:
         return {}
@@ -6604,8 +6894,19 @@ def _debit_credit(
         "currency": currency,
         "created_at": now,
     }
+    reservation = store.get_record("credit_transaction", reservation_transaction_id) if reservation_transaction_id else None
+    reservation_amount = (
+        _safe_non_negative_float(reservation.get("amount", 0.0))
+        if reservation is not None
+        and str(reservation.get("status", "")) == "reserved"
+        and str(reservation.get("account_id", "")) == account_id
+        else 0.0
+    )
     available = float(current.get("available_credits", 0.0) or 0.0)
-    sufficient = available >= amount
+    reserved = float(current.get("reserved_credits", 0.0) or 0.0)
+    extra_due = max(0.0, amount - reservation_amount)
+    unused_reservation = max(0.0, reservation_amount - amount)
+    sufficient = available >= extra_due
     transaction = {
         "credit_transaction_id": transaction_id,
         "account_id": account_id,
@@ -6613,6 +6914,7 @@ def _debit_credit(
         "amount": amount,
         "currency": currency,
         "usage_charge_id": usage_charge_id,
+        "reservation_transaction_id": reservation_transaction_id if reservation_amount else "",
         "status": "posted" if sufficient else "insufficient_credit",
         "dry_run_only": True,
         "funds_moved": False,
@@ -6623,13 +6925,40 @@ def _debit_credit(
         balance = {
             **dict(current),
             "account_id": account_id,
-            "available_credits": round(available - amount, 6),
-            "reserved_credits": float(current.get("reserved_credits", 0.0) or 0.0),
+            "available_credits": round(available - extra_due + unused_reservation, 6),
+            "reserved_credits": round(max(0.0, reserved - reservation_amount), 6),
             "currency": currency,
             "updated_at": now,
         }
         store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
-    store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status=str(transaction["status"]), request_id=request_id, idempotency_key=transaction_id)
+        if reservation is not None and reservation_amount:
+            settled_reservation = {
+                **dict(reservation),
+                "status": "settled",
+                "settled_at": now,
+                "settled_usage_charge_id": usage_charge_id,
+                "settled_amount": amount,
+                "unused_released_amount": unused_reservation,
+                "updated_at": now,
+            }
+            store.put_record(
+                "credit_transaction",
+                reservation_transaction_id,
+                settled_reservation,
+                tenant_id=account_id,
+                status="settled",
+                request_id=request_id,
+                idempotency_key=reservation_transaction_id,
+            )
+    store.put_record(
+        "credit_transaction",
+        transaction_id,
+        transaction,
+        tenant_id=account_id,
+        status=str(transaction["status"]),
+        request_id=request_id,
+        idempotency_key=transaction_id,
+    )
     return transaction
 
 

@@ -2264,6 +2264,165 @@ def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:
     assert completed["provider_payout"]["funds_moved"] is False
     assert service.billing_balance({"account_id": "acct_paid"})["balance"]["available_credits"] == 0.82
 
+def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_credit_tiny_preauth",
+        "type": "checkout.session.completed",
+        "amount": 0.1,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_preauth_low"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_paid_compute_preauth_low",
+                "account_id": "acct_preauth_low",
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+
+    dispatched = service.dispatch_job(job_id, {})
+
+    assert dispatched["ok"] is False
+    assert dispatched["error"]["error_code"] == "billing.credit_preauthorization_failed"
+    assert dispatched["credit_reservation"]["status"] == "insufficient_credit"
+    assert service.store.get_record("compute_job", job_id)["status"] == "queued"
+    balance = service.billing_balance({"account_id": "acct_preauth_low"})["balance"]
+    assert balance["available_credits"] == 0.1
+    assert balance["reserved_credits"] == 0.0
+    assert any(
+        event["event_type"] == "job.credit_preauthorization_failed"
+        for event in service.job_events(job_id)["events"]
+    )
+    assert (
+        _metric_total(
+            service,
+            "billing_insufficient_credit_total",
+            {"provider_id": "provider_live_gpu_1"},
+        )
+        == 0.18
+    )
+
+    topup_event = {
+        "id": "evt_credit_tiny_preauth_topup",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_preauth_low"},
+    }
+    topup_signature = hmac.new(
+        secret.encode("utf-8"),
+        content_hash(topup_event).encode("utf-8"),
+        "sha256",
+    ).hexdigest()
+    service.billing_webhook_stripe(
+        {"raw_event": topup_event, "webhook_secret": secret, "stripe_signature": topup_signature}
+    )
+    retried = service.dispatch_job(job_id, {})
+
+    assert retried["ok"] is True
+    assert retried["credit_reservation"]["status"] == "reserved"
+    retried_balance = service.billing_balance({"account_id": "acct_preauth_low"})["balance"]
+    assert retried_balance["available_credits"] == 0.92
+    assert retried_balance["reserved_credits"] == 0.18
+
+
+def test_prepaid_credit_preauthorization_reserves_and_settles_usage() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_credit_preauth",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_preauth_ok"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_paid_compute_preauth_ok",
+                "account_id": "acct_preauth_ok",
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+
+    dispatched = service.dispatch_job(job_id, {})
+    reservation_id = str(dispatched["credit_reservation"]["credit_transaction_id"])
+
+    assert dispatched["ok"] is True
+    assert dispatched["credit_reservation"]["status"] == "reserved"
+    assert dispatched["job"]["credit_reservation_id"] == reservation_id
+    reserved_balance = service.billing_balance({"account_id": "acct_preauth_ok"})["balance"]
+    assert reserved_balance["available_credits"] == 0.82
+    assert reserved_balance["reserved_credits"] == 0.18
+
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": "acct_preauth_ok",
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+        },
+    )
+
+    assert completed["credit_debit"]["status"] == "posted"
+    assert completed["credit_debit"]["reservation_transaction_id"] == reservation_id
+    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "settled"
+    settled_balance = service.billing_balance({"account_id": "acct_preauth_ok"})["balance"]
+    assert settled_balance["available_credits"] == 0.82
+    assert settled_balance["reserved_credits"] == 0.0
+    assert completed["provider_payout"]["status"] == "accrued"
+
+
+def test_prepaid_credit_preauthorization_releases_hold_on_cancel() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_credit_preauth_cancel",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_preauth_cancel"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_paid_compute_preauth_cancel",
+                "account_id": "acct_preauth_cancel",
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+
+    dispatched = service.dispatch_job(job_id, {})
+    cancelled = service.cancel_job(job_id, {"reason": "user_cancelled"})
+
+    assert dispatched["credit_reservation"]["status"] == "reserved"
+    assert cancelled["credit_release"]["transaction_type"] == "reserve_release"
+    assert cancelled["credit_release"]["reservation_transaction_id"] == dispatched["credit_reservation"]["credit_transaction_id"]
+    balance = service.billing_balance({"account_id": "acct_preauth_cancel"})["balance"]
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
 
 def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody() -> None:
     service = _service()

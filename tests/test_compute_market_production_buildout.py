@@ -1763,13 +1763,43 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
         },
     )
 
+    for extra_id in ("artifact_extra_1", "artifact_extra_2"):
+        extra_artifact = {
+            **dict(completed["artifact"]),
+            "artifact_id": extra_id,
+            "artifact_ref": f"s3://flow-memory-results/{extra_id}.json",
+            "artifact_hash": content_hash({"artifact_id": extra_id}),
+        }
+        service.store.put_record(
+            "compute_job_artifact",
+            extra_id,
+            extra_artifact,
+            provider_id=str(completed["job"]["provider_id"]),
+            route_id=str(completed["job"]["route_id"]),
+            task_type=str(completed["job"]["task_type"]),
+            status="available",
+            request_id="artifact-pagination-test",
+            tenant_id=str(completed["job"].get("tenant_id", "")),
+            workspace_id=str(completed["job"].get("workspace_id", "")),
+        )
+
     assert completed["job"]["status"] == "succeeded"
     assert completed["artifact"]["artifact_ref"] == "s3://flow-memory-results/job-1.json"
     assert completed["usage_charge"]["amount"] == 0.18
     assert completed["usage_charge"]["funds_moved"] is False
     assert completed["credit_debit"] == {}
     assert completed["provider_payout"] == {}
-    assert service.job_artifacts(job_id)["artifacts"]
+    first_artifact_page = service.job_artifacts(job_id, {"limit": 1})
+    second_artifact_page = service.job_artifacts(job_id, {"limit": 2, "cursor": first_artifact_page["next_cursor"]})
+    artifact_ids = {
+        str(artifact["artifact_id"])
+        for artifact in (*first_artifact_page["artifacts"], *second_artifact_page["artifacts"])
+    }
+    assert first_artifact_page["next_cursor"]
+    assert len(first_artifact_page["artifacts"]) == 1
+    assert len(second_artifact_page["artifacts"]) == 2
+    assert {str(completed["artifact"]["artifact_id"]), "artifact_extra_1", "artifact_extra_2"} == artifact_ids
+    assert completed["artifact"]["dry_run_only"] is completed["job"]["dry_run_only"]
     assert service.store.count_records("usage_charge") == 1
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 

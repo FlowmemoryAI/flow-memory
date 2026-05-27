@@ -674,6 +674,7 @@ def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
         allowed_job = gateway.handle("GET", f"/compute/jobs/{job_id}", {"x-flow-memory-api-key": key_a})
         allowed_events = gateway.handle("GET", f"/compute/jobs/{job_id}/events", {"x-flow-memory-api-key": key_a})
         allowed_artifacts = gateway.handle("GET", f"/compute/jobs/{job_id}/artifacts", {"x-flow-memory-api-key": key_a})
+        allowed_artifacts_page = gateway.handle("GET", f"/compute/jobs/{job_id}/artifacts?limit=1", {"x-flow-memory-api-key": key_a})
         denied_job = gateway.handle("GET", f"/compute/jobs/{job_id}", {"x-flow-memory-api-key": key_b})
         denied_events = gateway.handle("GET", f"/compute/jobs/{job_id}/events", {"x-flow-memory-api-key": key_b})
         denied_artifacts = gateway.handle("GET", f"/compute/jobs/{job_id}/artifacts", {"x-flow-memory-api-key": key_b})
@@ -702,6 +703,9 @@ def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
     assert allowed_events.status == 200
     assert allowed_events.body["data"]["events"]
     assert allowed_artifacts.status == 200
+    assert allowed_artifacts_page.status == 200
+    assert len(allowed_artifacts_page.body["data"]["artifacts"]) == 1
+    assert "next_cursor" in allowed_artifacts_page.body["data"]
     assert allowed_artifacts.body["data"]["artifacts"]
     assert denied_job.status == 404
     assert denied_events.status == 404

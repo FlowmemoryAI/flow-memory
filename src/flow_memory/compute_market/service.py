@@ -2364,14 +2364,43 @@ class ComputeMarketService:
         return tuple(expired_jobs), tuple(events)
 
     def job_events(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        self.get_job(job_id, payload)
-        events = tuple(event for event in self.store.list_records("compute_job_event", limit=500).records if str(event.get("job_id", "")) == job_id)
-        return {"ok": True, "events": events}
+        job = self.get_job(job_id, payload)["job"]
+        events, next_cursor = self._job_child_records("compute_job_event", job_id, job, payload or {})
+        return {"ok": True, "events": events, "next_cursor": next_cursor}
 
     def job_artifacts(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        self.get_job(job_id, payload)
-        artifacts = tuple(artifact for artifact in self.store.list_records("compute_job_artifact", limit=500).records if str(artifact.get("job_id", "")) == job_id)
-        return {"ok": True, "artifacts": artifacts}
+        job = self.get_job(job_id, payload)["job"]
+        artifacts, next_cursor = self._job_child_records("compute_job_artifact", job_id, job, payload or {})
+        return {"ok": True, "artifacts": artifacts, "next_cursor": next_cursor}
+
+    def _job_child_records(
+        self,
+        record_type: str,
+        job_id: str,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+    ) -> tuple[tuple[Mapping[str, Any], ...], str]:
+        limit = _page_limit(payload)
+        cursor_offset = _page_cursor_offset(str(payload.get("cursor", "")))
+        filter_keys = ("provider_id", "route_id", "task_type") if record_type == "compute_job_artifact" else ("provider_id", "route_id")
+        filters = {key: str(job.get(key, "")) for key in filter_keys if str(job.get(key, "")).strip()}
+        records: list[Mapping[str, Any]] = []
+        while len(records) < limit:
+            page = self.store.list_records(record_type, filters=filters, limit=500, cursor=str(cursor_offset))
+            if not page.records:
+                return tuple(records), ""
+            for index, record in enumerate(page.records, start=1):
+                cursor_offset += 1
+                if str(record.get("job_id", "")) != job_id:
+                    continue
+                records.append(record)
+                if len(records) >= limit:
+                    has_more = index < len(page.records) or bool(page.next_cursor)
+                    return tuple(records), str(cursor_offset) if has_more else ""
+            if not page.next_cursor:
+                return tuple(records), ""
+            cursor_offset = _page_cursor_offset(page.next_cursor)
+        return tuple(records), ""
 
     def provider_job_receipt(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -2784,6 +2813,9 @@ class ComputeMarketService:
                 task_type=str(job.get("task_type", "")),
                 status="available",
                 request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+                actor_id=worker_id,
             )
         credit_debit: Mapping[str, Any] = {}
         provider_payout: Mapping[str, Any] = {}
@@ -6981,6 +7013,19 @@ def _positive_int(value: object, name: str, *, default: int) -> int:
     return amount
 
 
+def _page_limit(payload: Mapping[str, Any], *, default: int = 500) -> int:
+    return min(500, _positive_int(payload.get("limit", default), "limit", default=default))
+
+
+def _page_cursor_offset(cursor: str) -> int:
+    if not cursor:
+        return 0
+    try:
+        return max(0, int(cursor))
+    except ValueError:
+        return 0
+
+
 def _retry_policy_value(payload: Mapping[str, Any], key: str, default: int) -> object:
     retry_policy = payload.get("retry_policy", {})
     if isinstance(retry_policy, Mapping):
@@ -7116,12 +7161,14 @@ def _job_artifact(job: Mapping[str, Any], payload: Mapping[str, Any], *, request
         "job_id": str(job.get("job_id", "")),
         "provider_id": str(job.get("provider_id", "")),
         "route_id": str(job.get("route_id", "")),
+        "tenant_id": str(job.get("tenant_id", "")),
+        "workspace_id": str(job.get("workspace_id", "")),
         "artifact_ref": artifact_ref,
         "artifact_type": str(payload.get("artifact_type", artifact_payload.get("artifact_type", "result"))),
         "artifact_hash": content_hash({"artifact_ref": artifact_ref, "artifact": artifact_payload}),
         "metadata": artifact_payload,
         "status": "available",
-        "dry_run_only": True,
+        "dry_run_only": bool(job.get("dry_run_only", True)),
         "created_at": now,
         "updated_at": now,
         "request_id": request_id,

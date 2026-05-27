@@ -28,6 +28,7 @@ from flow_memory.compute_market.models import (
     ComputeMarketPolicy,
     ComputePriceSnapshot,
     ComputeProvider,
+    ComputeRoute,
     ComputeStatement,
     IntelligencePlan,
     IntelligenceTier,
@@ -153,7 +154,11 @@ class ComputeMarketService:
         self.telemetry.increment("compute_plan_requests_total", {"strategy": str(payload_for_plan.get("selection_strategy", "balanced"))})
         self._audit("compute.plan.requested", payload_for_plan, request_id=request_id, result="requested")
         with self.telemetry.span("compute.plan_request", {"request_id": request_id}):
-            plan = build_compute_plan({**dict(payload_for_plan), "request_id": request_id, "idempotency_key": idempotency_key})
+            plan = build_compute_plan(
+                {**dict(payload_for_plan), "request_id": request_id, "idempotency_key": idempotency_key},
+                providers=self._planning_providers(payload_for_plan),
+                routes=self._planning_routes(payload_for_plan),
+            )
         record = plan.as_record()
         self._persist_plan(record)
         for rejected_route in plan.rejected_routes:
@@ -201,6 +206,26 @@ class ComputeMarketService:
 
     def marketplace_plan(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return self.plan({**dict(payload), "marketplace_only": True, "selection_strategy": payload.get("selection_strategy", "marketplace_preferred")})
+
+    def _planning_providers(self, payload: Mapping[str, Any]) -> tuple[ComputeProvider, ...]:
+        records = self.store.list_records("compute_provider", filters={"status": "active"}, limit=1_000).records
+        return tuple(
+            _planning_provider_from_record(record)
+            for record in records
+            if _tenant_can_access_catalog_record(payload, record)
+        )
+
+    def _planning_routes(self, payload: Mapping[str, Any]) -> tuple[ComputeRoute, ...]:
+        route_records = self.store.list_records("compute_route", filters={"status": "enabled"}, limit=1_000).records
+        latest_quotes = _latest_quotes_by_route(
+            self.store.list_records("compute_quote", filters={"status": "valid"}, limit=1_000).records,
+            payload,
+        )
+        return tuple(
+            _planning_route_from_record(record, latest_quotes.get(str(record.get("route_id", ""))))
+            for record in route_records
+            if _tenant_can_access_catalog_record(payload, record)
+        )
 
     def intelligence_plan(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -362,7 +387,12 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         self.telemetry.increment("compute_quote_requests_total")
-        plan = build_compute_plan({**dict(self._payload_with_circuit_denials(payload, request_id=request_id)), "request_id": request_id})
+        routed_payload = self._payload_with_circuit_denials(payload, request_id=request_id)
+        plan = build_compute_plan(
+            {**dict(routed_payload), "request_id": request_id},
+            providers=self._planning_providers(routed_payload),
+            routes=self._planning_routes(routed_payload),
+        )
         decision = plan.route_decision
         quotes = tuple(decision.get("normalized_quotes", ())) if isinstance(decision, Mapping) else ()
         for quote in quotes:
@@ -4932,6 +4962,144 @@ def _provider_routes_from_application(
         }
         routes.append(route)
     return tuple(routes)
+
+def _planning_provider_from_record(record: Mapping[str, Any]) -> ComputeProvider:
+    metadata = record.get("metadata", {})
+    metadata_map = metadata if isinstance(metadata, Mapping) else {}
+    supported_networks = _tuple(record.get("supported_networks", ()))
+    supported_assets = _tuple(record.get("supported_assets", ()))
+    return ComputeProvider(
+        provider_id=str(record.get("provider_id", "")),
+        provider_name=str(record.get("provider_name", record.get("provider_id", ""))),
+        provider_type=str(record.get("provider_type", "marketplace")),
+        market_type=str(record.get("market_type", "marketplace")),
+        network=str(record.get("network") or _first_text(supported_networks, "offchain")),
+        payment_asset=str(record.get("payment_asset") or _first_text(supported_assets, "USD")),
+        capabilities=(),
+        reliability_score=float(record.get("reliability_score", 1.0) or 1.0),
+        dry_run_only=bool(record.get("dry_run_only", True)),
+        capacity_available=bool(record.get("capacity_available", True)),
+        metadata=dict(metadata_map),
+        created_at=str(record.get("created_at", "")),
+        updated_at=str(record.get("updated_at", "")),
+        tenant_id=str(record.get("tenant_id", "")),
+        workspace_id=str(record.get("workspace_id", "")),
+        status=str(record.get("status", "active")),
+        supported_unit_types=_tuple(record.get("supported_unit_types", ())),
+        supported_networks=supported_networks,
+        supported_assets=supported_assets,
+        supported_settlement_modes=_tuple(record.get("supported_settlement_modes", ("generic_dry_run",))),
+        average_latency_ms=int(record.get("average_latency_ms", 1000) or 1000),
+        quote_ttl_seconds=int(record.get("quote_ttl_seconds", 300) or 300),
+        health_check_url=str(record.get("health_check_url", metadata_map.get("health_endpoint", ""))),
+        configured_by=str(record.get("configured_by", "provider-admin")),
+        verified=bool(record.get("verified", False)),
+        config_version=int(record.get("config_version", 1) or 1),
+        disabled_at=str(record.get("disabled_at", "")),
+        archived_at=str(record.get("archived_at", "")),
+        provider_class=str(record.get("provider_class", metadata_map.get("provider_class", ""))),
+    )
+
+
+def _planning_route_from_record(
+    record: Mapping[str, Any],
+    quote: Mapping[str, Any] | None,
+) -> ComputeRoute:
+    source = dict(record)
+    metadata = dict(record.get("metadata", {})) if isinstance(record.get("metadata"), Mapping) else {}
+    if quote:
+        source.update(
+            {
+                "unit_type": quote.get("unit_type", source.get("unit_type", "")),
+                "unit_price": quote.get("unit_price", source.get("unit_price")),
+                "estimated_units": quote.get("estimated_units", source.get("estimated_units", 0.0)),
+                "estimated_total_cost": quote.get("estimated_total_cost", source.get("estimated_total_cost")),
+                "estimated_latency_ms": quote.get("estimated_latency_ms", source.get("estimated_latency_ms", 0)),
+                "capacity_available": quote.get("capacity_available", source.get("capacity_available", True)),
+                "confidence": quote.get("confidence", source.get("confidence", 1.0)),
+                "quote_ttl_seconds": quote.get("quote_ttl_seconds", source.get("quote_ttl_seconds", 300)),
+                "payment_asset": quote.get("payment_asset", quote.get("currency_or_asset", source.get("payment_asset", "USD"))),
+                "network": quote.get("network", source.get("network", "offchain")),
+            }
+        )
+        metadata.update(
+            {
+                "latest_quote_id": str(quote.get("quote_id", "")),
+                "latest_quote_source": str(quote.get("source", "")),
+                "latest_quote_expires_at": str(quote.get("expires_at", "")),
+            }
+        )
+    settlement_modes = _tuple(source.get("settlement_modes", source.get("settlement_options", ()))) or (
+        str(source.get("settlement_mode", "generic_dry_run")),
+    )
+    return ComputeRoute(
+        route_id=str(source.get("route_id", "")),
+        provider_id=str(source.get("provider_id", "")),
+        provider_or_route=str(source.get("provider_or_route", source.get("provider_name", source.get("provider_id", "")))),
+        provider_type=str(source.get("provider_type", "marketplace")),
+        market_type=str(source.get("market_type", "marketplace")),
+        network=str(source.get("network", "offchain")),
+        payment_asset=str(source.get("payment_asset", "USD")),
+        unit_type=str(source.get("unit_type", "request")),
+        unit_price=_optional_price(source.get("unit_price")),
+        estimated_units=float(source.get("estimated_units", 0.0) or 0.0),
+        estimated_total_cost=_optional_price(source.get("estimated_total_cost")),
+        estimated_latency_ms=int(source.get("estimated_latency_ms", 1000) or 1000),
+        capacity_available=bool(source.get("capacity_available", True)),
+        reservation_required=bool(source.get("reservation_required", False)),
+        settlement_mode=str(source.get("settlement_mode", settlement_modes[0])),
+        settlement_modes=settlement_modes,
+        dry_run_only=bool(source.get("dry_run_only", True)),
+        fallback_route=bool(source.get("fallback_route", False)),
+        quote_ttl_seconds=int(source.get("quote_ttl_seconds", 300) or 300),
+        confidence=float(source.get("confidence", 1.0) or 1.0),
+        reliability_score=float(source.get("reliability_score", 1.0) or 1.0),
+        metadata=metadata,
+        created_at=str(source.get("created_at", "")),
+        updated_at=str(source.get("updated_at", "")),
+        tenant_id=str(source.get("tenant_id", "")),
+        workspace_id=str(source.get("workspace_id", "")),
+        route_type=str(source.get("route_type", "compute")),
+        pricing_model=str(source.get("pricing_model", "unit")),
+        supported_assets=_tuple(source.get("supported_assets", ())),
+        supported_networks=_tuple(source.get("supported_networks", ())),
+        fallback_priority=int(source.get("fallback_priority", 100) or 100),
+        enabled=bool(source.get("enabled", True)),
+        verified_provider_required=bool(source.get("verified_provider_required", False)),
+        config_version=int(source.get("config_version", 1) or 1),
+        disabled_at=str(source.get("disabled_at", "")),
+        archived_at=str(source.get("archived_at", "")),
+        provider_class=str(source.get("provider_class", metadata.get("provider_class", ""))),
+    )
+
+
+def _latest_quotes_by_route(
+    records: tuple[Mapping[str, Any], ...],
+    payload: Mapping[str, Any],
+) -> dict[str, Mapping[str, Any]]:
+    now = utc_now_iso()
+    latest: dict[str, Mapping[str, Any]] = {}
+    for record in records:
+        if not _tenant_can_access_catalog_record(payload, record):
+            continue
+        route_id = str(record.get("route_id", ""))
+        if not route_id:
+            continue
+        expires_at = str(record.get("expires_at", ""))
+        if expires_at and expires_at <= now:
+            continue
+        previous = latest.get(route_id)
+        if previous is None or _record_updated_at(record) >= _record_updated_at(previous):
+            latest[route_id] = record
+    return latest
+
+
+def _record_updated_at(record: Mapping[str, Any]) -> str:
+    return str(record.get("updated_at", record.get("created_at", "")))
+
+
+def _first_text(values: tuple[str, ...], default: str) -> str:
+    return next((value for value in values if value), default)
 
 
 def _provider_public_key(payload: Mapping[str, Any], provider_id: str, service: ComputeMarketService) -> str | Mapping[str, Any]:

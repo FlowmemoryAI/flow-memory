@@ -476,6 +476,8 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
 
     assert drift_analytics["summary"]["observation_count"] == 1
     assert drift_analytics["summary"]["review_count"] == 1
+
+
     assert drift_analytics["summary"]["max_drift_ratio"] == 0.5
     assert drift_analytics["summary"]["by_provider"]["provider_live_gpu_1"] == 1
     assert drift_analytics["drift_observations"][0]["previous_quote_id"] == "quote_live_gpu_1"
@@ -513,6 +515,51 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["quote_price_manipulation_count"] == 1
     assert reputation["fraud_signal_count"] == 2
 
+
+def test_marketplace_plan_selects_verified_provider_cached_quote() -> None:
+    service = _service()
+    service.apply_market_provider(_provider_application())
+    verified = service.verify_market_provider("provider_live_gpu_1", {"verification_notes": "contract reviewed"})
+    route = next(route for route in verified["routes"] if route["unit_type"] == "gpu_minute")
+    route_id = str(route["route_id"])
+    quote_id = "quote_marketplace_plan_cached_provider"
+
+    accepted = service.broker_quote(
+        {
+            "quote": {
+                **_quote(0.04),
+                "quote_id": quote_id,
+                "route_id": route_id,
+                "unit_price": 0.02,
+                "estimated_units": 2,
+                "estimated_total_cost": 0.04,
+            },
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+    planned = service.marketplace_plan(
+        {
+            "task": "gpu batch inference with verified provider",
+            "provider_constraints": ["provider_live_gpu_1"],
+            "estimated_units": {"gpu_minute": 2},
+            "selection_strategy": "lowest_cost",
+        }
+    )
+
+    compute_plan = planned["compute_plan"]
+    selected_route = compute_plan["selected_route"]
+    normalized_quote = compute_plan["normalized_quote"]
+    route_metadata = normalized_quote["original_quote"]["route"]["metadata"]
+    assert accepted["ok"] is True
+    assert planned["ok"] is True
+    assert selected_route["provider_id"] == "provider_live_gpu_1"
+    assert selected_route["route_id"] == route_id
+    assert normalized_quote["unit_price"] == 0.02
+    assert normalized_quote["estimated_total_cost"] == 0.04
+    assert route_metadata["latest_quote_id"] == quote_id
+    assert compute_plan["provider_count"] >= 1
+    assert compute_plan["route_count"] == 3
 
 def test_quote_and_capacity_records_are_tenant_scoped() -> None:
     service = _service()

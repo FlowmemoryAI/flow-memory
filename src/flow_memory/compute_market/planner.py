@@ -195,14 +195,30 @@ def market_policy_from_payload(payload: Mapping[str, Any] | None = None) -> Comp
     )
 
 
-def discover_providers(_payload: Mapping[str, Any] | None = None) -> tuple[ComputeProvider, ...]:
-    return default_compute_providers()
+def discover_providers(
+    _payload: Mapping[str, Any] | None = None,
+    *,
+    extra_providers: tuple[ComputeProvider, ...] = (),
+) -> tuple[ComputeProvider, ...]:
+    providers_by_id = {provider.provider_id: provider for provider in default_compute_providers()}
+    for provider in extra_providers:
+        if provider.provider_id and provider.status == "active":
+            providers_by_id[provider.provider_id] = provider
+    return tuple(providers_by_id.values())
 
 
-def discover_routes(payload: Mapping[str, Any] | None = None) -> tuple[ComputeRoute, ...]:
+def discover_routes(
+    payload: Mapping[str, Any] | None = None,
+    *,
+    extra_routes: tuple[ComputeRoute, ...] = (),
+) -> tuple[ComputeRoute, ...]:
     payload = payload or {}
     scenario = str(payload.get("scenario", "provider_quote_available"))
-    routes = simulated_routes(scenario)
+    routes_by_id = {route.route_id: route for route in simulated_routes(scenario)}
+    for route in extra_routes:
+        if route.route_id and route.enabled and not route.disabled_at:
+            routes_by_id[route.route_id] = route
+    routes = tuple(routes_by_id.values())
     provider_filter = set(_tuple(payload.get("provider_constraints", ())))
     if provider_filter:
         routes = tuple(route for route in routes if route.provider_id in provider_filter)
@@ -215,7 +231,12 @@ def discover_routes(payload: Mapping[str, Any] | None = None) -> tuple[ComputeRo
     return routes
 
 
-def build_compute_plan(payload: Mapping[str, Any] | None = None) -> ComputePlan:
+def build_compute_plan(
+    payload: Mapping[str, Any] | None = None,
+    *,
+    providers: tuple[ComputeProvider, ...] = (),
+    routes: tuple[ComputeRoute, ...] = (),
+) -> ComputePlan:
     payload = payload or {}
     _assert_no_live_payment_fields(payload)
     request_id = str(payload.get("request_id") or new_id("request"))
@@ -223,8 +244,8 @@ def build_compute_plan(payload: Mapping[str, Any] | None = None) -> ComputePlan:
     profile = build_task_profile(payload)
     budget_policy = budget_policy_from_payload(payload)
     market_policy = market_policy_from_payload(payload)
-    providers = discover_providers(payload)
-    routes = discover_routes(payload)
+    providers = discover_providers(payload, extra_providers=providers)
+    routes = discover_routes(payload, extra_routes=routes)
     scenario = str(payload.get("scenario", "provider_quote_available"))
     quotes = normalize_quotes(collect_quotes(routes, profile, scenario=scenario))
     decision = decide_route(

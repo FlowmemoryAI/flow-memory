@@ -75,7 +75,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "RENDER_KEYVALUE_IP_ALLOWLIST",
         "RENDER_API_KEY=CHANGEME-render-api-key",
         "RENDER_OWNER_ID=CHANGEME-render-owner-or-workspace-id",
-        "RENDER_POSTGRES_PLAN=starter",
+        "RENDER_POSTGRES_PLAN=basic_256mb",
         "RENDER_KEYVALUE_PLAN=starter",
         "RENDER_SERVICE_PLAN=starter",
         "RENDER_BRANCH=work/squire-v2",

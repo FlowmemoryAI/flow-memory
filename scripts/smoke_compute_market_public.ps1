@@ -152,7 +152,10 @@ Assert-True (($storageBackend -eq 'postgres') -or ($storageBackend -eq 'postgres
 Assert-True ($rateLimitBackend -eq 'redis') "readiness rate limit backend was '$rateLimitBackend', expected redis."
 Assert-True ($circuitBreakerBackend -eq 'redis') "readiness circuit breaker backend was '$circuitBreakerBackend', expected redis."
 Assert-True ($readinessData.production_safety_defaults.require_managed_redis_in_production -eq $true) 'readiness did not require managed Redis in production.'
-Assert-True ($readinessData.production_safety_defaults.redis_url_scheme -eq 'rediss') 'readiness Redis URL scheme was not rediss.'
+$redisUrlScheme = $readinessData.production_safety_defaults.redis_url_scheme
+$allowInternalRedis = $readinessData.production_safety_defaults.allow_internal_redis_in_production
+$redisSchemeAllowed = ($redisUrlScheme -eq 'rediss') -or (($redisUrlScheme -eq 'redis') -and ($allowInternalRedis -eq $true))
+Assert-True $redisSchemeAllowed "readiness Redis URL scheme was '$redisUrlScheme', expected rediss or explicitly allowed Render internal redis."
 
 $planBody = @{
     task = 'public live Level 1 Flow Memory Compute Market smoke test'
@@ -225,6 +228,8 @@ $result = [ordered]@{
     storage_backend = $storageBackend
     rate_limit_backend = $rateLimitBackend
     circuit_breaker_backend = $circuitBreakerBackend
+    redis_url_scheme = $redisUrlScheme
+    allow_internal_redis_in_production = [bool]$allowInternalRedis
     plan = $plan.StatusCode
     audit_verify = $auditVerify.StatusCode
     metrics = [int]$metrics.StatusCode

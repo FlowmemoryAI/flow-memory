@@ -641,6 +641,20 @@ class ComputeMarketService:
             status="active",
             request_id=request_id,
         )
+        routes = tuple(_provider_routes_from_application(updated_application, provider))
+        for route in routes:
+            self.store.put_record(
+                "compute_route",
+                str(route["route_id"]),
+                route,
+                tenant_id=str(route.get("tenant_id", "")),
+                workspace_id=str(route.get("workspace_id", "")),
+                provider_id=provider_id,
+                route_id=str(route["route_id"]),
+                task_type=str(route.get("unit_type", "")),
+                status="enabled" if route.get("enabled", True) else "disabled",
+                request_id=request_id,
+            )
         reputation = _provider_reputation(provider_id, jobs=(), quotes=(), health=(), fraud_signals=(), provider=provider)
         self.store.put_record(
             "provider_reputation",
@@ -653,7 +667,13 @@ class ComputeMarketService:
             request_id=request_id,
         )
         self._audit("market.provider.verified", payload, request_id=request_id, result="verified", provider_id=provider_id)
-        return {"ok": True, "provider_application": updated_application, "provider": provider, "reputation": reputation}
+        return {
+            "ok": True,
+            "provider_application": updated_application,
+            "provider": provider,
+            "routes": routes,
+            "reputation": reputation,
+        }
 
     def reject_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -4682,6 +4702,78 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "verified": True,
         "config_version": 1,
     }
+
+
+def _provider_routes_from_application(
+    application: Mapping[str, Any],
+    provider: Mapping[str, Any],
+) -> tuple[dict[str, Any], ...]:
+    provider_id = str(application["provider_id"])
+    provider_type = str(application["provider_type"])
+    provider_name = str(application["provider_name"])
+    provider_class = str(provider.get("provider_class", application.get("provider_class", "")))
+    supported_assets = _tuple(application.get("supported_assets", ())) or ("USD",)
+    supported_networks = _tuple(application.get("supported_networks", ())) or ("offchain",)
+    unit_types = _tuple(application.get("supported_unit_types", ()))
+    now = utc_now_iso()
+    quote_ttl_seconds = int(provider.get("quote_ttl_seconds", 300) or 300)
+    average_latency_ms = int(provider.get("average_latency_ms", 1000) or 1000)
+    routes: list[dict[str, Any]] = []
+    for unit_type in unit_types:
+        route_id = deterministic_id(
+            "market_provider_route",
+            {
+                "provider_id": provider_id,
+                "unit_type": unit_type,
+                "tenant_id": str(application.get("tenant_id", "")),
+                "workspace_id": str(application.get("workspace_id", "")),
+            },
+        )
+        route = {
+            "route_id": route_id,
+            "provider_id": provider_id,
+            "provider_or_route": provider_name,
+            "provider_type": provider_type,
+            "market_type": "marketplace",
+            "network": str(supported_networks[0]),
+            "payment_asset": str(supported_assets[0]),
+            "unit_type": unit_type,
+            "unit_price": None,
+            "estimated_units": 0.0,
+            "estimated_total_cost": None,
+            "estimated_latency_ms": average_latency_ms,
+            "capacity_available": True,
+            "reservation_required": unit_type in {"gpu_hour", "reserved_capacity_slot"},
+            "settlement_mode": "generic_dry_run",
+            "settlement_modes": ("generic_dry_run",),
+            "dry_run_only": True,
+            "fallback_route": False,
+            "quote_ttl_seconds": quote_ttl_seconds,
+            "confidence": 1.0,
+            "reliability_score": float(provider.get("reliability_score", 1.0) or 1.0),
+            "metadata": {
+                "provider_verified": True,
+                "provider_class": provider_class,
+                "quote_endpoint": str(application.get("quote_endpoint", "")),
+                "health_endpoint": str(application.get("health_endpoint", "")),
+                "execution_endpoint": str(application.get("execution_endpoint", "")),
+            },
+            "created_at": now,
+            "updated_at": now,
+            "tenant_id": str(application.get("tenant_id", "")),
+            "workspace_id": str(application.get("workspace_id", "")),
+            "route_type": "provider_quote",
+            "pricing_model": "external_quote",
+            "supported_assets": supported_assets,
+            "supported_networks": supported_networks,
+            "fallback_priority": 100,
+            "enabled": True,
+            "verified_provider_required": True,
+            "provider_class": provider_class,
+            "config_version": 1,
+        }
+        routes.append(route)
+    return tuple(routes)
 
 
 def _provider_public_key(payload: Mapping[str, Any], provider_id: str, service: ComputeMarketService) -> str | Mapping[str, Any]:

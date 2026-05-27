@@ -172,6 +172,18 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
     assert verified["provider"]["dry_run_only"] is True
     assert verified["provider"]["metadata"]["auth_header_value_env"] == "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN"
     assert "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN" not in json.dumps(verified["provider"].get("credential_bindings", {}))
+    routes = tuple(verified["routes"])
+    assert {route["unit_type"] for route in routes} == {"gpu_minute", "gpu_hour", "request"}
+    assert {route["provider_id"] for route in routes} == {"provider_live_gpu_1"}
+    assert all(route["dry_run_only"] is True for route in routes)
+    assert all(route["verified_provider_required"] is True for route in routes)
+    stored_routes = service.store.list_records(
+        "compute_route",
+        filters={"provider_id": "provider_live_gpu_1"},
+        limit=10,
+    ).records
+    assert {route["route_id"] for route in stored_routes} == {route["route_id"] for route in routes}
+    assert service.list_routes({"provider_id": "provider_live_gpu_1"})["routes"] == stored_routes
 
     fetched = service.market_provider("provider_live_gpu_1")
     assert fetched["provider_application"]["status"] == "verified"
@@ -227,6 +239,7 @@ def test_provider_reapplication_tracks_new_pending_version_without_settlement_si
     assert service.store.count_records("provider_secret_ref") == 2
     assert len(service.store.list_records("compute_provider", filters={"provider_id": "provider_live_gpu_1"}).records) == 1
     assert len(service.store.list_records("provider_reputation", filters={"provider_id": "provider_live_gpu_1"}).records) == 1
+    assert len(service.store.list_records("compute_route", filters={"provider_id": "provider_live_gpu_1"}, limit=10).records) == 3
     assert service.store.count_records("compute_quote") == 0
     audit_events = service.store.list_records("audit_event", limit=10).records
     applied_events = sorted(

@@ -208,6 +208,24 @@ def test_redis_controls_fail_closed_when_tls_is_required_for_plain_url() -> None
     assert circuit_decision.reason_code == "circuit_backend_unavailable"
     assert breaker.get_state("provider")["configured"] is False
 
+def test_redis_controls_allow_explicit_internal_render_redis_without_tls_requirement() -> None:
+    config = ComputeMarketConfig(
+        rate_limit_backend="redis",
+        circuit_breaker_backend="redis",
+        redis_url="redis://render-internal-redis:6379/0",
+        require_managed_redis_in_production=True,
+        allow_internal_redis_in_production=True,
+    )
+
+    limiter = create_rate_limiter(config)
+    breaker = create_circuit_breaker(config)
+
+    assert isinstance(limiter, RedisRateLimiter)
+    assert limiter.require_tls is False
+    assert isinstance(breaker, RedisCircuitBreaker)
+    assert breaker.require_tls is False
+
+
 
 def test_redis_rate_limiter_shares_state_across_instances() -> None:
     redis = FakeRedis()

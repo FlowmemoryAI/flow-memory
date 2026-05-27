@@ -632,11 +632,11 @@ def public_api_url_from_env(values: dict[str, str]) -> str:
 
 def select_managed_redis_url(connection_info: dict[str, Any]) -> str:
     fields = (
+        "internalConnectionString",
         "redissConnectionString",
         "tlsConnectionString",
         "externalConnectionString",
         "connectionString",
-        "internalConnectionString",
     )
     schemes: list[dict[str, str]] = []
     for field in fields:
@@ -645,14 +645,14 @@ def select_managed_redis_url(connection_info: dict[str, Any]) -> str:
             continue
         scheme = url_scheme(value)
         schemes.append({"field": field, "scheme": scheme})
-        if scheme == "rediss":
+        if scheme in {"redis", "rediss"}:
             return value
     emit(
         "blocked_insecure_redis",
         24,
-        required_scheme="rediss",
+        required_scheme="rediss_or_render_internal_redis",
         available_connection_schemes=schemes,
-        required_action="Render Key Value connection-info must expose a rediss:// TLS URL before public deployment",
+        required_action="Render Key Value connection-info must expose an internal redis:// or TLS rediss:// URL before public deployment",
     )
     raise AssertionError("unreachable")
 
@@ -683,13 +683,15 @@ def build_env_vars(
     otlp_timeout_ms: str = "5000",
     provider_callback_ip_allowlist: str = "",
 ) -> list[dict[str, str]]:
-    if url_scheme(redis_url) != "rediss":
+    redis_scheme = url_scheme(redis_url)
+    redis_is_internal = redis_scheme == "redis"
+    if redis_scheme not in {"rediss", "redis"}:
         emit(
             "blocked_insecure_redis",
             24,
-            redis_url_scheme=url_scheme(redis_url),
-            required_scheme="rediss",
-            required_action="FLOW_MEMORY_COMPUTE_REDIS_URL must be a TLS rediss:// managed Redis URL.",
+            redis_url_scheme=redis_scheme,
+            required_scheme="rediss_or_render_internal_redis",
+            required_action="FLOW_MEMORY_COMPUTE_REDIS_URL must be a TLS rediss:// URL or Render internal redis:// URL.",
         )
     if url_scheme(database_url) not in {"postgres", "postgresql"}:
         emit(
@@ -728,8 +730,8 @@ def build_env_vars(
         "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND": "redis",
         "FLOW_MEMORY_API_NONCE_REDIS_PREFIX": "flow-memory:api",
         "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
-        "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
-        "FLOW_MEMORY_API_NONCE_VERIFY_TLS": "true",
+        "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "false" if redis_is_internal else "true",
+        "FLOW_MEMORY_API_NONCE_VERIFY_TLS": "false" if redis_is_internal else "true",
         "FLOW_MEMORY_LOG_LEVEL": "INFO",
         "FLOW_MEMORY_COMPUTE_METRICS_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_TRACING_ENABLED": "true",
@@ -746,6 +748,7 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN": "true",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
+        "FLOW_MEMORY_COMPUTE_ALLOW_INTERNAL_REDIS_IN_PRODUCTION": "true" if redis_is_internal else "false",
         "FLOW_MEMORY_COMPUTE_RATE_LIMIT_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND": "redis",
@@ -1032,7 +1035,8 @@ def smoke_public(
             (safety.get("rate_limit_backend") or readiness_payload.get("rate_limiter_status", {}).get("backend")) == "redis",
             (safety.get("circuit_breaker_backend") or readiness_payload.get("circuit_breaker_status", {}).get("backend")) == "redis",
             safety.get("require_managed_redis_in_production") is True,
-            safety.get("redis_url_scheme") == "rediss",
+            safety.get("redis_url_scheme") == "rediss"
+            or (safety.get("redis_url_scheme") == "redis" and safety.get("allow_internal_redis_in_production") is True),
             checks["plan"][0] == 200,
             plan_payload.get("dry_run_only") is True,
             plan_payload.get("funds_moved") is False,

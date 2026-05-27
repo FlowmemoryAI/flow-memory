@@ -26,6 +26,7 @@ class ComputeMarketConfig:
     redis_url: str = ""
     redis_prefix: str = "flow-memory:compute-market"
     require_managed_redis_in_production: bool = False
+    allow_internal_redis_in_production: bool = False
     rate_limit_enabled: bool = True
     circuit_breaker_enabled: bool = True
     rate_limit_fail_closed: bool = True
@@ -156,10 +157,17 @@ class ComputeMarketConfig:
         ):
             errors.append("production_planning requires Redis backends when require_managed_redis_in_production=true")
         if self.require_managed_redis_in_production and self.compute_market_mode == "production_planning":
+            redis_scheme = _url_scheme(self.redis_url)
+            redis_scheme_allowed = redis_scheme == "rediss" or (
+                self.allow_internal_redis_in_production and redis_scheme == "redis"
+            )
             if not self.redis_url:
                 errors.append("production_planning requires redis_url when require_managed_redis_in_production=true")
-            elif _url_scheme(self.redis_url) != "rediss":
-                errors.append("production_planning requires a rediss:// redis_url when require_managed_redis_in_production=true")
+            elif not redis_scheme_allowed:
+                errors.append(
+                    "production_planning requires a rediss:// redis_url, or an explicit internal redis:// URL "
+                    "when allow_internal_redis_in_production=true"
+                )
             if normalized_rate_backend == "redis" and not self.rate_limit_fail_closed:
                 errors.append(
                     "production_planning requires fail-closed Redis rate limiting "
@@ -240,6 +248,7 @@ class ComputeMarketConfig:
             "redis_prefix": self.redis_prefix,
             "require_managed_redis_in_production": self.require_managed_redis_in_production,
             "redis_url_scheme": _url_scheme(self.redis_url),
+            "allow_internal_redis_in_production": self.allow_internal_redis_in_production,
             "rate_limit_enabled": self.rate_limit_enabled,
             "circuit_breaker_enabled": self.circuit_breaker_enabled,
             "rate_limit_fail_closed": self.rate_limit_fail_closed,
@@ -322,6 +331,10 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         redis_url=source.get("FLOW_MEMORY_COMPUTE_REDIS_URL", ""),
         redis_prefix=source.get("FLOW_MEMORY_COMPUTE_REDIS_PREFIX", "flow-memory:compute-market"),
         require_managed_redis_in_production=_bool(source.get("FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"), False),
+        allow_internal_redis_in_production=_bool(
+            source.get("FLOW_MEMORY_COMPUTE_ALLOW_INTERNAL_REDIS_IN_PRODUCTION"),
+            False,
+        ),
         rate_limit_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMIT_ENABLED"), _bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED"), True)),
         circuit_breaker_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED"), True),
         rate_limit_fail_closed=_bool(source.get("FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED"), True),

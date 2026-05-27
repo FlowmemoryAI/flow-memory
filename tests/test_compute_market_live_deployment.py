@@ -778,7 +778,7 @@ def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: 
     assert render_deploy.validate_render_plans() is None
 
 
-def test_render_deploy_selects_tls_keyvalue_connection_string() -> None:
+def test_render_deploy_prefers_internal_keyvalue_connection_string() -> None:
     redis_url = render_deploy.select_managed_redis_url(
         {
             "internalConnectionString": "redis://internal-render-redis:6379",
@@ -786,15 +786,14 @@ def test_render_deploy_selects_tls_keyvalue_connection_string() -> None:
         }
     )
 
-    assert redis_url == "rediss://external-render-redis:6380"
+    assert redis_url == "redis://internal-render-redis:6379"
 
 
 def test_render_deploy_blocks_insecure_keyvalue_connection_info() -> None:
     with pytest.raises(SystemExit) as blocked:
         render_deploy.select_managed_redis_url(
             {
-                "internalConnectionString": "redis://internal-render-redis:6379",
-                "connectionString": "redis://external-render-redis:6379",
+                "connectionString": "http://not-redis.example",
             }
         )
 
@@ -1048,7 +1047,7 @@ def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> Non
         render_deploy.build_env_vars(
             "dev-key",
             "postgresql://db/flow_memory",
-            "redis://redis/0",
+            "http://redis/0",
             audit_export_uri="s3://flow-memory-audit/compute-market",
         )
     with pytest.raises(SystemExit) as postgres_blocked:

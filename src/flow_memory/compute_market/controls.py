@@ -616,11 +616,13 @@ def create_rate_limiter(config: Any) -> RateLimiter:
     if backend in {"memory", "in_memory"}:
         return InMemoryRateLimiter()
     if backend == "redis":
+        redis_url = str(getattr(config, "redis_url", ""))
         return RedisRateLimiter(
-            redis_url=str(getattr(config, "redis_url", "")),
+            redis_url=redis_url,
             prefix=str(getattr(config, "redis_prefix", "flow-memory:compute-market")),
             fail_closed=bool(getattr(config, "rate_limit_fail_closed", True)),
-            require_tls=bool(getattr(config, "require_managed_redis_in_production", False)),
+            require_tls=bool(getattr(config, "require_managed_redis_in_production", False))
+            and not (bool(getattr(config, "allow_internal_redis_in_production", False)) and redis_url.startswith("redis://")),
         )
     return DistributedRateLimiter(backend_name=backend)
 
@@ -633,11 +635,13 @@ def create_circuit_breaker(config: Any) -> CircuitBreaker:
     if backend in {"memory", "in_memory"}:
         return InMemoryCircuitBreaker()
     if backend == "redis":
+        redis_url = str(getattr(config, "redis_url", ""))
         return RedisCircuitBreaker(
-            redis_url=str(getattr(config, "redis_url", "")),
+            redis_url=redis_url,
             prefix=str(getattr(config, "redis_prefix", "flow-memory:compute-market")),
             fail_closed=bool(getattr(config, "circuit_breaker_fail_closed", True)),
-            require_tls=bool(getattr(config, "require_managed_redis_in_production", False)),
+            require_tls=bool(getattr(config, "require_managed_redis_in_production", False))
+            and not (bool(getattr(config, "allow_internal_redis_in_production", False)) and redis_url.startswith("redis://")),
         )
     return DistributedCircuitBreaker(backend_name=backend)
 

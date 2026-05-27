@@ -191,7 +191,10 @@ def test_production_can_require_managed_tls_redis() -> None:
     ).validate()
 
     assert "production_planning requires redis_url when require_managed_redis_in_production=true" in missing
-    assert "production_planning requires a rediss:// redis_url when require_managed_redis_in_production=true" in plain
+    assert (
+        "production_planning requires a rediss:// redis_url, or an explicit internal redis:// URL "
+        "when allow_internal_redis_in_production=true"
+    ) in plain
     assert "production_planning requires Redis backends when require_managed_redis_in_production=true" in mixed_backends
 
     valid = ComputeMarketConfig(
@@ -205,6 +208,16 @@ def test_production_can_require_managed_tls_redis() -> None:
     record = valid.as_record()
     assert record["require_managed_redis_in_production"] is True
     assert record["redis_url_scheme"] == "rediss"
+    internal = ComputeMarketConfig(
+        database_url=":memory:",
+        rate_limit_backend="redis",
+        circuit_breaker_backend="redis",
+        redis_url="redis://cache.internal:6379/0",
+        require_managed_redis_in_production=True,
+        allow_internal_redis_in_production=True,
+    )
+    assert internal.validate() == ()
+    assert internal.as_record()["allow_internal_redis_in_production"] is True
 
 
 def test_storage_failure_fails_closed_when_plan_requires_persistence() -> None:

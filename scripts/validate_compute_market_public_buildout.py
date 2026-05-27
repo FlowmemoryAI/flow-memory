@@ -308,7 +308,14 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(readiness.get("rate_limiter_status", {}).get("backend") == "redis" or readiness.get("production_safety_defaults", {}).get("rate_limit_backend") == "redis", "readiness did not report Redis limiter")
     require(readiness.get("circuit_breaker_status", {}).get("backend") == "redis" or readiness.get("production_safety_defaults", {}).get("circuit_breaker_backend") == "redis", "readiness did not report Redis circuit breaker")
     require(safety_defaults.get("require_managed_redis_in_production") is True, "managed Redis requirement is not enabled")
-    require(safety_defaults.get("redis_url_scheme") == "rediss", "managed Redis URL is not rediss://")
+    require(
+        safety_defaults.get("redis_url_scheme") == "rediss"
+        or (
+            safety_defaults.get("redis_url_scheme") == "redis"
+            and safety_defaults.get("allow_internal_redis_in_production") is True
+        ),
+        "managed Redis URL is neither rediss:// nor explicitly allowed internal redis://",
+    )
     require(safety_defaults.get("require_managed_sql_in_production") is True, "managed Postgres requirement is not enabled")
     require(safety_defaults.get("dry_run_required") is True, "dry-run requirement is not enabled")
     require(safety_defaults.get("live_settlement_enabled") is False, "live settlement must remain disabled for Level 1")
@@ -372,6 +379,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
         "circuit_breaker_backend": readiness.get("circuit_breaker_status", {}).get("backend") or readiness.get("production_safety_defaults", {}).get("circuit_breaker_backend"),
         "require_managed_redis_in_production": safety_defaults.get("require_managed_redis_in_production"),
         "redis_url_scheme": safety_defaults.get("redis_url_scheme"),
+        "allow_internal_redis_in_production": safety_defaults.get("allow_internal_redis_in_production"),
         "require_managed_sql_in_production": safety_defaults.get("require_managed_sql_in_production"),
         "dry_run_required": safety_defaults.get("dry_run_required"),
         "live_settlement_enabled": safety_defaults.get("live_settlement_enabled"),

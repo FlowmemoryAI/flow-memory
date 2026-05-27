@@ -452,8 +452,24 @@ class ComputeMarketService:
         }
 
     def list_providers(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        page = self.store.list_records("compute_provider", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
-        return {"ok": True, "providers": page.records, "next_cursor": page.next_cursor}
+        payload = payload or {}
+        filters = {
+            key: value
+            for key, value in payload.items()
+            if key not in {"limit", "cursor", "tenant_id", "workspace_id"} and value not in (None, "")
+        }
+        page = self.store.list_records(
+            "compute_provider",
+            filters=filters,
+            limit=int(payload.get("limit", 100)),
+            cursor=str(payload.get("cursor", "")),
+        )
+        providers = tuple(
+            provider
+            for provider in page.records
+            if _tenant_can_access_catalog_record(payload, provider) and _record_matches_filters(provider, filters)
+        )
+        return {"ok": True, "providers": providers, "next_cursor": page.next_cursor}
 
     def get_provider(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         provider = self.store.get_record("compute_provider", provider_id)
@@ -6286,6 +6302,21 @@ def _tenant_can_access_catalog_record(payload: Mapping[str, Any], record: Mappin
         return True
     record_tenant_id = str(record.get("tenant_id", "")).strip()
     return not record_tenant_id or record_tenant_id == tenant_id
+
+
+def _record_matches_filters(record: Mapping[str, Any], filters: Mapping[str, Any]) -> bool:
+    for key, expected in filters.items():
+        if expected in (None, ""):
+            continue
+        actual = record.get(key, "")
+        if isinstance(expected, bool):
+            if bool(actual) is not expected:
+                return False
+            continue
+        if str(actual).strip() != str(expected).strip():
+            return False
+    return True
+
 
 def _tenant_scoped_record_id(record_type: str, natural_id: str, tenant_id: str) -> str:
     tenant = tenant_id.strip()

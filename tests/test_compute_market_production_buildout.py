@@ -351,6 +351,42 @@ def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only()
     assert service.store.count_records("provider_secret_ref") == 1
 
 
+def test_provider_listing_includes_global_and_filters_cross_tenant_catalog_records() -> None:
+    service = _service()
+    service.create_provider({"provider_id": "global-provider", "provider_name": "Global Provider", "provider_type": "catalog_test"})
+    service.create_provider(
+        {
+            "provider_id": "tenant-provider-a",
+            "provider_name": "Tenant Provider A",
+            "provider_type": "catalog_test",
+            "tenant_id": "tenant_provider_a",
+        }
+    )
+    service.create_provider(
+        {
+            "provider_id": "tenant-provider-b",
+            "provider_name": "Tenant Provider B",
+            "provider_type": "catalog_test",
+            "tenant_id": "tenant_provider_b",
+        }
+    )
+
+    tenant_a = service.list_providers({"tenant_id": "tenant_provider_a", "provider_type": "catalog_test"})
+    tenant_b = service.list_providers({"tenant_id": "tenant_provider_b", "provider_type": "catalog_test"})
+    active_tenant_a = service.list_providers({"tenant_id": "tenant_provider_a", "provider_type": "catalog_test", "status": "active"})
+
+    assert {provider["provider_id"] for provider in tenant_a["providers"]} == {"global-provider", "tenant-provider-a"}
+    assert {provider["provider_id"] for provider in tenant_b["providers"]} == {"global-provider", "tenant-provider-b"}
+    assert {provider["provider_id"] for provider in active_tenant_a["providers"]} == {"global-provider", "tenant-provider-a"}
+    assert service.get_provider("global-provider", {"tenant_id": "tenant_provider_a"})["provider"]["provider_id"] == "global-provider"
+    try:
+        service.get_provider("tenant-provider-b", {"tenant_id": "tenant_provider_a"})
+    except KeyError as exc:
+        assert "Unknown compute provider" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("cross-tenant provider lookup succeeded")
+
+
 def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
     signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")
     service = _service()

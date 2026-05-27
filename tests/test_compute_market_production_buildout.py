@@ -1399,6 +1399,67 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_compute_job_expire_leases_requeues_claims_and_expires_running_jobs() -> None:
+    service = _service()
+    expired_at = "2000-01-01T00:00:00Z"
+    claimed_id = str(service.create_job({**_job_payload(), "job_id": "job_expired_claim"})["job"]["job_id"])
+    running_id = str(service.create_job({**_job_payload(), "job_id": "job_expired_running"})["job"]["job_id"])
+    service.claim_job({"job_id": claimed_id, "worker_id": "worker_old"})
+    service.dispatch_job(running_id, {"worker_id": "worker_running"})
+
+    claimed = dict(service.store.get_record("compute_job", claimed_id) or {})
+    claimed["lease_expires_at"] = expired_at
+    service.store.put_record(
+        "compute_job",
+        claimed_id,
+        claimed,
+        provider_id=str(claimed.get("provider_id", "")),
+        route_id=str(claimed.get("route_id", "")),
+        task_type=str(claimed.get("task_type", "")),
+        status="dispatched",
+        expires_at=expired_at,
+        actor_id="worker_old",
+    )
+    running = dict(service.store.get_record("compute_job", running_id) or {})
+    running["lease_expires_at"] = expired_at
+    running["claimed_by"] = "worker_running"
+    service.store.put_record(
+        "compute_job",
+        running_id,
+        running,
+        provider_id=str(running.get("provider_id", "")),
+        route_id=str(running.get("route_id", "")),
+        task_type=str(running.get("task_type", "")),
+        status="running",
+        expires_at=expired_at,
+        actor_id="worker_running",
+    )
+
+    result = service.expire_job_leases({"limit": 10})
+    requeued = service.get_job(claimed_id)["job"]
+    expired = service.get_job(running_id)["job"]
+    reclaimed = service.claim_job({"job_id": claimed_id, "worker_id": "worker_new"})
+
+    assert result["ok"] is True
+    assert result["expired_count"] == 2
+    assert requeued["status"] == "queued"
+    assert requeued["claimed_by"] == ""
+    assert requeued["lease_expires_at"] == ""
+    assert requeued["last_expired_lease"]["claimed_by"] == "worker_old"
+    assert expired["status"] == "expired"
+    assert expired["error_code"] == "worker_heartbeat_timeout"
+    assert "expired" in expired["lifecycle"]
+    assert reclaimed["job"]["status"] == "dispatched"
+    assert any(event["event_type"] == "job.lease_expired" for event in service.job_events(running_id)["events"])
+    assert any(event["event_type"] == "job.lease_expired_requeued" for event in service.job_events(claimed_id)["events"])
+    try:
+        service.complete_job(running_id, {"worker_id": "worker_running", "actual_units": 1})
+    except ValueError as exc:
+        assert "status expired" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("expired running job accepted completion")
+
+
 def test_compute_job_listing_filters_by_tenant_status_and_paginates() -> None:
     service = _service()
     first = service.create_job(
@@ -2497,6 +2558,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/compute/jobs/job_1/dispatch") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/complete") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/claim") == ("compute:execute",)
+        assert required_scopes_for("POST", "/compute/jobs/expire-leases") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/heartbeat") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/release-claim") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
@@ -2522,6 +2584,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         claimed = router.dispatch("POST", "/compute/jobs/claim", {"worker_id": "worker_api"})
         dispatched = router.dispatch("POST", f"/compute/jobs/{job_id}/dispatch", {"worker_id": "worker_api"})
         completed = router.dispatch("POST", f"/compute/jobs/{job_id}/complete", {"actual_total_cost": 0.12, "worker_id": "worker_api"})
+        expired_leases = router.dispatch("POST", "/compute/jobs/expire-leases", {})
         telemetry = router.dispatch("GET", "/compute/telemetry")
         jobs = router.dispatch("GET", "/compute/jobs", {"status": "succeeded"})
         intelligence = router.dispatch("POST", "/compute/intelligence-plan", {"task": "research route api", "agent_id": "agent_api", "estimated_value": 5.0, "budget": 1.0})
@@ -2533,6 +2596,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert dispatched["job"]["status"] == "running"
         assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
+        assert expired_leases["expired_count"] == 0
         assert tuple(str(item["job_id"]) for item in jobs["jobs"]) == (job_id,)
         assert telemetry["summary"]["metric_sample_count"] >= 1
         assert intelligence["intelligence_plan"]["recommended_intelligence_tier"]

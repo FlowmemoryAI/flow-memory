@@ -32,6 +32,7 @@ _METRIC_NAMES: tuple[str, ...] = (
     "compute_job_started_total",
     "compute_job_completed_total",
     "compute_job_failed_total",
+    "compute_job_lease_expired_total",
     "provider_execution_request_total",
     "provider_execution_failure_total",
     "provider_quote_latency_ms",

@@ -141,7 +141,7 @@ def _compute(argv: list[str]) -> int:
     jobs = subparsers.add_parser("jobs", help="Operate compute job execution lifecycle")
     jobs.add_argument(
         "job_action",
-        choices=("create", "get", "events", "artifacts", "cancel", "retry", "dispatch", "complete", "fail", "claim", "heartbeat", "release-claim"),
+        choices=("create", "get", "events", "artifacts", "cancel", "retry", "dispatch", "complete", "fail", "claim", "expire-leases", "heartbeat", "release-claim"),
     )
     jobs.add_argument("job_id", nargs="?", default="")
     _add_compute_query_args(jobs)
@@ -455,6 +455,10 @@ def _job_output(service: Any, args: Any, payload: dict[str, Any]) -> Mapping[str
         if job_id:
             job_payload["job_id"] = job_id
         return _mapping_output(service.claim_job(job_payload))
+    if action == "expire-leases":
+        if job_id:
+            job_payload["job_id"] = job_id
+        return _mapping_output(service.expire_job_leases(job_payload))
     required_job_id = _required_billing_id(job_id, "job_id")
     if action == "get":
         return _mapping_output(service.get_job(required_job_id))

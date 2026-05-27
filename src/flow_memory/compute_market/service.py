@@ -1643,10 +1643,12 @@ class ComputeMarketService:
         return {"ok": True, "job": job, "event": event}
 
     def list_jobs(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        _assert_no_unsafe(payload or {})
+        payload = payload or {}
+        _assert_no_unsafe(payload)
+        self._expire_job_leases(payload, request_id=_request_id(payload))
         filters = {
             key: value
-            for key, value in (payload or {}).items()
+            for key, value in payload.items()
             if key
             in {
                 "tenant_id",
@@ -1665,16 +1667,149 @@ class ComputeMarketService:
         page = self.store.list_records(
             "compute_job",
             filters=filters,
-            limit=int((payload or {}).get("limit", 100)),
-            cursor=str((payload or {}).get("cursor", "")),
+            limit=int(payload.get("limit", 100)),
+            cursor=str(payload.get("cursor", "")),
         )
         return {"ok": True, "jobs": page.records, "next_cursor": page.next_cursor}
 
     def get_job(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
         job = self.store.get_record("compute_job", job_id)
-        if job is None or not _tenant_can_access_record(payload or {}, job):
+        if job is None or not _tenant_can_access_record(payload, job):
             raise KeyError(f"Unknown compute job: {job_id}")
+        if str(job.get("status", "")) in {"dispatched", "running"} and _job_lease_expired(job, utc_now_iso()):
+            self._expire_job_leases({**dict(payload), "job_id": job_id}, request_id=_request_id(payload))
+            job = self.store.get_record("compute_job", job_id)
+            if job is None or not _tenant_can_access_record(payload, job):
+                raise KeyError(f"Unknown compute job: {job_id}")
         return {"ok": True, "job": job}
+
+    def expire_job_leases(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+        payload = payload or {}
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /compute/jobs/expire-leases", request_id=request_id)
+        if limited is not None:
+            return limited
+        expired_jobs, events = self._expire_job_leases(payload, request_id=request_id)
+        return {"ok": True, "expired_jobs": expired_jobs, "events": events, "expired_count": len(expired_jobs)}
+
+    def _expire_job_leases(self, payload: Mapping[str, Any], *, request_id: str) -> tuple[tuple[Mapping[str, Any], ...], tuple[Mapping[str, Any], ...]]:
+        now = utc_now_iso()
+        target_job_id = str(payload.get("job_id", "")).strip()
+        limit = min(500, max(1, int(payload.get("limit", 100) or 100)))
+        candidates: tuple[Mapping[str, Any], ...]
+        if target_job_id:
+            candidate = self.store.get_record("compute_job", target_job_id)
+            candidates = (candidate,) if candidate is not None and _tenant_can_access_record(payload, candidate) else ()
+        else:
+            base_filters = {
+                key: str(payload.get(key, ""))
+                for key in ("tenant_id", "workspace_id", "provider_id", "route_id", "task_type")
+                if str(payload.get(key, "")).strip()
+            }
+            dispatched = self.store.list_records("compute_job", filters={**base_filters, "status": "dispatched"}, limit=limit).records
+            running = self.store.list_records("compute_job", filters={**base_filters, "status": "running"}, limit=limit).records
+            candidates = (*dispatched, *running)
+
+        expired_jobs: list[Mapping[str, Any]] = []
+        events: list[Mapping[str, Any]] = []
+        for candidate in candidates:
+            job = dict(candidate)
+            job_id = str(job.get("job_id", job.get("record_id", "")))
+            status = str(job.get("status", ""))
+            lease_expires_at = str(job.get("lease_expires_at", job.get("expires_at", "")))
+            if not job_id or status not in {"dispatched", "running"} or not _job_lease_expired(job, now):
+                continue
+            previous_claim = {
+                "claimed_by": str(job.get("claimed_by", "")),
+                "claim_token": str(job.get("claim_token", "")),
+                "lease_expires_at": lease_expires_at,
+                "started_by_worker_id": str(job.get("started_by_worker_id", "")),
+            }
+            if status == "dispatched":
+                next_status = "queued"
+                event_type = "job.lease_expired_requeued"
+                job.update(
+                    {
+                        "status": next_status,
+                        "claimed_by": "",
+                        "claim_token": "",
+                        "lease_expires_at": "",
+                        "lease_expired_at": now,
+                        "last_expired_lease": previous_claim,
+                        "worker_capabilities": (),
+                        "updated_at": now,
+                        "lease_expiration_count": int(job.get("lease_expiration_count", 0) or 0) + 1,
+                        "provider_dispatch": "worker_queue_claim_expired",
+                    }
+                )
+            else:
+                next_status = "expired"
+                event_type = "job.lease_expired"
+                job.update(
+                    {
+                        "status": next_status,
+                        "expired_at": now,
+                        "updated_at": now,
+                        "error_code": "worker_heartbeat_timeout",
+                        "failure_reason": "Worker lease expired before completion.",
+                        "lease_expires_at": "",
+                        "last_expired_lease": previous_claim,
+                        "lease_expiration_count": int(job.get("lease_expiration_count", 0) or 0) + 1,
+                        "lifecycle": _append_lifecycle(job, "expired"),
+                    }
+                )
+            updated = self.store.put_record_if_state(
+                "compute_job",
+                job_id,
+                (status,),
+                job,
+                expires_at_before=now,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                task_type=str(job.get("task_type", "")),
+                status=next_status,
+                expires_at="",
+                request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            if not updated:
+                continue
+            event = _job_event(
+                job_id,
+                event_type,
+                status=next_status,
+                request_id=request_id,
+                details={"expired_lease": previous_claim, "dry_run_only": True},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=next_status,
+                request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            self.telemetry.increment("compute_job_lease_expired_total", {"status": status, "next_status": next_status})
+            if next_status == "expired":
+                self.telemetry.increment("compute_job_failed_total", {"task_type": str(job.get("task_type", "")), "error_code": "worker_heartbeat_timeout"})
+            self._audit(
+                "compute.job.lease_expired",
+                {**dict(payload), "job_id": job_id},
+                request_id=request_id,
+                result=next_status,
+                reason_codes=("worker_lease_expired",),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            expired_jobs.append(job)
+            events.append(event)
+        return tuple(expired_jobs), tuple(events)
 
     def job_events(self, job_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         self.get_job(job_id, payload)
@@ -2272,6 +2407,7 @@ class ComputeMarketService:
         ttl_seconds = _lease_ttl_seconds(payload)
         lease_expires_at = _future_utc_iso(ttl_seconds)
         requested_job_id = str(payload.get("job_id", "")).strip()
+        self._expire_job_leases(payload, request_id=request_id)
         candidates = _claim_candidates(self.store, requested_job_id=requested_job_id, tenant_id=_payload_tenant_id(payload))
         for candidate in candidates:
             job = dict(candidate)

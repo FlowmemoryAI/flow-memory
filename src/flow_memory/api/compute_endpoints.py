@@ -347,6 +347,10 @@ def compute_job_claim(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().claim_job(payload)
 
 
+def compute_job_expire_leases(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().expire_job_leases(payload)
+
+
 def compute_job_heartbeat(job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return default_service().heartbeat_job(job_id, payload)
 

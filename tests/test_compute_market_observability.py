@@ -106,6 +106,7 @@ def test_telemetry_snapshot_reset_and_prometheus_text() -> None:
 def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     names = set(metric_names())
     assert "compute_job_completed_total" in names
+    assert "compute_job_lease_expired_total" in names
     assert "billing_debit_total" in names
     assert "billing_insufficient_credit_total" in names
     assert "audit_chain_verify_fail_total" in names
@@ -677,6 +678,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "compute_job_started_total",
         "compute_job_completed_total",
         "compute_job_failed_total",
+        "compute_job_lease_expired_total",
         "provider_quote_latency_ms",
         "provider_quote_failure_total",
         "provider_circuit_open_total",
@@ -748,6 +750,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "settlement_attempt_total",
         "external_provider_allowlist_missing_total",
         "compute_job_failed_total",
+        "compute_job_lease_expired_total",
         "alert_delivery_failed_total",
         "error_tracking_failed_total",
         "otlp_export_failed_total",

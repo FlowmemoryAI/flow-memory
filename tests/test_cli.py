@@ -325,6 +325,7 @@ class CLITests(unittest.TestCase):
             )
             events_code, events_output = self._run_cli(["compute", "jobs", "events", job_id])
             artifacts_code, artifacts_output = self._run_cli(["compute", "jobs", "artifacts", job_id])
+            expire_code, expire_output = self._run_cli(["compute", "jobs", "expire-leases"])
 
             list_code, list_output = self._run_cli(
                 [
@@ -372,6 +373,7 @@ class CLITests(unittest.TestCase):
         completed = json.loads(complete_output)
         events = json.loads(events_output)
         artifacts = json.loads(artifacts_output)
+        expired_leases = json.loads(expire_output)
         listed = json.loads(list_output)
         confirmed = json.loads(confirm_output)
         order_book = json.loads(order_book_output)
@@ -382,12 +384,14 @@ class CLITests(unittest.TestCase):
         self.assertEqual(complete_code, 0)
         self.assertEqual(events_code, 0)
         self.assertEqual(artifacts_code, 0)
+        self.assertEqual(expire_code, 0)
         self.assertEqual(created["job"]["status"], "queued")
         self.assertEqual(dispatched["job"]["status"], "running")
         self.assertEqual(completed["job"]["status"], "succeeded")
         self.assertEqual(completed["artifact"]["artifact_ref"], "s3://flow-memory-results/job-cli-lifecycle.json")
         self.assertTrue(any(event["event_type"] == "job.completed" for event in events["events"]))
         self.assertEqual(artifacts["artifacts"][0]["artifact_ref"], "s3://flow-memory-results/job-cli-lifecycle.json")
+        self.assertEqual(expired_leases["expired_count"], 0)
 
         self.assertEqual(list_code, 0)
         self.assertEqual(reserve_code, 0)

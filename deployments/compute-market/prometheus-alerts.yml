@@ -41,6 +41,16 @@ groups:
           summary: Provider fraud or quote manipulation signal was recorded.
           description: Review quote replay, provider spoofing, stale quote, signature, and price-manipulation fraud signals before routing provider supply.
 
+      - alert: FlowMemoryComputeMarketProviderSlaPenalty
+        expr: provider_sla_penalty_total > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: providers
+        annotations:
+          summary: Provider SLA penalties were recorded.
+          description: Review breached latency, refund policy, provider payout adjustments, and reputation impact before routing more work to this provider.
+
       - alert: FlowMemoryComputeMarketProviderCircuitOpen
         expr: provider_circuit_open_total > 0
         for: 1m

@@ -176,6 +176,7 @@ DEFAULT_ALERT_RULES: tuple[AlertRule, ...] = (
     AlertRule("provider-circuit-open", "provider_circuit_open_total", 1.0, ">=", "warning", "Provider circuit breaker opened."),
     AlertRule("provider-quote-failures", "provider_quote_failure_total", 3.0, ">=", "warning", "Provider quote failures exceeded the public alpha threshold."),
     AlertRule("provider-fraud-signal", "provider_fraud_signal_total", 1.0, ">=", "critical", "Provider fraud or quote-manipulation signal was recorded."),
+    AlertRule("provider-sla-penalty", "provider_sla_penalty_total", 1.0, ">=", "warning", "Provider SLA penalty was recorded for breached execution terms."),
     AlertRule("policy-denial-spike", "compute_policy_denials_total", 10.0, ">=", "warning", "Policy/rate-limit denials spiked."),
     AlertRule("unexpected-settlement-attempt", "settlement_attempt_total", 1.0, ">=", "critical", "Settlement path was touched while live settlement remains disabled."),
     AlertRule("billing-webhook-failures", "billing_webhook_failures_total", 1.0, ">=", "critical", "Billing webhook verification failed."),

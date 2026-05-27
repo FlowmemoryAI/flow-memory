@@ -135,6 +135,7 @@ def _provider(
     retries: int = 1,
     timeout_seconds: float = 2.0,
     signing_key: LocalKeyPair | None = None,
+    verification_public_key: str | Mapping[str, Any] = "",
 ) -> HTTPQuoteProvider:
     providers = default_compute_providers()
     routes = default_compute_routes()
@@ -152,6 +153,7 @@ def _provider(
         auth_header_name="x-provider-token",
         auth_header_value_env="FLOW_MEMORY_TEST_PROVIDER_TOKEN",
         signing_key=signing_key,
+        verification_public_key=verification_public_key,
     )
 
 
@@ -302,6 +304,43 @@ def test_external_provider_adapter_verifies_signed_quote_responses() -> None:
     assert quotes[0].signed_quote
     assert all(quote.status == "invalid_response" for quote in tampered)
 
+
+def test_http_provider_verifies_signed_execution_results() -> None:
+    signer = LocalTestSigner("provider-execution-response-key", "provider-execution-response-seed")
+    unsigned = {
+        "execution_id": "exec-signed-1",
+        "provider_job_id": "exec-signed-1",
+        "job_id": "job_signed_exec",
+        "provider_id": "market-token-provider",
+        "status": "running",
+        "artifact_ref": "s3://flow-memory-results/job_signed_exec.json",
+        "artifact_data": {"ok": True},
+        "actual_units": 2.0,
+        "actual_total_cost": 0.18,
+        "actual_latency_ms": 450.0,
+    }
+    signed = {**unsigned, "signature": signer.sign(unsigned).as_record()}
+    adapter = _provider(
+        "http://127.0.0.1:9/valid",
+        verification_public_key=signer.public_record().as_record(),
+    )
+    plan = {
+        "job_id": "job_signed_exec",
+        "provider_id": "market-token-provider",
+        "route_id": "market-token-route",
+    }
+
+    verified = adapter.normalize_execution_result({"execution": signed}, plan)
+    tampered = adapter.normalize_execution_result({"execution": {**signed, "actual_total_cost": 9.99}}, plan)
+    unsigned_result = adapter.normalize_execution_result({"execution": unsigned}, plan)
+
+    assert verified["ok"] is True
+    assert verified["provider_execution_signature_valid"] is True
+    assert verified["provider_execution_signature"]
+    assert tampered["ok"] is False
+    assert tampered["error_code"] == "provider_execution.signature_invalid"
+    assert unsigned_result["ok"] is False
+    assert unsigned_result["error_code"] == "provider_execution.signature_invalid"
 
 
 def test_signed_provider_request_headers_are_payload_bound() -> None:

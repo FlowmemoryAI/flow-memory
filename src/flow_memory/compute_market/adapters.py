@@ -428,6 +428,17 @@ class HTTPQuoteProvider:
     def normalize_execution_result(self, raw_result: object, plan: Mapping[str, Any]) -> Mapping[str, Any]:
         result = _extract_execution_result(raw_result)
         job_id = str(plan.get("job_id", ""))
+        raw_signature = result.get("signature") or result.get("verification")
+        execution_signature_valid = False
+        if self.verification_public_key:
+            execution_signature_valid = verify_provider_quote_signature(result, self.verification_public_key)
+            if not execution_signature_valid:
+                return _execution_error(
+                    "provider_execution.signature_invalid",
+                    "Provider execution response signature is missing or invalid.",
+                    provider_id=self.provider.provider_id,
+                    job_id=job_id,
+                )
         result_job_id = str(result.get("job_id", job_id))
         result_provider_id = str(result.get("provider_id", self.provider.provider_id))
         if result_job_id != job_id:
@@ -465,6 +476,9 @@ class HTTPQuoteProvider:
             "private_key_required": False,
             "raw_result_hash": content_hash(result),
         }
+        if raw_signature:
+            normalized["provider_execution_signature"] = json.dumps(raw_signature, sort_keys=True, default=str)
+            normalized["provider_execution_signature_valid"] = execution_signature_valid
         return normalized
 
     def get_reliability_snapshot(self) -> Mapping[str, Any]:

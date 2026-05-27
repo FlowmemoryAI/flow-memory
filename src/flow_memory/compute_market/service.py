@@ -2789,7 +2789,33 @@ class ComputeMarketService:
         provider_payout: Mapping[str, Any] = {}
         provider_sla_penalty: Mapping[str, Any] = {}
         credit_release: Mapping[str, Any] = {}
+        usage_invoice: Mapping[str, Any] = {}
         if usage_charge:
+            usage_invoice = _billing_invoice(
+                invoice_id=deterministic_id(
+                    "billing_invoice",
+                    {"source_type": "usage_charge", "usage_charge_id": str(usage_charge["usage_charge_id"])},
+                ),
+                account_id=str(usage_charge.get("account_id", "")),
+                source_type="usage_charge",
+                source_id=str(usage_charge["usage_charge_id"]),
+                amount=float(usage_charge["amount"]),
+                currency=str(usage_charge["currency"]),
+                status=str(usage_charge["status"]),
+                line_items=(
+                    {
+                        "description": f"Compute usage for job {job_id}",
+                        "quantity": float(usage_charge.get("units", 0.0) or 0.0),
+                        "unit_type": str(usage_charge.get("unit_type", "")),
+                        "amount": float(usage_charge["amount"]),
+                        "currency": str(usage_charge["currency"]),
+                    },
+                ),
+                request_id=request_id,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            usage_charge["invoice_id"] = str(usage_invoice["invoice_id"])
             self.store.put_record(
                 "usage_charge",
                 str(usage_charge["usage_charge_id"]),
@@ -2802,6 +2828,31 @@ class ComputeMarketService:
                 status=str(usage_charge["status"]),
                 request_id=request_id,
                 idempotency_key=str(usage_charge["usage_charge_id"]),
+            )
+            self.store.put_record(
+                "billing_invoice",
+                str(usage_invoice["invoice_id"]),
+                usage_invoice,
+                tenant_id=str(usage_invoice.get("account_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(usage_invoice["status"]),
+                request_id=request_id,
+                idempotency_key=str(usage_invoice["invoice_id"]),
+            )
+            self._audit(
+                "billing.invoice.created",
+                {
+                    **dict(payload),
+                    "job_id": job_id,
+                    "invoice_id": str(usage_invoice["invoice_id"]),
+                    "source_type": "usage_charge",
+                },
+                request_id=request_id,
+                result=str(usage_invoice["status"]),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
             )
             self._audit(
                 "billing.usage.charged",
@@ -2899,6 +2950,7 @@ class ComputeMarketService:
                 "provider_payout_recorded": bool(provider_payout),
                 "provider_sla_penalty_recorded": bool(provider_sla_penalty),
                 "capacity_consumption_recorded": bool(capacity_consumption),
+                "usage_invoice_recorded": bool(usage_invoice),
                 "actual_total_cost": cost,
                 "funds_moved": False,
                 "provider_sla_max_latency_ms": sla_max_latency_ms,
@@ -2938,6 +2990,7 @@ class ComputeMarketService:
             "provider_sla_penalty": provider_sla_penalty,
             "credit_release": credit_release,
             "capacity_consumption": capacity_consumption,
+            "usage_invoice": usage_invoice,
         }
 
     def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -3500,6 +3553,29 @@ class ComputeMarketService:
                     reason_codes = ()
                     next_safe_actions = ("redirect user to external_checkout_url", "credit balance only after verified Stripe webhook")
 
+        invoice = _billing_invoice(
+            invoice_id=deterministic_id(
+                "billing_invoice",
+                {"source_type": "checkout", "payment_event_id": payment_event_id},
+            ),
+            account_id=account_id,
+            source_type="checkout",
+            source_id=payment_event_id,
+            amount=amount,
+            currency=currency,
+            status=str(checkout["status"]),
+            line_items=(
+                {
+                    "description": "Prepaid compute credits",
+                    "quantity": 1.0,
+                    "unit_amount": amount,
+                    "amount": amount,
+                    "currency": currency,
+                },
+            ),
+            request_id=request_id,
+        )
+        checkout["invoice_id"] = str(invoice["invoice_id"])
         if ok:
             self.telemetry.increment("billing_checkout_created_total", {"provider": str(checkout["provider"])})
         elif checkout["status"] in {"external_checkout_failed", "requires_stripe_checkout_config"}:
@@ -3514,6 +3590,16 @@ class ComputeMarketService:
             request_id=request_id,
             idempotency_key=str(payload.get("idempotency_key", "")),
         )
+        self.store.put_record(
+            "billing_invoice",
+            str(invoice["invoice_id"]),
+            invoice,
+            tenant_id=account_id,
+            workspace_id=str(account.get("workspace_id", "")),
+            status=str(invoice["status"]),
+            request_id=request_id,
+            idempotency_key=str(payload.get("idempotency_key") or invoice["invoice_id"]),
+        )
         self._audit(
             "billing.checkout.requested",
             {**dict(payload), "payment_event_id": payment_event_id, "checkout_status": checkout["status"]},
@@ -3521,7 +3607,13 @@ class ComputeMarketService:
             result=audit_result,
             reason_codes=reason_codes,
         )
-        return {"ok": ok, "checkout": checkout, "next_safe_actions": next_safe_actions}
+        self._audit(
+            "billing.invoice.created",
+            {**dict(payload), "invoice_id": str(invoice["invoice_id"]), "source_type": "checkout"},
+            request_id=request_id,
+            result=str(invoice["status"]),
+        )
+        return {"ok": ok, "checkout": checkout, "invoice": invoice, "next_safe_actions": next_safe_actions}
 
     def billing_webhook_stripe(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -3648,7 +3740,14 @@ class ComputeMarketService:
         account_id = _billing_account_id(payload)
         filters = {"tenant_id": account_id}
         charges = tuple(self.store.list_records("usage_charge", filters=filters, limit=int(payload.get("limit", 100) or 100)).records)
-        return {"ok": True, "usage_charges": charges, "account_id": account_id}
+        invoices = tuple(
+            self.store.list_records(
+                "billing_invoice",
+                filters=filters,
+                limit=int(payload.get("limit", 100) or 100),
+            ).records
+        )
+        return {"ok": True, "usage_charges": charges, "billing_invoices": invoices, "account_id": account_id}
 
     def billing_provider_payouts(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
@@ -3838,9 +3937,11 @@ class ComputeMarketService:
         provider_payouts = self._all_records("provider_payout")
         refunds = self._all_records("refund")
         provider_sla_penalties = self._all_records("provider_sla_penalty")
+        billing_invoices = self._all_records("billing_invoice")
         usage_total = _record_amount_total(usage_charges)
         refund_total = _record_amount_total(refunds)
         provider_payout_total = _record_amount_total(provider_payouts)
+        invoice_total = _record_amount_total(billing_invoices)
         ledger_balance_delta = round(usage_total - refund_total - provider_payout_total, 6)
         run_id = deterministic_id("reconciliation", {"created_at": utc_now_iso(), "scope": payload})
         run = {
@@ -3851,10 +3952,12 @@ class ComputeMarketService:
             "provider_payout_count": len(provider_payouts),
             "refund_count": len(refunds),
             "provider_sla_penalty_count": len(provider_sla_penalties),
+            "billing_invoice_count": len(billing_invoices),
             "usage_charge_total": usage_total,
             "refund_total": refund_total,
             "provider_payout_total": provider_payout_total,
             "provider_payout_summary": _provider_payout_summary(provider_payouts),
+            "billing_invoice_total": invoice_total,
             "ledger_balance_delta": ledger_balance_delta,
             "ledger_balanced": abs(ledger_balance_delta) <= 0.000001,
             "funds_moved": False,
@@ -7051,6 +7154,41 @@ def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request
         "amount": amount,
         "currency": currency,
         "status": "dry_run_recorded",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "created_at": now,
+        "updated_at": now,
+        "request_id": request_id,
+    }
+
+
+def _billing_invoice(
+    *,
+    invoice_id: str,
+    account_id: str,
+    source_type: str,
+    source_id: str,
+    amount: float,
+    currency: str,
+    status: str,
+    line_items: tuple[Mapping[str, Any], ...],
+    request_id: str,
+    provider_id: str = "",
+    route_id: str = "",
+) -> dict[str, Any]:
+    now = utc_now_iso()
+    return {
+        "invoice_id": invoice_id,
+        "account_id": account_id,
+        "provider_id": provider_id,
+        "route_id": route_id,
+        "source_type": source_type,
+        "source_id": source_id,
+        "amount": amount,
+        "currency": currency,
+        "status": status,
+        "line_items": tuple(dict(item) for item in line_items),
+        "external_invoice_created": False,
         "dry_run_only": True,
         "funds_moved": False,
         "created_at": now,

@@ -2429,6 +2429,11 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert checkout["ok"] is False
     assert checkout["checkout"]["funds_moved"] is False
     assert checkout["checkout"]["status"] == "requires_external_checkout_provider"
+    assert checkout["invoice"]["source_type"] == "checkout"
+    assert checkout["invoice"]["status"] == "requires_external_checkout_provider"
+    assert checkout["invoice"]["amount"] == 100
+    assert checkout["invoice"]["funds_moved"] is False
+    assert checkout["checkout"]["invoice_id"] == checkout["invoice"]["invoice_id"]
 
     raw_event = {"id": "evt_1", "type": "checkout.session.completed", "amount_total": 10000, "currency": "usd", "metadata": {"account_id": "acct_1"}}
     secret = "whsec_test_secret"
@@ -2643,6 +2648,13 @@ def test_prepaid_credits_debit_usage_and_accrue_provider_payout() -> None:
     assert completed["provider_payout"]["status"] == "accrued"
     assert completed["provider_payout"]["provider_id"] == "provider_live_gpu_1"
     assert completed["provider_payout"]["funds_moved"] is False
+    assert completed["usage_invoice"]["source_type"] == "usage_charge"
+    assert completed["usage_invoice"]["source_id"] == completed["usage_charge"]["usage_charge_id"]
+    assert completed["usage_charge"]["invoice_id"] == completed["usage_invoice"]["invoice_id"]
+    assert completed["usage_invoice"]["funds_moved"] is False
+    usage = service.billing_usage({"account_id": "acct_paid"})
+    assert usage["billing_invoices"][0]["invoice_id"] == completed["usage_invoice"]["invoice_id"]
+    assert service.reconciliation()["reconciliation"]["billing_invoice_count"] == 1
     assert service.billing_balance({"account_id": "acct_paid"})["balance"]["available_credits"] == 0.82
 
 def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> None:

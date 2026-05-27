@@ -143,6 +143,7 @@ def test_postgres_schema_generation_contains_required_tables_indexes_and_jsonb()
         "compute_provider_receipt_replay_guard",
         "compute_jobs",
         "compute_billing_accounts",
+        "compute_billing_invoices",
         "compute_capacity_auctions",
         "compute_provider_sla_penalties",
         "compute_alert_deliveries",

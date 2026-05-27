@@ -74,6 +74,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "credit_balance": "compute_credit_balances",
     "credit_transaction": "compute_credit_transactions",
     "payment_event": "compute_payment_events",
+    "billing_invoice": "compute_billing_invoices",
     "provider_payout": "compute_provider_payouts",
     "usage_charge": "compute_usage_charges",
     "provider_sla_penalty": "compute_provider_sla_penalties",

@@ -140,12 +140,21 @@ $requiredKeys = @(
 $placeholderPattern = 'CHANGEME|<required>|<your-domain>|yourdomain\.com|api\.yourdomain\.com|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host'
 $envValues = Read-EnvFile -Path $envPath
 $renderApiKey = [Environment]::GetEnvironmentVariable('RENDER_API_KEY', 'Process')
+if ([string]::IsNullOrWhiteSpace($renderApiKey)) {
+    foreach ($scope in @('User', 'Machine')) {
+        $candidate = [Environment]::GetEnvironmentVariable('RENDER_API_KEY', $scope)
+        if (-not [string]::IsNullOrWhiteSpace($candidate)) {
+            $renderApiKey = $candidate
+            [Environment]::SetEnvironmentVariable('RENDER_API_KEY', $candidate, 'Process')
+            break
+        }
+    }
+}
 $renderOwnerId = [Environment]::GetEnvironmentVariable('RENDER_OWNER_ID', 'Process')
 if (
     $Mode -eq 'auto' -and
     (Test-Path -LiteralPath $renderBlueprintPath) -and
-    (Test-Path -LiteralPath $renderHelper) -and
-    -not [string]::IsNullOrWhiteSpace($renderApiKey)
+    (Test-Path -LiteralPath $renderHelper)
 ) {
     $render = Invoke-ExternalQuiet -FilePath 'python' -ArgumentList @($renderHelper, '--env-file', $envPath)
     if (-not [string]::IsNullOrWhiteSpace($render.Stdout)) {

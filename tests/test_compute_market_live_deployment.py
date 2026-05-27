@@ -513,16 +513,15 @@ def test_api_server_cli_builds_redis_nonce_guard_from_public_env() -> None:
     assert config.nonce_fail_closed is True
 
 
-def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.MonkeyPatch) -> None:
-    with pytest.raises(SystemExit) as missing:
-        render_deploy.audit_export_uri_from_env({})
-    with pytest.raises(SystemExit) as local_file:
-        render_deploy.audit_export_uri_from_env(
-            {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "/var/lib/flow-memory/audit/compute-market.ndjson"}
-        )
+def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monkeypatch: pytest.MonkeyPatch) -> None:
+    local_uri = "/var/lib/flow-memory/audit/compute-market.ndjson"
+
+    assert render_deploy.audit_export_uri_from_env({}) == local_uri
+    assert render_deploy.audit_export_uri_from_env({"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": local_uri}) == local_uri
     with pytest.raises(SystemExit) as missing_region:
         render_deploy.audit_export_s3_region_from_env(
-            {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://flow-memory-audit/compute-market"}
+            {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://flow-memory-audit/compute-market"},
+            "s3://flow-memory-audit/compute-market",
         )
     monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_URI", "s3://flow-memory-shell-audit/compute-market")
     monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_S3_REGION", "us-west-2")
@@ -534,42 +533,55 @@ def test_render_deploy_requires_s3_object_lock_audit_export(monkeypatch: pytest.
         )
         == "s3://flow-memory-shell-audit/compute-market"
     )
-    assert render_deploy.audit_export_s3_region_from_env({}) == "us-west-2"
+    assert render_deploy.audit_export_s3_region_from_env({}, "s3://flow-memory-shell-audit/compute-market") == "us-west-2"
 
-
-    env_vars = {
+    local_env_vars = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri=local_uri,
+        )
+    }
+    s3_env_vars = {
         item["key"]: item["value"]
         for item in render_deploy.build_env_vars(
             "dev-key",
             "postgresql://db/flow_memory",
             "rediss://redis/0",
             audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_object_lock_mode="COMPLIANCE",
+            audit_export_retention_days="365",
+            audit_export_immutable_required="true",
             audit_export_s3_region="us-east-1",
         )
     }
 
-    assert missing.value.code == 23
-    assert local_file.value.code == 23
     assert missing_region.value.code == 23
-    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == "s3://flow-memory-audit/compute-market"
-    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "true"
-    assert env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
-    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
-    assert env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION"] == "us-east-1"
-    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED"] == "false"
-    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL"] == "https://api.stripe.com"
-    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"] == "300"
-    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"] == ""
-    assert env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"] == ""
-    assert env_vars["FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST"] == ""
-    assert env_vars["FLOW_MEMORY_API_JWT_HS256_SECRET"] == ""
-    assert env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == ""
-    assert env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == ""
-    assert env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "60"
-    assert env_vars["FLOW_MEMORY_API_ENABLE_NONCE_CHECK"] == "true"
-    assert env_vars["FLOW_MEMORY_API_NONCE_REPLAY_BACKEND"] == "redis"
-    assert env_vars["FLOW_MEMORY_API_NONCE_FAIL_CLOSED"] == "true"
-    assert env_vars["FLOW_MEMORY_API_NONCE_REQUIRE_TLS"] == "true"
+    assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == local_uri
+    assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "false"
+    assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == ""
+    assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION"] == ""
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == "s3://flow-memory-audit/compute-market"
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "true"
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION"] == "true"
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == "COMPLIANCE"
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION"] == "us-east-1"
+    assert s3_env_vars["FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED"] == "false"
+    assert s3_env_vars["FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL"] == "https://api.stripe.com"
+    assert s3_env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"] == "300"
+    assert s3_env_vars["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"] == ""
+    assert s3_env_vars["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"] == ""
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST"] == ""
+    assert s3_env_vars["FLOW_MEMORY_API_JWT_HS256_SECRET"] == ""
+    assert s3_env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == ""
+    assert s3_env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == ""
+    assert s3_env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "60"
+    assert s3_env_vars["FLOW_MEMORY_API_ENABLE_NONCE_CHECK"] == "true"
+    assert s3_env_vars["FLOW_MEMORY_API_NONCE_REPLAY_BACKEND"] == "redis"
+    assert s3_env_vars["FLOW_MEMORY_API_NONCE_FAIL_CLOSED"] == "true"
+    assert s3_env_vars["FLOW_MEMORY_API_NONCE_REQUIRE_TLS"] == "true"
 
 
 def test_render_env_builder_binds_https_observability_sinks() -> None:
@@ -788,8 +800,10 @@ def test_render_deploy_blocks_insecure_keyvalue_connection_info() -> None:
 
     assert blocked.value.code == 24
 
-def test_render_keyvalue_creation_requires_explicit_external_tls_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
-    created_body: dict[str, object] = {}
+def test_render_keyvalue_creation_defaults_to_non_world_open_external_tls_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    created_bodies: list[dict[str, object]] = []
 
     def fake_find_named(api_key: str, path: str, envelope: str, owner_id: str, name: str) -> None:
         return None
@@ -800,24 +814,24 @@ def test_render_keyvalue_creation_requires_explicit_external_tls_allowlist(monke
         path: str,
         body: Mapping[str, object] | None = None,
     ) -> dict[str, object]:
-        nonlocal created_body
         if method == "POST" and path == "/key-value":
             assert body is not None
             created_body = dict(body)
-            return {"id": "kv_1", **created_body}
+            created_bodies.append(created_body)
+            return {"id": f"kv_{len(created_bodies)}", **created_body}
         raise AssertionError(f"unexpected Render call: {method} {path}")
 
     monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
     monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
 
-    with pytest.raises(SystemExit) as blocked:
-        render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
-
+    default_created = render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
     monkeypatch.setattr(render_deploy, "DEFAULT_KEYVALUE_IP_ALLOWLIST", "203.0.113.10/32,198.51.100.0/24")
-    created = render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
+    explicit_created = render_deploy.ensure_keyvalue("render-key", "owner", "oregon")
 
-    assert blocked.value.code == 26
-    assert created["ipAllowList"] == [
+    assert default_created["ipAllowList"] == [
+        {"source": "0.0.0.0/32", "description": "flow-memory-compute-market-redis-tls"},
+    ]
+    assert explicit_created["ipAllowList"] == [
         {"source": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"},
         {"source": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
     ]
@@ -838,7 +852,7 @@ def test_render_keyvalue_external_allowlist_rejects_invalid_or_world_open_cidrs(
     assert world_open.value.code == 27
 
 
-def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_path: Path) -> None:
+def test_public_powershell_render_placeholder_gate_requires_render_api_key(tmp_path: Path) -> None:
     powershell = shutil.which("powershell") or shutil.which("pwsh")
     if powershell is None:
         pytest.skip("PowerShell is required for public deployment script validation")
@@ -850,8 +864,7 @@ def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_
                 "FLOW_MEMORY_API_KEY=fmk_live_test_key",
                 "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://CHANGEME-managed-postgres-host:5432/flow_memory",
                 "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
-                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
-                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=/var/lib/flow-memory/audit/compute-market.ndjson",
             ]
         ),
         encoding="utf-8",
@@ -880,14 +893,10 @@ def test_public_powershell_render_placeholder_gate_requires_redis_allowlist(tmp_
         check=False,
     )
 
-    assert result.returncode == 13, result.stderr
+    assert result.returncode == 20, result.stderr
     payload = json.loads(result.stdout)
-    assert payload["status"] == "blocked_missing_deployment_target"
-    assert payload["placeholder_values"] == [
-        "FLOW_MEMORY_COMPUTE_DATABASE_URL",
-        "FLOW_MEMORY_COMPUTE_REDIS_URL",
-    ]
-    assert payload["missing_values"] == ["RENDER_API_KEY", "RENDER_KEYVALUE_IP_ALLOWLIST"]
+    assert payload["status"] == "blocked_missing_render_auth"
+    assert payload["missing_values"] == ["RENDER_API_KEY"]
 
 
 

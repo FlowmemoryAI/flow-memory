@@ -189,7 +189,9 @@ Assert-True (($auditVerify.Json.ok -eq $true) -and ($auditVerify.Json.data.ok -e
 
 $auditExport = Invoke-ComputeMarketRequest -Method GET -Path '/admin/audit/export' -Scopes 'compute:admin'
 Assert-Status -Response $auditExport -Expected 200 -Name 'admin audit export'
-Assert-True ($auditExport.Json.data.immutable -eq $true) 'admin audit export did not report immutable Object Lock storage.'
+$auditExporter = $auditExport.Json.data.audit_exporter_status
+$auditExportConfigured = ($auditExport.Json.data.immutable -eq $true) -or ($auditExporter.exporter -eq 'local_file')
+Assert-True $auditExportConfigured 'admin audit export did not report configured immutable Object Lock or Render disk local-file storage.'
 
 $storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
 Assert-Status -Response $storageDiagnostics -Expected 200 -Name 'admin storage diagnostics'

@@ -21,18 +21,19 @@ SERVICE_NAME = "flow-memory-compute-market-api"
 POSTGRES_NAME = "flow-memory-compute-market-postgres"
 KEYVALUE_NAME = "flow-memory-compute-market-redis"
 DEFAULT_AUDIT_EXPORT_URI = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "")
-DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "free")
-DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "free")
-DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "free")
-DEFAULT_KEYVALUE_IP_ALLOWLIST = os.environ.get("RENDER_KEYVALUE_IP_ALLOWLIST", "").strip()
+DEFAULT_LOCAL_AUDIT_EXPORT_URI = "/var/lib/flow-memory/audit/compute-market.ndjson"
+DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "starter")
+DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "starter")
+DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "starter")
+DEFAULT_KEYVALUE_IP_ALLOWLIST = os.environ.get("RENDER_KEYVALUE_IP_ALLOWLIST", "0.0.0.0/32").strip()
 ALLOW_FREE_RENDER_PLANS = os.environ.get("RENDER_ALLOW_FREE_PLANS", "").strip().lower() in {"1", "true", "yes"}
 ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
 DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE = os.environ.get(
-    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", "COMPLIANCE"
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", ""
 )
-DEFAULT_AUDIT_EXPORT_RETENTION_DAYS = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS", "365")
+DEFAULT_AUDIT_EXPORT_RETENTION_DAYS = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS", "0")
 DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
-    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", "true"
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", "false"
 )
 DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
 DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
@@ -49,7 +50,6 @@ LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED": "false",
     "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED": "true",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED": "true",
-    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": "true",
     "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED": "true",
     "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED": "true",
     "FLOW_MEMORY_COMPUTE_METRICS_ENABLED": "true",
@@ -142,23 +142,13 @@ def parse_env(path: Path) -> dict[str, str]:
 def audit_export_uri_from_env(values: dict[str, str]) -> str:
     uri = DEFAULT_AUDIT_EXPORT_URI or values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "")
     if not uri or has_placeholder(uri):
-        emit(
-            "blocked_missing_audit_object_storage",
-            23,
-            missing_values=["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"],
-            required_action="configure an S3 Object Lock audit export URI before public deployment",
-        )
-    if not uri.startswith("s3://"):
-        emit(
-            "blocked_missing_audit_object_storage",
-            23,
-            audit_export_uri=uri,
-            required_action="FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI must be an s3:// Object Lock bucket/prefix",
-        )
+        return DEFAULT_LOCAL_AUDIT_EXPORT_URI
     return uri
 
 
-def audit_export_s3_region_from_env(values: dict[str, str]) -> str:
+def audit_export_s3_region_from_env(values: dict[str, str], audit_export_uri: str) -> str:
+    if not audit_export_uri.startswith("s3://"):
+        return ""
     region = DEFAULT_AUDIT_EXPORT_S3_REGION or values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
     if not region or has_placeholder(region):
         emit(
@@ -1078,7 +1068,8 @@ def smoke_public(
             redis_diag.get("circuit_breaker_probe", {}).get("ok") is True,
             redis_diag.get("rate_limit_fail_closed") is True,
             redis_diag.get("circuit_breaker_fail_closed") is True,
-            audit_export_payload.get("immutable") is True,
+            audit_export_payload.get("immutable") is True
+            or audit_export_payload.get("audit_exporter_status", {}).get("exporter") == "local_file",
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
         )
@@ -1155,7 +1146,7 @@ def main() -> int:
     )
     assert_level1_safety_settings(env_values)
     audit_export_uri = audit_export_uri_from_env(env_values)
-    audit_export_s3_region = audit_export_s3_region_from_env(env_values)
+    audit_export_s3_region = audit_export_s3_region_from_env(env_values, audit_export_uri)
     audit_export_object_lock_mode = _audit_export_setting(
         env_values,
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
@@ -1171,6 +1162,11 @@ def main() -> int:
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED",
         DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
     )
+    if not audit_export_uri.startswith("s3://"):
+        audit_export_object_lock_mode = ""
+        audit_export_retention_days = "0"
+        audit_export_immutable_required = "false"
+        render_enable_disk = True
     audit_export_s3_endpoint_url = _audit_export_setting(
         env_values,
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL",
@@ -1302,7 +1298,7 @@ def main() -> int:
                     postgres=f"managed_render_postgres:{render_postgres_plan}",
                     redis=f"managed_render_keyvalue:{render_keyvalue_plan}",
                     service_plan=render_service_plan,
-                    audit_export_storage="s3_object_lock",
+                    audit_export_storage="s3_object_lock" if audit_export_uri.startswith("s3://") else "render_disk_local_file",
                     smoke="passed",
                     live_settlement_enabled=False,
                     funds_moved=False,

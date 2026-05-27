@@ -1,10 +1,11 @@
 """Production-planning service layer for Flow Memory Compute Market."""
 from __future__ import annotations
 
+import hmac
 import ipaddress
 import json
-import hmac
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -502,14 +503,29 @@ class ComputeMarketService:
             }
         provider = self.get_provider(provider_id, payload)["provider"]
         routes = tuple(route for route in self.store.list_records("compute_route", filters={"provider_id": provider_id}).records)
+        checked_at = utc_now_iso()
+        provider_active = provider.get("status") == "active"
+        probe = _probe_provider_health_endpoint(provider, self.config) if provider_active else _disabled_provider_health_probe(provider)
+        if provider_active and bool(probe.get("healthy")):
+            self.circuit_breaker.record_success(provider_id, adapter_type="health_check")
+        elif provider_active:
+            self.circuit_breaker.record_failure(
+                provider_id,
+                adapter_type="health_check",
+                error_class=str(probe.get("error_code") or "provider_health_unhealthy"),
+            )
         snapshot = ProviderHealthSnapshot(
-            health_snapshot_id=deterministic_id("provider_health", {"provider_id": provider_id, "created_at": utc_now_iso()}),
+            health_snapshot_id=deterministic_id("provider_health", {"provider_id": provider_id, "created_at": checked_at}),
             provider_id=provider_id,
-            status="healthy" if provider.get("status") == "active" else "disabled",
+            status=str(probe.get("status") or ("healthy" if provider_active else "disabled")),
             reliability_score=float(provider.get("reliability_score", 0.0) or 0.0),
-            latency_ms=int(provider.get("average_latency_ms", 0) or 0),
+            latency_ms=int(probe.get("latency_ms", provider.get("average_latency_ms", 0) or 0) or 0),
+            checked_at=checked_at,
             route_count=len(routes),
+            error_code=str(probe.get("error_code", "")),
+            message=str(probe.get("message", "")),
             rate_limits=provider.get("rate_limit_profile", {}) if isinstance(provider.get("rate_limit_profile"), Mapping) else {},
+            metadata=dict(probe.get("metadata", {})) if isinstance(probe.get("metadata"), Mapping) else {},
         )
         record = snapshot.as_record()
         self.store.put_record(
@@ -521,7 +537,15 @@ class ComputeMarketService:
             provider_id=provider_id,
             status=snapshot.status,
         )
-        return {"ok": True, "provider_health": record}
+        self._audit(
+            "compute.provider.health_checked",
+            payload,
+            request_id=request_id,
+            result=snapshot.status,
+            reason_codes=(snapshot.error_code,) if snapshot.error_code else (),
+            provider_id=provider_id,
+        )
+        return {"ok": snapshot.status in {"healthy", "disabled"}, "provider_health": record}
 
     def apply_market_provider(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -4302,6 +4326,192 @@ def _provider_callback_ip_allowed(client_ip: str, allowlist: tuple[str, ...]) ->
             if candidate_ip == allowed:
                 return True
     return False
+
+
+class _ProviderHealthNoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req: Any, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> None:
+        return None
+
+
+def _provider_health_endpoint(provider: Mapping[str, Any]) -> str:
+    for key in ("health_endpoint", "health_check_url"):
+        value = str(provider.get(key, "")).strip()
+        if value:
+            return value
+    metadata = provider.get("metadata", {})
+    if isinstance(metadata, Mapping):
+        for key in ("health_endpoint", "health_check_url"):
+            value = str(metadata.get(key, "")).strip()
+            if value:
+                return value
+    return ""
+
+
+def _provider_health_endpoint_block_reason(endpoint: str, config: ComputeMarketConfig) -> str:
+    if not endpoint:
+        return "missing"
+    parsed = urllib.parse.urlparse(endpoint)
+    scheme = parsed.scheme.lower()
+    if scheme not in {"http", "https"}:
+        return "unsupported_scheme"
+    if scheme == "http" and config.compute_market_mode != "test":
+        return "insecure_scheme"
+    if not parsed.hostname:
+        return "missing_host"
+    if parsed.username or parsed.password:
+        return "userinfo_disallowed"
+    if not _provider_health_host_allowed(parsed.hostname, config.external_provider_allowlist):
+        return "host_not_allowlisted"
+    if config.compute_market_mode != "test" and _provider_health_private_or_local_host(parsed.hostname):
+        return "private_network_disallowed"
+    return ""
+
+
+def _provider_health_host_allowed(host: str, allowlist: tuple[str, ...]) -> bool:
+    if not allowlist:
+        return True
+    normalized_host = host.strip().strip("[]").lower().rstrip(".")
+    for item in allowlist:
+        raw = item.strip()
+        if not raw:
+            continue
+        parsed = urllib.parse.urlparse(raw if "://" in raw else f"//{raw}")
+        candidate = (parsed.hostname or raw).strip().strip("[]").lower().rstrip(".")
+        if candidate == normalized_host:
+            return True
+    return False
+
+
+def _provider_health_private_or_local_host(host: str) -> bool:
+    normalized_host = host.strip().strip("[]").lower().rstrip(".")
+    if normalized_host in {"localhost", "ip6-localhost", "ip6-loopback"} or normalized_host.endswith(".localhost"):
+        return True
+    try:
+        parsed_ip = ipaddress.ip_address(normalized_host)
+    except ValueError:
+        return False
+    return (
+        parsed_ip.is_private
+        or parsed_ip.is_loopback
+        or parsed_ip.is_link_local
+        or parsed_ip.is_reserved
+        or parsed_ip.is_unspecified
+        or parsed_ip.is_multicast
+    )
+
+
+def _disabled_provider_health_probe(provider: Mapping[str, Any]) -> Mapping[str, Any]:
+    return {
+        "healthy": True,
+        "status": "disabled",
+        "latency_ms": int(provider.get("average_latency_ms", 0) or 0),
+        "metadata": {"endpoint_checked": False},
+    }
+
+
+def _probe_provider_health_endpoint(provider: Mapping[str, Any], config: ComputeMarketConfig) -> Mapping[str, Any]:
+    endpoint = _provider_health_endpoint(provider)
+    block_reason = _provider_health_endpoint_block_reason(endpoint, config)
+    if block_reason:
+        return {
+            "healthy": False,
+            "status": "unhealthy",
+            "error_code": f"provider_health_endpoint_{block_reason}",
+            "message": "Provider health endpoint is not configured safely for health checks.",
+            "metadata": {
+                "endpoint": _redacted_url(endpoint) if endpoint else "",
+                "endpoint_checked": False,
+                "block_reason": block_reason,
+            },
+        }
+
+    timeout_seconds = max(config.provider_timeout_ms / 1000.0, 0.001)
+    request = urllib.request.Request(
+        endpoint,
+        headers={"accept": "application/json", "user-agent": "flow-memory-compute-market-health/1"},
+        method="GET",
+    )
+    opener = urllib.request.build_opener(_ProviderHealthNoRedirect())
+    started = time.perf_counter()
+    try:
+        with opener.open(request, timeout=timeout_seconds) as response:
+            status_code = int(getattr(response, "status", response.getcode()))
+            body = response.read(8193)
+    except urllib.error.HTTPError as exc:
+        latency_ms = max(0, int((time.perf_counter() - started) * 1000))
+        return {
+            "healthy": False,
+            "status": "unhealthy",
+            "latency_ms": latency_ms,
+            "error_code": "provider_health_http_error",
+            "message": f"Provider health endpoint returned HTTP {exc.code}.",
+            "metadata": {
+                "endpoint": _redacted_url(endpoint),
+                "endpoint_checked": True,
+                "http_status": int(exc.code),
+            },
+        }
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
+        latency_ms = max(0, int((time.perf_counter() - started) * 1000))
+        return {
+            "healthy": False,
+            "status": "unhealthy",
+            "latency_ms": latency_ms,
+            "error_code": "provider_health_unreachable",
+            "message": "Provider health endpoint could not be reached.",
+            "metadata": {
+                "endpoint": _redacted_url(endpoint),
+                "endpoint_checked": True,
+                "error_class": exc.__class__.__name__,
+            },
+        }
+
+    latency_ms = max(0, int((time.perf_counter() - started) * 1000))
+    if len(body) > 8192:
+        return {
+            "healthy": False,
+            "status": "unhealthy",
+            "latency_ms": latency_ms,
+            "error_code": "provider_health_response_too_large",
+            "message": "Provider health endpoint response exceeded the health payload limit.",
+            "metadata": {"endpoint": _redacted_url(endpoint), "endpoint_checked": True, "http_status": status_code},
+        }
+    try:
+        decoded = json.loads(body.decode("utf-8")) if body else {}
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return {
+            "healthy": False,
+            "status": "unhealthy",
+            "latency_ms": latency_ms,
+            "error_code": "provider_health_invalid_json",
+            "message": "Provider health endpoint did not return valid JSON.",
+            "metadata": {"endpoint": _redacted_url(endpoint), "endpoint_checked": True, "http_status": status_code},
+        }
+
+    payload = decoded if isinstance(decoded, Mapping) else {}
+    health_payload_raw = payload.get("health", payload)
+    health_payload = health_payload_raw if isinstance(health_payload_raw, Mapping) else {}
+    response_ok_raw = payload.get("ok", True)
+    response_ok = response_ok_raw is not False and str(response_ok_raw).lower() not in {"0", "false", "no"}
+    health_status = str(health_payload.get("status", "healthy" if response_ok else "unhealthy")).strip().lower()
+    unhealthy_statuses = {"unhealthy", "down", "degraded", "error", "failed", "unavailable"}
+    healthy = 200 <= status_code < 300 and response_ok and health_status not in unhealthy_statuses
+    metadata: dict[str, Any] = {
+        "endpoint": _redacted_url(endpoint),
+        "endpoint_checked": True,
+        "http_status": status_code,
+        "response_ok": response_ok,
+    }
+    if "capacity_available" in health_payload:
+        metadata["capacity_available"] = bool(health_payload.get("capacity_available"))
+    return {
+        "healthy": healthy,
+        "status": "healthy" if healthy else "unhealthy",
+        "latency_ms": latency_ms,
+        "error_code": "" if healthy else "provider_health_unhealthy",
+        "message": "" if healthy else f"Provider health endpoint reported status {health_status or status_code}.",
+        "metadata": metadata,
+    }
 
 
 def _verify_provider_receipt(

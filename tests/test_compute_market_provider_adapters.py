@@ -515,6 +515,93 @@ def test_provider_sandbox_quote_contract_and_http_adapter() -> None:
     assert quotes[0].status == "valid"
 
 
+def test_provider_health_pings_sandbox_health_endpoint_and_records_snapshot() -> None:
+    store = ComputeMarketStore(":memory:")
+    server = create_provider_sandbox_server("127.0.0.1", 0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    base_url = f"http://{host}:{port}"
+    service = ComputeMarketService(
+        store=store,
+        config=ComputeMarketConfig(
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_allowlist=("127.0.0.1",),
+            provider_timeout_ms=1_000,
+        ),
+    )
+    try:
+        service.create_provider(
+            {
+                "provider_id": "sandbox-provider",
+                "provider_name": "Sandbox Provider",
+                "provider_type": "gpu",
+                "status": "active",
+                "supported_unit_types": ("gpu_minute",),
+                "supported_assets": ("USDC",),
+                "supported_networks": ("offchain",),
+                "quote_endpoint": f"{base_url}/quote",
+                "health_endpoint": f"{base_url}/health",
+                "reliability_score": 0.99,
+            }
+        )
+
+        result = service.provider_health("sandbox-provider")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    health = cast(Mapping[str, Any], result["provider_health"])
+    metadata = cast(Mapping[str, Any], health["metadata"])
+    snapshots = store.list_records("provider_health_snapshot", filters={"provider_id": "sandbox-provider"}).records
+
+    assert result["ok"] is True
+    assert health["status"] == "healthy"
+    assert health["error_code"] == ""
+    assert metadata["endpoint_checked"] is True
+    assert metadata["http_status"] == 200
+    assert metadata["capacity_available"] is True
+    assert len(snapshots) == 1
+    assert snapshots[0]["status"] == "healthy"
+
+
+def test_provider_health_blocks_private_endpoint_outside_test_mode() -> None:
+    store = ComputeMarketStore(":memory:")
+    service = ComputeMarketService(
+        store=store,
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            provider_timeout_ms=1_000,
+        ),
+    )
+    service.create_provider(
+        {
+            "provider_id": "private-provider",
+            "provider_name": "Private Provider",
+            "provider_type": "gpu",
+            "status": "active",
+            "supported_unit_types": ("gpu_minute",),
+            "supported_assets": ("USDC",),
+            "supported_networks": ("offchain",),
+            "quote_endpoint": "https://provider.example.com/quote",
+            "health_endpoint": "https://127.0.0.1:9/health",
+        }
+    )
+
+    result = service.provider_health("private-provider")
+
+    health = cast(Mapping[str, Any], result["provider_health"])
+    metadata = cast(Mapping[str, Any], health["metadata"])
+    assert result["ok"] is False
+    assert health["status"] == "unhealthy"
+    assert health["error_code"] == "provider_health_endpoint_private_network_disallowed"
+    assert metadata["endpoint_checked"] is False
+    assert metadata["block_reason"] == "private_network_disallowed"
+
+
 def test_provider_sandbox_rejects_unsigned_requests_when_signing_key_configured(monkeypatch: Any) -> None:
     key = LocalKeyPair("sandbox-provider-signing", "sandbox-provider-shared-secret")
     server = create_provider_sandbox_server("127.0.0.1", 0, signing_key=key)

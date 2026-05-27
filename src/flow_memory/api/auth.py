@@ -98,6 +98,8 @@ class ApiKeyIdentity:
     principal: str = ""
     scopes: tuple[str, ...] = ()
     key_prefix: str = ""
+    token_id: str = ""
+    issued_at_epoch: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -494,6 +496,8 @@ def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tup
             tenant_id=str(claims.get("tenant_id", claims.get("org_id", ""))),
             principal=subject,
             scopes=scopes,
+            token_id=str(claims.get("jti", "")),
+            issued_at_epoch=_numeric_claim(claims.get("iat")) or 0.0,
             key_prefix="bearer",
         ),
         (),
@@ -526,6 +530,13 @@ def _jwt_claim_errors(claims: Mapping[str, Any], config: ApiAuthConfig) -> tuple
         errors.append("jwt exp required")
     elif exp + leeway < now:
         errors.append("expired bearer token")
+    iat = _numeric_claim(claims.get("iat"))
+    if iat is None:
+        errors.append("jwt iat required")
+    elif iat - leeway > now:
+        errors.append("bearer token issued in the future")
+    if exp is not None and iat is not None and exp < iat:
+        errors.append("jwt exp before iat")
     nbf = _numeric_claim(claims.get("nbf"))
     if nbf is not None and nbf - leeway > now:
         errors.append("bearer token not yet valid")
@@ -613,6 +624,10 @@ def _nonce_replay_reasons(
     reasons: list[str] = []
     nonce = _header(headers, "x-flow-memory-nonce").strip()
     timestamp = _header(headers, "x-flow-memory-timestamp").strip()
+    if not nonce and identity.key_prefix == "bearer" and identity.token_id:
+        nonce = f"jwt:{identity.token_id}"
+    if not timestamp and identity.key_prefix == "bearer" and identity.issued_at_epoch:
+        timestamp = str(identity.issued_at_epoch)
     if not nonce:
         reasons.append("missing request nonce")
     if not timestamp:

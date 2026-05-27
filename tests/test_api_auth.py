@@ -214,6 +214,7 @@ class ApiAuthTests(unittest.TestCase):
                 "iss": "https://issuer.example",
                 "aud": "flow-memory-api",
                 "exp": time.time() + 300,
+                "iat": time.time(),
             },
             {"kid": "gateway-key-1"},
         )
@@ -246,6 +247,7 @@ class ApiAuthTests(unittest.TestCase):
                 "iss": "https://issuer.example",
                 "aud": "flow-memory-api",
                 "exp": time.time() + 300,
+                "iat": time.time(),
             },
             {"kid": "gateway-key-signed"},
         )
@@ -273,8 +275,9 @@ class ApiAuthTests(unittest.TestCase):
         self.assertEqual(decision.scopes, ("compute:execute", "compute:read"))
 
     def test_authorize_request_rejects_expired_or_wrong_audience_jwt(self) -> None:
-        expired = _jwt("jwt-secret", {"sub": "user-123", "aud": "flow-memory-api", "exp": time.time() - 300})
-        wrong_audience = _jwt("jwt-secret", {"sub": "user-123", "aud": "other-api", "exp": time.time() + 300})
+        now = time.time()
+        expired = _jwt("jwt-secret", {"sub": "user-123", "aud": "flow-memory-api", "iat": now - 600, "exp": now - 300})
+        wrong_audience = _jwt("jwt-secret", {"sub": "user-123", "aud": "other-api", "iat": now, "exp": now + 300})
 
         expired_decision = authorize_request(
             {"authorization": f"Bearer {expired}"},
@@ -289,6 +292,57 @@ class ApiAuthTests(unittest.TestCase):
         self.assertIn("expired bearer token", expired_decision.reasons)
         self.assertFalse(wrong_audience_decision.ok)
         self.assertIn("jwt audience mismatch", wrong_audience_decision.reasons)
+
+    def test_authorize_request_rejects_missing_or_future_iat_jwt(self) -> None:
+        now = time.time()
+        missing_iat = _jwt("jwt-secret", {"sub": "user-123", "aud": "flow-memory-api", "exp": now + 300})
+        future_iat = _jwt(
+            "jwt-secret",
+            {"sub": "user-123", "aud": "flow-memory-api", "iat": now + 300, "exp": now + 600},
+        )
+
+        missing_decision = authorize_request(
+            {"authorization": f"Bearer {missing_iat}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api", jwt_leeway_seconds=0),
+        )
+        future_decision = authorize_request(
+            {"authorization": f"Bearer {future_iat}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api", jwt_leeway_seconds=0),
+        )
+
+        self.assertFalse(missing_decision.ok)
+        self.assertIn("jwt iat required", missing_decision.reasons)
+        self.assertFalse(future_decision.ok)
+        self.assertIn("bearer token issued in the future", future_decision.reasons)
+
+    def test_authorize_request_uses_jwt_jti_for_nonce_replay_protection(self) -> None:
+        now = time.time()
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-replay",
+                "tenant_id": "tenant_jwt_replay",
+                "scope": "compute:read",
+                "aud": "flow-memory-api",
+                "iat": now,
+                "exp": now + 300,
+                "jti": "jwt-replay-token-1",
+            },
+            {"kid": "gateway-key-replay"},
+        )
+        config = ApiAuthConfig(
+            jwt_hs256_secret="jwt-secret",
+            jwt_audience="flow-memory-api",
+            enable_nonce_check=True,
+            max_request_age_seconds=30,
+        )
+
+        first = authorize_request({"authorization": f"Bearer {token}"}, config)
+        replay = authorize_request({"authorization": f"Bearer {token}"}, config)
+
+        self.assertTrue(first.ok, first.reasons)
+        self.assertFalse(replay.ok)
+        self.assertIn("replayed request nonce", replay.reasons)
 
     def test_api_key_issue_rotate_disable_records_never_expose_hash_publicly(self) -> None:
         issued = issue_api_key_record(

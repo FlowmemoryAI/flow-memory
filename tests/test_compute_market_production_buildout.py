@@ -13,7 +13,7 @@ from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
-from flow_memory.compute_market.models import IntelligenceTier, ReasoningBudget, RunDecision, TaskEconomicProfile
+from flow_memory.compute_market.models import IntelligenceTier, ProviderClass, ReasoningBudget, RunDecision, TaskEconomicProfile
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server
@@ -2005,6 +2005,47 @@ def test_intelligence_tier_reasoning_budget_serialization() -> None:
     assert record["intelligence_tier"] == "deep_reasoning"
     assert record["reasoning_budget"]["max_reasoning_steps"] == 32
     assert budget.as_record()["max_tool_calls"] == 12
+
+def test_provider_class_registry_and_intelligence_filtering() -> None:
+    from flow_memory.compute_market.registry import default_compute_routes, metadata_registry
+
+    routes = {route.route_id: route for route in default_compute_routes()}
+    classes = {record["provider_class"] for record in metadata_registry()["provider_classes"]}
+    service = _service()
+
+    assert routes["gpu-minute-route"].provider_class == ProviderClass.GPU_CLUSTER.value
+    assert routes["reserved-slot-route"].provider_class == ProviderClass.RESERVED_CAPACITY_POOL.value
+    assert ProviderClass.REASONING_MODEL.value in classes
+
+    result = service.intelligence_plan(
+        {
+            "task": "background agent research run",
+            "agent_id": "agent_provider_class",
+            "estimated_value": 50.0,
+            "budget": 5.0,
+            "allow_background": True,
+        }
+    )
+    plan = result["intelligence_plan"]
+    selected_route = plan["compute_plan"]["selected_route"]
+    assert ProviderClass.GPU_CLUSTER.value in plan["recommended_provider_classes"]
+    assert selected_route["provider_class"] in plan["recommended_provider_classes"]
+    assert selected_route["route_id"] == "gpu-minute-route"
+
+    application = _provider_application()
+    application["provider_class"] = ProviderClass.REASONING_MODEL.value
+    applied = service.apply_market_provider(application)
+    assert applied["provider_application"]["provider_class"] == ProviderClass.REASONING_MODEL.value
+    verified = service.verify_market_provider("provider_live_gpu_1", {})
+    assert verified["provider"]["provider_class"] == ProviderClass.REASONING_MODEL.value
+
+    invalid = dict(application, provider_id="provider_bad_class", provider_class="unsupported_class")
+    try:
+        service.apply_market_provider(invalid)
+    except ValueError as exc:
+        assert "unsupported provider_class" in str(exc)
+    else:
+        raise AssertionError("unsupported provider class must be rejected")
 
 
 def test_intelligence_plan_run_now_and_usage_ledger() -> None:

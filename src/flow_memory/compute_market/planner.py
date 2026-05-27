@@ -204,6 +204,12 @@ def discover_routes(payload: Mapping[str, Any] | None = None) -> tuple[ComputeRo
     provider_filter = set(_tuple(payload.get("provider_constraints", ())))
     if provider_filter:
         routes = tuple(route for route in routes if route.provider_id in provider_filter)
+    class_filter = set(_tuple(payload.get("preferred_provider_classes", payload.get("provider_class_constraints", ()))))
+    provider_class = str(payload.get("provider_class", "")).strip()
+    if provider_class:
+        class_filter.add(provider_class)
+    if class_filter:
+        routes = tuple(route for route in routes if route.provider_class in class_filter)
     return routes
 
 

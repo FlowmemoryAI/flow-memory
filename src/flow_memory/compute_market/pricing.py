@@ -112,6 +112,7 @@ def collect_quote(route: ComputeRoute, profile: TaskEconomicProfile, *, scenario
         comparability_warnings=comparability_warnings(route.unit_type),
         status=status,
         expires_at="9999-12-31T23:59:59Z" if not expired else "2026-05-24T00:00:00Z",
+        provider_class=route.provider_class,
     )
 
 

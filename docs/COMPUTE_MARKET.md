@@ -267,6 +267,8 @@ Run decisions are `run_now`, `defer_until_cheaper`, `downgrade_tier`, `reserve_c
 
 Background compute remains planning-only unless the separate compute job execution layer is used. `allow_background`, `background_deadline`, `checkpoint_interval_seconds`, and `max_background_runtime_seconds` influence tiering and route preferences without starting background work.
 
+Provider classes make intelligence tiers provider-class aware instead of only provider-type aware. Supported provider classes are `foundational_model`, `small_model`, `reasoning_model`, `agent_runtime`, `gpu_cluster`, `batch_inference`, `local_runtime`, `reserved_capacity_pool`, and `marketplace_pool`. Provider onboarding accepts `provider_class`; if omitted, Flow Memory derives a safe class from `provider_type`. Intelligence plans return `recommended_provider_classes` and filter default route discovery through those classes unless the caller supplies explicit provider constraints.
+
 ## Compute price history and utility ledger
 
 Flow Memory records compute price snapshots when plans observe quotes. Price APIs expose current route/provider indexes, history, anomaly detection, and simple forecasts:

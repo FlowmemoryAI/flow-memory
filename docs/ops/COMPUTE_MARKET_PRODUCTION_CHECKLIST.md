@@ -85,6 +85,7 @@ Production code must pass `python -m ruff check .`. Benchmark files may be exemp
 - [ ] `/compute/intelligence-plan` returns a tier, reasoning budget, run decision, and safe next actions.
 - [ ] `/compute/prices`, `/compute/prices/history`, `/compute/prices/anomalies`, and `/compute/prices/forecast` return persisted price memory.
 - [ ] `/compute/usage`, `/compute/usage/by-agent/{agent_id}`, `/compute/usage/by-goal/{goal_id}`, and `/compute/usage/statement` return usage ledger accounting records.
+- [ ] Provider applications include `provider_class`, and intelligence plans expose `recommended_provider_classes`.
 ## OpenAPI/API snapshot
 
 Regenerate after API changes:

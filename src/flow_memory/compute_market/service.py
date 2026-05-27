@@ -35,6 +35,7 @@ from flow_memory.compute_market.models import (
     PriceForecast,
     ProviderHealthSnapshot,
     ProviderPriceIndex,
+    ProviderClass,
     RoutePriceIndex,
     RunDecision,
 )
@@ -214,6 +215,7 @@ class ComputeMarketService:
             recommended_intelligence_tier=tier,
             recommended_reasoning_budget=reasoning_budget,
             recommended_route_types=_recommended_route_types(tier, payload),
+            recommended_provider_classes=_recommended_provider_classes(tier),
             max_recommended_spend=_max_recommended_spend(payload, tier, profile.estimated_value),
             run_decision=run_decision,
             defer_until=_defer_until(payload, urgency, run_decision),
@@ -4066,11 +4068,29 @@ def _provider_admin_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
         if str(key) != "credentials" and str(key) not in _CREDENTIAL_VALUE_KEYS
     }
 
+def _provider_class_from_payload(provider_type: str, payload: Mapping[str, Any]) -> str:
+    provider_class = str(payload.get("provider_class", "")).strip()
+    if not provider_class:
+        provider_class = {
+            "gpu": ProviderClass.GPU_CLUSTER.value,
+            "llm": ProviderClass.FOUNDATIONAL_MODEL.value,
+            "batch": ProviderClass.BATCH_INFERENCE.value,
+            "reserved_capacity": ProviderClass.RESERVED_CAPACITY_POOL.value,
+            "marketplace": ProviderClass.MARKETPLACE_POOL.value,
+            "agent_runtime": ProviderClass.AGENT_RUNTIME.value,
+            "reasoning": ProviderClass.REASONING_MODEL.value,
+        }.get(provider_type, ProviderClass.MARKETPLACE_POOL.value)
+    allowed = {item.value for item in ProviderClass}
+    if provider_class not in allowed:
+        raise ValueError(f"unsupported provider_class: {provider_class}")
+    return provider_class
+
 
 def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
     provider_id = str(payload.get("provider_id") or deterministic_id("provider", payload))
     provider_name = str(payload.get("provider_name", "")).strip()
     provider_type = str(payload.get("provider_type", "")).strip()
+    provider_class = _provider_class_from_payload(provider_type, payload)
     quote_endpoint = str(payload.get("quote_endpoint", "")).strip()
     health_endpoint = str(payload.get("health_endpoint", "")).strip()
     execution_endpoint = str(payload.get("execution_endpoint", "")).strip()
@@ -4102,6 +4122,7 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
         "provider_id": provider_id,
         "provider_name": provider_name,
         "provider_type": provider_type,
+        "provider_class": provider_class,
         "status": "pending",
         "verified": False,
         "supported_unit_types": supported_unit_types,
@@ -4149,6 +4170,7 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "health_endpoint": str(application.get("health_endpoint", "")),
         "execution_endpoint": str(application.get("execution_endpoint", "")),
         "sla": dict(application.get("sla", {})) if isinstance(application.get("sla"), Mapping) else {},
+        "provider_class": str(application.get("provider_class", "")),
     }
     if public_key:
         metadata["public_key"] = public_key
@@ -4156,6 +4178,7 @@ def _provider_from_application(application: Mapping[str, Any]) -> dict[str, Any]
         "provider_id": str(application["provider_id"]),
         "provider_name": str(application["provider_name"]),
         "provider_type": str(application["provider_type"]),
+        "provider_class": str(application.get("provider_class", ProviderClass.MARKETPLACE_POOL.value)),
         "market_type": "marketplace",
         "network": str(_tuple(application.get("supported_networks", ("offchain",)))[0]),
         "payment_asset": str(_tuple(application.get("supported_assets", ("USD",)))[0]),
@@ -4647,6 +4670,7 @@ def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote
         "route_id": str(quote["route_id"]),
         "provider_or_route": str(quote.get("provider_or_route", quote.get("route_id", ""))),
         "provider_type": str(quote.get("provider_type", "marketplace")),
+        "provider_class": str(quote.get("provider_class", "")),
         "market_type": str(quote.get("market_type", "marketplace")),
         "network": str(quote.get("network", "offchain")),
         "payment_asset": str(quote.get("currency_or_asset", quote.get("payment_asset", "USD"))),
@@ -6406,6 +6430,8 @@ def _intelligence_plan_payload(
         policy.setdefault("require_capacity_confirmation", bool(payload.get("allow_reserved_capacity", tier == IntelligenceTier.RESERVED_CAPACITY.value)))
     plan_payload["policy"] = policy
     plan_payload["selection_strategy"] = str(payload.get("selection_strategy") or _selection_strategy_for_tier(tier))
+    if not plan_payload.get("provider_constraints") and not plan_payload.get("provider_class") and not plan_payload.get("provider_class_constraints"):
+        plan_payload["preferred_provider_classes"] = _recommended_provider_classes(tier)
     plan_payload["quality_requirement"] = str(quality_target.get("target", "standard"))
     plan_payload["reasoning_budget"] = reasoning_budget
     plan_payload["intelligence_tier"] = tier
@@ -6442,6 +6468,49 @@ def _recommended_route_types(tier: str, payload: Mapping[str, Any]) -> tuple[str
         return ("reasoning_model", "marketplace", "reserved_capacity")
     return ("request", "token", "marketplace")
 
+
+def _recommended_provider_classes(tier: str) -> tuple[str, ...]:
+    if tier == IntelligenceTier.INSTANT.value:
+        return (
+            ProviderClass.SMALL_MODEL.value,
+            ProviderClass.LOCAL_RUNTIME.value,
+            ProviderClass.FOUNDATIONAL_MODEL.value,
+        )
+    if tier == IntelligenceTier.BATCH.value:
+        return (
+            ProviderClass.BATCH_INFERENCE.value,
+            ProviderClass.GPU_CLUSTER.value,
+            ProviderClass.MARKETPLACE_POOL.value,
+        )
+    if tier == IntelligenceTier.DEEP_REASONING.value:
+        return (
+            ProviderClass.REASONING_MODEL.value,
+            ProviderClass.AGENT_RUNTIME.value,
+            ProviderClass.GPU_CLUSTER.value,
+            ProviderClass.RESERVED_CAPACITY_POOL.value,
+            ProviderClass.MARKETPLACE_POOL.value,
+        )
+    if tier == IntelligenceTier.BACKGROUND_AGENT.value:
+        return (
+            ProviderClass.AGENT_RUNTIME.value,
+            ProviderClass.GPU_CLUSTER.value,
+            ProviderClass.RESERVED_CAPACITY_POOL.value,
+            ProviderClass.BATCH_INFERENCE.value,
+        )
+    if tier == IntelligenceTier.RESERVED_CAPACITY.value:
+        return (ProviderClass.RESERVED_CAPACITY_POOL.value,)
+    if tier == IntelligenceTier.PREMIUM.value:
+        return (
+            ProviderClass.REASONING_MODEL.value,
+            ProviderClass.AGENT_RUNTIME.value,
+            ProviderClass.MARKETPLACE_POOL.value,
+        )
+    return (
+        ProviderClass.FOUNDATIONAL_MODEL.value,
+        ProviderClass.SMALL_MODEL.value,
+        ProviderClass.MARKETPLACE_POOL.value,
+        ProviderClass.LOCAL_RUNTIME.value,
+    )
 
 def _max_recommended_spend(payload: Mapping[str, Any], tier: str, estimated_value: float | None) -> float:
     explicit_budget = _optional_price(payload.get("budget", payload.get("max_total_cost", None)))

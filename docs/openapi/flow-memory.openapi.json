@@ -5746,6 +5746,9 @@
                   "health_endpoint": {
                     "type": "string"
                   },
+                  "provider_class": {
+                    "type": "string"
+                  },
                   "provider_id": {
                     "type": "string"
                   },

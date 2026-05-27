@@ -42,6 +42,8 @@ from flow_memory.compute_market.models import (
     PaymentPlan,
     PriceCurve,
     ProviderCapability,
+    ProviderClass,
+    ProviderClassSpec,
     RouteDecision,
     SelectionStrategy,
     SettlementIntent,
@@ -76,6 +78,7 @@ from flow_memory.compute_market.registry import (
     default_networks,
     external_protocols,
     metadata_registry,
+    default_provider_class_specs,
     route_metadata,
 )
 from flow_memory.compute_market.simulation import SIMULATION_SCENARIOS, simulated_routes, simulation_catalog
@@ -124,6 +127,8 @@ __all__ = [
     "PaymentPlan",
     "PriceCurve",
     "ProviderCapability",
+    "ProviderClass",
+    "ProviderClassSpec",
     "ProviderMetadata",
     "RouteDecision",
     "RouteMetadata",
@@ -145,6 +150,7 @@ __all__ = [
     "default_compute_providers",
     "default_compute_routes",
     "default_networks",
+    "default_provider_class_specs",
     "discover_providers",
     "discover_routes",
     "economic_memory_schema",

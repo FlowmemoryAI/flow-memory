@@ -4,7 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Mapping
 
-from flow_memory.compute_market.models import ComputeProvider, ComputeRoute, PriceCurve, ProviderCapability, UnitPriceSnapshot
+from flow_memory.compute_market.models import (
+    ComputeProvider,
+    ComputeRoute,
+    IntelligenceTier,
+    PriceCurve,
+    ProviderCapability,
+    ProviderClass,
+    ProviderClassSpec,
+    UnitPriceSnapshot,
+)
 
 
 @dataclass(frozen=True)
@@ -95,6 +104,81 @@ def default_networks() -> tuple[NetworkMetadata, ...]:
     )
 
 
+
+def default_provider_class_specs() -> tuple[ProviderClassSpec, ...]:
+    return (
+        ProviderClassSpec(
+            ProviderClass.FOUNDATIONAL_MODEL.value,
+            supports_background=False,
+            supports_tool_use=True,
+            supports_signed_quotes=True,
+            supported_unit_types=("token", "request", "inference_job"),
+            preferred_intelligence_tiers=(IntelligenceTier.STANDARD.value, IntelligenceTier.PREMIUM.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.SMALL_MODEL.value,
+            supports_background=False,
+            supports_tool_use=False,
+            supported_unit_types=("token", "request"),
+            preferred_intelligence_tiers=(IntelligenceTier.INSTANT.value, IntelligenceTier.STANDARD.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.REASONING_MODEL.value,
+            supports_background=True,
+            supports_tool_use=True,
+            supports_parallel_branches=True,
+            supports_signed_quotes=True,
+            supported_unit_types=("token", "request", "agent_step", "tool_call"),
+            preferred_intelligence_tiers=(IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.PREMIUM.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.AGENT_RUNTIME.value,
+            supports_background=True,
+            supports_tool_use=True,
+            supports_parallel_branches=True,
+            supported_unit_types=("agent_step", "tool_call", "batch_job"),
+            preferred_intelligence_tiers=(IntelligenceTier.DEEP_REASONING.value, IntelligenceTier.BACKGROUND_AGENT.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.GPU_CLUSTER.value,
+            supports_background=True,
+            supports_tool_use=False,
+            supports_reserved_capacity=True,
+            supported_unit_types=("gpu_second", "gpu_minute", "gpu_hour", "batch_job"),
+            preferred_intelligence_tiers=(IntelligenceTier.BATCH.value, IntelligenceTier.BACKGROUND_AGENT.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.BATCH_INFERENCE.value,
+            supports_background=True,
+            supported_unit_types=("batch_job", "inference_job", "gpu_minute"),
+            preferred_intelligence_tiers=(IntelligenceTier.BATCH.value, IntelligenceTier.BACKGROUND_AGENT.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.LOCAL_RUNTIME.value,
+            supports_background=True,
+            supports_tool_use=True,
+            supported_unit_types=("gpu_minute", "agent_step", "tool_call"),
+            preferred_intelligence_tiers=(IntelligenceTier.INSTANT.value, IntelligenceTier.STANDARD.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.RESERVED_CAPACITY_POOL.value,
+            supports_background=True,
+            supports_reserved_capacity=True,
+            supports_signed_quotes=True,
+            supported_unit_types=("reserved_capacity_slot", "gpu_hour"),
+            preferred_intelligence_tiers=(IntelligenceTier.RESERVED_CAPACITY.value, IntelligenceTier.BACKGROUND_AGENT.value),
+        ),
+        ProviderClassSpec(
+            ProviderClass.MARKETPLACE_POOL.value,
+            supports_background=True,
+            supports_tool_use=True,
+            supports_signed_quotes=True,
+            supported_unit_types=("token", "gpu_minute", "gpu_hour", "request"),
+            preferred_intelligence_tiers=(IntelligenceTier.STANDARD.value, IntelligenceTier.DEEP_REASONING.value),
+        ),
+    )
+
+
 def default_provider_metadata() -> tuple[ProviderMetadata, ...]:
     return tuple(
         ProviderMetadata(
@@ -103,6 +187,7 @@ def default_provider_metadata() -> tuple[ProviderMetadata, ...]:
             provider_type=provider.provider_type,
             verified=provider.provider_type == "local",
             dry_run_only=True,
+            metadata={"provider_class": provider.provider_class},
         )
         for provider in default_compute_providers()
     )
@@ -155,6 +240,7 @@ def default_compute_providers() -> tuple[ComputeProvider, ...]:
             "USDC",
             capabilities=(token_capability,),
             reliability_score=0.86,
+            provider_class=ProviderClass.MARKETPLACE_POOL.value,
         ),
         ComputeProvider(
             "direct-request-provider",
@@ -165,6 +251,7 @@ def default_compute_providers() -> tuple[ComputeProvider, ...]:
             "USD",
             capabilities=(request_capability,),
             reliability_score=0.9,
+            provider_class=ProviderClass.FOUNDATIONAL_MODEL.value,
         ),
         ComputeProvider(
             "gpu-time-provider",
@@ -175,6 +262,7 @@ def default_compute_providers() -> tuple[ComputeProvider, ...]:
             "USDC",
             capabilities=(gpu_capability,),
             reliability_score=0.82,
+            provider_class=ProviderClass.GPU_CLUSTER.value,
         ),
         ComputeProvider(
             "reserved-capacity-provider",
@@ -185,6 +273,7 @@ def default_compute_providers() -> tuple[ComputeProvider, ...]:
             "USD",
             capabilities=(reserved_capability,),
             reliability_score=0.96,
+            provider_class=ProviderClass.RESERVED_CAPACITY_POOL.value,
         ),
         ComputeProvider(
             "local-provider",
@@ -195,6 +284,7 @@ def default_compute_providers() -> tuple[ComputeProvider, ...]:
             "CREDITS",
             capabilities=(gpu_capability,),
             reliability_score=0.78,
+            provider_class=ProviderClass.LOCAL_RUNTIME.value,
         ),
         ComputeProvider(
             "fallback-provider",
@@ -205,6 +295,7 @@ def default_compute_providers() -> tuple[ComputeProvider, ...]:
             "USD",
             capabilities=(token_capability,),
             reliability_score=0.98,
+            provider_class=ProviderClass.FOUNDATIONAL_MODEL.value,
         ),
     )
 
@@ -250,6 +341,7 @@ def metadata_registry() -> Mapping[str, Any]:
         "providers": tuple(provider.as_record() for provider in default_provider_metadata()),
         "routes": tuple(route.as_record() for route in route_metadata()),
         "external_protocols": tuple(protocol.as_record() for protocol in external_protocols()),
+        "provider_classes": tuple(spec.as_record() for spec in default_provider_class_specs()),
         "dry_run_only": True,
     }
 
@@ -271,7 +363,9 @@ def _route(
     *,
     reservation_required: bool = False,
     fallback_route: bool = False,
+    provider_class: str = "",
 ) -> ComputeRoute:
+    resolved_provider_class = provider_class or _provider_class_for_route(provider_type, unit_type, provider_id)
     price_snapshot = UnitPriceSnapshot(unit_type, unit_price, asset, network, provider_id=provider_id, route_id=route_id)
     return ComputeRoute(
         route_id=route_id,
@@ -295,6 +389,32 @@ def _route(
         supported_assets=(asset,),
         supported_networks=(network,),
         enabled=True,
-        metadata={"provider_verified": provider_type in {"local", "reserved"}},
+        metadata={"provider_verified": provider_type in {"local", "reserved"}, "provider_class": resolved_provider_class},
         price_curve=PriceCurve("unit", (price_snapshot,)),
+        provider_class=resolved_provider_class,
     )
+
+
+def _provider_class_for_route(provider_type: str, unit_type: str, provider_id: str) -> str:
+    if provider_id == "local-provider":
+        return ProviderClass.LOCAL_RUNTIME.value
+    if provider_id == "reserved-capacity-provider" or unit_type == "reserved_capacity_slot":
+        return ProviderClass.RESERVED_CAPACITY_POOL.value
+    if provider_id == "gpu-time-provider" or unit_type.startswith("gpu_"):
+        return ProviderClass.GPU_CLUSTER.value
+    return _provider_class_for_provider_type(provider_type)
+
+
+def _provider_class_for_provider_type(provider_type: str) -> str:
+    return {
+        "marketplace": ProviderClass.MARKETPLACE_POOL.value,
+        "direct": ProviderClass.FOUNDATIONAL_MODEL.value,
+        "gpu": ProviderClass.GPU_CLUSTER.value,
+        "reserved": ProviderClass.RESERVED_CAPACITY_POOL.value,
+        "local": ProviderClass.LOCAL_RUNTIME.value,
+        "fallback": ProviderClass.FOUNDATIONAL_MODEL.value,
+        "batch": ProviderClass.BATCH_INFERENCE.value,
+        "agent_runtime": ProviderClass.AGENT_RUNTIME.value,
+        "reasoning": ProviderClass.REASONING_MODEL.value,
+        "small_model": ProviderClass.SMALL_MODEL.value,
+    }.get(provider_type, ProviderClass.MARKETPLACE_POOL.value)

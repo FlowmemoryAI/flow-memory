@@ -48,6 +48,18 @@ class IntelligenceTier(str, Enum):
     BATCH = "batch"
     PREMIUM = "premium"
     RESERVED_CAPACITY = "reserved_capacity"
+class ProviderClass(str, Enum):
+    FOUNDATIONAL_MODEL = "foundational_model"
+    SMALL_MODEL = "small_model"
+    REASONING_MODEL = "reasoning_model"
+    AGENT_RUNTIME = "agent_runtime"
+    GPU_CLUSTER = "gpu_cluster"
+    BATCH_INFERENCE = "batch_inference"
+    LOCAL_RUNTIME = "local_runtime"
+    RESERVED_CAPACITY_POOL = "reserved_capacity_pool"
+    MARKETPLACE_POOL = "marketplace_pool"
+
+
 
 
 class ReasoningLevel(str, Enum):
@@ -119,6 +131,21 @@ class ProviderCapability:
     payment_assets: tuple[str, ...] = ()
     reliability_score: float = 1.0
     created_at: str = UTC_EPOCH
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def as_record(self) -> dict[str, Any]:
+        return _record(self)
+
+@dataclass(frozen=True)
+class ProviderClassSpec:
+    provider_class: str
+    supports_background: bool = False
+    supports_tool_use: bool = False
+    supports_parallel_branches: bool = False
+    supports_reserved_capacity: bool = False
+    supports_signed_quotes: bool = False
+    supported_unit_types: tuple[str, ...] = ()
+    preferred_intelligence_tiers: tuple[str, ...] = ()
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
     def as_record(self) -> dict[str, Any]:
@@ -222,6 +249,7 @@ class ComputeProvider:
     config_version: int = 1
     disabled_at: str = ""
     archived_at: str = ""
+    provider_class: str = ""
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)
@@ -267,6 +295,7 @@ class ComputeRoute:
     config_version: int = 1
     disabled_at: str = ""
     archived_at: str = ""
+    provider_class: str = ""
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)
@@ -321,6 +350,7 @@ class ComputeQuote:
     provider_error_code: str = ""
     retryable: bool = False
     idempotency_key: str = ""
+    provider_class: str = ""
 
     def as_record(self) -> dict[str, Any]:
         return _record(self)
@@ -525,6 +555,7 @@ class IntelligencePlan:
     recommended_route_types: tuple[str, ...]
     max_recommended_spend: float
     run_decision: str
+    recommended_provider_classes: tuple[str, ...] = ()
     defer_until: str = ""
     downgrade_options: tuple[Mapping[str, Any], ...] = ()
     reserve_capacity_recommended: bool = False

@@ -522,6 +522,34 @@ def test_api_server_cli_builds_redis_nonce_guard_from_public_env() -> None:
     assert config.nonce_fail_closed is True
 
 
+def test_api_server_cli_builds_provider_callback_ip_allowlist_from_env_and_cli() -> None:
+    env_config = build_http_api_config(
+        ["--host", "0.0.0.0", "--api-key", "dev-key", "--require-scopes"],
+        env={"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "203.0.113.0/24,2001:db8::1"},
+    )
+    cli_config = build_http_api_config(
+        [
+            "--host",
+            "0.0.0.0",
+            "--api-key",
+            "dev-key",
+            "--require-scopes",
+            "--provider-callback-ip-allowlist",
+            "198.51.100.10",
+        ],
+        env={"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "203.0.113.0/24"},
+    )
+
+    assert env_config.provider_callback_ip_allowlist == ("203.0.113.0/24", "2001:db8::1")
+    assert cli_config.provider_callback_ip_allowlist == ("198.51.100.10",)
+
+    with pytest.raises(SystemExit):
+        build_http_api_config(
+            ["--host", "0.0.0.0", "--api-key", "dev-key", "--provider-callback-ip-allowlist", "not-an-ip"],
+            env={},
+        )
+
+
 def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monkeypatch: pytest.MonkeyPatch) -> None:
     local_uri = "/var/lib/flow-memory/audit/compute-market.ndjson"
 

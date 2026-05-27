@@ -7,6 +7,7 @@ server, not hardened production infrastructure.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import time
 from dataclasses import dataclass, field
@@ -47,6 +48,7 @@ class HttpApiConfig:
     nonce_fail_closed: bool = True
     nonce_require_tls: bool = False
     nonce_verify_tls: bool = True
+    provider_callback_ip_allowlist: tuple[str, ...] = ()
 
     def validate(self) -> tuple[str, ...]:
         errors: list[str] = []
@@ -70,6 +72,18 @@ class HttpApiConfig:
                 errors.append("nonce_redis_url is required when nonce_replay_backend=redis")
             if self.nonce_require_tls and not self.nonce_redis_url.startswith("rediss://"):
                 errors.append("nonce_redis_url must be rediss:// when nonce_require_tls=true")
+        for item in self.provider_callback_ip_allowlist:
+            allowed = item.strip()
+            if not allowed:
+                errors.append("provider_callback_ip_allowlist entries must be non-empty")
+                continue
+            try:
+                if "/" in allowed:
+                    ipaddress.ip_network(allowed, strict=False)
+                else:
+                    ipaddress.ip_address(allowed)
+            except ValueError:
+                errors.append(f"provider_callback_ip_allowlist entry must be an IP address or CIDR: {allowed}")
         return tuple(errors)
 
 
@@ -225,6 +239,12 @@ class HttpApiGateway:
                     raise rate_decision.error
             router_payload = _tenant_scoped_payload(context, payload)
             router_payload = _inject_provider_callback_ip(context.method, context.path, router_payload, header_map)
+            _enforce_provider_callback_ip_allowlist(
+                context.method,
+                context.path,
+                router_payload,
+                self.config.provider_callback_ip_allowlist,
+            )
             router_payload = _inject_stripe_webhook_context(context.method, context.path, router_payload, header_map, body)
             if context.method in {"GET", "HEAD"} and context.path == "/metrics":
                 result = self.router.dispatch("GET", "/compute/metrics", router_payload)
@@ -358,12 +378,61 @@ def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) 
 _PROVIDER_CALLBACK_IP_PATH_SUFFIXES = ("/receipt", "/complete", "/fail", "/heartbeat")
 
 def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str]) -> Mapping[str, Any]:
-    if method.upper() != "POST" or not path.startswith("/compute/jobs/") or not path.endswith(_PROVIDER_CALLBACK_IP_PATH_SUFFIXES):
+    if not _is_provider_callback_path(method, path):
         return payload
     client_ip = _trusted_client_ip(headers)
     if not client_ip:
         return payload
     return {**dict(payload), "_flow_memory_client_ip": client_ip}
+
+
+def _enforce_provider_callback_ip_allowlist(
+    method: str,
+    path: str,
+    payload: Mapping[str, Any],
+    allowlist: tuple[str, ...],
+) -> None:
+    if not allowlist or not _is_provider_callback_path(method, path):
+        return
+    client_ip = str(payload.get("_flow_memory_client_ip", ""))
+    if _provider_callback_ip_allowed(client_ip, allowlist):
+        return
+    callback_action = path.rstrip("/").rsplit("/", 1)[-1]
+    raise forbidden_error(
+        "Provider callback source IP is not allowlisted",
+        details={
+            "callback_action": callback_action,
+            "client_ip": client_ip,
+            "allowlist_configured": True,
+        },
+    )
+
+
+def _is_provider_callback_path(method: str, path: str) -> bool:
+    return method.upper() == "POST" and path.startswith("/compute/jobs/") and path.endswith(_PROVIDER_CALLBACK_IP_PATH_SUFFIXES)
+
+
+def _provider_callback_ip_allowed(client_ip: str, allowlist: tuple[str, ...]) -> bool:
+    candidate_ip = client_ip.strip()
+    if not candidate_ip:
+        return False
+    try:
+        parsed_ip = ipaddress.ip_address(candidate_ip)
+    except ValueError:
+        return False
+    for item in allowlist:
+        allowed = item.strip()
+        if not allowed:
+            continue
+        try:
+            if "/" in allowed:
+                if parsed_ip in ipaddress.ip_network(allowed, strict=False):
+                    return True
+            elif parsed_ip == ipaddress.ip_address(allowed):
+                return True
+        except ValueError:
+            continue
+    return False
 
 
 def _stripe_webhook_signature_auth_decision(

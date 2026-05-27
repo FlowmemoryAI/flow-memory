@@ -84,6 +84,11 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         action="store_true",
         default=not _bool(source.get("FLOW_MEMORY_API_NONCE_VERIFY_TLS"), True),
     )
+    parser.add_argument(
+        "--provider-callback-ip-allowlist",
+        default=source.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", ""),
+        help="Comma-separated provider callback source IP/CIDR allowlist.",
+    )
     parser.add_argument("--jwt-hs256-secret", default=source.get("FLOW_MEMORY_API_JWT_HS256_SECRET", ""))
     parser.add_argument("--jwt-issuer", default=source.get("FLOW_MEMORY_API_JWT_ISSUER", ""))
     parser.add_argument("--jwt-audience", default=source.get("FLOW_MEMORY_API_JWT_AUDIENCE", ""))
@@ -119,6 +124,7 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         nonce_fail_closed=not bool(args.nonce_fail_open),
         nonce_require_tls=bool(args.nonce_require_tls),
         nonce_verify_tls=not bool(args.nonce_skip_tls_verify),
+        provider_callback_ip_allowlist=_csv_tuple(str(args.provider_callback_ip_allowlist)),
     )
     errors = config.validate()
     if errors:
@@ -157,6 +163,11 @@ def _int(value: str | None, default: int) -> int:
         return default
     return int(value)
 
+
+def _csv_tuple(value: str | None) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    return tuple(item.strip() for item in value.split(",") if item.strip())
 
 
 def _api_key_records(value: str | None) -> tuple[Mapping[str, object], ...]:

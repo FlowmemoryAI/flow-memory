@@ -1245,6 +1245,95 @@ def test_http_gateway_injects_provider_state_callback_client_ip() -> None:
     assert "heartbeat_count" not in service.get_job(job_ids["heartbeat"])["job"]
 
 
+def test_http_gateway_rejects_provider_callback_ip_before_router() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("203.0.113.0/24",),
+        ),
+    )
+    service.create_provider(
+        {
+            "provider_id": "gateway-callback-provider",
+            "provider_name": "Gateway Callback Provider",
+            "provider_type": "gpu",
+        }
+    )
+    base_job = {
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/job-gateway-callback.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "gateway-callback-route",
+        "provider_id": "gateway-callback-provider",
+    }
+    allowed_job_id = str(service.create_job({**base_job, "job_id": "job_gateway_callback_allowed"})["job"]["job_id"])
+    blocked_job_id = str(service.create_job({**base_job, "job_id": "job_gateway_callback_blocked"})["job"]["job_id"])
+    missing_ip_job_id = str(service.create_job({**base_job, "job_id": "job_gateway_callback_missing_ip"})["job"]["job_id"])
+    service.dispatch_job(allowed_job_id, {})
+    service.dispatch_job(blocked_job_id, {})
+    service.dispatch_job(missing_ip_job_id, {})
+
+    reset_default_service(service)
+    try:
+        gateway = HttpApiGateway(
+            config=HttpApiConfig(
+                api_key="dev",
+                require_scopes=True,
+                enable_rate_limit=False,
+                provider_callback_ip_allowlist=("203.0.113.0/24",),
+            )
+        )
+        blocked = gateway.handle(
+            "POST",
+            f"/compute/jobs/{blocked_job_id}/complete",
+            {
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:execute",
+                "x-flow-memory-client-ip": "198.51.100.77",
+            },
+            json.dumps({"actual_total_cost": 0.18}).encode("utf-8"),
+        )
+        missing_ip = gateway.handle(
+            "POST",
+            f"/compute/jobs/{missing_ip_job_id}/heartbeat",
+            {
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:execute",
+            },
+            json.dumps({"worker_id": "worker_missing_ip", "ttl_seconds": 60}).encode("utf-8"),
+        )
+        allowed = gateway.handle(
+            "POST",
+            f"/compute/jobs/{allowed_job_id}/complete",
+            {
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:execute",
+                "x-flow-memory-client-ip": "203.0.113.42",
+            },
+            json.dumps({"actual_total_cost": 0.18}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert blocked.status == 403
+    assert blocked.body["error"]["code"] == "auth.forbidden"
+    assert blocked.body["error"]["details"]["callback_action"] == "complete"
+    assert blocked.body["error"]["details"]["client_ip"] == "198.51.100.77"
+    assert missing_ip.status == 403
+    assert missing_ip.body["error"]["details"]["callback_action"] == "heartbeat"
+    assert missing_ip.body["error"]["details"]["client_ip"] == ""
+    assert allowed.status == 200
+    assert allowed.body["data"]["job"]["status"] == "succeeded"
+    assert service.get_job(blocked_job_id)["job"]["status"] == "running"
+    assert service.get_job(missing_ip_job_id)["job"]["status"] == "running"
+    assert "heartbeat_count" not in service.get_job(missing_ip_job_id)["job"]
+
+
 def test_dependency_free_http_server_handles_local_request() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server = create_http_server(gateway, host="127.0.0.1", port=0)

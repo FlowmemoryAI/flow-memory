@@ -1127,6 +1127,87 @@ def test_http_gateway_workspace_registry_is_workspace_isolated() -> None:
     assert create_mismatch.body["error"]["details"]["workspace_id"] == "workspace_registry_a"
     assert create_mismatch.body["error"]["details"]["requested_workspace_id"] == "workspace_registry_b"
 
+def test_http_gateway_user_registry_is_workspace_isolated() -> None:
+    key_a = "fmk_user_registry_a"
+    key_b = "fmk_user_registry_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "user-registry-a-key",
+                    "key_prefix": "fmk_user_registry_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_user_registry",
+                    "workspace_id": "workspace_user_a",
+                    "principal": "svc-user-registry-a",
+                    "scopes": ("api:admin",),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "user-registry-b-key",
+                    "key_prefix": "fmk_user_registry_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_user_registry",
+                    "workspace_id": "workspace_user_b",
+                    "principal": "svc-user-registry-b",
+                    "scopes": ("api:admin",),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    created_a = gateway.handle(
+        "POST",
+        "/auth/users",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"user_id": "user_workspace_a", "email": "a@example.com", "display_name": "User A"}).encode(
+            "utf-8"
+        ),
+    )
+    created_b = gateway.handle(
+        "POST",
+        "/auth/users",
+        {"x-flow-memory-api-key": key_b},
+        json.dumps({"user_id": "user_workspace_b", "email": "b@example.com", "display_name": "User B"}).encode(
+            "utf-8"
+        ),
+    )
+    listed_a = gateway.handle("GET", "/auth/users", {"x-flow-memory-api-key": key_a})
+    fetched_b_from_a = gateway.handle("GET", "/auth/users/user_workspace_b", {"x-flow-memory-api-key": key_a})
+    update_b_from_a = gateway.handle(
+        "PATCH",
+        "/auth/users/user_workspace_b",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"display_name": "stolen"}).encode("utf-8"),
+    )
+    create_mismatch = gateway.handle(
+        "POST",
+        "/auth/users",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps(
+            {"user_id": "user_workspace_mismatch", "workspace_id": "workspace_user_b", "email": "m@example.com"}
+        ).encode("utf-8"),
+    )
+
+    assert created_a.status == 200
+    assert created_a.body["data"]["user"]["tenant_id"] == "tenant_user_registry"
+    assert created_a.body["data"]["user"]["workspace_id"] == "workspace_user_a"
+    assert created_b.status == 200
+    assert created_b.body["data"]["user"]["workspace_id"] == "workspace_user_b"
+    assert [user["user_id"] for user in listed_a.body["data"]["users"]] == ["user_workspace_a"]
+    assert fetched_b_from_a.status == 403
+    assert fetched_b_from_a.body["error"]["details"]["workspace_id"] == "workspace_user_a"
+    assert fetched_b_from_a.body["error"]["details"]["requested_workspace_id"] == "workspace_user_b"
+    assert update_b_from_a.status == 403
+    assert update_b_from_a.body["error"]["details"]["workspace_id"] == "workspace_user_a"
+    assert update_b_from_a.body["error"]["details"]["requested_workspace_id"] == "workspace_user_b"
+    assert create_mismatch.status == 403
+    assert create_mismatch.body["error"]["details"]["workspace_id"] == "workspace_user_a"
+    assert create_mismatch.body["error"]["details"]["requested_workspace_id"] == "workspace_user_b"
+
 
 def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
     service = ComputeMarketService(

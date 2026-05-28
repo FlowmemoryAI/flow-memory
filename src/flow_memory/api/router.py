@@ -919,7 +919,14 @@ class LocalApiRouter:
         return {"ok": True, "record": public_api_key_record(disabled)}
 
     def _auth_users(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return {"ok": True, "users": tuple(public_user_record(record) for record in self.user_records.values())}
+        tenant_id = _payload_tenant_id(_payload)
+        workspace_id = _payload_workspace_id(_payload)
+        users = tuple(
+            public_user_record(record)
+            for record in self.user_records.values()
+            if _tenant_can_access_auth_record(tenant_id, workspace_id, record)
+        )
+        return {"ok": True, "users": users}
 
     def _auth_user_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         record = create_user_record(payload)
@@ -927,18 +934,24 @@ class LocalApiRouter:
         self.user_records[user_id] = record
         return {"ok": True, "user": public_user_record(record), "management": "local_in_memory"}
 
-    def _auth_user(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return {"ok": True, "user": public_user_record(self._auth_user_record(params["user_id"]))}
+    def _auth_user(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        record = self._auth_user_record(params["user_id"])
+        _assert_user_access(payload, record, "read")
+        return {"ok": True, "user": public_user_record(record)}
 
     def _auth_user_update(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         user_id = params["user_id"]
-        record = update_user_record(self._auth_user_record(user_id), payload)
+        current = self._auth_user_record(user_id)
+        _assert_user_access(payload, current, "update")
+        record = update_user_record(current, payload)
         self.user_records[user_id] = record
         return {"ok": True, "user": public_user_record(record)}
 
     def _auth_user_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         user_id = params["user_id"]
-        record = disable_user_record(self._auth_user_record(user_id), reason=str(payload.get("reason", "operator_requested")))
+        current = self._auth_user_record(user_id)
+        _assert_user_access(payload, current, "disable")
+        record = disable_user_record(current, reason=str(payload.get("reason", "operator_requested")))
         self.user_records[user_id] = record
         return {"ok": True, "user": public_user_record(record)}
 
@@ -997,7 +1010,8 @@ class LocalApiRouter:
         user_id = str(payload.get("user_id", "")).strip()
         workspace = self._auth_workspace_record(workspace_id)
         _assert_workspace_access(payload, workspace, "add members to")
-        self._auth_user_record(user_id)
+        user = self._auth_user_record(user_id)
+        _assert_user_access(payload, user, "add to workspace")
         membership_payload = {**dict(payload), "tenant_id": str(workspace.get("tenant_id", ""))}
         record = create_membership_record(workspace_id, user_id, membership_payload)
         self.workspace_memberships[_membership_key(workspace_id, user_id)] = record
@@ -1256,6 +1270,22 @@ def _tenant_can_access_auth_record(tenant_id: str, workspace_id: str, record: Ma
         if record_workspace_id and record_workspace_id != workspace_id:
             return False
     return True
+
+def _assert_user_access(payload: Mapping[str, Any], record: Mapping[str, Any], action: str) -> None:
+    tenant_id = _payload_tenant_id(payload)
+    record_tenant_id = str(record.get("tenant_id", "")).strip()
+    if tenant_id and record_tenant_id and record_tenant_id != tenant_id:
+        raise forbidden_error(
+            f"Tenant-scoped admin cannot {action} another tenant's user",
+            details={"tenant_id": tenant_id, "requested_tenant_id": record_tenant_id},
+        )
+    workspace_id = _payload_workspace_id(payload)
+    record_workspace_id = str(record.get("workspace_id", "")).strip()
+    if workspace_id and record_workspace_id and record_workspace_id != workspace_id:
+        raise forbidden_error(
+            f"Workspace-scoped admin cannot {action} another workspace's user",
+            details={"workspace_id": workspace_id, "requested_workspace_id": record_workspace_id},
+        )
 
 def _assert_workspace_access(payload: Mapping[str, Any], record: Mapping[str, Any], action: str) -> None:
     tenant_id = _payload_tenant_id(payload)

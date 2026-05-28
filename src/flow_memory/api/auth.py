@@ -145,6 +145,8 @@ ROLE_SCOPE_MAP: Mapping[str, tuple[str, ...]] = {
 @dataclass(frozen=True)
 class UserRecord:
     user_id: str
+    tenant_id: str
+    workspace_id: str
     email: str
     display_name: str
     roles: tuple[str, ...]
@@ -366,6 +368,8 @@ def create_user_record(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     now = int(time.time())
     return UserRecord(
         user_id=str(payload.get("user_id") or f"user_{secrets.token_hex(8)}"),
+        tenant_id=str(payload.get("tenant_id", "")),
+        workspace_id=str(payload.get("workspace_id", "")),
         email=email,
         display_name=str(payload.get("display_name", email)).strip() or email,
         roles=roles,

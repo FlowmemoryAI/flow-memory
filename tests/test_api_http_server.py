@@ -515,6 +515,67 @@ def test_http_gateway_injects_authenticated_tenant_and_rejects_mismatch() -> Non
     assert mismatch.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
 
 
+def test_http_gateway_tenantless_non_admin_key_rejects_tenant_header() -> None:
+    key = "fmk_global_read_secret"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenantless-read-key",
+                    "key_prefix": "fmk_global_",
+                    "key_hash": api_key_hash(key),
+                    "tenant_id": "",
+                    "principal": "svc-global-read",
+                    "scopes": "compute:read",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    without_tenant_header = gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": key})
+    with_tenant_header = gateway.handle(
+        "GET",
+        "/compute/health",
+        {"x-flow-memory-api-key": key, "x-flow-memory-tenant": "tenant_other"},
+    )
+
+    assert without_tenant_header.status == 200
+    assert with_tenant_header.status == 403
+    assert with_tenant_header.body["error"]["code"] == "auth.forbidden"
+    assert with_tenant_header.body["error"]["details"]["key_id"] == "tenantless-read-key"
+    assert with_tenant_header.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+
+
+def test_http_gateway_legacy_key_still_accepts_tenant_header() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            api_key="dev",
+            api_key_scopes=("compute:billing",),
+            require_scopes=True,
+            enable_rate_limit=False,
+        )
+    )
+    try:
+        response = gateway.handle(
+            "GET",
+            "/billing/balance",
+            {"x-flow-memory-api-key": "dev", "x-flow-memory-tenant": "tenant_legacy", "x-flow-memory-scopes": "compute:billing"},
+        )
+    finally:
+        reset_default_service(None)
+
+    assert response.status == 200
+    assert response.body["data"]["balance"]["account_id"] == "tenant_legacy"
+
+
 def test_http_gateway_billing_reads_are_tenant_scoped_and_fail_closed() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),

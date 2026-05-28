@@ -211,6 +211,19 @@ class HttpApiGateway:
                 payload=payload,
             )
             credential_resolved = bool(auth.key_id or auth.principal)
+            global_admin_credential = "api:admin" in auth.scopes or "compute:admin" in auth.scopes
+            if (
+                auth.ok
+                and credential_resolved
+                and context.tenant_id
+                and not auth.tenant_id
+                and auth.key_id != "legacy"
+                and not global_admin_credential
+            ):
+                raise forbidden_error(
+                    "API key is not bound to the requested tenant",
+                    details={"key_id": auth.key_id, "requested_tenant_id": context.tenant_id},
+                )
             requested_scopes = context.scopes
             if auth.ok and credential_resolved and requested_scopes:
                 unauthorized_scopes = tuple(sorted(set(requested_scopes) - set(auth.scopes)))
@@ -225,6 +238,7 @@ class HttpApiGateway:
                         },
                     )
             if auth.ok and (auth.scopes or auth.tenant_id or auth.principal):
+                resolved_tenant_id = auth.tenant_id or (context.tenant_id if auth.key_id == "legacy" or global_admin_credential else "")
                 effective_scopes = requested_scopes if requested_scopes else (() if auth.key_id == "legacy" and self.config.require_scopes else auth.scopes)
                 context = context.__class__(
                     method=context.method,
@@ -233,7 +247,7 @@ class HttpApiGateway:
                     principal=auth.principal or context.principal,
                     scopes=tuple(sorted(effective_scopes)),
                     client_id=context.client_id,
-                    tenant_id=auth.tenant_id or context.tenant_id,
+                    tenant_id=resolved_tenant_id,
                 )
             if not auth.ok:
                 raise auth_error("API authorization failed", details={"reasons": auth.reasons})

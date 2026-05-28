@@ -49,7 +49,11 @@ from flow_memory.api.compute_endpoints import (
     admin_reconciliation,
     admin_audit_export_status,
     admin_otlp_export,
+    admin_policy_publish,
+    admin_provider_approve,
+    admin_provider_suspend,
     admin_redis_diagnostics,
+    admin_route_disable,
     admin_storage_diagnostics,
     billing_balance,
     billing_checkout,
@@ -810,6 +814,18 @@ class LocalApiRouter:
     def _admin_reconciliation(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return admin_reconciliation(payload)
 
+    def _admin_provider_approve(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_provider_approve(params["provider_id"], payload)
+
+    def _admin_provider_suspend(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_provider_suspend(params["provider_id"], payload)
+
+    def _admin_route_disable(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_route_disable(params["route_id"], payload)
+
+    def _admin_policy_publish(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return admin_policy_publish(params["policy_id"], payload)
+
     def _admin_storage_diagnostics(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return admin_storage_diagnostics(payload)
 
@@ -1182,6 +1198,10 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/billing/provider-payouts/{payout_id}/settle", router._billing_provider_payout_settle, "billing_provider_payout_settle")
     router.register("POST", "/billing/refund", router._billing_refund, "billing_refund")
     router.register("GET", "/admin/reconciliation", router._admin_reconciliation, "admin_reconciliation")
+    router.register("POST", "/admin/providers/{provider_id}/approve", router._admin_provider_approve, "admin_provider_approve")
+    router.register("POST", "/admin/providers/{provider_id}/suspend", router._admin_provider_suspend, "admin_provider_suspend")
+    router.register("POST", "/admin/routes/{route_id}/disable", router._admin_route_disable, "admin_route_disable")
+    router.register("POST", "/admin/policies/{policy_id}/publish", router._admin_policy_publish, "admin_policy_publish")
     router.register("GET", "/admin/storage/diagnostics", router._admin_storage_diagnostics, "admin_storage_diagnostics")
     router.register("GET", "/admin/redis/diagnostics", router._admin_redis_diagnostics, "admin_redis_diagnostics")
     router.register("GET", "/admin/audit/export", router._admin_audit_export_status, "admin_audit_export_status")

@@ -3704,6 +3704,10 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/billing/refund") == ("compute:billing",)
         assert required_scopes_for("GET", "/billing/provider-payouts") == ("compute:billing",)
         assert required_scopes_for("POST", "/billing/provider-payouts/payout_1/settle") == ("compute:billing",)
+        assert required_scopes_for("POST", "/admin/providers/provider_admin_api/approve") == ("compute:admin",)
+        assert required_scopes_for("POST", "/admin/providers/provider_admin_api/suspend") == ("compute:admin",)
+        assert required_scopes_for("POST", "/admin/routes/route_live_gpu_1/disable") == ("compute:admin",)
+        assert required_scopes_for("POST", "/admin/policies/policy_admin/publish") == ("compute:admin",)
         assert required_scopes_for("POST", "/market/providers/apply") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/conformance") == ("compute:provider-admin",)
         assert required_scopes_for("POST", "/market/providers/provider_live_gpu_1/reject") == ("compute:provider-admin",)
@@ -3760,6 +3764,17 @@ def test_marketplace_api_routes_and_scopes() -> None:
             {"account_id": "acct_api_quota", "daily_spend_limit": 0.5, "monthly_spend_limit": 5.0},
         )
         quota_get = router.dispatch("GET", "/billing/quota", {"account_id": "acct_api_quota"})
+        router.dispatch(
+            "POST",
+            "/market/providers/apply",
+            {**_provider_application(), "provider_id": "provider_admin_api", "provider_name": "Admin API Provider", "request_id": "admin-api-v1"},
+        )
+        admin_approved = router.dispatch("POST", "/admin/providers/provider_admin_api/approve", {"verification_notes": "approved by admin API"})
+        admin_route_id = str(admin_approved["routes"][0]["route_id"])
+        admin_route_disabled = router.dispatch("POST", f"/admin/routes/{admin_route_id}/disable", {"reason": "maintenance"})
+        admin_suspended = router.dispatch("POST", "/admin/providers/provider_admin_api/suspend", {"reason": "operator review"})
+        policy = router.dispatch("POST", "/compute/policies", {"policy_id": "policy_admin_publish", "max_total_cost": 1.0, "dry_run_required": True})
+        published_policy = router.dispatch("POST", "/admin/policies/policy_admin_publish/publish", {"published_by": "ops"})
         assert dispatched["job"]["status"] == "running"
         assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
@@ -3776,5 +3791,11 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert statement["statement"]["record_count"] >= 1
         assert quota_set["quota"]["daily_spend_limit"] == 0.5
         assert quota_get["quota"]["monthly_spend_limit"] == 5.0
+        assert admin_approved["provider_application"]["status"] == "verified"
+        assert admin_route_disabled["route"]["enabled"] is False
+        assert admin_suspended["provider_application"]["status"] == "suspended"
+        assert admin_suspended["provider"]["status"] == "suspended"
+        assert policy["policy"]["policy_id"] == "policy_admin_publish"
+        assert published_policy["policy"]["status"] == "published"
     finally:
         reset_default_service(None)

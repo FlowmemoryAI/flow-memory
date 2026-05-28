@@ -896,6 +896,84 @@ class ComputeMarketService:
         self._audit("market.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
         return {"ok": True, "provider_application": updated_application, "invalidated_quote_cache_entries": invalidated_cache}
 
+    def suspend_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /admin/providers/{provider_id}/suspend", request_id=request_id, provider_id=provider_id)
+        if limited is not None:
+            return limited
+        suspended_at = utc_now_iso()
+        reason = str(payload.get("reason", payload.get("suspension_reason", ""))).strip()
+        application = self._latest_provider_application(provider_id, payload)
+        updated_application = {
+            **application,
+            "status": "suspended",
+            "suspended_at": suspended_at,
+            "suspension_reason": reason,
+            "updated_at": suspended_at,
+        }
+        self.store.put_record(
+            "market_provider_application",
+            str(updated_application["application_id"]),
+            updated_application,
+            provider_id=provider_id,
+            status="suspended",
+            request_id=request_id,
+            tenant_id=str(updated_application.get("tenant_id", "")),
+            workspace_id=str(updated_application.get("workspace_id", "")),
+        )
+        provider = self.store.get_record("compute_provider", provider_id)
+        suspended_provider: Mapping[str, Any] = {}
+        if provider is not None:
+            suspended_provider = {
+                **dict(provider),
+                "status": "suspended",
+                "suspended_at": suspended_at,
+                "suspension_reason": reason,
+                "updated_at": suspended_at,
+            }
+            if not _tenant_can_access_catalog_record(payload, suspended_provider):
+                raise KeyError(f"Unknown market provider: {provider_id}")
+            self.store.put_record(
+                "compute_provider",
+                provider_id,
+                suspended_provider,
+                tenant_id=str(suspended_provider.get("tenant_id", "")),
+                workspace_id=str(suspended_provider.get("workspace_id", "")),
+                provider_id=provider_id,
+                status="suspended",
+                request_id=request_id,
+            )
+        suspended_routes: list[Mapping[str, Any]] = []
+        for route in self.store.list_records("compute_route", filters={"provider_id": provider_id}, limit=500).records:
+            suspended_route = {
+                **dict(route),
+                "enabled": False,
+                "status": "suspended",
+                "suspended_at": suspended_at,
+                "updated_at": suspended_at,
+            }
+            self.store.put_record(
+                "compute_route",
+                str(suspended_route["route_id"]),
+                suspended_route,
+                tenant_id=str(suspended_route.get("tenant_id", "")),
+                workspace_id=str(suspended_route.get("workspace_id", "")),
+                provider_id=provider_id,
+                route_id=str(suspended_route["route_id"]),
+                status="suspended",
+                request_id=request_id,
+            )
+            suspended_routes.append(suspended_route)
+        invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": provider_id, "reason": "provider_suspended"}, request_id=request_id)
+        self._audit("admin.provider.suspended", payload, request_id=request_id, result="suspended", provider_id=provider_id)
+        return {
+            "ok": True,
+            "provider_application": updated_application,
+            "provider": suspended_provider,
+            "routes": tuple(suspended_routes),
+            "invalidated_quote_cache_entries": invalidated_cache,
+        }
+
     def provider_reputation(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
         filters: dict[str, Any] = {"provider_id": provider_id}
@@ -1009,6 +1087,29 @@ class ComputeMarketService:
         self.store.put_record("compute_market_policy", policy_id, updated, status=str(updated.get("status", "active")))
         self._audit("compute.policy.updated", payload, result="updated", policy_id=policy_id)
         return {"ok": True, "policy": updated}
+
+    def publish_policy(self, policy_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        limited = self._rate_limit_response(payload, "POST /admin/policies/{policy_id}/publish", request_id=request_id)
+        if limited is not None:
+            return limited
+        validation = self.validate_policy(policy_id, payload)
+        if validation.get("ok") is not True:
+            return validation
+        current = dict(self.get_policy(policy_id)["policy"])
+        published_at = utc_now_iso()
+        updated = {
+            **current,
+            "policy_id": policy_id,
+            "status": "published",
+            "published_at": published_at,
+            "published_by": str(payload.get("published_by", payload.get("actor_id", ""))),
+            "updated_at": published_at,
+        }
+        self.store.put_record("compute_market_policy", policy_id, updated, status="published", request_id=request_id)
+        self._audit("admin.policy.published", payload, request_id=request_id, result="published", policy_id=policy_id)
+        return {"ok": True, "policy": updated, "validation": validation}
 
     def validate_policy(self, policy_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         policy = self.get_policy(policy_id)["policy"]

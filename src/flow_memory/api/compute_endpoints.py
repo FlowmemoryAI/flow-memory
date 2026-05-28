@@ -432,6 +432,22 @@ def admin_reconciliation(payload: Mapping[str, Any] | None = None) -> Mapping[st
     return default_service().reconciliation(payload or {})
 
 
+def admin_provider_approve(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().verify_market_provider(provider_id, payload)
+
+
+def admin_provider_suspend(provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().suspend_market_provider(provider_id, payload)
+
+
+def admin_route_disable(route_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().disable_route(route_id, payload)
+
+
+def admin_policy_publish(policy_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().publish_policy(policy_id, payload)
+
+
 def admin_storage_diagnostics(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().admin_storage_diagnostics(payload or {})
 

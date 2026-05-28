@@ -9941,11 +9941,12 @@ def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
         amount_source = raw_event.get("amount", 0)
         amount_in_minor_units = False
     amount = _non_negative_float(amount_source, "amount")
+    currency = str(event_object.get("currency", raw_event.get("currency", "USD"))).upper()
     if amount_in_minor_units:
-        amount = _major_currency_units(amount)
+        amount = _major_currency_units(amount, currency)
     return {
         "amount": amount,
-        "currency": str(event_object.get("currency", raw_event.get("currency", "USD"))).upper(),
+        "currency": currency,
     }
 
 
@@ -10416,9 +10417,35 @@ def _minor_currency_units(amount: float) -> int:
     return value
 
 
-def _major_currency_units(amount: float) -> float:
-    cents = Decimal(str(amount)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    return float((cents / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+_STRIPE_ZERO_DECIMAL_CURRENCIES = frozenset(
+    {
+        "BIF",
+        "CLP",
+        "DJF",
+        "GNF",
+        "JPY",
+        "KMF",
+        "KRW",
+        "MGA",
+        "PYG",
+        "RWF",
+        "VND",
+        "VUV",
+        "XAF",
+        "XOF",
+        "XPF",
+    }
+)
+_STRIPE_THREE_DECIMAL_CURRENCIES = frozenset({"BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"})
+
+
+def _major_currency_units(amount: float, currency: str) -> float:
+    minor_units = Decimal(str(amount)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    if currency.upper() in _STRIPE_ZERO_DECIMAL_CURRENCIES:
+        return float(minor_units)
+    if currency.upper() in _STRIPE_THREE_DECIMAL_CURRENCIES:
+        return float((minor_units / Decimal("1000")).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP))
+    return float((minor_units / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _is_https_url(value: str) -> bool:

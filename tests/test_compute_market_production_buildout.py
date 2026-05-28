@@ -4131,6 +4131,91 @@ def test_billing_webhook_converts_sub_dollar_stripe_minor_units() -> None:
     assert balance["available_credits"] == 0.5
 
 
+def test_billing_webhook_converts_stripe_currency_minor_units() -> None:
+    service = _service()
+    secret = "whsec_test_secret"
+    jpy_event = {
+        "id": "evt_zero_decimal_payment_intent",
+        "type": "payment_intent.succeeded",
+        "data": {
+            "object": {
+                "amount": 1000,
+                "currency": "jpy",
+                "metadata": {"account_id": "acct_zero_decimal"},
+            }
+        },
+    }
+    bhd_event = {
+        "id": "evt_three_decimal_payment_intent",
+        "type": "payment_intent.succeeded",
+        "data": {
+            "object": {
+                "amount": 10001,
+                "currency": "bhd",
+                "metadata": {"account_id": "acct_three_decimal"},
+            }
+        },
+    }
+    ugx_event = {
+        "id": "evt_special_two_decimal_payment_intent",
+        "type": "payment_intent.succeeded",
+        "data": {
+            "object": {
+                "amount": 500,
+                "currency": "ugx",
+                "metadata": {"account_id": "acct_special_two_decimal"},
+            }
+        },
+    }
+
+    jpy = service.billing_webhook_stripe(
+        {
+            "raw_event": jpy_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(jpy_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    bhd = service.billing_webhook_stripe(
+        {
+            "raw_event": bhd_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(bhd_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    ugx = service.billing_webhook_stripe(
+        {
+            "raw_event": ugx_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(ugx_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+
+    assert jpy["ok"] is True
+    assert jpy["payment_event"]["amount"] == 1000.0
+    assert jpy["credit_transaction"]["amount"] == 1000.0
+    assert service.billing_balance({"account_id": "acct_zero_decimal"})["balance"]["available_credits"] == 1000.0
+    assert bhd["ok"] is True
+    assert bhd["payment_event"]["amount"] == 10.001
+    assert bhd["credit_transaction"]["amount"] == 10.001
+    assert service.billing_balance({"account_id": "acct_three_decimal"})["balance"]["available_credits"] == 10.001
+    assert ugx["ok"] is True
+    assert ugx["payment_event"]["amount"] == 5.0
+    assert ugx["credit_transaction"]["amount"] == 5.0
+    assert service.billing_balance({"account_id": "acct_special_two_decimal"})["balance"]["available_credits"] == 5.0
+
+
 def test_billing_webhook_duplicate_delivery_is_idempotent() -> None:
     service = _service()
     raw_event = {

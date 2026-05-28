@@ -4165,6 +4165,21 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
     assert routed_settle["provider_payout"]["status"] == "settled"
     assert routed_settle["provider_payout"]["external_disbursement_recorded"] is True
     assert routed_settle["provider_payout"]["funds_moved"] is False
+    replayed_settle = service.settle_provider_payout(
+        payout_id,
+        {"external_payout_reference": "stripe_transfer_test_1", "settled_by": "ops"},
+    )
+    conflicting_settle = service.settle_provider_payout(
+        payout_id,
+        {"external_payout_reference": "stripe_transfer_test_2", "settled_by": "ops"},
+    )
+
+    assert replayed_settle["ok"] is True
+    assert replayed_settle["idempotent_replay"] is True
+    assert replayed_settle["provider_payout"]["provider_payout_id"] == payout_id
+    assert conflicting_settle["ok"] is False
+    assert conflicting_settle["error"]["error_code"] == "billing.provider_payout.settlement_conflict"
+    assert conflicting_settle["error"]["details"]["conflicts"]
 
     settled = service.billing_provider_payouts({"account_id": "acct_payout", "provider_id": "provider_live_gpu_1", "status": "settled"})
     after_reconciliation = service.reconciliation({})["reconciliation"]

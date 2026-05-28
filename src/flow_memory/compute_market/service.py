@@ -4655,6 +4655,40 @@ class ComputeMarketService:
             raise KeyError(f"Unknown provider payout: {payout_id}")
         _billing_account_id(payload, fallback_account_id=str(payout.get("account_id", "")).strip())
         current_status = str(payout.get("status", ""))
+        settlement_conflicts = _provider_payout_settlement_conflicts(payout, payload)
+        replay_requested = _provider_payout_settlement_replay_requested(payout, payload)
+        if current_status == "settled" and (replay_requested or settlement_conflicts):
+            if settlement_conflicts:
+                error = compute_error(
+                    "billing.provider_payout.settlement_conflict",
+                    "Provider payout settlement was replayed with different settlement parameters.",
+                    details={"provider_payout_id": payout_id, "conflicts": settlement_conflicts},
+                    request_id=request_id,
+                )
+                self._audit(
+                    "billing.provider_payout.settlement_replay_rejected",
+                    payload,
+                    request_id=request_id,
+                    result="rejected",
+                    reason_codes=("billing.provider_payout.settlement_conflict",),
+                    provider_id=str(payout.get("provider_id", "")),
+                    route_id=str(payout.get("route_id", "")),
+                )
+                return {
+                    "ok": False,
+                    "provider_payout": payout,
+                    "error": error.as_record(),
+                    "idempotent_replay": False,
+                }
+            self._audit(
+                "billing.provider_payout.settlement_replayed",
+                {**dict(payload), "provider_payout_id": payout_id},
+                request_id=request_id,
+                result="settled",
+                provider_id=str(payout.get("provider_id", "")),
+                route_id=str(payout.get("route_id", "")),
+            )
+            return {"ok": True, "provider_payout": payout, "idempotent_replay": True}
         if current_status != "accrued":
             raise ValueError(f"provider payout is not accrued: {current_status}")
         now = utc_now_iso()
@@ -4665,6 +4699,7 @@ class ComputeMarketService:
             "updated_at": now,
             "settled_by": str(payload.get("settled_by") or payload.get("actor_id") or "operator"),
             "external_payout_reference": str(payload.get("external_payout_reference", "")),
+            "settlement_idempotency_key": str(payload.get("idempotency_key", payout_id)),
             "external_disbursement_recorded": True,
             "dry_run_only": True,
             "funds_moved": False,
@@ -4694,7 +4729,7 @@ class ComputeMarketService:
             provider_id=str(settled.get("provider_id", "")),
             route_id=str(settled.get("route_id", "")),
         )
-        return {"ok": True, "provider_payout": settled}
+        return {"ok": True, "provider_payout": settled, "idempotent_replay": False}
 
     def billing_refund(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -9981,6 +10016,46 @@ def _refund_credit_transaction(store: ComputeMarketStoreProtocol, refund: Mappin
         usage_charge_id=usage_charge_id,
     )
 
+
+def _provider_payout_settlement_replay_requested(
+    payout: Mapping[str, Any],
+    payload: Mapping[str, Any],
+) -> bool:
+    idempotency_key = str(payload.get("idempotency_key", "")).strip()
+    external_reference = str(payload.get("external_payout_reference", "")).strip()
+    existing_idempotency_key = str(payout.get("settlement_idempotency_key", "")).strip()
+    existing_external_reference = str(payout.get("external_payout_reference", "")).strip()
+    return bool(
+        (idempotency_key and idempotency_key == existing_idempotency_key)
+        or (external_reference and external_reference == existing_external_reference)
+    )
+
+
+def _provider_payout_settlement_conflicts(
+    payout: Mapping[str, Any],
+    payload: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], ...]:
+    conflicts: list[Mapping[str, Any]] = []
+
+    def add_conflict(field: str, incoming: str, existing: str) -> None:
+        conflicts.append({"field": field, "incoming": incoming, "existing": existing})
+
+    external_reference = str(payload.get("external_payout_reference", "")).strip()
+    existing_external_reference = str(payout.get("external_payout_reference", "")).strip()
+    if external_reference and external_reference != existing_external_reference:
+        add_conflict("external_payout_reference", external_reference, existing_external_reference)
+
+    idempotency_key = str(payload.get("idempotency_key", "")).strip()
+    existing_idempotency_key = str(payout.get("settlement_idempotency_key", "")).strip()
+    if idempotency_key and existing_idempotency_key and idempotency_key != existing_idempotency_key:
+        add_conflict("idempotency_key", idempotency_key, existing_idempotency_key)
+
+    actor = str(payload.get("settled_by") or payload.get("actor_id") or "").strip()
+    existing_actor = str(payout.get("settled_by", "")).strip()
+    if actor and actor != existing_actor:
+        add_conflict("settled_by", actor, existing_actor)
+
+    return tuple(conflicts)
 
 def _refund_replay_conflicts(
     store: ComputeMarketStoreProtocol,

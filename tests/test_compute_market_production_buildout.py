@@ -3346,6 +3346,94 @@ def test_billing_checkout_creates_external_stripe_session_when_enabled() -> None
     assert params["metadata[account_id]"] == ["acct_checkout"]
 
 
+def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_webhook",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-webhook-request",
+                "idempotency_key": "checkout-webhook-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    secret = service.config.stripe_webhook_secret
+    mismatched_event = {
+        "id": "evt_checkout_amount_mismatch",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 9999,
+                "currency": "usd",
+                "metadata": {"account_id": "acct_checkout_webhook", "payment_event_id": payment_event_id},
+            }
+        },
+    }
+    missing_reference_event = {
+        "id": "evt_checkout_missing_reference",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 1234,
+                "currency": "usd",
+                "metadata": {"account_id": "acct_checkout_webhook"},
+            }
+        },
+    }
+    accepted_event = {
+        "id": "evt_checkout_amount_match",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 1234,
+                "currency": "usd",
+                "metadata": {"account_id": "acct_checkout_webhook", "payment_event_id": payment_event_id},
+            }
+        },
+    }
+
+    mismatch = service.billing_webhook_stripe(
+        {
+            "raw_event": mismatched_event,
+            "stripe_signature": hmac.new(secret.encode("utf-8"), content_hash(mismatched_event).encode("utf-8"), "sha256").hexdigest(),
+        }
+    )
+    missing_reference = service.billing_webhook_stripe(
+        {
+            "raw_event": missing_reference_event,
+            "stripe_signature": hmac.new(secret.encode("utf-8"), content_hash(missing_reference_event).encode("utf-8"), "sha256").hexdigest(),
+        }
+    )
+    accepted = service.billing_webhook_stripe(
+        {
+            "raw_event": accepted_event,
+            "stripe_signature": hmac.new(secret.encode("utf-8"), content_hash(accepted_event).encode("utf-8"), "sha256").hexdigest(),
+        }
+    )
+    balance = service.billing_balance({"account_id": "acct_checkout_webhook"})["balance"]
+
+    assert mismatch["ok"] is False
+    assert mismatch["error"]["error_code"] == "billing.webhook.checkout_amount_mismatch"
+    assert mismatch["payment_event"]["status"] == "rejected_untrusted_checkout"
+    assert missing_reference["ok"] is False
+    assert missing_reference["error"]["error_code"] == "billing.webhook.checkout_reference_required"
+    assert accepted["ok"] is True
+    assert accepted["credit_transaction"]["amount"] == 12.34
+    assert balance["available_credits"] == 12.34
+    assert service.store.count_records("credit_transaction") == 1
+
+
 def test_billing_checkout_fails_closed_when_stripe_api_fails() -> None:
     server, base_url = _stripe_checkout_server(status=500)
     try:

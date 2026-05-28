@@ -4306,6 +4306,93 @@ class ComputeMarketService:
                     reason_codes=("billing.webhook.signature_required",),
                 )
                 return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": True}
+        if self.config.stripe_checkout_enabled and verified and _stripe_event_posts_credit(raw_event):
+            checkout_reference_id = _stripe_checkout_payment_event_id(raw_event)
+            checkout_record = self.store.get_record("payment_event", checkout_reference_id) if checkout_reference_id else None
+            checkout_error_code = ""
+            checkout_error_message = ""
+            checkout_details: dict[str, object] = {
+                "payment_event_id": event_id,
+                "provider": "stripe",
+                "checkout_payment_event_id": checkout_reference_id,
+            }
+            if not checkout_reference_id:
+                checkout_error_code = "billing.webhook.checkout_reference_required"
+                checkout_error_message = "Stripe credit webhook must reference a server-created checkout event."
+            elif not isinstance(checkout_record, Mapping) or not checkout_record:
+                checkout_error_code = "billing.webhook.checkout_reference_unknown"
+                checkout_error_message = "Stripe credit webhook referenced an unknown checkout event."
+            elif str(checkout_record.get("event_type", "")) != "checkout.requested":
+                checkout_error_code = "billing.webhook.checkout_reference_invalid"
+                checkout_error_message = "Stripe credit webhook referenced a non-checkout payment event."
+            else:
+                expected_amount = float(checkout_record.get("amount", 0.0) or 0.0)
+                expected_currency = str(checkout_record.get("currency", "")).upper()
+                session_id = _stripe_checkout_session_id(raw_event)
+                expected_session_id = str(checkout_record.get("external_checkout_session_id", "")).strip()
+                checkout_details.update(
+                    {
+                        "expected_amount": expected_amount,
+                        "reported_amount": credit_amount,
+                        "expected_currency": expected_currency,
+                        "reported_currency": credit_currency,
+                        "expected_session_id": expected_session_id,
+                        "reported_session_id": session_id,
+                    }
+                )
+                if expected_session_id and session_id and expected_session_id != session_id:
+                    checkout_error_code = "billing.webhook.checkout_session_mismatch"
+                    checkout_error_message = "Stripe credit webhook session does not match the server-created checkout."
+                elif abs(expected_amount - credit_amount) > 1e-9:
+                    checkout_error_code = "billing.webhook.checkout_amount_mismatch"
+                    checkout_error_message = "Stripe credit webhook amount does not match the server-created checkout."
+                elif expected_currency != credit_currency.upper():
+                    checkout_error_code = "billing.webhook.checkout_currency_mismatch"
+                    checkout_error_message = "Stripe credit webhook currency does not match the server-created checkout."
+                else:
+                    account_id = str(checkout_record.get("account_id", account_id))
+                    credit_amount = expected_amount
+                    credit_currency = expected_currency
+            if checkout_error_code:
+                status = "rejected_untrusted_checkout"
+                record = {
+                    "payment_event_id": event_id,
+                    "account_id": account_id,
+                    "provider": "stripe",
+                    "event_type": event_type,
+                    "verified": False,
+                    "signature_verified": verified,
+                    "status": status,
+                    "raw_event_hash": raw_event_hash,
+                    "amount": credit_amount,
+                    "currency": credit_currency,
+                    "failure_recorded": False,
+                    "failure_code": checkout_error_code,
+                    "failure_reason": checkout_error_message,
+                    "dry_run_only": True,
+                    "funds_moved": False,
+                    "external_payment_recorded": False,
+                    "created_at": utc_now_iso(),
+                }
+                error = compute_error(checkout_error_code, checkout_error_message, details=checkout_details, request_id=request_id)
+                self.store.put_record(
+                    "payment_event",
+                    event_id,
+                    record,
+                    tenant_id=account_id,
+                    status=status,
+                    request_id=request_id,
+                    idempotency_key=event_id,
+                )
+                self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
+                self._audit(
+                    "billing.webhook.rejected",
+                    payload,
+                    request_id=request_id,
+                    result="rejected",
+                    reason_codes=(checkout_error_code,),
+                )
+                return {"ok": False, "payment_event": record, "credit_transaction": {}, "error": error.as_record()}
         reason_codes = _stripe_webhook_reason_codes(status, failure)
         record = {
             "payment_event_id": event_id,
@@ -8373,6 +8460,23 @@ def _provider_sla_penalty(
         "request_id": request_id,
     }
 
+
+def _stripe_checkout_payment_event_id(raw_event: Mapping[str, Any]) -> str:
+    event_object = _stripe_event_object(raw_event)
+    metadata = event_object.get("metadata", raw_event.get("metadata", {}))
+    if not isinstance(metadata, Mapping):
+        metadata = {}
+    return str(metadata.get("payment_event_id") or raw_event.get("payment_event_id") or "").strip()
+
+
+def _stripe_checkout_session_id(raw_event: Mapping[str, Any]) -> str:
+    event_object = _stripe_event_object(raw_event)
+    return str(
+        event_object.get("id")
+        or event_object.get("checkout_session")
+        or raw_event.get("checkout_session_id")
+        or ""
+    ).strip()
 
 def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
     event_object = _stripe_event_object(raw_event)

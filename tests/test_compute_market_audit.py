@@ -473,9 +473,14 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
         str(stale_checkpoint["checkpoint_id"]),
         stale_checkpoint,
     )
+    stale_monitor = service.audit_chain_monitor({})
+    stale_metric_total = service.telemetry.summary()["metric_totals"].get("audit_checkpoint_stale_total", 0.0)
     interval_scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100, "interval_seconds": 1})
     assert interval_scheduled["interval_due"] is True
     assert interval_scheduled["due"] is True
+    assert stale_monitor["checkpoint_stale"] is True
+    assert stale_monitor["stale_checkpoint_warning"]
+    assert stale_metric_total == 1.0
 
 
 def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None:

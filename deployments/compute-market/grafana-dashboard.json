@@ -112,6 +112,7 @@
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
       "targets": [
         {"expr": "sum(audit_chain_verify_fail_total)", "legendFormat": "audit chain failures", "refId": "A"},
+        {"expr": "sum(audit_checkpoint_stale_total)", "legendFormat": "stale audit checkpoints", "refId": "M"},
         {"expr": "sum(settlement_attempt_total)", "legendFormat": "settlement attempts", "refId": "B"},
         {"expr": "sum(unexpected_live_settlement_config_total)", "legendFormat": "unsafe settlement config", "refId": "C"},
         {"expr": "sum(rate(alert_delivery_pending_total[5m]))", "legendFormat": "alert deliveries pending", "refId": "D"},

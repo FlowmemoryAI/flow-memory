@@ -4298,15 +4298,24 @@ class ComputeMarketService:
         chain_ids = (requested_chain,) if requested_chain else (self.store.audit_chain_ids() or ("",))
         chains = tuple(self.store.verify_audit_chain(chain_id=chain_id).as_record() for chain_id in chain_ids)
         checkpoint_page = self.store.list_records("audit_checkpoint_manifest", filters={"chain_id": requested_chain} if requested_chain else {}, limit=100, include_archived=True)
+        latest_checkpoint = checkpoint_page.records[-1] if checkpoint_page.records else {}
+        checkpoint_stale = _checkpoint_interval_due(
+            latest_checkpoint if isinstance(latest_checkpoint, Mapping) else {},
+            self.config.audit_checkpoint_interval_seconds,
+        )
         ok = all(bool(chain.get("ok")) for chain in chains)
         if not ok:
             self.telemetry.increment("audit_chain_verify_fail_total")
+        if checkpoint_stale:
+            self.telemetry.increment("audit_checkpoint_stale_total")
         self._audit("compute.audit.chain_monitored", payload, result="completed" if ok else "failed", reason_codes=() if ok else ("audit_chain_invalid",))
         return {
             "ok": ok,
             "chains": chains,
             "checkpoint_count": len(checkpoint_page.records),
-            "latest_checkpoint": checkpoint_page.records[-1] if checkpoint_page.records else {},
+            "latest_checkpoint": latest_checkpoint,
+            "checkpoint_stale": checkpoint_stale,
+            "stale_checkpoint_warning": "latest audit checkpoint is older than the configured interval" if checkpoint_stale else "",
             "audit_exporter_status": self.audit_exporter.get_status(),
         }
 

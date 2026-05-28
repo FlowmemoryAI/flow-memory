@@ -111,6 +111,7 @@ def test_metric_and_span_catalogs_include_production_backlog_names() -> None:
     assert "billing_payout_settled_total" in names
     assert "billing_insufficient_credit_total" in names
     assert "audit_chain_verify_fail_total" in names
+    assert "audit_checkpoint_stale_total" in names
     assert "billing_webhook_failures_total" in names
     assert "billing_ledger_mismatch_total" in names
     assert "provider_execution_failure_total" in names
@@ -144,6 +145,7 @@ def test_alert_evaluator_fires_on_audit_failures_and_acknowledges_route() -> Non
     router = create_default_router()
     try:
         service.telemetry.increment("audit_chain_verify_fail_total")
+        service.telemetry.increment("audit_checkpoint_stale_total")
         evaluation = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
         alerts = cast(dict[str, Any], router.dispatch("GET", "/compute/alerts"))
         ack = cast(dict[str, Any], router.dispatch("POST", "/compute/alerts/audit-chain-verify-failure/ack", {"acknowledged_by": "test"}))
@@ -153,7 +155,8 @@ def test_alert_evaluator_fires_on_audit_failures_and_acknowledges_route() -> Non
 
     assert evaluation["ok"] is False
     assert evaluation["firing"][0]["rule_name"] == "audit-chain-verify-failure"
-    assert alerts["alerts"]["firing_count"] == 1
+    assert alerts["alerts"]["firing_count"] == 2
+    assert alerts["alerts"]["firing"][1]["rule_name"] == "audit-checkpoint-stale"
     assert ack["ok"] is True
     assert acknowledged["alerts"]["firing"][0]["acknowledged"] is True
 
@@ -774,6 +777,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "error_tracking_sent_total",
         "error_tracking_failed_total",
         "audit_chain_verify_fail_total",
+        "audit_checkpoint_stale_total",
         "settlement_attempt_total",
         "unexpected_live_settlement_config_total",
         "redis_unavailable_total",
@@ -797,6 +801,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
     required_alerts = {
         "FlowMemoryComputeMarketReadinessUnavailable",
         "FlowMemoryComputeMarketAuditChainBreak",
+        "FlowMemoryComputeMarketAuditCheckpointStale",
         "FlowMemoryComputeMarketProviderQuoteErrorSpike",
         "FlowMemoryComputeMarketProviderCircuitOpen",
         "FlowMemoryComputeMarketProviderFraudSignal",
@@ -817,6 +822,7 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "postgres_unavailable_total",
         "redis_unavailable_total",
         "audit_chain_verify_fail_total",
+        "audit_checkpoint_stale_total",
         "provider_quote_failure_total",
         "provider_circuit_open_total",
         "provider_fraud_signal_total",

@@ -22,6 +22,16 @@ groups:
           summary: Compute Market audit chain verification failed.
           description: Stop traffic, export affected audit events, and investigate hash-chain integrity before resuming writes.
 
+      - alert: FlowMemoryComputeMarketAuditCheckpointStale
+        expr: audit_checkpoint_stale_total > 0
+        for: 15m
+        labels:
+          severity: warning
+          component: audit
+        annotations:
+          summary: Compute Market audit checkpoint is stale.
+          description: Check the checkpoint scheduler/export job and verify immutable audit storage is still receiving manifests.
+
       - alert: FlowMemoryComputeMarketProviderQuoteErrorSpike
         expr: rate(provider_quote_failure_total[5m]) > 5
         for: 5m

@@ -65,6 +65,7 @@ _METRIC_NAMES: tuple[str, ...] = (
     "unexpected_live_settlement_config_total",
     "settlement_attempt_total",
     "audit_chain_verify_fail_total",
+    "audit_checkpoint_stale_total",
     "compute_provider_receipt_accepted_total",
     "compute_provider_receipt_rejected_total",
     "compute_provider_callback_rejected_total",
@@ -173,6 +174,7 @@ class AlertEvaluationResult:
 
 DEFAULT_ALERT_RULES: tuple[AlertRule, ...] = (
     AlertRule("audit-chain-verify-failure", "audit_chain_verify_fail_total", 1.0, ">=", "critical", "Tamper-evident audit chain verification failed."),
+    AlertRule("audit-checkpoint-stale", "audit_checkpoint_stale_total", 1.0, ">=", "warning", "Audit checkpoint scheduler is stale."),
     AlertRule("provider-circuit-open", "provider_circuit_open_total", 1.0, ">=", "warning", "Provider circuit breaker opened."),
     AlertRule("provider-quote-failures", "provider_quote_failure_total", 3.0, ">=", "warning", "Provider quote failures exceeded the public alpha threshold."),
     AlertRule("provider-fraud-signal", "provider_fraud_signal_total", 1.0, ">=", "critical", "Provider fraud or quote-manipulation signal was recorded."),

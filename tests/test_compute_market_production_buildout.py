@@ -4319,7 +4319,110 @@ def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None
     assert accepted["ok"] is True
     assert accepted["credit_transaction"]["amount"] == 12.34
     assert balance["available_credits"] == 12.34
+    assert accepted["checkout_update"]["status"] == "payment_credited"
+    assert accepted["invoice_update"]["status"] == "payment_credited"
+    stored_checkout = service.store.get_record("payment_event", payment_event_id)
+    stored_invoice = service.store.get_record("billing_invoice", str(checkout["invoice"]["invoice_id"]))
+    assert stored_checkout is not None
+    assert stored_invoice is not None
+    assert stored_checkout["status"] == "payment_credited"
+    assert stored_invoice["status"] == "payment_credited"
     assert service.store.count_records("credit_transaction") == 1
+
+
+def test_stripe_checkout_failure_webhook_marks_checkout_and_invoice_failed() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_failed_state",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-failure-request",
+                "idempotency_key": "checkout-failure-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    invoice_id = str(checkout["invoice"]["invoice_id"])
+    secret = str(service.config.stripe_webhook_secret)
+    raw_event = {
+        "id": "evt_checkout_failed_state",
+        "type": "payment_intent.payment_failed",
+        "data": {
+            "object": {
+                "id": "pi_checkout_failed_state",
+                "amount": 1234,
+                "currency": "usd",
+                "metadata": {
+                    "account_id": "acct_checkout_failed_state",
+                    "payment_event_id": payment_event_id,
+                },
+                "last_payment_error": {
+                    "code": "card_declined",
+                    "message": "The card was declined.",
+                },
+            }
+        },
+    }
+
+    webhook = service.billing_webhook_stripe(
+        {
+            "raw_event": raw_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(raw_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    replay = service.billing_webhook_stripe(
+        {
+            "raw_event": raw_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(raw_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    checkout_replay = service.billing_checkout(
+        {
+            "account_id": "acct_checkout_failed_state",
+            "amount": 12.34,
+            "currency": "USD",
+            "idempotency_key": "checkout-failure-idem",
+        }
+    )
+    stored_checkout = service.store.get_record("payment_event", payment_event_id)
+    stored_invoice = service.store.get_record("billing_invoice", invoice_id)
+    balance = service.billing_balance({"account_id": "acct_checkout_failed_state"})["balance"]
+
+    assert webhook["ok"] is True
+    assert webhook["payment_event"]["status"] == "verified_payment_failed"
+    assert webhook["payment_event"]["checkout_payment_event_id"] == payment_event_id
+    assert webhook["checkout_update"]["payment_event_id"] == payment_event_id
+    assert webhook["checkout_update"]["status"] == "payment_failed"
+    assert webhook["checkout_update"]["failure_payment_event_id"] == "evt_checkout_failed_state"
+    assert webhook["invoice_update"]["invoice_id"] == invoice_id
+    assert webhook["invoice_update"]["status"] == "payment_failed"
+    assert stored_checkout is not None
+    assert stored_invoice is not None
+    assert stored_checkout["status"] == "payment_failed"
+    assert stored_invoice["status"] == "payment_failed"
+    assert checkout_replay["idempotent_replay"] is True
+    assert checkout_replay["ok"] is False
+    assert checkout_replay["checkout"]["status"] == "payment_failed"
+    assert checkout_replay["invoice"]["status"] == "payment_failed"
+    assert replay["ok"] is True
+    assert replay["idempotent_replay"] is True
+    assert webhook["credit_transaction"] == {}
+    assert balance["available_credits"] == 0.0
+    assert service.store.count_records("credit_transaction") == 0
 
 def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_references() -> None:
     server, base_url = _stripe_checkout_server()

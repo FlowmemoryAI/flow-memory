@@ -4769,6 +4769,7 @@ class ComputeMarketService:
             "funds_moved": False,
             "raw_event_hash": content_hash({"account_id": account_id, "amount": amount, "currency": currency, "request_id": request_id}),
             "created_at": utc_now_iso(),
+            "idempotency_key": idempotency_key,
         }
         ok = False
         audit_result = "requires_external_provider"
@@ -4833,6 +4834,7 @@ class ComputeMarketService:
             request_id=request_id,
         )
         checkout["invoice_id"] = str(invoice["invoice_id"])
+        invoice["idempotency_key"] = str(payload.get("idempotency_key") or invoice["invoice_id"])
         if ok:
             self.telemetry.increment("billing_checkout_created_total", {"provider": str(checkout["provider"])})
         elif checkout["status"] in {"external_checkout_failed", "requires_stripe_checkout_config"}:
@@ -4955,6 +4957,12 @@ class ComputeMarketService:
         failure = _stripe_failure(raw_event)
         status = _stripe_payment_event_status(event_type, verified)
         raw_event_hash = content_hash(raw_event)
+        posts_credit = _stripe_event_posts_credit(raw_event)
+        checkout_reference_id = (
+            _stripe_checkout_payment_event_id(raw_event)
+            if verified and (posts_credit or _stripe_event_is_payment_failure(event_type))
+            else ""
+        )
         existing = self.store.get_record("payment_event", event_id)
         if existing is not None:
             if str(existing.get("raw_event_hash", "")) != raw_event_hash:
@@ -5007,8 +5015,7 @@ class ComputeMarketService:
                     reason_codes=("billing.webhook.signature_required",),
                 )
                 return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": True}
-        if self.config.stripe_checkout_enabled and verified and _stripe_event_posts_credit(raw_event):
-            checkout_reference_id = _stripe_checkout_payment_event_id(raw_event)
+        if self.config.stripe_checkout_enabled and verified and posts_credit:
             checkout_record = self.store.get_record("payment_event", checkout_reference_id) if checkout_reference_id else None
             checkout_error_code = ""
             checkout_error_message = ""
@@ -5113,13 +5120,15 @@ class ComputeMarketService:
             "external_payment_recorded": verified,
             "created_at": utc_now_iso(),
         }
+        if checkout_reference_id:
+            record["checkout_payment_event_id"] = checkout_reference_id
         if not verified:
             self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
         elif _stripe_event_is_payment_failure(event_type):
             self.telemetry.increment("billing_payment_failed_total", {"provider": "stripe", "event_type": event_type})
         self.store.put_record("payment_event", event_id, record, tenant_id=account_id, status=str(record["status"]), request_id=request_id, idempotency_key=event_id)
         credit_record: Mapping[str, Any] = {}
-        if verified and account_id and credit_amount > 0 and _stripe_event_posts_credit(raw_event):
+        if verified and account_id and credit_amount > 0 and posts_credit:
             credit_record = _apply_credit(
                 self.store,
                 account_id,
@@ -5129,8 +5138,165 @@ class ComputeMarketService:
                 source_event_id=event_id,
             )
             self._audit("billing.credit.added", payload, request_id=request_id, result="credited")
+        checkout_update: Mapping[str, Any] = {}
+        invoice_update: Mapping[str, Any] = {}
+        if verified and checkout_reference_id:
+            if posts_credit and credit_record:
+                checkout_update, invoice_update = self._record_stripe_checkout_terminal_state(
+                    checkout_payment_event_id=checkout_reference_id,
+                    event_id=event_id,
+                    event_type=event_type,
+                    status="payment_credited",
+                    request_id=request_id,
+                    amount=credit_amount,
+                    currency=credit_currency,
+                    failure={},
+                )
+            elif _stripe_event_is_payment_failure(event_type):
+                checkout_update, invoice_update = self._record_stripe_checkout_terminal_state(
+                    checkout_payment_event_id=checkout_reference_id,
+                    event_id=event_id,
+                    event_type=event_type,
+                    status=_stripe_checkout_failure_status(event_type),
+                    request_id=request_id,
+                    amount=credit_amount,
+                    currency=credit_currency,
+                    failure=failure,
+                )
         self._audit("billing.webhook.received", payload, request_id=request_id, result=str(record["status"]), reason_codes=reason_codes)
-        return {"ok": verified, "payment_event": record, "credit_transaction": credit_record}
+        return {
+            "ok": verified,
+            "payment_event": record,
+            "credit_transaction": credit_record,
+            "checkout_update": checkout_update,
+            "invoice_update": invoice_update,
+        }
+
+    def _record_stripe_checkout_terminal_state(
+        self,
+        *,
+        checkout_payment_event_id: str,
+        event_id: str,
+        event_type: str,
+        status: str,
+        request_id: str,
+        amount: float,
+        currency: str,
+        failure: Mapping[str, str],
+    ) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+        checkout_record = self.store.get_record("payment_event", checkout_payment_event_id)
+        if not isinstance(checkout_record, Mapping) or not checkout_record:
+            return {}, {}
+        if str(checkout_record.get("event_type", "")) != "checkout.requested":
+            return {}, {}
+        previous_status = str(checkout_record.get("status", ""))
+        invoice_record: Mapping[str, Any] = {}
+        invoice_id = str(checkout_record.get("invoice_id", ""))
+        if invoice_id:
+            invoice_record = self.store.get_record("billing_invoice", invoice_id) or {}
+        if previous_status == "payment_credited" and status != "payment_credited":
+            return checkout_record, invoice_record if isinstance(invoice_record, Mapping) else {}
+
+        now = utc_now_iso()
+        checkout_update = dict(checkout_record)
+        checkout_update.update(
+            {
+                "status": status,
+                "terminal_payment_event_id": event_id,
+                "terminal_payment_event_type": event_type,
+                "external_payment_recorded": True,
+                "funds_moved": False,
+                "dry_run_only": True,
+                "updated_at": now,
+                "request_id": request_id,
+            }
+        )
+        if status == "payment_credited":
+            checkout_update.update(
+                {
+                    "credited_amount": amount,
+                    "credited_currency": currency,
+                    "credited_at": now,
+                }
+            )
+        else:
+            checkout_update.update(
+                {
+                    "failure_payment_event_id": event_id,
+                    "failure_code": str(failure.get("code", event_type)),
+                    "failure_reason": str(failure.get("reason", event_type)),
+                    "failed_at": now,
+                }
+            )
+        self.store.put_record(
+            "payment_event",
+            checkout_payment_event_id,
+            checkout_update,
+            tenant_id=str(checkout_update.get("account_id", "")),
+            workspace_id=str(checkout_update.get("workspace_id", "")),
+            status=status,
+            request_id=request_id,
+            idempotency_key=str(checkout_update.get("idempotency_key") or checkout_payment_event_id),
+        )
+
+        invoice_update: Mapping[str, Any] = {}
+        if isinstance(invoice_record, Mapping) and invoice_record:
+            invoice_payload = dict(invoice_record)
+            invoice_payload.update(
+                {
+                    "status": status,
+                    "terminal_payment_event_id": event_id,
+                    "terminal_payment_event_type": event_type,
+                    "external_payment_recorded": True,
+                    "funds_moved": False,
+                    "dry_run_only": True,
+                    "updated_at": now,
+                    "request_id": request_id,
+                }
+            )
+            if status == "payment_credited":
+                invoice_payload.update(
+                    {
+                        "credited_amount": amount,
+                        "credited_currency": currency,
+                        "credited_at": now,
+                    }
+                )
+            else:
+                invoice_payload.update(
+                    {
+                        "failure_payment_event_id": event_id,
+                        "failure_code": str(failure.get("code", event_type)),
+                        "failure_reason": str(failure.get("reason", event_type)),
+                        "failed_at": now,
+                    }
+                )
+            self.store.put_record(
+                "billing_invoice",
+                str(invoice_payload.get("invoice_id", invoice_id)),
+                invoice_payload,
+                tenant_id=str(invoice_payload.get("account_id", "")),
+                workspace_id=str(invoice_payload.get("workspace_id", "")),
+                status=status,
+                request_id=request_id,
+                idempotency_key=str(invoice_payload.get("idempotency_key") or invoice_payload.get("invoice_id", invoice_id)),
+            )
+            invoice_update = invoice_payload
+
+        audit_event = "billing.checkout.credited" if status == "payment_credited" else "billing.checkout.failed"
+        self._audit(
+            audit_event,
+            {
+                "payment_event_id": checkout_payment_event_id,
+                "terminal_payment_event_id": event_id,
+                "terminal_payment_event_type": event_type,
+                "status": status,
+            },
+            request_id=request_id,
+            result=status,
+            reason_codes=() if status == "payment_credited" else (str(failure.get("code", event_type)),),
+        )
+        return checkout_update, invoice_update
 
     def billing_balance(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         account_id = _billing_account_id(payload)
@@ -10045,6 +10211,14 @@ def _stripe_payment_event_status(event_type: str, verified: bool) -> str:
     if _stripe_event_is_payment_failure(event_type):
         return "verified_payment_failed"
     return "verified"
+
+
+def _stripe_checkout_failure_status(event_type: str) -> str:
+    if event_type == "checkout.session.expired":
+        return "checkout_expired"
+    if event_type == "payment_intent.canceled":
+        return "payment_canceled"
+    return "payment_failed"
 
 
 def _stripe_failure(raw_event: Mapping[str, Any]) -> Mapping[str, str]:

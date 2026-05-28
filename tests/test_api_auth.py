@@ -209,6 +209,62 @@ class ApiAuthTests(unittest.TestCase):
         self.assertFalse(changed_timestamp.ok)
         self.assertIn("invalid request signature", changed_timestamp.reasons)
 
+    def test_invalid_signed_request_does_not_claim_nonce(self) -> None:
+        key = generate_local_keypair("api-auth-no-nonce-burn")
+        payload = {"goal": "no nonce burn"}
+        timestamp = str(time.time())
+        nonce = "nonce-auth-no-burn-1"
+        headers = {
+            "x-flow-memory-api-key": "test",
+            "x-flow-memory-timestamp": timestamp,
+            "x-flow-memory-nonce": nonce,
+        }
+        config = ApiAuthConfig(
+            api_key="test",
+            require_signed_requests=True,
+            enable_nonce_check=True,
+            max_request_age_seconds=30,
+        )
+        invalid_signature = sign_request(
+            "POST",
+            "/agents/a/run",
+            payload,
+            key,
+            nonce="different-nonce",
+            timestamp=timestamp,
+        )
+        valid_signature = sign_request(
+            "POST",
+            "/agents/a/run",
+            payload,
+            key,
+            nonce=nonce,
+            timestamp=timestamp,
+        )
+
+        rejected = authorize_request(
+            headers,
+            config,
+            method="POST",
+            path="/agents/a/run",
+            payload=payload,
+            signature=invalid_signature,
+            signature_key=key,
+        )
+        accepted = authorize_request(
+            headers,
+            config,
+            method="POST",
+            path="/agents/a/run",
+            payload=payload,
+            signature=valid_signature,
+            signature_key=key,
+        )
+
+        self.assertFalse(rejected.ok)
+        self.assertIn("invalid request signature", rejected.reasons)
+        self.assertTrue(accepted.ok, accepted.reasons)
+
     def test_authorize_request_uses_distributed_nonce_store(self) -> None:
         class FakeRedis:
             def __init__(self) -> None:

@@ -477,7 +477,7 @@ def authorize_request(
             reasons.append("signed request required")
         elif not verify_request(method, path, payload or {}, signature, signature_key, nonce=signature_nonce, timestamp=signature_timestamp):
             reasons.append("invalid request signature")
-    if config.enable_nonce_check and identity is not None:
+    if config.enable_nonce_check and identity is not None and not reasons:
         reasons.extend(
             _nonce_replay_reasons(
                 headers,

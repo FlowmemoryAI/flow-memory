@@ -4,6 +4,8 @@ Flow Memory BYOK is an optional post-Genesis capability. The first agent does no
 
 BYOK lets an existing policy-gated agent reference a user-owned provider credential without storing or printing the raw key in Flow Memory artifacts.
 
+Flow Memory Forge shows BYOK in the Advanced capability composer only. The Simple first-agent path stays no wallet/API key/funds and uses local runtime defaults until the user opts into a credential reference after birth.
+
 ## Public-alpha behavior
 
 - Optional after Agent Genesis.

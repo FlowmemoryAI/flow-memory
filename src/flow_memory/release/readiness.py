@@ -64,6 +64,7 @@ AGENT_GENESIS_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("age
 PROOF_OF_LEARNING_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("experience_graph_proof_of_learning",)))
 AGENT_INTERNET_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("agent_internet_skill_network",)))
 AGENT_UPGRADES_EVIDENCE = tuple(dict.fromkeys(AGENT_INTERNET_EVIDENCE + ("byok_onchain_upgrade",)))
+FORGE_EVIDENCE = tuple(dict.fromkeys(AGENT_UPGRADES_EVIDENCE + ("flow_memory_forge",)))
 
 
 @dataclass(frozen=True)
@@ -145,6 +146,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_agent_upgrades_blockers(root_path, gates.ok)
         classification = "public_alpha_agent_upgrades_candidate" if not blockers else "blocked_public_alpha_agent_upgrades"
         evidence = AGENT_UPGRADES_EVIDENCE
+    elif target == "public-alpha-forge":
+        blockers = _public_alpha_forge_blockers(root_path, gates.ok)
+        classification = "public_alpha_forge_candidate" if not blockers else "blocked_public_alpha_forge"
+        evidence = FORGE_EVIDENCE
     elif target == "public-alpha-proof-of-learning":
         blockers = _public_alpha_proof_of_learning_blockers(root_path, gates.ok)
         classification = "public_alpha_proof_of_learning_candidate" if not blockers else "blocked_public_alpha_proof_of_learning"
@@ -479,6 +484,21 @@ def _public_alpha_agent_upgrades_blockers(root: Path, gate_ok: bool) -> tuple[st
             blockers.extend(f"agent_upgrades_{blocker}" for blocker in decision.get("blockers", ()))
     except Exception:
         blockers.append("byok_onchain_upgrade_evidence_missing_or_invalid")
+    return tuple(dict.fromkeys(blockers))
+
+def _public_alpha_forge_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_public_alpha_agent_upgrades_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.forge_evidence import (
+            flow_memory_forge_evidence,
+            verify_flow_memory_forge_evidence,
+        )
+
+        decision = verify_flow_memory_forge_evidence(flow_memory_forge_evidence(root))
+        if not decision.get("ok"):
+            blockers.extend(f"forge_{blocker}" for blocker in decision.get("blockers", ()))
+    except Exception:
+        blockers.append("flow_memory_forge_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_proof_of_learning_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

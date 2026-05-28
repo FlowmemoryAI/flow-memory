@@ -99,7 +99,7 @@
   "public_alpha_demo_bundle_no_live_provider_calls": true,
   "public_alpha_demo_bundle_validated": true,
   "sample_bundle": {
-    "bundle_path": "D:\\CDriveRelief\\Temp\\tmpnjdbvtap\\public-alpha-local-demo.json",
+    "bundle_path": "D:\\CDriveRelief\\Temp\\tmp_lgom0kw\\public-alpha-local-demo.json",
     "command_count": 16,
     "fixture_count": 9,
     "gpu_evidence_status": "artifact_present_not_verified"

@@ -90,6 +90,12 @@ from flow_memory.capability_upgrades import (
     wallet_status,
     x402_adapter_status,
 )
+from flow_memory.forge import (
+    birth_agent_from_forge,
+    create_forge_assembly_plan,
+    forge_defaults,
+    simulate_forge_upgrades,
+)
 
 
 def _json_default(value: Any) -> str:
@@ -930,6 +936,74 @@ def _emergency_stop(argv: list[str]) -> int:
     payload = emergency_stop_status(args.agent_id)
     return _print_launch_payload(payload, json_output=args.json, human=f"emergency stop status {args.agent_id}")
 
+def _forge(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory forge", description="Plan and birth agents through Flow Memory Forge")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    defaults = sub.add_parser("defaults")
+    defaults.add_argument("--json", action="store_true")
+
+    plan = sub.add_parser("plan")
+    plan.add_argument("--user", dest="user_id", default="local-user")
+    plan.add_argument("--name", required=True)
+    plan.add_argument("--archetype", default="research-builder")
+    plan.add_argument("--purpose", required=True)
+    plan.add_argument("--instinct", action="append", default=[])
+    plan.add_argument("--boundary", action="append", default=[])
+    plan.add_argument("--advanced", action="store_true")
+    plan.add_argument("--json", action="store_true")
+
+    birth = sub.add_parser("birth")
+    birth.add_argument("--user", dest="user_id", default="local-user")
+    birth.add_argument("--name", required=True)
+    birth.add_argument("--archetype", default="research-builder")
+    birth.add_argument("--purpose", required=True)
+    birth.add_argument("--instinct", action="append", default=[])
+    birth.add_argument("--boundary", action="append", default=[])
+    birth.add_argument("--advanced", action="store_true")
+    birth.add_argument("--json", action="store_true")
+
+    upgrades = sub.add_parser("simulate-upgrades")
+    upgrades.add_argument("--agent", dest="agent_id", required=True)
+    upgrades.add_argument("--byok", action="store_true")
+    upgrades.add_argument("--wallet", action="store_true")
+    upgrades.add_argument("--onchain-dry-run", action="store_true")
+    upgrades.add_argument("--x402", action="store_true")
+    upgrades.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "defaults":
+        payload = forge_defaults()
+        return _print_launch_payload(payload, json_output=args.json, human="Forge defaults loaded")
+    if args.command in {"plan", "birth"}:
+        payload = {
+            "user_id": args.user_id,
+            "agent_name": args.name,
+            "archetype_id": args.archetype,
+            "purpose": args.purpose,
+            "instincts": tuple(args.instinct),
+            "boundaries": tuple(args.boundary),
+            "first_agent_mode": not args.advanced,
+            "agent_internet_enabled": args.advanced,
+            "skill_manifest_enabled": args.advanced,
+            "collaboration_enabled": args.advanced,
+            "byok_upgrade_requested": False,
+            "wallet_upgrade_requested": False,
+            "onchain_dry_run_requested": False,
+            "x402_dry_run_requested": False,
+        }
+        result = create_forge_assembly_plan(payload) if args.command == "plan" else birth_agent_from_forge(payload)
+        human = f"Forge plan {result['forge_id']}" if args.command == "plan" else f"Forge agent {result['agent_id']} born"
+        return _print_launch_payload(result, json_output=args.json, human=human)
+    payload = simulate_forge_upgrades(
+        args.agent_id,
+        byok=args.byok,
+        wallet=args.wallet,
+        onchain_dry_run=args.onchain_dry_run,
+        x402=args.x402,
+    )
+    return _print_launch_payload(payload, json_output=args.json, human=f"Forge upgrades simulated for {args.agent_id}")
+
 
 def _graph(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory graph", description="Inspect Experience Graph and Proof of Learning artifacts")
@@ -1146,6 +1220,8 @@ def main(argv: list[str] | None = None) -> int:
         return _x402(argv[1:])
     if argv and argv[0] == "emergency-stop":
         return _emergency_stop(argv[1:])
+    if argv and argv[0] == "forge":
+        return _forge(argv[1:])
     if argv and argv[0] == "run":
         argv = argv[1:]
 

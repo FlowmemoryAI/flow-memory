@@ -91,6 +91,13 @@ const fixtureSpecs = [
     run_kind: 'agent_upgrades',
   },
   {
+    fixture_id: 'flow-memory-forge',
+    label: 'Flow Memory Forge',
+    description: 'Browser agent builder and capability composer for safe first-agent birth plus optional upgrades.',
+    path: 'flow-memory-forge.json',
+    run_kind: 'forge',
+  },
+  {
     fixture_id: 'experience-graph-proof-of-learning',
     label: 'Proof of Learning',
     description: 'Experience graph, proof-of-learning ledger, reputation, and privacy-preserving contribution replay.',
@@ -132,6 +139,7 @@ const safeLiveReadEndpoints = [
   'GET /byok/credentials',
   'GET /wallet/bindings',
   'GET /emergency-stop/{agent_id}',
+  'GET /forge/defaults',
   'GET /experience-graph',
   'GET /experience-graph/agents/{agent_id}',
   'GET /proof-of-learning',
@@ -263,6 +271,38 @@ function runGenesisBirth(payload) {
     'from flow_memory.agent_genesis import birth_agent',
     'payload = json.load(sys.stdin)',
     'print(json.dumps(birth_agent(payload, root=ROOT), sort_keys=True, default=str))',
+  ].join('\n');
+  const result = spawnSync(python, ['-c', code], {
+    cwd: projectRoot,
+    input: JSON.stringify(safePayload),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PYTHONPATH: process.env.PYTHONPATH ? `${pythonPath}${path.delimiter}${process.env.PYTHONPATH}` : pythonPath,
+    },
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: 20_000,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error((result.stderr || result.stdout || `python exited with ${result.status}`).trim());
+  }
+  return JSON.parse(result.stdout);
+}
+
+function runForgeBirth(payload) {
+  const safePayload = sanitizeGenesisBirthPayload(payload);
+  const python = process.env.PYTHON || 'python';
+  const pythonPath = path.join(projectRoot, 'src');
+  const code = [
+    'import json, sys',
+    'from pathlib import Path',
+    'ROOT = Path.cwd()',
+    'SRC = ROOT / "src"',
+    'if str(SRC) not in sys.path: sys.path.insert(0, str(SRC))',
+    'from flow_memory.forge import birth_agent_from_forge',
+    'payload = json.load(sys.stdin)',
+    'print(json.dumps(birth_agent_from_forge(payload, root=ROOT), sort_keys=True, default=str))',
   ].join('\n');
   const result = spawnSync(python, ['-c', code], {
     cwd: projectRoot,
@@ -1172,6 +1212,7 @@ function renderReferenceRunSelector(payloads) {
     ['sprout', 'Agent Genesis', 'Create and launch a supervised agent.', 'agent-genesis-onboarding'],
     ['network', 'Agent Internet', 'Find collaborators by skills, policy, reputation, and dry-run rails.', 'agent-internet-skill-network'],
     ['shield', 'BYOK + Upgrades', 'Bind model-key refs, wallet identity, and dry-run upgrade intents after Genesis.', 'byok-onchain-upgrades'],
+    ['spark', 'Flow Memory Forge', 'Birth an agent in the browser and compose optional capabilities.', 'flow-memory-forge'],
     ['network', 'Local Network Replay', 'Replay a complete run step by step.', 'local-network-replay'],
     ['trend', 'Predictive Learning', 'See how the agent improves over repeated trials.', 'predictive-learning-benchmark'],
     ['pulse', 'Live Agent Operations', 'Inspect live run operations and safe stop state.', 'live-agent-operations'],
@@ -1184,7 +1225,7 @@ function renderReferenceRunSelector(payloads) {
         ${renderReferenceIcon(kind)}
         <h3>${text(title)}</h3>
         <p>${text(copy)}</p>
-        <div><span class="fm-ready"><i></i>${loaded ? 'Ready' : 'Replay'}</span><a href="#${fixture === 'local-network-replay' ? 'replay' : fixture === 'agent-genesis-onboarding' ? 'genesis' : fixture === 'agent-internet-skill-network' ? 'internet' : fixture === 'byok-onchain-upgrades' ? 'upgrades' : fixture === 'predictive-learning-benchmark' ? 'learning' : fixture === 'experience-graph-proof-of-learning' ? 'proof' : 'live-3d'}">Open</a></div>
+        <div><span class="fm-ready"><i></i>${loaded ? 'Ready' : 'Replay'}</span><a href="#${fixture === 'local-network-replay' ? 'replay' : fixture === 'agent-genesis-onboarding' ? 'genesis' : fixture === 'agent-internet-skill-network' ? 'internet' : fixture === 'byok-onchain-upgrades' ? 'upgrades' : fixture === 'flow-memory-forge' ? 'forge' : fixture === 'predictive-learning-benchmark' ? 'learning' : fixture === 'experience-graph-proof-of-learning' ? 'proof' : 'live-3d'}">Open</a></div>
       </article>`;
   }).join('');
   return `
@@ -1373,6 +1414,117 @@ function renderReferenceLearningPanel(payload) {
     </section>`;
 }
 
+function renderReferenceForgePanel(payload) {
+  const plan = payload?.assembly_plan || {};
+  const capabilities = Array.isArray(payload?.capability_composer) ? payload.capability_composer : [];
+  const recommendations = Array.isArray(payload?.agent_internet?.sample_recommendations) ? payload.agent_internet.sample_recommendations : [];
+  const optional = payload?.optional_upgrades || {};
+  const capabilityCards = capabilities.map((card) => `
+    <article class="fm-forge-capability-card" data-state="${text(card.default_state || 'off')}">
+      <div>${renderReferenceIcon(card.capability_id === 'byok_model_key' ? 'key' : card.capability_id === 'wallet_identity' ? 'shield' : card.capability_id === 'skill_matcher' ? 'network' : card.capability_id === 'x402_dry_run_route' ? 'route' : 'spark')}</div>
+      <strong>${text(card.label)}</strong>
+      <span>${text(card.status)}</span>
+      <p>${text(card.safety_note)}</p>
+      <dl>
+        <div><dt>optional</dt><dd>${card.optional ? 'yes' : 'default'}</dd></div>
+        <div><dt>approval</dt><dd>${card.requires_approval ? 'required' : 'not required'}</dd></div>
+        <div><dt>wallet/key</dt><dd>${card.requires_wallet ? 'wallet' : card.requires_api_key ? 'API key ref' : 'none'}</dd></div>
+        <div><dt>mode</dt><dd>${card.dry_run_only ? 'dry-run only' : 'local'}</dd></div>
+      </dl>
+    </article>`).join('');
+  const collaboratorCards = recommendations.map((item) => `
+    <article>
+      ${renderReferenceIcon('network')}
+      <strong>${text(item.display_name || item.agent_id)}</strong>
+      <p>${text((item.skills || []).join(', ') || 'policy-gated skills')}</p>
+      <span>score ${text(item.score || '0.80')}</span>
+    </article>`).join('');
+  return `
+    <section id="forge" class="fm-section fm-forge-section mission-surface mission-surface-wide" aria-label="Flow Memory Forge browser agent builder">
+      <div class="fm-forge-hero">
+        <div class="fm-section-heading">
+          <span>Flow Memory Forge · Browser Agent Builder</span>
+          <h2>Create your first Flow Memory agent.</h2>
+          <p>Birth an agent with purpose, instincts, boundaries, memory seed, and a first prediction. The first path stays no wallet/API key/funds required.</p>
+        </div>
+        <aside class="fm-forge-mode-card">
+          <div class="fm-mode-switch" aria-label="Forge modes"><span class="is-active">Simple mode</span><span>Advanced mode</span></div>
+          <p><strong>Simple is default.</strong> Private by default, supervised, local runtime, no provider calls, no on-chain registration.</p>
+          <p><strong>Advanced is optional.</strong> Add BYOK references, Agent Internet identity, wallet identity, dry-run on-chain and x402 routes after the agent exists.</p>
+        </aside>
+      </div>
+      <div class="fm-forge-layout">
+        <form id="flow-memory-forge-form" class="fm-forge-builder" data-endpoint="/forge/birth" data-forge-birth-form>
+          <input type="hidden" name="user_id" value="dashboard-user" />
+          <fieldset>
+            <legend>Agent basics</legend>
+            <label><span>Agent name</span><input name="agent_name" value="${text(plan.agent_name || 'Mira')}" maxlength="80" required /><small>This becomes the passport name.</small></label>
+            <label><span>Purpose</span><textarea name="purpose" rows="4" maxlength="500" required>${text(plan.purpose || 'Help me build, remember, and verify Flow Memory work.')}</textarea><small>The first prediction and genome are shaped by this purpose.</small></label>
+            <label><span>Archetype</span><select name="archetype_id"><option value="research-builder" selected>Research Builder</option><option value="memory-scout">Memory Scout</option><option value="launch-assistant">Launch Assistant</option><option value="teacher-agent">Teacher Agent</option></select><small>Archetypes define safe defaults, not autonomy.</small></label>
+          </fieldset>
+          <fieldset>
+            <legend>Instincts and boundaries</legend>
+            <div class="fm-forge-chip-row">
+              ${['careful', 'builder', 'memory_first', 'verifier', 'cost_aware', 'teacher'].map((item, index) => `<label><input type="checkbox" name="instincts" value="${item}" ${index < 4 ? 'checked' : ''} /><span>${text(item.replace(/_/g, ' '))}</span></label>`).join('')}
+            </div>
+            <div class="fm-forge-check-row">
+              ${['ask_before_risky_action', 'never_spend_money', 'never_delete_without_approval', 'never_share_private_memory', 'local_only_by_default', 'no_live_settlement'].map((item, index) => `<label><input type="checkbox" name="boundaries" value="${item}" ${index < 5 ? 'checked' : ''} /><span>${text(item.replace(/_/g, ' '))}</span></label>`).join('')}
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Memory seed and consent</legend>
+            <label><span>User preferences</span><textarea name="user_preferences" rows="3">exact commands
+honest status
+visible proof</textarea></label>
+            <label><span>Project context</span><textarea name="project_context" rows="3">Flow Memory is the Human Compute Network
+Mission Control shows proof and learning</textarea></label>
+            <label><span>Behavior rules</span><textarea name="behavior_rules" rows="3">do not overclaim
+ask before risky actions
+verify observable outcomes</textarea></label>
+            <div class="fm-forge-consent">
+              <label><input type="radio" name="consent_mode" value="private_only" checked /><span>Private only</span></label>
+              <label><input type="radio" name="consent_mode" value="sanitized_lessons" /><span>Sanitized lessons later</span></label>
+            </div>
+          </fieldset>
+          <button class="fm-primary-wide" type="submit">Birth agent in Forge</button>
+          <p class="fm-forge-form-note">No private keys, no seed phrases, no funds moved, no transaction broadcast.</p>
+        </form>
+        <aside class="fm-forge-result-stack">
+          <article class="fm-forge-prediction">
+            ${renderReferenceIcon('spark')}
+            <span>First prediction</span>
+            <strong>${text(payload?.first_prediction?.prediction || 'I can begin by mapping project state, predicting the safest next step, and verifying what changed.')}</strong>
+            <dl><div><dt>confidence</dt><dd>${text(payload?.first_prediction?.confidence || 0.72)}</dd></div><div><dt>risk</dt><dd>low</dd></div><div><dt>policy</dt><dd>supervised</dd></div></dl>
+          </article>
+          <output id="flow-memory-forge-result" class="fm-create-result fm-forge-result" data-empty="true">
+            <span>Ready</span>
+            <strong>Forge will write the birth certificate here.</strong>
+            <p>Then open Mission Control with the agent passport, mirror, first prediction, and neural strand.</p>
+          </output>
+          <article class="fm-forge-proof-card">
+            <strong>read-only demo mode</strong>
+            <p>The Forge fixture renders without API access. Live local mode uses existing Genesis, Agent Internet, BYOK, wallet, on-chain, x402, and emergency-stop endpoints.</p>
+          </article>
+        </aside>
+      </div>
+      <div class="fm-forge-composer">
+        <div class="fm-section-heading fm-section-heading-compact">
+          <span>Capability Composer</span>
+          <h3>Compose only what the agent needs after birth.</h3>
+          <p>Every optional capability states whether it needs approval, wallet, API key reference, or dry-run-only handling.</p>
+        </div>
+        <div class="fm-forge-capability-grid">${capabilityCards}</div>
+      </div>
+      <div class="fm-forge-advanced-grid">
+        <article>${renderReferenceIcon('network')}<h3>Publish Agent Internet identity</h3><p>Optional after birth. Identity and skill manifest exclude raw private memory.</p><strong>Publish Agent Internet identity</strong></article>
+        <article>${renderReferenceIcon('search')}<h3>Find collaborators</h3><p>Run skill matching against local helper agents by skills, policy, reputation, and privacy compatibility.</p><div class="fm-forge-collaborators">${collaboratorCards}</div></article>
+        <article>${renderReferenceIcon('key')}<h3>BYOK and model source</h3><p>Local runtime is default. BYOK uses secret references and fingerprints only.</p><dl><div><dt>required first</dt><dd>${optional?.byok?.required_for_first_agent ? 'yes' : 'no'}</dd></div><div><dt>raw key persisted</dt><dd>${optional?.byok?.raw_key_persisted ? 'yes' : 'no'}</dd></div></dl></article>
+        <article>${renderReferenceIcon('route')}<h3>Wallet, on-chain, and x402</h3><p>Base Sepolia dry-run route metadata is available. Mainnet writes and relay stay disabled.</p><dl><div><dt>on-chain</dt><dd>${text(optional?.onchain?.mode || 'dry_run')}</dd></div><div><dt>x402 settlement</dt><dd>${optional?.x402?.settlement_enabled ? 'enabled' : 'disabled'}</dd></div></dl></article>
+      </div>
+      <p class="fm-hidden-proof">Flow Memory Forge · /forge · /agents/new · Create your first Flow Memory agent · Simple mode · Advanced mode · Capability Composer · no wallet/API key/funds required for first agent · Private by default · Network learning is opt-in · BYOK model key · Wallet identity · On-chain dry run · x402 dry-run route · Publish Agent Internet identity · Find collaborators · read-only demo mode · POST /forge/birth · GET /forge/defaults · no private keys · no seed phrases · no funds moved · no transaction broadcast</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
 function renderReferenceGenesisPanel(payload) {
   const birth = payload?.birth || {};
   return `
@@ -2066,6 +2218,58 @@ function renderGenesisCreateScript() {
       emitAgentCreated(data);
     } catch (error) {
       renderError(error);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+})();
+(() => {
+  const form = document.getElementById('flow-memory-forge-form');
+  const result = document.getElementById('flow-memory-forge-result');
+  if (!form || !result) return;
+  const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+  const checkedValues = (name) => Array.from(form.querySelectorAll('input[name="' + name + '"]:checked')).map((input) => input.value);
+  const lines = (name) => String(new FormData(form).get(name) || '').split(/\n+/).map((item) => item.trim()).filter(Boolean);
+  const render = (state, title, copy) => {
+    result.dataset.empty = 'false';
+    result.innerHTML = '<span>' + escape(state) + '</span><strong>' + escape(title) + '</strong><p>' + escape(copy) + '</p>';
+  };
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const payload = {
+      user_id: String(formData.get('user_id') || 'dashboard-user'),
+      agent_name: String(formData.get('agent_name') || 'Mira'),
+      archetype_id: String(formData.get('archetype_id') || 'research-builder'),
+      purpose: String(formData.get('purpose') || ''),
+      instincts: checkedValues('instincts'),
+      boundaries: checkedValues('boundaries'),
+      consent_mode: String(formData.get('consent_mode') || 'private_only'),
+      memory_seed: {
+        user_preferences: lines('user_preferences'),
+        project_context: lines('project_context'),
+        behavior_rules: lines('behavior_rules'),
+      },
+    };
+    const button = form.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    render('Creating', 'Forge is writing the local birth artifacts...', 'Genome, memory seed, consent, passport, mirror, and Mission Control handoff stay local.');
+    try {
+      const response = await fetch(form.dataset.endpoint || '/forge/birth', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const envelope = await response.json();
+      if (!response.ok || envelope.ok === false) throw new Error(envelope.error || envelope.message || 'Forge birth failed');
+      const data = envelope.data || envelope;
+      const birth = data.birth || data;
+      const certificate = birth.birth_certificate || {};
+      const prediction = birth.first_prediction || {};
+      render('Agent born', certificate.name || data.agent_id || birth.agent_id, prediction.prediction || 'First prediction recorded.');
+      try {
+        window.dispatchEvent(new CustomEvent('flowmemory:agent-created', { detail: { agent_id: data.agent_id || birth.agent_id, name: certificate.name || 'Forge agent', stage: 'seed', created_at: new Date().toISOString() } }));
+      } catch {
+        // Older browser event fallback is not required for the local dev panel.
+      }
+    } catch (error) {
+      render('Needs attention', 'Forge did not create the agent.', error.message || error);
     } finally {
       if (button) button.disabled = false;
     }
@@ -3075,6 +3279,7 @@ function renderMissionControlHtml(payloads, finalizer) {
       </a>
       <nav aria-label="Mission Control sections">
         <a href="#runs">Runs</a>
+        <a href="#forge">Forge</a>
         <a href="#replay">Replay</a>
         <a href="#cognition">Cognition</a>
         <a href="#learning">Learning</a>
@@ -3113,6 +3318,7 @@ function renderMissionControlHtml(payloads, finalizer) {
     ${renderTouchDesignerIdeaLab()}
     ${renderReferenceStatusBar()}
     ${renderSafeLiveApiPanel()}
+    ${renderReferenceForgePanel(payloads['flow-memory-forge'] || {})}
     ${renderReferenceRunSelector(payloads)}
     ${renderReferenceReplaySummary(payloads)}
     ${renderReferenceCognitionPanel(payloads['predictive-cognitive-core'] || {})}
@@ -3156,11 +3362,25 @@ export function createMissionControlDevServer() {
       }
       return;
     }
+    if (req.method === 'POST' && url.pathname === '/forge/birth') {
+      try {
+        const payload = await readRequestJson(req);
+        sendJson(res, 200, { ok: true, data: runForgeBirth(payload) });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       send(res, 405, 'application/json', JSON.stringify({ ok: false, error: 'method_not_allowed' }));
       return;
     }
-    if (url.pathname === '/' || url.pathname === '/mission-control' || url.pathname === '/agent-genesis/create') {
+    if (url.pathname === '/forge/defaults') {
+      const forgeSpec = fixtureSpecs.find((spec) => spec.fixture_id === 'flow-memory-forge');
+      sendJson(res, 200, { ok: true, data: forgeSpec ? readFixture(forgeSpec) : {} });
+      return;
+    }
+    if (url.pathname === '/' || url.pathname === '/mission-control' || url.pathname === '/agent-genesis/create' || url.pathname === '/forge' || url.pathname === '/agents/new') {
       send(res, 200, 'text/html; charset=utf-8', dashboardHtml());
       return;
     }

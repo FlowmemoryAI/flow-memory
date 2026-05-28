@@ -137,6 +137,12 @@ from flow_memory.api.capability_upgrade_endpoints import (
     x402_route_prepare,
     x402_status,
 )
+from flow_memory.api.forge_endpoints import (
+    forge_assembly_plan,
+    forge_birth,
+    forge_defaults_endpoint,
+    forge_simulate_upgrades,
+)
 
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
@@ -820,6 +826,17 @@ class LocalApiRouter:
 
     def _x402_route_prepare(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return x402_route_prepare(payload)
+    def _forge_defaults(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return forge_defaults_endpoint()
+
+    def _forge_assembly_plan(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return forge_assembly_plan(payload)
+
+    def _forge_birth(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return forge_birth(payload)
+
+    def _forge_simulate_upgrades(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return forge_simulate_upgrades(payload)
     def _genesis_genome(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return genesis_genome(params["agent_id"])
 
@@ -964,6 +981,10 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/emergency-stop/{agent_id}", router._emergency_stop_agent, "emergency_stop_agent")
     router.register("GET", "/x402/status", router._x402_status, "x402_status")
     router.register("POST", "/x402/routes/prepare", router._x402_route_prepare, "x402_route_prepare")
+    router.register("GET", "/forge/defaults", router._forge_defaults, "forge_defaults")
+    router.register("POST", "/forge/assembly-plan", router._forge_assembly_plan, "forge_assembly_plan")
+    router.register("POST", "/forge/birth", router._forge_birth, "forge_birth")
+    router.register("POST", "/forge/simulate-upgrades", router._forge_simulate_upgrades, "forge_simulate_upgrades")
     router.register("POST", "/experience-graph/build", router._experience_graph_build, "experience_graph_build")
     router.register("GET", "/experience-graph", router._experience_graph_latest, "experience_graph_latest")
     router.register("GET", "/experience-graph/{graph_id}", router._experience_graph_get, "experience_graph_get")

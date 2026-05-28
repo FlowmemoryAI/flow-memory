@@ -19,7 +19,7 @@
     "consolidated_lessons": [
       {
         "confidence_delta": -0.285333,
-        "created_at": "2026-05-28T05:36:05.391649+00:00",
+        "created_at": "2026-05-28T12:40:33.112919+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_8bb10b8941d62beeb566f6fc",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -45,7 +45,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.342648+00:00",
+        "created_at": "2026-05-28T12:40:33.062918+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_24c7577a8d5332d7df783d41",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -70,7 +70,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.435654+00:00",
+        "created_at": "2026-05-28T12:40:33.158919+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_2dc7b621b20752fd6393458d",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -96,7 +96,7 @@
       },
       {
         "confidence_delta": -0.274517,
-        "created_at": "2026-05-28T05:36:05.965670+00:00",
+        "created_at": "2026-05-28T12:40:33.666106+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_9bf7e73b3cdf7462e9c8ff18",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -124,7 +124,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.486655+00:00",
+        "created_at": "2026-05-28T12:40:33.208920+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_c4755f7391cb96a3375b20b9",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -152,7 +152,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.586655+00:00",
+        "created_at": "2026-05-28T12:40:33.314924+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_9f5cc3b1e3d44677350786a6",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -181,7 +181,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.737660+00:00",
+        "created_at": "2026-05-28T12:40:33.448103+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_17f38b8c3af4dd555efa42c3",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -207,7 +207,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.656656+00:00",
+        "created_at": "2026-05-28T12:40:33.375925+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_922f07b8696f8145ed7216d7",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -237,7 +237,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.806661+00:00",
+        "created_at": "2026-05-28T12:40:33.512101+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_e58f99360b6ce7c0f9f1a4dd",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -268,7 +268,7 @@
       },
       {
         "confidence_delta": -0.058759,
-        "created_at": "2026-05-28T05:36:06.213753+00:00",
+        "created_at": "2026-05-28T12:40:33.913113+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_4ce44e01648a3554c063fe3b",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -296,7 +296,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:05.883663+00:00",
+        "created_at": "2026-05-28T12:40:33.589103+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_2ca9b94a2b56fce2d309f21a",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -329,7 +329,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:06.041191+00:00",
+        "created_at": "2026-05-28T12:40:33.741107+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_26c954203704e85ad0ddded4",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -363,7 +363,7 @@
       },
       {
         "confidence_delta": -0.300122,
-        "created_at": "2026-05-28T05:36:06.212754+00:00",
+        "created_at": "2026-05-28T12:40:33.912113+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_4000af98d61d0ccddcd196ca",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -393,7 +393,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:06.127751+00:00",
+        "created_at": "2026-05-28T12:40:33.820112+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_7ef6a660579e64ebf758018d",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -428,7 +428,7 @@
       },
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:06.210754+00:00",
+        "created_at": "2026-05-28T12:40:33.911113+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_d0182cdfcecab547762b00ab",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -464,7 +464,7 @@
       }
     ],
     "external_model_calls": false,
-    "generated_at": "2026-05-28T05:36:06.215753+00:00",
+    "generated_at": "2026-05-28T12:40:33.915113+00:00",
     "gpu_evidence_status": "verified_optional_for_local_benchmark",
     "lesson_reuse_rate": 0.933333,
     "local_only": true,
@@ -1871,7 +1871,7 @@
     "lessons": [
       {
         "confidence_delta": 0.08,
-        "created_at": "2026-05-28T05:36:06.225755+00:00",
+        "created_at": "2026-05-28T12:40:33.926116+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_d0182cdfcecab547762b00ab",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -1907,7 +1907,7 @@
       },
       {
         "confidence_delta": -0.300122,
-        "created_at": "2026-05-28T05:36:06.226754+00:00",
+        "created_at": "2026-05-28T12:40:33.928115+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_4000af98d61d0ccddcd196ca",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -1937,7 +1937,7 @@
       },
       {
         "confidence_delta": -0.058759,
-        "created_at": "2026-05-28T05:36:06.227756+00:00",
+        "created_at": "2026-05-28T12:40:33.929114+00:00",
         "domain": "dashboard",
         "lesson_id": "consolidated_lesson_4ce44e01648a3554c063fe3b",
         "recommended_future_action": "restart stale local dashboard server before verification",
@@ -2010,7 +2010,7 @@
   "safety_authority": "policy_engine_and_approval_gate",
   "sample_lesson": {
     "confidence_delta": 0.08,
-    "created_at": "2026-05-28T05:36:05.737660+00:00",
+    "created_at": "2026-05-28T12:40:33.448103+00:00",
     "domain": "dashboard",
     "lesson_id": "consolidated_lesson_17f38b8c3af4dd555efa42c3",
     "recommended_future_action": "restart stale local dashboard server before verification",

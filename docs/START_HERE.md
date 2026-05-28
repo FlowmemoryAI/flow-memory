@@ -112,6 +112,26 @@ python -m flow_memory genesis mirror show <agent_id> --json
 
 A local node download is optional for private local tools, private compute, or compute contribution.
 
+## Flow Memory Forge browser builder
+
+Forge is the dashboard front door for creating a first agent. The first agent requires no wallet/API key/funds, private memory is default, network learning is opt-in, and optional capabilities stay behind the Capability Composer after birth.
+
+```bash
+cd dashboard
+npm run dev
+```
+
+Open `/forge` or `/agents/new`, or use the CLI wrappers:
+
+```bash
+python -m flow_memory forge defaults --json
+python -m flow_memory forge plan --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --json
+python -m flow_memory forge birth --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --json
+python -m flow_memory forge simulate-upgrades --agent <agent_id> --byok --wallet --onchain-dry-run --json
+```
+
+BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes are optional. Forge does not ask for private keys or seed phrases, does not move funds, and does not broadcast transactions.
+
 ## Experience Graph + Proof of Learning
 
 Proof of Learning turns prediction/action/outcome/lesson traces into local graph records and reputation metrics. Private payloads are excluded by default.

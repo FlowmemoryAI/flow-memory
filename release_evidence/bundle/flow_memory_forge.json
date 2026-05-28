@@ -1,0 +1,2120 @@
+{
+  "agent_internet_publish_optional_visible": true,
+  "api_forge_available": true,
+  "api_routes": [
+    "GET /forge/defaults",
+    "POST /forge/assembly-plan",
+    "POST /forge/birth",
+    "POST /forge/simulate-upgrades"
+  ],
+  "artifact_paths": {
+    "births": "artifacts/genesis/births/",
+    "capability_upgrades": "artifacts/capability_upgrades/",
+    "dashboard_fixture": "dashboard/src/mock-data/flow-memory-forge.json",
+    "forge_plans": "artifacts/forge/plans/"
+  },
+  "birth": {
+    "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+    "birth": {
+      "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+      "agent_profile": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "allowed_skills": [],
+        "allowed_tools": [
+          "observe_environment",
+          "respond"
+        ],
+        "autonomy_mode": "supervised",
+        "capabilities": [
+          "predictive_cognition",
+          "memory_consolidation",
+          "safe_local_tools"
+        ],
+        "cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "compute_config": {},
+        "constraints": [
+          "ask_before_risky_action",
+          "never_spend_money",
+          "never_share_private_memory",
+          "local_only_by_default"
+        ],
+        "created_at": "2026-05-28T12:40:34.983810+00:00",
+        "description": "Help me build Flow Memory",
+        "economy_config": {},
+        "goals": [
+          "Help me build Flow Memory"
+        ],
+        "identity": "",
+        "memory_config": {
+          "experience_memory": true,
+          "memory_seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+          "private_memory": true
+        },
+        "metadata": {
+          "agent_genome": {
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "archetype_id": "research-builder",
+            "benchmark_refs": [],
+            "boundaries": [
+              "ask_before_risky_action",
+              "never_spend_money",
+              "never_share_private_memory",
+              "local_only_by_default"
+            ],
+            "cognition_profile": {
+              "confidence_calibration_enabled": true,
+              "experience_memory_enabled": true,
+              "explain_predictions": true,
+              "memory_consolidation_enabled": true,
+              "policy_fallback": "fail_closed",
+              "prediction_error_learning": true,
+              "predictive_benchmarks_enabled": true,
+              "predictive_core_enabled": true,
+              "retrieve_similar_experiences": true,
+              "world_model": "local-deterministic"
+            },
+            "contribution_profile": {
+              "allowed_record_types": [],
+              "mode": "private_only",
+              "network_learning": "private_only",
+              "raw_private_payload_excluded": true
+            },
+            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "drive_profile": {
+              "approval_threshold": 0.74,
+              "drive_weights": {
+                "goal_completion": 0.9,
+                "lesson_reuse": 0.84,
+                "memory_usefulness": 0.94,
+                "policy_compliance": 0.95,
+                "repeated_mistake_reduction": 0.78,
+                "user_trust_preservation": 0.88
+              },
+              "exploration_tolerance": 0.426667,
+              "policy_sensitivity": 0.94,
+              "risk_tolerance": 0.246667
+            },
+            "forked_from": "",
+            "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+            "instincts": [
+              "careful",
+              "builder",
+              "memory_first"
+            ],
+            "memory_profile": {
+              "experience_memory": true,
+              "memory_seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+              "private_memory": true
+            },
+            "neural_profile": {
+              "backend": "tiny_torch",
+              "enabled": true,
+              "learning_enabled": true,
+              "live_mode": true,
+              "policy_fallback": "fail_closed",
+              "telemetry_enabled": true
+            },
+            "parent_genome_id": "",
+            "policy_profile": {
+              "approval_required": true,
+              "approval_required_for_risk": true,
+              "autonomy": "supervised",
+              "local_only": true,
+              "max_spend": 0.0,
+              "no_money_movement": true,
+              "private_memory_allowed": false,
+              "raw_payload_allowed": false
+            },
+            "privacy_profile": {
+              "consent_mode": "private_only",
+              "private_memory_allowed": false,
+              "raw_payload_allowed": false
+            },
+            "private_memory_excluded": true,
+            "public_shareable": false,
+            "purpose": "Help me build Flow Memory",
+            "version": "agent-genome-v1"
+          }
+        },
+        "name": "Mira",
+        "neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "persona": "Policy-gated Flow Memory agent born through Agent Genesis.",
+        "reputation": 0.0,
+        "risk_budget": {
+          "max_escrow_exposure": 0.0,
+          "max_risk_level": "medium",
+          "max_slashing_exposure": 0.0,
+          "max_spend": 0.0
+        },
+        "rl_config": {}
+      },
+      "birth_certificate": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "archetype": "research-builder",
+        "birth_id": "agent_birth_50a5d6697dee58e72db0f9b4",
+        "boundaries": [
+          "ask_before_risky_action",
+          "never_spend_money",
+          "never_share_private_memory",
+          "local_only_by_default"
+        ],
+        "consent_id": "network_learning_consent_122d847ec141b43831d99723",
+        "created_at": "2026-05-28T12:40:34.983810+00:00",
+        "first_prediction": {
+          "agent_name": "Mira",
+          "confidence": 0.72,
+          "local_only": true,
+          "policy": "supervised; approval required",
+          "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+          "risk": 0.1,
+          "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+        },
+        "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+        "instincts": [
+          "careful",
+          "builder",
+          "memory_first"
+        ],
+        "memory_seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+        "name": "Mira",
+        "network_learning_status": "disabled",
+        "privacy": {
+          "mode": "private_only",
+          "private_memory_shared": false,
+          "raw_private_payload_excluded": true
+        },
+        "purpose": "Help me build Flow Memory"
+      },
+      "birth_id": "agent_birth_50a5d6697dee58e72db0f9b4",
+      "consent_id": "network_learning_consent_122d847ec141b43831d99723",
+      "first_prediction": {
+        "agent_name": "Mira",
+        "confidence": 0.72,
+        "local_only": true,
+        "policy": "supervised; approval required",
+        "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+        "risk": 0.1,
+        "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+      },
+      "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+      "launch_summary": {
+        "actual_outcome": {
+          "reason": "agent born as seed profile; first run not requested",
+          "simulated": true,
+          "success": true
+        },
+        "launched": false
+      },
+      "local_only": true,
+      "memory_seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+      "mirror": {
+        "actual": {
+          "reason": "agent born as seed profile; first run not requested",
+          "simulated": true,
+          "success": true
+        },
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "confidence_change": 0.08,
+        "contribution_offer": {
+          "available": false,
+          "mode": "private_only",
+          "raw_private_payload_excluded": true
+        },
+        "created_at": "2026-05-28T12:40:34.983810+00:00",
+        "lesson": "Check observable state before reporting success, then store the verified lesson.",
+        "memory_written": true,
+        "mirror_id": "agent_mirror_cbbd9953ed90933d2b856d3c",
+        "next_time": "reuse this verified pattern",
+        "prediction": {
+          "agent_name": "Mira",
+          "confidence": 0.72,
+          "local_only": true,
+          "policy": "supervised; approval required",
+          "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+          "risk": 0.1,
+          "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+        },
+        "risk_change": -0.06,
+        "surprise": "prediction matched observed first outcome"
+      },
+      "mission_control_url": "/mission-control#genesis-genesis_agent_11b7e7b435abc729711373b0",
+      "ok": true,
+      "passport": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "benchmarks_passed": 0,
+        "contributions_made": 0,
+        "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+        "lessons_learned": 0,
+        "network_reuse_count": 0,
+        "policy_compliance": 1.0,
+        "prediction_accuracy": 0.0,
+        "predictions_made": 0,
+        "stage": "seed",
+        "updated_at": "2026-05-28T12:40:34.983810+00:00",
+        "visible_limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      "safety_authority": "policy_engine_and_approval_gate",
+      "writes": {
+        "birth_certificate": {
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "birth_id": "agent_birth_50a5d6697dee58e72db0f9b4",
+          "ok": true,
+          "path": "artifacts\\genesis\\births\\genesis_agent_11b7e7b435abc729711373b0.json",
+          "record": {
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "archetype": "research-builder",
+            "birth_id": "agent_birth_50a5d6697dee58e72db0f9b4",
+            "boundaries": [
+              "ask_before_risky_action",
+              "never_spend_money",
+              "never_share_private_memory",
+              "local_only_by_default"
+            ],
+            "consent_id": "network_learning_consent_122d847ec141b43831d99723",
+            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "first_prediction": {
+              "agent_name": "Mira",
+              "confidence": 0.72,
+              "local_only": true,
+              "policy": "supervised; approval required",
+              "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+              "risk": 0.1,
+              "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+            },
+            "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+            "instincts": [
+              "careful",
+              "builder",
+              "memory_first"
+            ],
+            "memory_seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+            "name": "Mira",
+            "network_learning_status": "disabled",
+            "privacy": {
+              "mode": "private_only",
+              "private_memory_shared": false,
+              "raw_private_payload_excluded": true
+            },
+            "purpose": "Help me build Flow Memory"
+          }
+        },
+        "consent": {
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "consent_id": "network_learning_consent_122d847ec141b43831d99723",
+          "ok": true,
+          "path": "artifacts\\genesis\\consents\\genesis_agent_11b7e7b435abc729711373b0.json",
+          "record": {
+            "accepted_at": "2026-05-28T12:40:34.983810+00:00",
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "allowed_record_types": [],
+            "anonymization_required": false,
+            "consent_id": "network_learning_consent_122d847ec141b43831d99723",
+            "consent_proof": "consent_proof_122d847ec141b43831d99723",
+            "mode": "private_only",
+            "private_memory_allowed": false,
+            "raw_payload_allowed": false,
+            "revocable": true,
+            "user_id": "local-user"
+          }
+        },
+        "genome": {
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+          "ok": true,
+          "path": "artifacts\\genesis\\genomes\\genesis_agent_11b7e7b435abc729711373b0.json",
+          "record": {
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "archetype_id": "research-builder",
+            "benchmark_refs": [],
+            "boundaries": [
+              "ask_before_risky_action",
+              "never_spend_money",
+              "never_share_private_memory",
+              "local_only_by_default"
+            ],
+            "cognition_profile": {
+              "confidence_calibration_enabled": true,
+              "experience_memory_enabled": true,
+              "explain_predictions": true,
+              "memory_consolidation_enabled": true,
+              "policy_fallback": "fail_closed",
+              "prediction_error_learning": true,
+              "predictive_benchmarks_enabled": true,
+              "predictive_core_enabled": true,
+              "retrieve_similar_experiences": true,
+              "world_model": "local-deterministic"
+            },
+            "contribution_profile": {
+              "allowed_record_types": [],
+              "mode": "private_only",
+              "network_learning": "private_only",
+              "raw_private_payload_excluded": true
+            },
+            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "drive_profile": {
+              "approval_threshold": 0.74,
+              "drive_weights": {
+                "goal_completion": 0.9,
+                "lesson_reuse": 0.84,
+                "memory_usefulness": 0.94,
+                "policy_compliance": 0.95,
+                "repeated_mistake_reduction": 0.78,
+                "user_trust_preservation": 0.88
+              },
+              "exploration_tolerance": 0.426667,
+              "policy_sensitivity": 0.94,
+              "risk_tolerance": 0.246667
+            },
+            "forked_from": "",
+            "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+            "instincts": [
+              "careful",
+              "builder",
+              "memory_first"
+            ],
+            "memory_profile": {
+              "experience_memory": true,
+              "memory_seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+              "private_memory": true
+            },
+            "neural_profile": {
+              "backend": "tiny_torch",
+              "enabled": true,
+              "learning_enabled": true,
+              "live_mode": true,
+              "policy_fallback": "fail_closed",
+              "telemetry_enabled": true
+            },
+            "parent_genome_id": "",
+            "policy_profile": {
+              "approval_required": true,
+              "approval_required_for_risk": true,
+              "autonomy": "supervised",
+              "local_only": true,
+              "max_spend": 0.0,
+              "no_money_movement": true,
+              "private_memory_allowed": false,
+              "raw_payload_allowed": false
+            },
+            "privacy_profile": {
+              "consent_mode": "private_only",
+              "private_memory_allowed": false,
+              "raw_payload_allowed": false
+            },
+            "private_memory_excluded": true,
+            "public_shareable": false,
+            "purpose": "Help me build Flow Memory",
+            "version": "agent-genome-v1"
+          }
+        },
+        "memory_seed": {
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "ok": true,
+          "path": "artifacts\\genesis\\memory_seeds\\genesis_agent_11b7e7b435abc729711373b0.json",
+          "record": {
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "behavior_rules": [
+              "do not overclaim",
+              "ask before risky actions",
+              "verify outcomes"
+            ],
+            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "initial_lessons": [],
+            "privacy_mode": "private_only",
+            "project_context": [
+              "Flow Memory is the Human Compute Network"
+            ],
+            "raw_private_content": "",
+            "raw_private_content_shared": false,
+            "sanitized_summary": "exact commands; honest status; visible proof; Flow Memory is the Human Compute Network; do not overclaim; ask before risky actions; verify outcomes",
+            "seed_id": "memory_seed_581aede1a85c6a925cc6578e",
+            "user_preferences": [
+              "exact commands",
+              "honest status",
+              "visible proof"
+            ]
+          },
+          "seed_id": "memory_seed_581aede1a85c6a925cc6578e"
+        },
+        "mirror": {
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "mirror_id": "agent_mirror_cbbd9953ed90933d2b856d3c",
+          "ok": true,
+          "path": "artifacts\\genesis\\mirrors\\genesis_agent_11b7e7b435abc729711373b0.json",
+          "record": {
+            "actual": {
+              "reason": "agent born as seed profile; first run not requested",
+              "simulated": true,
+              "success": true
+            },
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "confidence_change": 0.08,
+            "contribution_offer": {
+              "available": false,
+              "mode": "private_only",
+              "raw_private_payload_excluded": true
+            },
+            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "lesson": "Check observable state before reporting success, then store the verified lesson.",
+            "memory_written": true,
+            "mirror_id": "agent_mirror_cbbd9953ed90933d2b856d3c",
+            "next_time": "reuse this verified pattern",
+            "prediction": {
+              "agent_name": "Mira",
+              "confidence": 0.72,
+              "local_only": true,
+              "policy": "supervised; approval required",
+              "prediction": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+              "risk": 0.1,
+              "verification_plan": "Compare predicted state to the observed first run and write a lesson if the result differs."
+            },
+            "risk_change": -0.06,
+            "surprise": "prediction matched observed first outcome"
+          }
+        },
+        "passport": {
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "ok": true,
+          "path": "artifacts\\genesis\\passports\\genesis_agent_11b7e7b435abc729711373b0.json",
+          "record": {
+            "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+            "benchmarks_passed": 0,
+            "contributions_made": 0,
+            "genome_id": "agent_genome_84fcbf8005e94025a5c3b53e",
+            "lessons_learned": 0,
+            "network_reuse_count": 0,
+            "policy_compliance": 1.0,
+            "prediction_accuracy": 0.0,
+            "predictions_made": 0,
+            "stage": "seed",
+            "updated_at": "2026-05-28T12:40:34.983810+00:00",
+            "visible_limitations": [
+              "local public-alpha agent profile, not production autonomy",
+              "neural and cognition outputs are advisory",
+              "PolicyEngine and ApprovalGate remain authoritative"
+            ]
+          }
+        }
+      }
+    },
+    "first_agent_requires_api_key": false,
+    "first_agent_requires_funds": false,
+    "first_agent_requires_wallet": false,
+    "forge_id": "forge_688a94e6b268e7be1c04bc8a",
+    "internet": {
+      "enabled": false,
+      "ok": true
+    },
+    "mission_control_url": "/mission-control#forge-genesis_agent_11b7e7b435abc729711373b0",
+    "no_broadcast": true,
+    "no_funds_moved": true,
+    "no_private_key_required": true,
+    "no_seed_phrase_required": true,
+    "ok": true,
+    "plan": {
+      "agent_internet_enabled": false,
+      "agent_name": "Mira",
+      "archetype_id": "research-builder",
+      "boundaries": [
+        "ask_before_risky_action",
+        "never_spend_money",
+        "never_share_private_memory",
+        "local_only_by_default"
+      ],
+      "byok_upgrade_requested": false,
+      "cognition_enabled": true,
+      "collaboration_enabled": false,
+      "consent_mode": "private_only",
+      "created_at": "2026-05-28T12:40:34.982808+00:00",
+      "emergency_stop_enabled": true,
+      "expected_birth_result": {
+        "consent": true,
+        "first_prediction": true,
+        "genome": true,
+        "memory_seed": true,
+        "mirror": true,
+        "passport": true
+      },
+      "first_agent_mode": true,
+      "forge_id": "forge_688a94e6b268e7be1c04bc8a",
+      "instincts": [
+        "careful",
+        "builder",
+        "memory_first"
+      ],
+      "memory_seed_summary": {
+        "behavior_rules": [
+          "do not overclaim",
+          "ask before risky actions",
+          "verify outcomes"
+        ],
+        "initial_lessons": [],
+        "project_context": [
+          "Flow Memory is the Human Compute Network"
+        ],
+        "raw_private_content_excluded_from_network": true,
+        "summary": "exact commands; honest status; Flow Memory is the Human Compute Network",
+        "user_preferences": [
+          "exact commands",
+          "honest status",
+          "visible proof"
+        ]
+      },
+      "mission_control_url": "/mission-control#forge-forge_agent_ref_278beade489f84f205c78b24",
+      "motivation_enabled": true,
+      "neural_enabled": true,
+      "onchain_dry_run_requested": false,
+      "policy_summary": {
+        "approval_gate_authoritative": true,
+        "approval_required": true,
+        "autonomy": "supervised",
+        "policy_engine_authoritative": true
+      },
+      "privacy_summary": {
+        "mode": "private_only",
+        "network_learning_opt_in": false,
+        "private_memory_default": true,
+        "raw_private_memory_shared": false
+      },
+      "purpose": "Help me build Flow Memory",
+      "selected_model_mode": "local_runtime",
+      "skill_manifest_enabled": false,
+      "user_id": "local-user",
+      "wallet_upgrade_requested": false,
+      "x402_dry_run_requested": false
+    },
+    "private_default": true,
+    "upgrades": {
+      "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+      "capability_summary": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "byok_capability_status": "not_bound",
+        "credential_count": 0,
+        "emergency_stop_status": "clear",
+        "first_agent_requires_wallet_or_key": false,
+        "mainnet_enabled": false,
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "onchain_intent_count": 0,
+        "onchain_upgrade_status": "not_prepared",
+        "wallet_binding_count": 0,
+        "wallet_binding_status": "not_bound",
+        "x402_route_count": 0
+      },
+      "first_agent_requires_api_key": false,
+      "first_agent_requires_funds": false,
+      "first_agent_requires_wallet": false,
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "no_seed_phrase_required": true,
+      "ok": true,
+      "requested": {
+        "byok": false,
+        "onchain_dry_run": false,
+        "wallet": false,
+        "x402": false
+      },
+      "wallet": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "base_mainnet_write_disabled": true,
+        "base_sepolia_default_available": true,
+        "bindings": [],
+        "no_private_key_required": true,
+        "no_seed_phrase_required": true,
+        "ok": true,
+        "wallet_binding_status": "not_bound"
+      }
+    }
+  },
+  "byok_optional_upgrade_visible": true,
+  "capability_composer_available": true,
+  "cli_forge_available": true,
+  "defaults": {
+    "archetypes": [
+      {
+        "archetype_id": "research-builder",
+        "default_boundaries": [
+          "ask_before_risky_action",
+          "never_spend_money",
+          "never_delete_without_approval",
+          "never_share_private_memory",
+          "local_only_by_default"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "careful",
+          "curious",
+          "builder",
+          "memory_first",
+          "verifier"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "current priority is safe local agent creation",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "prefers exact commands",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "goal_completion": 0.82,
+          "prediction_accuracy_improvement": 0.88,
+          "uncertainty_reduction": 0.86
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help me understand, build, and remember Flow Memory.",
+        "description": "Maps project state, explains tradeoffs, and turns repeated mistakes into lessons.",
+        "display_name": "Research Builder",
+        "first_lesson_template": "Check observable state before reporting success, then store the verified lesson.",
+        "first_prediction_template": "I can begin by mapping the project state, predicting the safest next step, and verifying what actually changed.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      {
+        "archetype_id": "memory-scout",
+        "default_boundaries": [
+          "ask_before_risky_action",
+          "never_share_private_memory",
+          "local_only_by_default"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "memory_first",
+          "scout",
+          "careful"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "memory retrieval should stay private by default",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "values remembered context",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "memory_usefulness": 0.9,
+          "uncertainty_reduction": 0.78
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help me retrieve and consolidate useful project memory.",
+        "description": "Finds similar prior experiences and turns them into private lessons.",
+        "display_name": "Memory Scout",
+        "first_lesson_template": "Useful memories should be consolidated only after an observed outcome.",
+        "first_prediction_template": "I can search private memory for similar situations before recommending a safe action.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      {
+        "archetype_id": "launch-assistant",
+        "default_boundaries": [
+          "ask_before_risky_action",
+          "never_spend_money",
+          "no_external_provider_calls",
+          "no_live_settlement"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "careful",
+          "builder",
+          "verifier",
+          "safety_first"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "local launch evidence must remain honest",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "wants visible proof",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "goal_completion": 0.84,
+          "policy_compliance": 0.92
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help me launch local public-alpha flows safely.",
+        "description": "Runs bounded local launch checks and keeps release evidence honest.",
+        "display_name": "Launch Assistant",
+        "first_lesson_template": "Release readiness needs observed evidence, not assumptions.",
+        "first_prediction_template": "I can predict which local launch checks should pass and verify release evidence before reporting readiness.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      {
+        "archetype_id": "market-observer",
+        "default_boundaries": [
+          "never_spend_money",
+          "no_live_settlement",
+          "no_external_provider_calls",
+          "local_only_by_default"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "cost_aware",
+          "careful",
+          "verifier"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "compute market routes are dry-run only",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "cares about cost and safety",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "cost_efficiency": 0.9,
+          "policy_compliance": 0.88
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help me evaluate compute-market choices in dry-run mode.",
+        "description": "Studies dry-run compute routes without provider calls or funds movement.",
+        "display_name": "Market Observer",
+        "first_lesson_template": "Dry-run route evidence must not be confused with live settlement.",
+        "first_prediction_template": "I can compare dry-run compute routes and predict budget risk without contacting providers.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      {
+        "archetype_id": "personal-operator",
+        "default_boundaries": [
+          "ask_before_risky_action",
+          "never_delete_without_approval",
+          "never_share_private_memory"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "careful",
+          "memory_first",
+          "teacher"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "personal preferences are private",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "prefers clear next actions",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "memory_usefulness": 0.8,
+          "user_trust_preservation": 0.92
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help me operate recurring tasks without losing context.",
+        "description": "Maintains user preferences, boundaries, and repeatable safe routines.",
+        "display_name": "Personal Operator",
+        "first_lesson_template": "User teaching events should become private lessons first.",
+        "first_prediction_template": "I can start by learning your preferred operating rules and verifying a low-risk first step.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      {
+        "archetype_id": "teacher-agent",
+        "default_boundaries": [
+          "ask_before_risky_action",
+          "never_share_private_memory",
+          "local_only_by_default"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "teacher",
+          "curious",
+          "careful"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "teaching events are structured training signals",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "wants explanations",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "explanation_quality": 0.9,
+          "user_trust_preservation": 0.84
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help me learn the system by explaining predictions, mistakes, and lessons.",
+        "description": "Explains decisions and converts user corrections into private teaching events.",
+        "display_name": "Teacher Agent",
+        "first_lesson_template": "A correction should become a private lesson unless the user opts in to share it.",
+        "first_prediction_template": "I can explain what I expect, what I observe, and what lesson should be stored.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      },
+      {
+        "archetype_id": "network-mentor",
+        "default_boundaries": [
+          "never_share_private_memory",
+          "ask_before_risky_action",
+          "no_unapproved_tool_use"
+        ],
+        "default_cognition_config": {
+          "confidence_calibration_enabled": true,
+          "experience_memory_enabled": true,
+          "explain_predictions": true,
+          "memory_consolidation_enabled": true,
+          "policy_fallback": "fail_closed",
+          "prediction_error_learning": true,
+          "predictive_benchmarks_enabled": true,
+          "predictive_core_enabled": true,
+          "retrieve_similar_experiences": true,
+          "world_model": "local-deterministic"
+        },
+        "default_instincts": [
+          "teacher",
+          "verifier",
+          "safety_first",
+          "memory_first"
+        ],
+        "default_memory_seed_template": {
+          "behavior_rules": [
+            "do not overclaim",
+            "verify observable outcomes",
+            "preserve useful memory"
+          ],
+          "project_context": [
+            "network learning uses sanitized structured experience",
+            "Flow Memory is the Human Compute Network"
+          ],
+          "user_preferences": [
+            "cares about consent",
+            "show honest status",
+            "ask before risky actions"
+          ]
+        },
+        "default_motivation_config": {
+          "lesson_usefulness": 0.9,
+          "policy_compliance": 0.94
+        },
+        "default_neural_config": {
+          "backend": "tiny_torch",
+          "enabled": true,
+          "learning_enabled": true,
+          "live_mode": true,
+          "policy_fallback": "fail_closed",
+          "telemetry_enabled": true
+        },
+        "default_policy_config": {
+          "approval_required": true,
+          "autonomy": "supervised"
+        },
+        "default_privacy_config": {
+          "consent_mode": "private_only",
+          "private_memory_excluded": true,
+          "raw_payload_allowed": false
+        },
+        "default_purpose": "Help convert proven private lessons into safe network contributions.",
+        "description": "Publishes sanitized lessons only after consent and validation.",
+        "display_name": "Network Mentor",
+        "first_lesson_template": "Shared lessons must exclude raw private payloads and pass policy checks.",
+        "first_prediction_template": "I can identify lessons that may help the network, but contribution remains opt-in and sanitized.",
+        "limitations": [
+          "local public-alpha agent profile, not production autonomy",
+          "neural and cognition outputs are advisory",
+          "PolicyEngine and ApprovalGate remain authoritative"
+        ]
+      }
+    ],
+    "boundaries": [
+      {
+        "approval_required": true,
+        "boundary_id": "ask_before_risky_action",
+        "description": "Require approval for risky or irreversible actions.",
+        "display_name": "Ask before risky action",
+        "policy_flags": {
+          "approval_required_for_risk": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "never_spend_money",
+        "description": "Disallow real-funds movement and paid provider execution.",
+        "display_name": "Never spend money",
+        "policy_flags": {
+          "max_spend": 0.0,
+          "no_money_movement": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "never_delete_without_approval",
+        "description": "Require explicit approval before destructive file operations.",
+        "display_name": "Never delete without approval",
+        "policy_flags": {
+          "destructive_action_requires_approval": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "never_share_private_memory",
+        "description": "Exclude raw private memory from network contribution by default.",
+        "display_name": "Never share private memory",
+        "policy_flags": {
+          "private_memory_allowed": false,
+          "raw_payload_allowed": false
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "local_only_by_default",
+        "description": "Prefer local/replay/dry-run paths unless explicitly configured otherwise.",
+        "display_name": "Local-only by default",
+        "policy_flags": {
+          "local_only": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "no_external_provider_calls",
+        "description": "Disable live provider calls in the public-alpha default profile.",
+        "display_name": "No external provider calls",
+        "policy_flags": {
+          "no_live_provider_calls": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "no_live_settlement",
+        "description": "Allow dry-run settlement simulations only.",
+        "display_name": "No live settlement",
+        "policy_flags": {
+          "no_live_settlement": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "no_private_keys",
+        "description": "Do not request, store, or use private keys.",
+        "display_name": "No private keys",
+        "policy_flags": {
+          "no_private_keys": true
+        }
+      },
+      {
+        "approval_required": true,
+        "boundary_id": "no_unapproved_tool_use",
+        "description": "Restrict tools to policy-approved local actions.",
+        "display_name": "No unapproved tool use",
+        "policy_flags": {
+          "approved_tools_only": true
+        }
+      }
+    ],
+    "capability_cards": [
+      {
+        "capability_id": "local_neural_runtime",
+        "default_state": "on",
+        "dry_run_only": false,
+        "label": "Local neural runtime",
+        "optional": false,
+        "requires_api_key": false,
+        "requires_approval": false,
+        "requires_wallet": false,
+        "safety_note": "Runs locally with tiny_torch-safe defaults for public alpha.",
+        "status": "enabled_by_default"
+      },
+      {
+        "capability_id": "predictive_cognition",
+        "default_state": "on",
+        "dry_run_only": false,
+        "label": "Predictive cognition",
+        "optional": false,
+        "requires_api_key": false,
+        "requires_approval": false,
+        "requires_wallet": false,
+        "safety_note": "Predicts, compares, and learns from local observed outcomes.",
+        "status": "enabled_by_default"
+      },
+      {
+        "capability_id": "agent_internet_identity",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "Agent Internet identity",
+        "optional": true,
+        "requires_api_key": false,
+        "requires_approval": true,
+        "requires_wallet": false,
+        "safety_note": "Publishes identity metadata without raw private memory.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "skill_manifest",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "Skill manifest",
+        "optional": true,
+        "requires_api_key": false,
+        "requires_approval": true,
+        "requires_wallet": false,
+        "safety_note": "Lists policy-gated skills for local matching.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "skill_matcher",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "Skill matcher",
+        "optional": true,
+        "requires_api_key": false,
+        "requires_approval": true,
+        "requires_wallet": false,
+        "safety_note": "Ranks collaborators by skills, policy, privacy, and reputation.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "byok_model_key",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "BYOK model key",
+        "optional": true,
+        "requires_api_key": true,
+        "requires_approval": true,
+        "requires_wallet": false,
+        "safety_note": "Stores secret references and fingerprints only; no raw key artifacts.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "wallet_identity",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "Wallet identity",
+        "optional": true,
+        "requires_api_key": false,
+        "requires_approval": true,
+        "requires_wallet": true,
+        "safety_note": "Address binding only; no private keys or seed phrases.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "onchain_dry_run",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "On-chain dry run",
+        "optional": true,
+        "requires_api_key": false,
+        "requires_approval": true,
+        "requires_wallet": true,
+        "safety_note": "Prepare and simulate only; relay stays disabled by default.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "x402_dry_run_route",
+        "default_state": "off",
+        "dry_run_only": true,
+        "label": "x402 dry-run route",
+        "optional": true,
+        "requires_api_key": false,
+        "requires_approval": true,
+        "requires_wallet": true,
+        "safety_note": "Base Sepolia route metadata can be prepared without settlement.",
+        "status": "optional_after_birth"
+      },
+      {
+        "capability_id": "emergency_stop",
+        "default_state": "on",
+        "dry_run_only": false,
+        "label": "Emergency stop",
+        "optional": false,
+        "requires_api_key": false,
+        "requires_approval": false,
+        "requires_wallet": false,
+        "safety_note": "Disables optional upgrade use and future execution modes.",
+        "status": "available_by_default"
+      }
+    ],
+    "first_agent_mode": true,
+    "first_agent_requires_api_key": false,
+    "first_agent_requires_funds": false,
+    "first_agent_requires_wallet": false,
+    "instincts": [
+      {
+        "approval_threshold": 0.82,
+        "description": "Prefer verified low-risk actions and ask before irreversible steps.",
+        "display_name": "Careful",
+        "drive_weights": {
+          "policy_compliance": 0.95,
+          "user_trust_preservation": 0.88
+        },
+        "exploration_tolerance": 0.28,
+        "instinct_id": "careful",
+        "memory_behavior": "store verified lessons",
+        "policy_sensitivity": 0.94,
+        "prediction_behavior": "predict failure modes first",
+        "risk_tolerance": 0.18
+      },
+      {
+        "approval_threshold": 0.64,
+        "description": "Reduce uncertainty by inspecting context and asking better questions.",
+        "display_name": "Curious",
+        "drive_weights": {
+          "memory_exploration": 0.72,
+          "uncertainty_reduction": 0.92
+        },
+        "exploration_tolerance": 0.78,
+        "instinct_id": "curious",
+        "memory_behavior": "retrieve broadly",
+        "policy_sensitivity": 0.68,
+        "prediction_behavior": "generate counterfactuals",
+        "risk_tolerance": 0.34
+      },
+      {
+        "approval_threshold": 0.68,
+        "description": "Complete goals through tests, checks, and observable progress.",
+        "display_name": "Builder",
+        "drive_weights": {
+          "goal_completion": 0.9,
+          "repeated_mistake_reduction": 0.78
+        },
+        "exploration_tolerance": 0.52,
+        "instinct_id": "builder",
+        "memory_behavior": "store procedural lessons",
+        "policy_sensitivity": 0.72,
+        "prediction_behavior": "predict verification outcomes",
+        "risk_tolerance": 0.32
+      },
+      {
+        "approval_threshold": 0.72,
+        "description": "Look for prior experiences before recommending action.",
+        "display_name": "Memory-first",
+        "drive_weights": {
+          "lesson_reuse": 0.84,
+          "memory_usefulness": 0.94
+        },
+        "exploration_tolerance": 0.48,
+        "instinct_id": "memory_first",
+        "memory_behavior": "retrieve before acting",
+        "policy_sensitivity": 0.78,
+        "prediction_behavior": "anchor prediction in lessons",
+        "risk_tolerance": 0.24
+      },
+      {
+        "approval_threshold": 0.82,
+        "description": "Prefer cheap, dry-run, local paths and avoid waste.",
+        "display_name": "Cost-aware",
+        "drive_weights": {
+          "compute_budget_safety": 0.88,
+          "cost_efficiency": 0.94
+        },
+        "exploration_tolerance": 0.35,
+        "instinct_id": "cost_aware",
+        "memory_behavior": "record cost lessons",
+        "policy_sensitivity": 0.86,
+        "prediction_behavior": "predict cost before action",
+        "risk_tolerance": 0.2
+      },
+      {
+        "approval_threshold": 0.9,
+        "description": "Maximize policy compliance and avoid unapproved side effects.",
+        "display_name": "Safety-first",
+        "drive_weights": {
+          "policy_compliance": 1.0,
+          "risk_reduction": 0.92
+        },
+        "exploration_tolerance": 0.22,
+        "instinct_id": "safety_first",
+        "memory_behavior": "store risk warnings",
+        "policy_sensitivity": 1.0,
+        "prediction_behavior": "predict denial paths",
+        "risk_tolerance": 0.12
+      },
+      {
+        "approval_threshold": 0.58,
+        "description": "Move quickly on reversible low-risk work with verification.",
+        "display_name": "Fast mover",
+        "drive_weights": {
+          "goal_completion": 0.86,
+          "time_to_resolution": 0.8
+        },
+        "exploration_tolerance": 0.62,
+        "instinct_id": "fast_mover",
+        "memory_behavior": "store compact lessons",
+        "policy_sensitivity": 0.58,
+        "prediction_behavior": "predict immediate outcome",
+        "risk_tolerance": 0.42
+      },
+      {
+        "approval_threshold": 0.7,
+        "description": "Explain predictions, surprises, and lessons clearly.",
+        "display_name": "Teacher",
+        "drive_weights": {
+          "explanation_quality": 0.92,
+          "user_trust_preservation": 0.82
+        },
+        "exploration_tolerance": 0.5,
+        "instinct_id": "teacher",
+        "memory_behavior": "turn corrections into lessons",
+        "policy_sensitivity": 0.74,
+        "prediction_behavior": "explain confidence and risk",
+        "risk_tolerance": 0.24
+      },
+      {
+        "approval_threshold": 0.7,
+        "description": "Explore unfamiliar local context safely and report what is known.",
+        "display_name": "Scout",
+        "drive_weights": {
+          "discovery": 0.9,
+          "uncertainty_reduction": 0.84
+        },
+        "exploration_tolerance": 0.76,
+        "instinct_id": "scout",
+        "memory_behavior": "map context memories",
+        "policy_sensitivity": 0.7,
+        "prediction_behavior": "predict information gain",
+        "risk_tolerance": 0.3
+      },
+      {
+        "approval_threshold": 0.82,
+        "description": "Confirm claims with checks before treating them as learned.",
+        "display_name": "Verifier",
+        "drive_weights": {
+          "prediction_accuracy_improvement": 0.94,
+          "verification": 0.9
+        },
+        "exploration_tolerance": 0.36,
+        "instinct_id": "verifier",
+        "memory_behavior": "store evidence-backed lessons",
+        "policy_sensitivity": 0.9,
+        "prediction_behavior": "predict and measure actual outcome",
+        "risk_tolerance": 0.18
+      }
+    ],
+    "modes": [
+      {
+        "api_key_required": false,
+        "default": true,
+        "funds_required": false,
+        "label": "Simple",
+        "mode_id": "simple",
+        "wallet_required": false
+      },
+      {
+        "api_key_required": false,
+        "default": false,
+        "funds_required": false,
+        "label": "Advanced",
+        "mode_id": "advanced",
+        "optional_upgrades_only": true,
+        "wallet_required": false
+      }
+    ],
+    "network_learning_opt_in": true,
+    "ok": true,
+    "private_default": true,
+    "providers": [
+      {
+        "budget_caps_supported": true,
+        "display_name": "OpenAI",
+        "docs_url": "https://platform.openai.com/docs",
+        "external_calls_default": false,
+        "key_format_hint": "env:OPENAI_API_KEY or secret reference",
+        "provider_id": "openai",
+        "provider_type": "model_provider",
+        "risk_notes": [
+          "external calls disabled by default"
+        ],
+        "scopes_supported": [
+          "inference",
+          "embeddings"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "gpt-4.1-mini",
+          "gpt-4.1"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "OpenRouter",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "env:OPENROUTER_API_KEY or secret reference",
+        "provider_id": "openrouter",
+        "provider_type": "model_provider",
+        "risk_notes": [
+          "external calls disabled by default"
+        ],
+        "scopes_supported": [
+          "inference"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "openrouter/auto"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "Anthropic",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "env:ANTHROPIC_API_KEY or secret reference",
+        "provider_id": "anthropic",
+        "provider_type": "model_provider",
+        "risk_notes": [
+          "external calls disabled by default"
+        ],
+        "scopes_supported": [
+          "inference"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "claude-3-5-sonnet"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": false,
+        "display_name": "Local Runtime",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "no key required",
+        "provider_id": "local_runtime",
+        "provider_type": "local",
+        "risk_notes": [],
+        "scopes_supported": [
+          "local_inference"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "tiny_torch",
+          "none"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "Nookplot Gateway Stub",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "session or gateway secret reference",
+        "provider_id": "nookplot_gateway_stub",
+        "provider_type": "gateway_stub",
+        "risk_notes": [
+          "inspiration seam only",
+          "no external calls"
+        ],
+        "scopes_supported": [
+          "inference_proxy"
+        ],
+        "status": "stub",
+        "supported_model_refs": [
+          "gateway-simulated"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "Custom HTTPS Stub",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "secret://provider/ref",
+        "provider_id": "custom_https_stub",
+        "provider_type": "custom_stub",
+        "risk_notes": [
+          "manifest and policy review required"
+        ],
+        "scopes_supported": [
+          "inference_proxy"
+        ],
+        "status": "stub",
+        "supported_model_refs": [
+          "custom-model-ref"
+        ],
+        "test_mode_supported": true
+      }
+    ],
+    "route": "/forge",
+    "selected_model_mode_default": "local_runtime",
+    "simple_mode_default": true,
+    "x402": {
+      "base_mainnet_network": "eip155:8453",
+      "base_sepolia_network": "eip155:84532",
+      "coinbase_facilitator_url": "https://api.cdp.coinbase.com/platform/v2/x402",
+      "installed": true,
+      "live_default": false,
+      "node_install_express": "npm install @x402/express @x402/evm @x402/core",
+      "ok": true,
+      "package": "x402",
+      "recommended_install": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
+      "settlement_enabled_default": false,
+      "testnet_facilitator_url": "https://x402.org/facilitator"
+    }
+  },
+  "forge_advanced_mode_available": true,
+  "forge_available": true,
+  "forge_browser_route_available": true,
+  "forge_first_agent_simple_mode_available": true,
+  "mermaid_forge_docs_available": true,
+  "mission_control_handoff_available": true,
+  "network_learning_opt_in_visible": true,
+  "no_api_key_first_agent_visible": true,
+  "no_broadcast_invariant": true,
+  "no_first_agent_wallet_api_key_requirement": true,
+  "no_funds_first_agent_visible": true,
+  "no_funds_moved_invariant": true,
+  "no_overclaim_invariant": true,
+  "no_private_key_invariant": true,
+  "no_seed_phrase_invariant": true,
+  "no_wallet_first_agent_visible": true,
+  "ok": true,
+  "onchain_dry_run_optional_upgrade_visible": true,
+  "plan": {
+    "artifact_preview": "artifacts/forge/plans/forge_688a94e6b268e7be1c04bc8a.json",
+    "forge_id": "forge_688a94e6b268e7be1c04bc8a",
+    "ok": true,
+    "plan": {
+      "agent_internet_enabled": false,
+      "agent_name": "Mira",
+      "archetype_id": "research-builder",
+      "boundaries": [
+        "ask_before_risky_action",
+        "never_spend_money",
+        "never_share_private_memory",
+        "local_only_by_default"
+      ],
+      "byok_upgrade_requested": false,
+      "cognition_enabled": true,
+      "collaboration_enabled": false,
+      "consent_mode": "private_only",
+      "created_at": "2026-05-28T12:40:34.982808+00:00",
+      "emergency_stop_enabled": true,
+      "expected_birth_result": {
+        "consent": true,
+        "first_prediction": true,
+        "genome": true,
+        "memory_seed": true,
+        "mirror": true,
+        "passport": true
+      },
+      "first_agent_mode": true,
+      "forge_id": "forge_688a94e6b268e7be1c04bc8a",
+      "instincts": [
+        "careful",
+        "builder",
+        "memory_first"
+      ],
+      "memory_seed_summary": {
+        "behavior_rules": [
+          "do not overclaim",
+          "ask before risky actions",
+          "verify outcomes"
+        ],
+        "initial_lessons": [],
+        "project_context": [
+          "Flow Memory is the Human Compute Network"
+        ],
+        "raw_private_content_excluded_from_network": true,
+        "summary": "exact commands; honest status; Flow Memory is the Human Compute Network",
+        "user_preferences": [
+          "exact commands",
+          "honest status",
+          "visible proof"
+        ]
+      },
+      "mission_control_url": "/mission-control#forge-forge_agent_ref_278beade489f84f205c78b24",
+      "motivation_enabled": true,
+      "neural_enabled": true,
+      "onchain_dry_run_requested": false,
+      "policy_summary": {
+        "approval_gate_authoritative": true,
+        "approval_required": true,
+        "autonomy": "supervised",
+        "policy_engine_authoritative": true
+      },
+      "privacy_summary": {
+        "mode": "private_only",
+        "network_learning_opt_in": false,
+        "private_memory_default": true,
+        "raw_private_memory_shared": false
+      },
+      "purpose": "Help me build Flow Memory",
+      "selected_model_mode": "local_runtime",
+      "skill_manifest_enabled": false,
+      "user_id": "local-user",
+      "wallet_upgrade_requested": false,
+      "x402_dry_run_requested": false
+    }
+  },
+  "private_default_visible": true,
+  "public_alpha_docs_updated": true,
+  "read_only_demo_mode_available": true,
+  "skill_matcher_from_forge_available": true,
+  "upgrades": {
+    "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+    "byok": {
+      "credential": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "audit_refs": [
+          "raw_secret_excluded",
+          "metadata_only_secret_ref"
+        ],
+        "budget_cap": 5.0,
+        "created_at": "2026-05-28T12:40:34.993808+00:00",
+        "credential_id": "credential_binding_188178541d40f9036ec2bd54",
+        "credential_kind": "api_key",
+        "encrypted_secret_ref": "metadata_only:secret_fp_2310255c372bcd0d",
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\credentials\\credential_binding_188178541d40f9036ec2bd54.json",
+        "provider_id": "openai",
+        "rate_limit": "local_public_alpha",
+        "raw_secret_persisted": false,
+        "redacted_display": "env:OPENAI_API_KEY#secret_fp_2310255c372bcd0d",
+        "revoked_at": "",
+        "scopes": [
+          "inference",
+          "embeddings"
+        ],
+        "secret_fingerprint": "secret_fp_2310255c372bcd0d",
+        "secret_ref": "env:OPENAI_API_KEY",
+        "status": "active",
+        "user_id": "local-user"
+      },
+      "intent": {
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "budget_check": {
+          "budget_caps_supported": true,
+          "mode": "simulated",
+          "ok": true
+        },
+        "created_at": "2026-05-28T12:40:35.008807+00:00",
+        "credential_id": "credential_binding_188178541d40f9036ec2bd54",
+        "estimated_tokens": 0,
+        "intent_id": "byok_intent_12a06e9937a44642663a9705",
+        "model_ref": "gpt-4.1-mini",
+        "no_external_call_performed": true,
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\byok_intents\\byok_intent_12a06e9937a44642663a9705.json",
+        "policy_decision": {
+          "allowed": true,
+          "approval_required": true,
+          "mode": "simulated",
+          "reason": "simulation_only"
+        },
+        "prompt_summary": "",
+        "provider_id": "openai",
+        "purpose": "Forge simulated research",
+        "raw_prompt_excluded": true,
+        "status": "simulated"
+      }
+    },
+    "capability_summary": {
+      "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+      "byok_capability_status": "bound",
+      "credential_count": 1,
+      "emergency_stop_status": "clear",
+      "first_agent_requires_wallet_or_key": false,
+      "mainnet_enabled": false,
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "ok": true,
+      "onchain_intent_count": 1,
+      "onchain_upgrade_status": "prepared",
+      "wallet_binding_count": 1,
+      "wallet_binding_status": "bound",
+      "x402_route_count": 1
+    },
+    "first_agent_requires_api_key": false,
+    "first_agent_requires_funds": false,
+    "first_agent_requires_wallet": false,
+    "no_broadcast": true,
+    "no_funds_moved": true,
+    "no_private_key_required": true,
+    "no_seed_phrase_required": true,
+    "ok": true,
+    "onchain": {
+      "prepared": {
+        "action": "register_agent",
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "approval_record_id": "approval_cc395da4a1f0cc1dfbdd13c7",
+        "chain_id": 84532,
+        "created_at": "2026-05-28T12:40:35.012809+00:00",
+        "eip712_typed_data": {
+          "domain": {
+            "chainId": 84532,
+            "name": "FlowMemoryAgentUpgrade",
+            "version": "0"
+          },
+          "message": {
+            "action": "register_agent",
+            "agentId": "genesis_agent_11b7e7b435abc729711373b0",
+            "dryRunOnly": true,
+            "intentId": "onchain_upgrade_5550bf8ca426fc292f7eb08c"
+          },
+          "primaryType": "AgentUpgradeIntent",
+          "types": {
+            "AgentUpgradeIntent": [
+              "agentId",
+              "action",
+              "intentId",
+              "dryRunOnly"
+            ]
+          }
+        },
+        "intent_id": "onchain_upgrade_5550bf8ca426fc292f7eb08c",
+        "mode": "dry_run",
+        "network": "base_sepolia",
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5550bf8ca426fc292f7eb08c.json",
+        "policy_decision": {
+          "allowed": false,
+          "approval_required": true,
+          "reason": "simulate_then_external_sign"
+        },
+        "prepared_payload": {
+          "action": "register_agent",
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "chain_id": 84532,
+          "dry_run_only": true,
+          "intent_id": "onchain_upgrade_5550bf8ca426fc292f7eb08c",
+          "method_allowlist": [
+            "register_agent",
+            "bind_wallet_identity",
+            "publish_agent_genome_hash",
+            "publish_reputation_ref",
+            "publish_skill_manifest_hash"
+          ],
+          "network": "base_sepolia",
+          "spend_limit": 0
+        },
+        "relay_status": "disabled",
+        "sign_status": "not_requested",
+        "simulation_result": {},
+        "user_id": "local-user"
+      },
+      "simulation": {
+        "action": "register_agent",
+        "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+        "approval_record_id": "approval_cc395da4a1f0cc1dfbdd13c7",
+        "chain_id": 84532,
+        "created_at": "2026-05-28T12:40:35.012809+00:00",
+        "eip712_typed_data": {
+          "domain": {
+            "chainId": 84532,
+            "name": "FlowMemoryAgentUpgrade",
+            "version": "0"
+          },
+          "message": {
+            "action": "register_agent",
+            "agentId": "genesis_agent_11b7e7b435abc729711373b0",
+            "dryRunOnly": true,
+            "intentId": "onchain_upgrade_5550bf8ca426fc292f7eb08c"
+          },
+          "primaryType": "AgentUpgradeIntent",
+          "types": {
+            "AgentUpgradeIntent": [
+              "agentId",
+              "action",
+              "intentId",
+              "dryRunOnly"
+            ]
+          }
+        },
+        "intent_id": "onchain_upgrade_5550bf8ca426fc292f7eb08c",
+        "mode": "dry_run",
+        "network": "base_sepolia",
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5550bf8ca426fc292f7eb08c.json",
+        "policy_decision": {
+          "allowed": true,
+          "approval_required": true,
+          "reason": "dry_run_simulation"
+        },
+        "prepared_payload": {
+          "action": "register_agent",
+          "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+          "chain_id": 84532,
+          "dry_run_only": true,
+          "intent_id": "onchain_upgrade_5550bf8ca426fc292f7eb08c",
+          "method_allowlist": [
+            "register_agent",
+            "bind_wallet_identity",
+            "publish_agent_genome_hash",
+            "publish_reputation_ref",
+            "publish_skill_manifest_hash"
+          ],
+          "network": "base_sepolia",
+          "spend_limit": 0
+        },
+        "relay_status": "disabled",
+        "sign_status": "not_requested",
+        "simulation_result": {
+          "emergency_stop_active": false,
+          "gas_estimate": 0,
+          "mainnet_write_blocked": false,
+          "method_allowed": true,
+          "mode": "dry_run",
+          "no_broadcast": true,
+          "no_funds_moved": true,
+          "ok": true,
+          "spend_limit": 0
+        },
+        "user_id": "local-user"
+      }
+    },
+    "requested": {
+      "byok": true,
+      "onchain_dry_run": true,
+      "wallet": true,
+      "x402": true
+    },
+    "wallet": {
+      "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+      "allowed_capabilities": [
+        "dry_run_identity",
+        "external_signature_future"
+      ],
+      "chain_id": 84532,
+      "created_at": "2026-05-28T12:40:35.010809+00:00",
+      "emergency_stopped": false,
+      "gas_limits": {
+        "dry_run_only": true,
+        "max_gas": 0
+      },
+      "mainnet_writes_enabled": false,
+      "method_allowlist": [
+        "register_agent",
+        "bind_wallet_identity",
+        "publish_agent_genome_hash",
+        "publish_reputation_ref",
+        "publish_skill_manifest_hash"
+      ],
+      "network_name": "base_sepolia",
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "no_seed_phrase_required": true,
+      "ok": true,
+      "path": "artifacts\\capability_upgrades\\wallet_bindings\\wallet_binding_4dfa636571f86e1ad2b9f0dc.json",
+      "proof_type": "address_only_stub",
+      "revoked": false,
+      "spend_limits": {
+        "native": 0,
+        "token": 0
+      },
+      "token_allowlist": [],
+      "updated_at": "2026-05-28T12:40:35.010809+00:00",
+      "user_id": "local-user",
+      "verification_status": "simulated",
+      "wallet_address": "0x0000000000000000000000000000000000000000",
+      "wallet_binding_id": "wallet_binding_4dfa636571f86e1ad2b9f0dc"
+    },
+    "x402": {
+      "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
+      "cdp_api_key_required": false,
+      "created_at": "2026-05-28T12:40:35.029810+00:00",
+      "facilitator_provider": "x402_org_testnet",
+      "facilitator_url": "https://x402.org/facilitator",
+      "install_command": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
+      "mode": "testnet_live_ready_relay_disabled",
+      "network": "eip155:84532",
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "no_seed_phrase_required": true,
+      "ok": true,
+      "package_required": "x402[fastapi,httpx,evm]>=2.11.0",
+      "path": "artifacts\\capability_upgrades\\x402_routes\\x402_route_76d1fe0bf984cbc222dea732.json",
+      "pay_to": "0x0000000000000000000000000000000000000000",
+      "payment_requirements_preview": {
+        "description": "Access to forge_skill_match",
+        "mimeType": "application/json",
+        "network": "eip155:84532",
+        "payTo": "0x0000000000000000000000000000000000000000",
+        "price": "0.001",
+        "scheme": "exact"
+      },
+      "policy_state": {
+        "approval_required": true,
+        "flow_memory_execution_default": "prepare_only_no_relay",
+        "live_requested": true,
+        "mainnet_blocked": false,
+        "relay_disabled_by_default": true,
+        "testnet_live_ready": true
+      },
+      "price": "0.001",
+      "resource": "forge_skill_match",
+      "route_id": "x402_route_76d1fe0bf984cbc222dea732",
+      "settlement_enabled": false,
+      "status": "prepared",
+      "testnet_live_ready": true,
+      "x402_package_status": {
+        "base_mainnet_network": "eip155:8453",
+        "base_sepolia_network": "eip155:84532",
+        "coinbase_facilitator_url": "https://api.cdp.coinbase.com/platform/v2/x402",
+        "installed": true,
+        "live_default": false,
+        "node_install_express": "npm install @x402/express @x402/evm @x402/core",
+        "ok": true,
+        "package": "x402",
+        "recommended_install": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
+        "settlement_enabled_default": false,
+        "testnet_facilitator_url": "https://x402.org/facilitator"
+      }
+    }
+  },
+  "wallet_optional_upgrade_visible": true,
+  "x402_dry_run_optional_upgrade_visible": true
+}

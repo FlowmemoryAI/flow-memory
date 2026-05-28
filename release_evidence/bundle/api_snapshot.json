@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 158,
-  "manifest_hash": "c94d5c284f74ab28f8d852f5aace8ca0d97b54a9b24456df6acdc7da00a3ab33",
-  "openapi_hash": "f7b13ad37febe6acd7c1d2373d0e114a2d92ff8d95d8a03715909495df4ecac1",
+  "endpoint_count": 162,
+  "manifest_hash": "5a406a2f838ee70fcd7a5ceb9b46ce1d589b7c9a8eebee9c83ada7505d770106",
+  "openapi_hash": "11741033726c860f97902ccbe6313ca0aa00c9f71a4735e6109c7aaaa1417256",
   "operations": [
     "GET /agents",
     "GET /agents/{did}",
@@ -30,6 +30,7 @@
     "GET /experience-graph/agents/{agent_id}",
     "GET /experience-graph/{graph_id}",
     "GET /flowlang/examples",
+    "GET /forge/defaults",
     "GET /genesis/agents/{agent_id}/genome",
     "GET /genesis/agents/{agent_id}/mirror",
     "GET /genesis/agents/{agent_id}/passport",
@@ -113,6 +114,9 @@
     "POST /flowlang/compile",
     "POST /flowlang/run",
     "POST /flowlang/validate",
+    "POST /forge/assembly-plan",
+    "POST /forge/birth",
+    "POST /forge/simulate-upgrades",
     "POST /genesis/agents/{agent_id}/teaching",
     "POST /genesis/birth",
     "POST /genesis/contributions/export",
@@ -162,7 +166,7 @@
     "POST /wallet/bindings",
     "POST /x402/routes/prepare"
   ],
-  "path_count": 154,
+  "path_count": 158,
   "paths": [
     "/agents",
     "/agents/launch",
@@ -215,6 +219,10 @@
     "/flowlang/examples",
     "/flowlang/run",
     "/flowlang/validate",
+    "/forge/assembly-plan",
+    "/forge/birth",
+    "/forge/defaults",
+    "/forge/simulate-upgrades",
     "/genesis/agents/{agent_id}/genome",
     "/genesis/agents/{agent_id}/mirror",
     "/genesis/agents/{agent_id}/passport",

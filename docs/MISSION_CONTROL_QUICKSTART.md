@@ -94,6 +94,10 @@ Useful endpoints:
 - `GET /experience-graph/agents/{agent_id}`
 - `GET /proof-of-learning`
 - `GET /learning-reputation`
+- `GET /forge/defaults`
+- `POST /forge/assembly-plan`
+- `POST /forge/birth`
+- `POST /forge/simulate-upgrades`
 With local auth/scopes:
 
 ```bash
@@ -104,6 +108,7 @@ Read visual endpoints with `x-flow-memory-scopes: visual:read`; run network scen
 Launch console read endpoints require `x-flow-memory-scopes: launch:read`; public-alpha demo bundle export requires `x-flow-memory-scopes: launch:export`.
 Cognition read endpoints require `x-flow-memory-scopes: cognition:read`; cognition ticks and benchmark runs require `x-flow-memory-scopes: cognition:run cognition:write`; lesson consolidation requires `x-flow-memory-scopes: cognition:write`.
 Genesis read endpoints require `x-flow-memory-scopes: genesis:read`; birth requires `x-flow-memory-scopes: genesis:create`; teaching requires `x-flow-memory-scopes: genesis:teach`; export requires `x-flow-memory-scopes: genesis:export`.
+Forge read endpoints require `x-flow-memory-scopes: forge:read`; plan and birth require `x-flow-memory-scopes: forge:create`; upgrade simulation requires `x-flow-memory-scopes: forge:simulate`.
 Experience Graph read endpoints require `x-flow-memory-scopes: experience-graph:read`; graph build requires `x-flow-memory-scopes: experience-graph:write`.
 Public-alpha finalizer export also requires `x-flow-memory-scopes: launch:export`.
 
@@ -117,9 +122,11 @@ npm run build
 npm run dev
 ```
 
-For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control`. It renders checked-in replay/mock fixtures without the local API: the run selector, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Predictive Learning Benchmark panel, Agent Genesis panel, Proof of Learning panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
+For local development, `npm run dev` serves the real Mission Control page at `http://127.0.0.1:4173/mission-control` and the Forge builder at `http://127.0.0.1:4173/forge`. It renders checked-in replay/mock fixtures without the local API: the run selector, Flow Memory Forge, Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Local Network Replay, Predictive Cognition panel, Predictive Learning Benchmark panel, Agent Genesis panel, Proof of Learning panel, Neural Embodiment panel, Live 3D Mode panel, GPU evidence status, and public-alpha finalizer status.
 
-The dev server exposes fixture JSON and read-only page rendering only. It does not expose launch, network-run, compute, settlement, or control POST endpoints. Optional local API mode remains a separate read-only polling path through `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`.
+Forge shows a simple first-agent path where the first agent requires no wallet/API key/funds. Private memory is default, network learning is opt-in, and BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes are optional advanced capabilities after birth.
+
+The dev server exposes fixture JSON and limited local birth helpers only. It does not expose launch, network-run, compute, settlement, transaction broadcast, or control POST endpoints. Optional local API mode remains a separate polling path through `python scripts/run_local_api_server.py --host 127.0.0.1 --port 8765`.
 
 
 ## Mission Control run selector
@@ -135,6 +142,7 @@ The dashboard includes a scoped run selector for these replay/demo fixtures:
 - **Predictive Learning Benchmark** — `dashboard/src/mock-data/predictive-learning-benchmark.json`
 - **Agent Genesis** — `dashboard/src/mock-data/agent-genesis-onboarding.json`
 - **Proof of Learning** — `dashboard/src/mock-data/experience-graph-proof-of-learning.json`
+- **Flow Memory Forge** — `dashboard/src/mock-data/flow-memory-forge.json`
 
 The selected run status card shows run id, kind, agent id, backend, status, current phase, ticks, policy gate state, risk/confidence, memory writes, visual event count, GPU evidence status, replay artifact path, and run record path.
 

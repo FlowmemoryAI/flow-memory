@@ -4,7 +4,7 @@ Date: 2026-05-26
 
 ## Current status
 
-Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, Predictive Learning Benchmark memory consolidation, Agent Genesis and Network Learning Protocol, Experience Graph + Proof of Learning ledger, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
+Flow Memory is now a public-alpha/testnet-preflight local prototype of an autonomous AI agent OS and agent economy. It has a first-class AI agent layer, FlowLang runtime integration, local Economy V3 lifecycles, Flow Memory Compute Market dry-run routing/quote/settlement simulation, local live neural agent runtime sessions, Predictive Cognitive Core experience memory, Predictive Learning Benchmark memory consolidation, Agent Genesis and Network Learning Protocol, Agent Internet, BYOK/on-chain optional upgrade seams, Flow Memory Forge browser agent builder, Experience Graph + Proof of Learning ledger, durable SQLite storage, local signing/provenance, API/server seams, Base Sepolia dry-run artifacts, sandbox profiles, protocol gateway seams, Mission Control visual telemetry/replay, release evidence, and production-readiness docs.
 
 It is not production-certified. Contracts are unaudited, sandboxing is not hardened isolation, Web3 is dry-run only, API auth remains a seam, and FlowLang remains v0/prototype.
 
@@ -62,6 +62,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 | Predictive Learning Benchmark | Implemented deterministic local repeated scenarios, lesson consolidation, lesson reuse, before/after prediction metrics, CLI/API commands, Mission Control trend fixture, and release evidence. |
 | Agent Genesis + Network Learning Protocol | Implemented private-by-default agent birth, Agent Genome, private Memory Seed, instincts, boundaries, first prediction, Agent Mirror, Agent Passport, human teaching events, sanitized opt-in contributions, CLI/API commands, FlowLang blocks, Mission Control fixture, and public-alpha-genesis evidence. |
 | Experience Graph + Proof of Learning | Implemented local graph construction, proof records, learning reputation, private-payload exclusion, CLI/API commands, FlowLang metadata, Mission Control fixture/panel, and release evidence. |
+| Flow Memory Forge | Implemented `/forge` and `/agents/new` first-agent browser builder, Forge CLI/API wrappers, Capability Composer, Agent Internet handoff, optional BYOK/wallet/on-chain/x402 dry-run simulations, and Mission Control fixture. |
 | Base Sepolia dry run | Implemented no-key/no-funds artifact set and validator |
 | ERC-4337 adapter | UserOperation dry-run schema tested locally |
 | Contract registry validation | Implemented address, required-contract, and zero-address checks |
@@ -96,6 +97,7 @@ It is not production-certified. Contracts are unaudited, sandboxing is not harde
 10. Dashboard is a local/public-alpha Mission Control scaffold, not a hosted production console.
 11. Predictive learning metrics are local deterministic benchmark signals, not external forecasting or production model certification.
 12. Proof of Learning reputation is local evidence over structured traces, not a market-wide trust guarantee.
+13. Flow Memory Forge is a local/public-alpha builder; optional BYOK, wallet, on-chain, and x402 routes stay dry-run or metadata-only and do not move funds or broadcast transactions.
 
 ## Next milestones
 

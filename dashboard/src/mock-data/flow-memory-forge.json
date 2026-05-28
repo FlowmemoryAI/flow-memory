@@ -1,0 +1,87 @@
+{
+  "ok": true,
+  "fixture_id": "flow-memory-forge",
+  "summary": {
+    "title": "Flow Memory Forge",
+    "route": "/forge",
+    "first_agent_path": "no wallet/API key/funds required for first agent",
+    "first_agent_requires_wallet": false,
+    "first_agent_requires_api_key": false,
+    "first_agent_requires_funds": false,
+    "simple_mode_default": true,
+    "advanced_mode_available": true,
+    "private_default": true,
+    "network_learning": "opt-in",
+    "network_learning_opt_in": true,
+    "policy": "supervised; approval required"
+  },
+  "assembly_plan": {
+    "forge_id": "forge_demo_mira",
+    "agent_name": "Mira",
+    "archetype_id": "research-builder",
+    "purpose": "Help me build, remember, and verify Flow Memory work.",
+    "instincts": ["careful", "builder", "memory_first", "verifier"],
+    "boundaries": ["ask_before_risky_action", "never_spend_money", "never_share_private_memory", "local_only_by_default"],
+    "consent_mode": "private_only",
+    "first_agent_mode": true,
+    "selected_model_mode": "local_runtime",
+    "agent_internet_enabled": false,
+    "byok_upgrade_requested": false,
+    "wallet_upgrade_requested": false,
+    "onchain_dry_run_requested": false,
+    "x402_dry_run_requested": false,
+    "mission_control_url": "/mission-control#forge-mira"
+  },
+  "first_prediction": {
+    "prediction": "I can begin by mapping project state, predicting the safest next step, and verifying what changed.",
+    "confidence": 0.72,
+    "risk": 0.1,
+    "policy": "supervised; approval required"
+  },
+  "capability_composer": [
+    {"capability_id": "local_neural_runtime", "label": "Local neural runtime", "status": "enabled", "default_state": "on", "optional": false, "requires_approval": false, "requires_wallet": false, "requires_api_key": false, "dry_run_only": false, "safety_note": "Local public-alpha runtime."},
+    {"capability_id": "predictive_cognition", "label": "Predictive cognition", "status": "enabled", "default_state": "on", "optional": false, "requires_approval": false, "requires_wallet": false, "requires_api_key": false, "dry_run_only": false, "safety_note": "Predicts and learns from observed outcomes."},
+    {"capability_id": "agent_internet_identity", "label": "Agent Internet identity", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": false, "requires_api_key": false, "dry_run_only": true, "safety_note": "Publishes identity metadata only."},
+    {"capability_id": "skill_manifest", "label": "Skill manifest", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": false, "requires_api_key": false, "dry_run_only": true, "safety_note": "Policy-gated capability manifest."},
+    {"capability_id": "skill_matcher", "label": "Skill matcher", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": false, "requires_api_key": false, "dry_run_only": true, "safety_note": "Find collaborators without external calls."},
+    {"capability_id": "byok_model_key", "label": "BYOK model key", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": false, "requires_api_key": true, "dry_run_only": true, "safety_note": "Secret reference and fingerprint only."},
+    {"capability_id": "wallet_identity", "label": "Wallet identity", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": true, "requires_api_key": false, "dry_run_only": true, "safety_note": "Address binding only; no private keys."},
+    {"capability_id": "onchain_dry_run", "label": "On-chain dry run", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": true, "requires_api_key": false, "dry_run_only": true, "safety_note": "Prepare and simulate only."},
+    {"capability_id": "x402_dry_run_route", "label": "x402 dry-run route", "status": "optional", "default_state": "off", "optional": true, "requires_approval": true, "requires_wallet": true, "requires_api_key": false, "dry_run_only": true, "safety_note": "Base Sepolia route metadata; settlement disabled."},
+    {"capability_id": "emergency_stop", "label": "Emergency stop", "status": "available", "default_state": "on", "optional": false, "requires_approval": false, "requires_wallet": false, "requires_api_key": false, "dry_run_only": false, "safety_note": "Disables optional upgrades."}
+  ],
+  "agent_internet": {
+    "publish_identity_optional": true,
+    "publish_skill_manifest_optional": true,
+    "skill_matcher_available": true,
+    "sample_recommendations": [
+      {"agent_id": "forge-helper-verifier", "display_name": "Forge Verifier", "score": 0.87, "skills": ["verification", "safety_review"]},
+      {"agent_id": "forge-helper-visual", "display_name": "Forge Visual Builder", "score": 0.82, "skills": ["visual_dashboard", "coding"]}
+    ]
+  },
+  "optional_upgrades": {
+    "byok": {"visible": true, "required_for_first_agent": false, "raw_key_persisted": false, "redacted_display": "env:OPENAI_API_KEY#secret_fp_demo", "budget_cap_usd": 5.0},
+    "wallet": {"visible": true, "required_for_first_agent": false, "network": "base_sepolia", "private_key_required": false, "seed_phrase_required": false},
+    "onchain": {"visible": true, "required_for_first_agent": false, "mode": "dry_run", "relay_status": "disabled", "no_broadcast": true, "no_funds_moved": true},
+    "x402": {"visible": true, "route_status": "prepared", "network": "eip155:84532", "settlement_enabled": false, "testnet_live_ready": true}
+  },
+  "mission_control": {
+    "handoff_url": "/mission-control#forge-mira",
+    "created_from_forge": true,
+    "passport_stage": "seed",
+    "safety_status": "policy-gated"
+  },
+  "invariants": {
+    "first_agent_requires_wallet": false,
+    "first_agent_requires_api_key": false,
+    "first_agent_requires_funds": false,
+    "private_memory_default": true,
+    "network_learning_opt_in": true,
+    "raw_api_key_persisted": false,
+    "private_key_required": false,
+    "seed_phrase_required": false,
+    "funds_moved": false,
+    "transaction_broadcast": false,
+    "mainnet_writes_enabled": false
+  }
+}

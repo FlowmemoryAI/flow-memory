@@ -20,6 +20,10 @@ Added Agent Genesis + Network Learning Protocol: private-by-default agent birth,
 
 Added local Experience Graph + Proof of Learning: graph construction over agents, genomes, goals, predictions, actions, outcomes, prediction errors, lessons, policy decisions, teaching events, and sanitized contributions; proof records under `artifacts/experience_graph/proofs/`; learning reputation under `artifacts/experience_graph/reputation/`; graph CLI/API routes; FlowLang `experience_graph` metadata; Mission Control Proof of Learning fixture/panel; and `public-alpha-proof-of-learning` release evidence. Private payloads remain excluded by default and policy gates remain authoritative.
 
+### 2026-05-26 Flow Memory Forge update
+
+Added Flow Memory Forge: `/forge` and `/agents/new` browser first-agent builder, Forge assembly plans, CLI/API wrappers, Capability Composer, Mission Control handoff, Agent Internet skill-match handoff, read-only demo fixture, and `public-alpha-forge` release evidence. The first agent requires no wallet/API key/funds; BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes remain optional after birth with no private keys, no seed phrases, no funds moved, no broadcast, and no mainnet writes.
+
 ## Major systems added
 
 ### AI agent layer
@@ -898,7 +902,7 @@ Safety invariants: no live settlement, no private keys, no transaction broadcast
 
 ## BYOK + x402 + on-chain upgrade readiness
 
-Flow Memory now models optional post-Genesis capability upgrades. The default Agent Genesis path remains no wallet/API key/funds required for first agent. BYOK credentials are represented as secret references and stable fingerprints only. x402 payment routes can be prepared for Base Sepolia using the x402.org testnet facilitator or Coinbase CDP facilitator metadata, while relay, settlement, transaction broadcast, and mainnet writes remain disabled by default.
+Flow Memory now models optional post-Genesis capability upgrades. The default Agent Genesis path keeps the first agent at no wallet/API key/funds. BYOK credentials are represented as secret references and stable fingerprints only. x402 payment routes can be prepared for Base Sepolia using the x402.org testnet facilitator or Coinbase CDP facilitator metadata, while relay, settlement, transaction broadcast, and mainnet writes remain disabled by default.
 
 ```mermaid
 flowchart LR

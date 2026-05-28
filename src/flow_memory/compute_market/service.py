@@ -905,6 +905,7 @@ class ComputeMarketService:
             workspace_id=str(updated_application.get("workspace_id", "")),
         )
         provider = self.store.get_record("compute_provider", provider_id)
+        disabled_provider: Mapping[str, Any] = {}
         if provider is not None:
             disabled_provider = {**dict(provider), "status": "disabled", "disabled_at": disabled_at, "updated_at": disabled_at}
             if not _tenant_can_access_catalog_record(payload, disabled_provider):
@@ -919,9 +920,36 @@ class ComputeMarketService:
                 status="disabled",
                 request_id=request_id,
             )
+        disabled_routes: list[Mapping[str, Any]] = []
+        for route in self.store.list_records("compute_route", filters={"provider_id": provider_id}, limit=500).records:
+            disabled_route = {
+                **dict(route),
+                "enabled": False,
+                "status": "disabled",
+                "disabled_at": disabled_at,
+                "updated_at": disabled_at,
+            }
+            self.store.put_record(
+                "compute_route",
+                str(disabled_route["route_id"]),
+                disabled_route,
+                tenant_id=str(disabled_route.get("tenant_id", "")),
+                workspace_id=str(disabled_route.get("workspace_id", "")),
+                provider_id=provider_id,
+                route_id=str(disabled_route["route_id"]),
+                status="disabled",
+                request_id=request_id,
+            )
+            disabled_routes.append(disabled_route)
         invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": provider_id, "reason": "provider_disabled"}, request_id=request_id)
         self._audit("market.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
-        return {"ok": True, "provider_application": updated_application, "invalidated_quote_cache_entries": invalidated_cache}
+        return {
+            "ok": True,
+            "provider_application": updated_application,
+            "provider": disabled_provider,
+            "routes": tuple(disabled_routes),
+            "invalidated_quote_cache_entries": invalidated_cache,
+        }
 
     def suspend_market_provider(self, provider_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)

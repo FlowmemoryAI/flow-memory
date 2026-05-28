@@ -234,6 +234,26 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
     assert fetched["provider_application"]["status"] == "verified"
     assert fetched["reputation"]["provider_id"] == "provider_live_gpu_1"
 
+    disabled = service.disable_market_provider("provider_live_gpu_1", {"reason": "operator-disabled"})
+    disabled_routes = service.store.list_records(
+        "compute_route",
+        filters={"provider_id": "provider_live_gpu_1"},
+        limit=10,
+    ).records
+
+    assert disabled["provider_application"]["status"] == "disabled"
+    assert disabled["provider"]["status"] == "disabled"
+    assert {route["status"] for route in disabled["routes"]} == {"disabled"}
+    assert all(route["enabled"] is False for route in disabled["routes"])
+    assert all(route["enabled"] is False and route["status"] == "disabled" for route in disabled_routes)
+    assert service.list_routes({"provider_id": "provider_live_gpu_1", "status": "enabled"})["routes"] == ()
+    try:
+        service.verify_market_provider("provider_live_gpu_1", {})
+    except ValueError as exc:
+        assert "pending or probation" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("disabled provider application re-verification succeeded")
+
 def test_provider_reapplication_tracks_new_pending_version_without_settlement_side_effects() -> None:
     service = _service()
     original = {**_provider_application(), "request_id": "provider-apply-v1"}

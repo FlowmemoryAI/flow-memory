@@ -308,6 +308,10 @@ Assert-True ($rateLimitBackend -eq 'redis') "readiness rate limit backend was '$
 Assert-True ($circuitBreakerBackend -eq 'redis') "readiness circuit breaker backend was '$circuitBreakerBackend', expected redis."
 Assert-True ($readinessData.production_safety_defaults.require_managed_redis_in_production -eq $true) 'readiness did not require managed Redis in production.'
 Assert-True ($readinessData.production_safety_defaults.require_managed_sql_in_production -eq $true) 'readiness did not require managed SQL in production.'
+Assert-True ($readinessData.production_safety_defaults.dry_run_required -eq $true) 'readiness did not report dry_run_required=true.'
+Assert-True ($readinessData.production_safety_defaults.live_settlement_enabled -eq $false) 'readiness did not report live_settlement_enabled=false.'
+Assert-True ($readinessData.production_safety_defaults.broadcast_enabled -eq $false) 'readiness did not report broadcast_enabled=false.'
+Assert-True ($readinessData.production_safety_defaults.private_key_inputs_allowed -eq $false) 'readiness did not report private_key_inputs_allowed=false.'
 Assert-True ($readinessData.production_safety_defaults.stripe_checkout_enabled -eq $false) 'readiness did not report stripe_checkout_enabled=false.'
 Assert-True ($readinessData.production_safety_defaults.audit_required -eq $true) 'readiness did not report audit_required=true.'
 Assert-True ($readinessData.production_safety_defaults.audit_export_required -eq $true) 'readiness did not report audit_export_required=true.'

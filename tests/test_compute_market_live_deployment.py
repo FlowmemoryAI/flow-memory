@@ -592,6 +592,10 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "require_managed_sql_in_production" in smoke_script
     assert "require_managed_sql_in_production" in render_script
     for expected in (
+        "production_safety_defaults.dry_run_required -eq $true",
+        "production_safety_defaults.live_settlement_enabled -eq $false",
+        "production_safety_defaults.broadcast_enabled -eq $false",
+        "production_safety_defaults.private_key_inputs_allowed -eq $false",
         "production_safety_defaults.stripe_checkout_enabled -eq $false",
         "production_safety_defaults.audit_required -eq $true",
         "production_safety_defaults.audit_export_required -eq $true",

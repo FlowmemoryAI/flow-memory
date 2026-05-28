@@ -229,7 +229,10 @@ def _resolve_api_key_with_reasons(
         expected_hash = str(record.get("key_hash", ""))
         prefix = str(record.get("key_prefix", ""))
         if expected_hash and _constant_time_equal(supplied_hash, expected_hash) and (not prefix or supplied.startswith(prefix)):
-            scopes = _api_key_record_scopes(record)
+            try:
+                scopes = _api_key_record_scopes(record)
+            except ValueError as exc:
+                return None, (f"api key record invalid: {exc}",)
             invalid_scopes = tuple(scope for scope in scopes if scope not in KNOWN_SCOPES)
             if invalid_scopes:
                 return None, (
@@ -637,7 +640,8 @@ def _header(headers: Mapping[str, str], name: str) -> str:
 
 def _api_key_record_scopes(record: Mapping[str, Any]) -> tuple[str, ...]:
     explicit = _parse_scopes(record.get("scopes", ()))
-    role_scopes = _scopes_from_roles(record.get("roles", ()))
+    roles = _parse_api_key_roles(record.get("roles", ()))
+    role_scopes = _scopes_from_roles(roles)
     return tuple(sorted({*explicit, *role_scopes}))
 
 

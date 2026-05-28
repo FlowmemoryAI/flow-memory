@@ -94,6 +94,27 @@ class ApiAuthTests(unittest.TestCase):
         )
         self.assertEqual(decision.key_id, "")
 
+    def test_authorize_request_rejects_api_key_record_with_unknown_role(self) -> None:
+        config = ApiAuthConfig(
+            api_key_records=(
+                {
+                    "key_id": "key_invalid_role",
+                    "key_prefix": "fmk_invalid_role_",
+                    "key_hash": api_key_hash("fmk_invalid_role_secret"),
+                    "tenant_id": "tenant_invalid_role",
+                    "principal": "svc-invalid-role",
+                    "roles": ["viewer", "superuser"],
+                    "enabled": True,
+                },
+            )
+        )
+
+        decision = authorize_request({"x-flow-memory-api-key": "fmk_invalid_role_secret"}, config)
+
+        self.assertFalse(decision.ok)
+        self.assertEqual(decision.reasons, ("api key record invalid: unknown role: superuser",))
+        self.assertEqual(decision.key_id, "")
+
     def test_authorize_request_accepts_valid_api_key_and_signature(self) -> None:
         key = generate_local_keypair("api-auth")
         payload = {"goal": "local"}

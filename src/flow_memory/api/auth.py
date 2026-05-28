@@ -212,7 +212,7 @@ def resolve_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> ApiKey
                 key_id=str(record.get("key_id", "")),
                 tenant_id=str(record.get("tenant_id", "")),
                 principal=str(record.get("principal", record.get("created_by", "api-key"))),
-                scopes=_parse_scopes(record.get("scopes", ())),
+                scopes=_api_key_record_scopes(record),
                 key_prefix=prefix,
             )
     return None
@@ -236,8 +236,10 @@ def issue_api_key_record(
     key_id = str(payload.get("key_id") or f"key_{secrets.token_hex(8)}")
     tenant_id = str(payload.get("tenant_id") or "")
     principal = str(payload.get("principal") or payload.get("created_by") or "api-key")
-    scopes = _parse_scopes(payload.get("scopes", ()))
-    invalid_scopes = tuple(scope for scope in scopes if scope not in KNOWN_SCOPES)
+    explicit_scopes = _parse_scopes(payload.get("scopes", ()))
+    roles = _parse_api_key_roles(payload.get("roles", ()))
+    scopes = tuple(sorted({*explicit_scopes, *_scopes_from_roles(roles)}))
+    invalid_scopes = tuple(scope for scope in explicit_scopes if scope not in KNOWN_SCOPES)
     if invalid_scopes:
         raise ValueError(f"unknown API scopes: {', '.join(invalid_scopes)}")
     now = int(time.time())
@@ -249,6 +251,8 @@ def issue_api_key_record(
         "workspace_id": str(payload.get("workspace_id", "")),
         "principal": principal,
         "scopes": scopes,
+        "explicit_scopes": explicit_scopes,
+        "roles": roles,
         "enabled": True,
         "status": "active",
         "created_by": str(payload.get("created_by", principal)),
@@ -284,7 +288,8 @@ def rotate_api_key_record(
         "tenant_id": str(update.get("tenant_id", existing.get("tenant_id", ""))),
         "workspace_id": str(update.get("workspace_id", existing.get("workspace_id", ""))),
         "principal": str(update.get("principal", existing.get("principal", "api-key"))),
-        "scopes": update.get("scopes", existing.get("scopes", ())),
+        "scopes": update.get("scopes", _explicit_api_key_scopes(existing)),
+        "roles": update.get("roles", existing.get("roles", ())),
         "created_by": str(update.get("created_by", existing.get("principal", "api-key"))),
         "previous_key_id": previous_key_id,
         "rotation_counter": int(existing.get("rotation_counter", 0) or 0) + 1,
@@ -592,6 +597,29 @@ def _header(headers: Mapping[str, str], name: str) -> str:
             return value
     return ""
 
+
+def _api_key_record_scopes(record: Mapping[str, Any]) -> tuple[str, ...]:
+    explicit = _parse_scopes(record.get("scopes", ()))
+    role_scopes = _scopes_from_roles(record.get("roles", ()))
+    return tuple(sorted({*explicit, *role_scopes}))
+
+
+def _explicit_api_key_scopes(record: Mapping[str, Any]) -> tuple[str, ...]:
+    stored_explicit = record.get("explicit_scopes")
+    if stored_explicit is not None:
+        return _parse_scopes(stored_explicit)
+    role_scopes = set(_scopes_from_roles(record.get("roles", ())))
+    return tuple(scope for scope in _parse_scopes(record.get("scopes", ())) if scope not in role_scopes)
+
+
+def _parse_api_key_roles(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        parts: Sequence[str] = value.replace(",", " ").split()
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        parts = tuple(str(item) for item in value)
+    else:
+        parts = ()
+    return tuple(sorted({validate_role_name(part) for part in parts if part.strip()}))
 
 def _jwt_scopes(claims: Mapping[str, Any]) -> tuple[str, ...]:
     explicit = _parse_scopes(claims.get("scope", claims.get("scp", ())))

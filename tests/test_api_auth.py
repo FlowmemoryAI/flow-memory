@@ -412,6 +412,88 @@ class ApiAuthTests(unittest.TestCase):
         self.assertTrue(public["key_hash_configured"])
         self.assertEqual(public["disabled_reason"], "compromised")
 
+    def test_api_key_roles_expand_to_scopes(self) -> None:
+        issued = issue_api_key_record(
+            {
+                "key_id": "key_role_scoped_v1",
+                "tenant_id": "tenant_role_scoped",
+                "principal": "svc-role-scoped",
+                "scopes": ["compute:plan"],
+                "roles": ["provider-admin", "billing"],
+                "key_prefix": "fmk_role_",
+            },
+            api_key="fmk_role_secret_v1",
+        )
+        record = issued["record"]
+
+        self.assertEqual(record["explicit_scopes"], ("compute:plan",))
+        self.assertEqual(record["roles"], ("billing", "provider-admin"))
+        self.assertEqual(
+            record["scopes"],
+            ("compute:billing", "compute:plan", "compute:provider-admin", "compute:read"),
+        )
+        decision = authorize_request({"x-flow-memory-api-key": "fmk_role_secret_v1"}, ApiAuthConfig(api_key_records=(record,)))
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.tenant_id, "tenant_role_scoped")
+        self.assertEqual(
+            decision.scopes,
+            ("compute:billing", "compute:plan", "compute:provider-admin", "compute:read"),
+        )
+        public = public_api_key_record(record)
+        self.assertEqual(public["roles"], ("billing", "provider-admin"))
+        self.assertNotIn("key_hash", public)
+
+    def test_api_key_config_records_can_grant_role_scopes_without_precomputed_scopes(self) -> None:
+        config = ApiAuthConfig(
+            api_key_records=(
+                {
+                    "key_id": "key_env_role",
+                    "key_prefix": "fmk_env_role_",
+                    "key_hash": api_key_hash("fmk_env_role_secret"),
+                    "tenant_id": "tenant_env_role",
+                    "principal": "svc-env-role",
+                    "roles": ["auditor"],
+                    "enabled": True,
+                },
+            )
+        )
+
+        decision = authorize_request({"x-flow-memory-api-key": "fmk_env_role_secret"}, config)
+
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.tenant_id, "tenant_env_role")
+        self.assertEqual(decision.scopes, ("api:audit", "compute:audit", "compute:read"))
+
+    def test_api_key_rotation_preserves_explicit_scopes_and_recomputes_roles(self) -> None:
+        issued = issue_api_key_record(
+            {
+                "key_id": "key_role_rotation_v1",
+                "tenant_id": "tenant_role_rotation",
+                "principal": "svc-role-rotation",
+                "scopes": ["compute:plan"],
+                "roles": ["provider-admin"],
+                "key_prefix": "fmk_role_rot_",
+            },
+            api_key="fmk_role_rot_secret_v1",
+        )
+        rotated = rotate_api_key_record(
+            issued["record"],
+            {"key_id": "key_role_rotation_v2", "roles": ["billing"]},
+            api_key="fmk_role_rot_secret_v2",
+        )
+        next_record = rotated["record"]
+
+        self.assertEqual(next_record["explicit_scopes"], ("compute:plan",))
+        self.assertEqual(next_record["roles"], ("billing",))
+        self.assertEqual(next_record["scopes"], ("compute:billing", "compute:plan", "compute:read"))
+        decision = authorize_request(
+            {"x-flow-memory-api-key": "fmk_role_rot_secret_v2"},
+            ApiAuthConfig(api_key_records=(rotated["previous_record"], next_record)),
+        )
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.scopes, ("compute:billing", "compute:plan", "compute:read"))
+        self.assertNotIn("compute:provider-admin", decision.scopes)
+
     def test_issue_api_key_record_rejects_unknown_scopes(self) -> None:
         with self.assertRaisesRegex(ValueError, "unknown API scopes"):
             issue_api_key_record(
@@ -422,6 +504,16 @@ class ApiAuthTests(unittest.TestCase):
                     "key_prefix": "fmk_bad_",
                 },
                 api_key="fmk_bad_secret",
+            )
+        with self.assertRaisesRegex(ValueError, "unknown role"):
+            issue_api_key_record(
+                {
+                    "key_id": "key_bad_role",
+                    "tenant_id": "tenant_bad_role",
+                    "roles": ["owner"],
+                    "key_prefix": "fmk_bad_role_",
+                },
+                api_key="fmk_bad_role_secret",
             )
 
     def test_auth_user_workspace_and_membership_management(self) -> None:

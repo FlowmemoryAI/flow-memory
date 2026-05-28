@@ -275,6 +275,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                         "rate_limit_backend": "redis",
                         "circuit_breaker_backend": "redis",
                         "require_managed_redis_in_production": True,
+                        "require_managed_sql_in_production": True,
                         "redis_url_scheme": "rediss",
                     },
                 },
@@ -375,6 +376,96 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert len(set(nonce_pairs)) == len(nonce_pairs)
 
 
+def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_call_json(
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        body: object | None = None,
+    ) -> tuple[int, dict[str, object]]:
+        request_headers = headers or {}
+        scopes = request_headers.get("x-flow-memory-scopes", "")
+        if url == "https://api.example.test/":
+            return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
+        if url.endswith("/compute/health") and not request_headers.get("x-flow-memory-api-key"):
+            return 401, {"ok": False, "error": {"code": "auth.required"}}
+        if url.endswith("/compute/health"):
+            return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/readiness"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ready": True,
+                    "storage": {"backend": "postgres"},
+                    "rate_limiter_status": {"backend": "redis"},
+                    "circuit_breaker_status": {"backend": "redis"},
+                    "production_safety_defaults": {
+                        "rate_limit_backend": "redis",
+                        "circuit_breaker_backend": "redis",
+                        "require_managed_redis_in_production": True,
+                        "require_managed_sql_in_production": False,
+                        "redis_url_scheme": "rediss",
+                    },
+                },
+            }
+        if url.endswith("/compute/plan") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
+        if url.endswith("/compute/plan"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "compute_plan": {
+                        "dry_run_only": True,
+                        "funds_moved": False,
+                        "broadcast_allowed": False,
+                        "private_key_required": False,
+                    }
+                },
+            }
+        if url.endswith("/compute/audit/verify"):
+            return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/audit/export"):
+            assert method == "POST"
+            assert body == {"chain_id": "all"}
+            return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 1}}
+        if url.endswith("/admin/audit/export"):
+            return 200, {"ok": True, "data": {"immutable": True}}
+        if url.endswith("/admin/storage/diagnostics"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "schema_verification": {
+                        "ok": True,
+                        "missing_tables": [],
+                        "missing_indexes": [],
+                        "advisory_lock_probe": {"acquired": True},
+                    }
+                },
+            }
+        if url.endswith("/admin/redis/diagnostics"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "rate_limit_probe": {"ok": True},
+                    "circuit_breaker_probe": {"ok": True},
+                    "rate_limit_fail_closed": True,
+                    "circuit_breaker_fail_closed": True,
+                },
+            }
+        if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
+            return 200, {"ok": True, "data": {}}
+        raise AssertionError(f"unexpected JSON call: {method} {url}")
+
+    monkeypatch.setattr(render_deploy, "call_json", fake_call_json)
+    monkeypatch.setattr(render_deploy, "call_text", lambda *_args, **_kwargs: (200, "compute_plan_requests_total 1\n"))
+
+    result = render_deploy.smoke_public("https://api.example.test", "api-key")
+
+    assert result["ok"] is False
+    assert result["require_managed_sql_in_production"] is False
+
+
 def test_render_blueprint_preserves_billing_safety_defaults() -> None:
     blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")
 
@@ -436,6 +527,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script
     assert "_smoke_nonce_headers" in render_script
     assert "x-flow-memory-nonce" in smoke_script
+    assert "require_managed_sql_in_production" in smoke_script
+    assert "require_managed_sql_in_production" in render_script
 
 
 def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:

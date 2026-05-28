@@ -1134,6 +1134,7 @@ def smoke_public(
             (safety.get("rate_limit_backend") or readiness_payload.get("rate_limiter_status", {}).get("backend")) == "redis",
             (safety.get("circuit_breaker_backend") or readiness_payload.get("circuit_breaker_status", {}).get("backend")) == "redis",
             safety.get("require_managed_redis_in_production") is True,
+            safety.get("require_managed_sql_in_production") is True,
             safety.get("redis_url_scheme") == "rediss"
             or (safety.get("redis_url_scheme") == "redis" and safety.get("allow_internal_redis_in_production") is True),
             checks["plan"][0] == 200,
@@ -1192,6 +1193,7 @@ def smoke_public(
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
         "admin_redis_diagnostics": checks["admin_redis_diagnostics"][0],
         "redis_url_scheme": safety.get("redis_url_scheme"),
+        "require_managed_sql_in_production": safety.get("require_managed_sql_in_production"),
         "metrics": checks["metrics"][0],
         "alerts": checks["alerts"][0],
         "telemetry": checks["telemetry"][0],

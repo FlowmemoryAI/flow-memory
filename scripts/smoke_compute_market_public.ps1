@@ -152,6 +152,7 @@ Assert-True (($storageBackend -eq 'postgres') -or ($storageBackend -eq 'postgres
 Assert-True ($rateLimitBackend -eq 'redis') "readiness rate limit backend was '$rateLimitBackend', expected redis."
 Assert-True ($circuitBreakerBackend -eq 'redis') "readiness circuit breaker backend was '$circuitBreakerBackend', expected redis."
 Assert-True ($readinessData.production_safety_defaults.require_managed_redis_in_production -eq $true) 'readiness did not require managed Redis in production.'
+Assert-True ($readinessData.production_safety_defaults.require_managed_sql_in_production -eq $true) 'readiness did not require managed SQL in production.'
 $redisUrlScheme = $readinessData.production_safety_defaults.redis_url_scheme
 $allowInternalRedis = $readinessData.production_safety_defaults.allow_internal_redis_in_production
 $redisSchemeAllowed = ($redisUrlScheme -eq 'rediss') -or (($redisUrlScheme -eq 'redis') -and ($allowInternalRedis -eq $true))

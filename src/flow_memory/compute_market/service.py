@@ -4958,9 +4958,10 @@ class ComputeMarketService:
         status = _stripe_payment_event_status(event_type, verified)
         raw_event_hash = content_hash(raw_event)
         posts_credit = _stripe_event_posts_credit(raw_event)
+        posts_refund = _stripe_event_is_refund(event_type)
         checkout_reference_id = (
             _stripe_checkout_payment_event_id(raw_event)
-            if verified and (posts_credit or _stripe_event_is_payment_failure(event_type))
+            if verified and (posts_credit or posts_refund or _stripe_event_is_payment_failure(event_type))
             else ""
         )
         existing = self.store.get_record("payment_event", event_id)
@@ -5015,7 +5016,7 @@ class ComputeMarketService:
                     reason_codes=("billing.webhook.signature_required",),
                 )
                 return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": True}
-        if self.config.stripe_checkout_enabled and verified and posts_credit:
+        if self.config.stripe_checkout_enabled and verified and (posts_credit or posts_refund):
             checkout_record = self.store.get_record("payment_event", checkout_reference_id) if checkout_reference_id else None
             checkout_error_code = ""
             checkout_error_message = ""
@@ -5026,13 +5027,13 @@ class ComputeMarketService:
             }
             if not checkout_reference_id:
                 checkout_error_code = "billing.webhook.checkout_reference_required"
-                checkout_error_message = "Stripe credit webhook must reference a server-created checkout event."
+                checkout_error_message = "Stripe terminal webhook must reference a server-created checkout event."
             elif not isinstance(checkout_record, Mapping) or not checkout_record:
                 checkout_error_code = "billing.webhook.checkout_reference_unknown"
-                checkout_error_message = "Stripe credit webhook referenced an unknown checkout event."
+                checkout_error_message = "Stripe terminal webhook referenced an unknown checkout event."
             elif str(checkout_record.get("event_type", "")) != "checkout.requested":
                 checkout_error_code = "billing.webhook.checkout_reference_invalid"
-                checkout_error_message = "Stripe credit webhook referenced a non-checkout payment event."
+                checkout_error_message = "Stripe terminal webhook referenced a non-checkout payment event."
             else:
                 expected_amount = float(checkout_record.get("amount", 0.0) or 0.0)
                 expected_currency = str(checkout_record.get("currency", "")).upper()
@@ -5050,16 +5051,20 @@ class ComputeMarketService:
                 )
                 if expected_session_id and session_id and expected_session_id != session_id:
                     checkout_error_code = "billing.webhook.checkout_session_mismatch"
-                    checkout_error_message = "Stripe credit webhook session does not match the server-created checkout."
-                elif abs(expected_amount - credit_amount) > 1e-9:
-                    checkout_error_code = "billing.webhook.checkout_amount_mismatch"
-                    checkout_error_message = "Stripe credit webhook amount does not match the server-created checkout."
+                    checkout_error_message = "Stripe terminal webhook session does not match the server-created checkout."
                 elif expected_currency != credit_currency.upper():
                     checkout_error_code = "billing.webhook.checkout_currency_mismatch"
-                    checkout_error_message = "Stripe credit webhook currency does not match the server-created checkout."
+                    checkout_error_message = "Stripe terminal webhook currency does not match the server-created checkout."
+                elif posts_credit and abs(expected_amount - credit_amount) > 1e-9:
+                    checkout_error_code = "billing.webhook.checkout_amount_mismatch"
+                    checkout_error_message = "Stripe credit webhook amount does not match the server-created checkout."
+                elif posts_refund and credit_amount - expected_amount > 1e-9:
+                    checkout_error_code = "billing.webhook.checkout_refund_amount_exceeds_checkout"
+                    checkout_error_message = "Stripe refund webhook amount exceeds the server-created checkout."
                 else:
                     account_id = str(checkout_record.get("account_id", account_id))
-                    credit_amount = expected_amount
+                    if posts_credit:
+                        credit_amount = expected_amount
                     credit_currency = expected_currency
             if checkout_error_code:
                 status = "rejected_untrusted_checkout"
@@ -5163,6 +5168,17 @@ class ComputeMarketService:
                     currency=credit_currency,
                     failure=failure,
                 )
+            elif posts_refund:
+                checkout_update, invoice_update = self._record_stripe_checkout_terminal_state(
+                    checkout_payment_event_id=checkout_reference_id,
+                    event_id=event_id,
+                    event_type=event_type,
+                    status="payment_refunded",
+                    request_id=request_id,
+                    amount=credit_amount,
+                    currency=credit_currency,
+                    failure={},
+                )
         self._audit("billing.webhook.received", payload, request_id=request_id, result=str(record["status"]), reason_codes=reason_codes)
         return {
             "ok": verified,
@@ -5194,7 +5210,9 @@ class ComputeMarketService:
         invoice_id = str(checkout_record.get("invoice_id", ""))
         if invoice_id:
             invoice_record = self.store.get_record("billing_invoice", invoice_id) or {}
-        if previous_status == "payment_credited" and status != "payment_credited":
+        if previous_status == "payment_refunded" and status != "payment_refunded":
+            return checkout_record, invoice_record if isinstance(invoice_record, Mapping) else {}
+        if previous_status == "payment_credited" and status not in {"payment_credited", "payment_refunded"}:
             return checkout_record, invoice_record if isinstance(invoice_record, Mapping) else {}
 
         now = utc_now_iso()
@@ -5217,6 +5235,15 @@ class ComputeMarketService:
                     "credited_amount": amount,
                     "credited_currency": currency,
                     "credited_at": now,
+                }
+            )
+        elif status == "payment_refunded":
+            checkout_update.update(
+                {
+                    "refund_payment_event_id": event_id,
+                    "refunded_amount": amount,
+                    "refunded_currency": currency,
+                    "refunded_at": now,
                 }
             )
         else:
@@ -5262,6 +5289,15 @@ class ComputeMarketService:
                         "credited_at": now,
                     }
                 )
+            elif status == "payment_refunded":
+                invoice_payload.update(
+                    {
+                        "refund_payment_event_id": event_id,
+                        "refunded_amount": amount,
+                        "refunded_currency": currency,
+                        "refunded_at": now,
+                    }
+                )
             else:
                 invoice_payload.update(
                     {
@@ -5283,7 +5319,10 @@ class ComputeMarketService:
             )
             invoice_update = invoice_payload
 
-        audit_event = "billing.checkout.credited" if status == "payment_credited" else "billing.checkout.failed"
+        audit_event = {
+            "payment_credited": "billing.checkout.credited",
+            "payment_refunded": "billing.checkout.refunded",
+        }.get(status, "billing.checkout.failed")
         self._audit(
             audit_event,
             {
@@ -5294,7 +5333,9 @@ class ComputeMarketService:
             },
             request_id=request_id,
             result=status,
-            reason_codes=() if status == "payment_credited" else (str(failure.get("code", event_type)),),
+            reason_codes=()
+            if status == "payment_credited"
+            else (("stripe_refund_recorded",) if status == "payment_refunded" else (str(failure.get("code", event_type)),)),
         )
         return checkout_update, invoice_update
 
@@ -9836,12 +9877,17 @@ def _stripe_checkout_payment_event_id(raw_event: Mapping[str, Any]) -> str:
 
 def _stripe_checkout_session_id(raw_event: Mapping[str, Any]) -> str:
     event_object = _stripe_event_object(raw_event)
-    return str(
-        event_object.get("id")
-        or event_object.get("checkout_session")
+    explicit_session = str(
+        event_object.get("checkout_session")
+        or event_object.get("checkout_session_id")
         or raw_event.get("checkout_session_id")
         or ""
     ).strip()
+    if explicit_session:
+        return explicit_session
+    if str(raw_event.get("type", "")).startswith("checkout.session."):
+        return str(event_object.get("id") or "").strip()
+    return ""
 
 def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
     event_object = _stripe_event_object(raw_event)
@@ -10202,6 +10248,10 @@ def _stripe_event_posts_credit(raw_event: Mapping[str, Any]) -> bool:
     return str(raw_event.get("type", "")) in {"checkout.session.completed", "invoice.paid", "payment_intent.succeeded"}
 
 
+def _stripe_event_is_refund(event_type: str) -> bool:
+    return event_type in {"charge.refunded", "refund.created", "refund.updated"}
+
+
 def _stripe_event_is_payment_failure(event_type: str) -> bool:
     return event_type in {
         "checkout.session.expired",
@@ -10218,6 +10268,8 @@ def _stripe_payment_event_status(event_type: str, verified: bool) -> str:
         return "verified_checkout_expired"
     if event_type == "payment_intent.canceled":
         return "verified_payment_canceled"
+    if _stripe_event_is_refund(event_type):
+        return "verified_refund_recorded"
     if _stripe_event_is_payment_failure(event_type):
         return "verified_payment_failed"
     return "verified"
@@ -10257,6 +10309,8 @@ def _stripe_failure(raw_event: Mapping[str, Any]) -> Mapping[str, str]:
 def _stripe_webhook_reason_codes(status: str, failure: Mapping[str, str]) -> tuple[str, ...]:
     if status == "rejected_unverified":
         return ("webhook_signature_invalid",)
+    if status == "verified_refund_recorded":
+        return ("stripe_refund_recorded",)
     if status.startswith("verified_payment") or status == "verified_checkout_expired":
         return (str(failure.get("code") or status),)
     return ()

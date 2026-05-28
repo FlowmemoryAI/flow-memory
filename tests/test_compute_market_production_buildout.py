@@ -4660,6 +4660,129 @@ def test_stripe_checkout_failure_webhook_does_not_downgrade_credited_checkout() 
     assert balance["available_credits"] == 12.34
     assert service.store.count_records("credit_transaction") == 1
 
+
+def test_stripe_checkout_refund_webhook_marks_checkout_and_invoice_refunded_without_extra_credit() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_refunded",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-refunded-request",
+                "idempotency_key": "checkout-refunded-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    invoice_id = str(checkout["invoice"]["invoice_id"])
+    secret = str(service.config.stripe_webhook_secret)
+    success_event = {
+        "id": "evt_checkout_refunded_success",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 1234,
+                "currency": "usd",
+                "metadata": {
+                    "account_id": "acct_checkout_refunded",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+    refund_event = {
+        "id": "evt_checkout_refunded_refund",
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "id": "ch_checkout_refunded",
+                "amount": 1234,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_checkout_refunded",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+    excessive_refund_event = {
+        "id": "evt_checkout_refunded_excessive",
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "id": "ch_checkout_refunded_excessive",
+                "amount": 1235,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_checkout_refunded",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+
+    credited = service.billing_webhook_stripe(
+        {
+            "raw_event": success_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(success_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    excessive = service.billing_webhook_stripe(
+        {
+            "raw_event": excessive_refund_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(excessive_refund_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    refunded = service.billing_webhook_stripe(
+        {
+            "raw_event": refund_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(refund_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    stored_checkout = service.store.get_record("payment_event", payment_event_id)
+    stored_invoice = service.store.get_record("billing_invoice", invoice_id)
+    balance = service.billing_balance({"account_id": "acct_checkout_refunded"})["balance"]
+
+    assert credited["ok"] is True
+    assert credited["checkout_update"]["status"] == "payment_credited"
+    assert excessive["ok"] is False
+    assert excessive["error"]["error_code"] == "billing.webhook.checkout_refund_amount_exceeds_checkout"
+    assert refunded["ok"] is True
+    assert refunded["payment_event"]["status"] == "verified_refund_recorded"
+    assert refunded["credit_transaction"] == {}
+    assert refunded["checkout_update"]["status"] == "payment_refunded"
+    assert refunded["checkout_update"]["refund_payment_event_id"] == "evt_checkout_refunded_refund"
+    assert refunded["checkout_update"]["refunded_amount"] == 12.34
+    assert refunded["invoice_update"]["invoice_id"] == invoice_id
+    assert refunded["invoice_update"]["status"] == "payment_refunded"
+    assert stored_checkout is not None
+    assert stored_invoice is not None
+    assert stored_checkout["status"] == "payment_refunded"
+    assert stored_invoice["status"] == "payment_refunded"
+    assert service.store.count_records("credit_transaction") == 1
+    assert balance["available_credits"] == 12.34
+
 def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_references() -> None:
     server, base_url = _stripe_checkout_server()
     try:

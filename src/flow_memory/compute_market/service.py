@@ -4059,7 +4059,19 @@ class ComputeMarketService:
             existing = self.store.find_by_idempotency("refund", idempotency_key)
             if existing is not None:
                 replay_credit_transaction = _refund_credit_transaction(self.store, existing)
-                return {"ok": True, "refund": existing, "credit_transaction": replay_credit_transaction, "idempotent_replay": True}
+                usage_charge = self.store.get_record("usage_charge", str(existing.get("usage_charge_id", "")))
+                replay_payout_adjustment = self._adjust_provider_payout_for_refund(
+                    existing,
+                    usage_charge if isinstance(usage_charge, Mapping) else None,
+                    request_id=request_id,
+                )
+                return {
+                    "ok": True,
+                    "refund": existing,
+                    "credit_transaction": replay_credit_transaction,
+                    "provider_payout_adjustment": replay_payout_adjustment,
+                    "idempotent_replay": True,
+                }
 
         usage_charge_id = str(payload.get("usage_charge_id", "")).strip()
         usage_charge = self.store.get_record("usage_charge", usage_charge_id) if usage_charge_id else None
@@ -4103,7 +4115,19 @@ class ComputeMarketService:
         existing_refund = self.store.get_record("refund", refund_id)
         if existing_refund is not None:
             existing_refund_credit_transaction = _refund_credit_transaction(self.store, existing_refund)
-            return {"ok": True, "refund": existing_refund, "credit_transaction": existing_refund_credit_transaction, "idempotent_replay": True}
+            usage_charge = self.store.get_record("usage_charge", str(existing_refund.get("usage_charge_id", "")))
+            existing_payout_adjustment = self._adjust_provider_payout_for_refund(
+                existing_refund,
+                usage_charge if isinstance(usage_charge, Mapping) else None,
+                request_id=request_id,
+            )
+            return {
+                "ok": True,
+                "refund": existing_refund,
+                "credit_transaction": existing_refund_credit_transaction,
+                "provider_payout_adjustment": existing_payout_adjustment,
+                "idempotent_replay": True,
+            }
 
         now = utc_now_iso()
         refund = {
@@ -4137,6 +4161,7 @@ class ComputeMarketService:
             action=usage_charge_id,
         )
         credit_transaction: Mapping[str, Any] = {}
+        provider_payout_adjustment: Mapping[str, Any] = {}
         if usage_charge is not None:
             debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
             debit = self.store.get_record("credit_transaction", debit_id)
@@ -4150,6 +4175,8 @@ class ComputeMarketService:
                     refund_id=refund_id,
                     usage_charge_id=usage_charge_id,
                 )
+            if _payload_enabled({"enabled": payload.get("adjust_provider_payout", True)}, default=True):
+                provider_payout_adjustment = self._adjust_provider_payout_for_refund(refund, usage_charge, request_id=request_id)
         self._audit(
             "billing.refund.recorded",
             payload,
@@ -4158,7 +4185,16 @@ class ComputeMarketService:
             provider_id=provider_id,
             route_id=route_id,
         )
-        return {"ok": True, "refund": refund, "credit_transaction": credit_transaction, "idempotent_replay": False}
+        if provider_payout_adjustment:
+            self._audit(
+                "billing.provider_payout.adjusted_for_refund",
+                {**dict(payload), "refund_id": refund_id},
+                request_id=request_id,
+                result=str(provider_payout_adjustment.get("status", "")),
+                provider_id=provider_id,
+                route_id=route_id,
+            )
+        return {"ok": True, "refund": refund, "credit_transaction": credit_transaction, "provider_payout_adjustment": provider_payout_adjustment, "idempotent_replay": False}
 
     def _reconcile_provider_sla_penalties(
         self,
@@ -4185,6 +4221,7 @@ class ComputeMarketService:
                     "source_event_id": penalty_id,
                     "idempotency_key": deterministic_id("sla_penalty_refund", {"sla_penalty_id": penalty_id}),
                     "request_id": request_id,
+                    "adjust_provider_payout": False,
                 }
             )
             payout_adjustment = self._adjust_provider_payout_for_sla_penalty(penalty, request_id=request_id)
@@ -4266,6 +4303,68 @@ class ComputeMarketService:
             "status": "adjusted_no_payout_due" if adjusted_amount <= 0.0 else "accrued",
             "sla_penalty_adjustment_amount": round(prior_adjustment + applied_adjustment, 6),
             "sla_penalty_ids": tuple(dict.fromkeys((*penalty_ids, penalty_id))),
+            "updated_at": updated_at,
+            "funds_moved": False,
+        }
+        self.store.put_record(
+            "provider_payout",
+            payout_id,
+            adjusted,
+            tenant_id=str(adjusted.get("account_id", "")),
+            provider_id=provider_id,
+            route_id=str(adjusted.get("route_id", "")),
+            status=str(adjusted["status"]),
+            request_id=request_id,
+            idempotency_key=payout_id,
+        )
+        return {
+            "provider_payout_id": payout_id,
+            "adjusted": True,
+            "applied_adjustment_amount": applied_adjustment,
+            "remaining_payout_amount": adjusted_amount,
+            "status": str(adjusted["status"]),
+        }
+
+    def _adjust_provider_payout_for_refund(
+        self,
+        refund: Mapping[str, Any],
+        usage_charge: Mapping[str, Any] | None,
+        *,
+        request_id: str,
+    ) -> Mapping[str, Any]:
+        if not isinstance(usage_charge, Mapping):
+            return {}
+        provider_id = str(refund.get("provider_id") or usage_charge.get("provider_id", "")).strip()
+        job_id = str(usage_charge.get("job_id", "")).strip()
+        usage_charge_id = str(refund.get("usage_charge_id") or usage_charge.get("usage_charge_id", "")).strip()
+        refund_id = str(refund.get("refund_id", "")).strip()
+        adjustment_amount = _safe_non_negative_float(refund.get("amount", 0.0))
+        if not provider_id or not job_id or not usage_charge_id or not refund_id or adjustment_amount <= 0.0:
+            return {}
+        payout_id = deterministic_id(
+            "provider_payout",
+            {"provider_id": provider_id, "job_id": job_id, "usage_charge_id": usage_charge_id},
+        )
+        payout = self.store.get_record("provider_payout", payout_id)
+        if payout is None:
+            return {"provider_payout_id": payout_id, "adjusted": False, "reason": "provider_payout_not_found"}
+        status = str(payout.get("status", ""))
+        refund_ids = tuple(str(item) for item in payout.get("refund_ids", ()) if str(item))
+        if refund_id in refund_ids:
+            return {"provider_payout_id": payout_id, "adjusted": False, "reason": "already_adjusted", "status": status}
+        if status != "accrued":
+            return {"provider_payout_id": payout_id, "adjusted": False, "status": status}
+        current_amount = _safe_non_negative_float(payout.get("amount", 0.0))
+        applied_adjustment = min(current_amount, adjustment_amount)
+        adjusted_amount = round(max(0.0, current_amount - applied_adjustment), 6)
+        prior_adjustment = _safe_non_negative_float(payout.get("refund_adjustment_amount", 0.0))
+        updated_at = utc_now_iso()
+        adjusted = {
+            **dict(payout),
+            "amount": adjusted_amount,
+            "status": "adjusted_no_payout_due" if adjusted_amount <= 0.0 else "accrued",
+            "refund_adjustment_amount": round(prior_adjustment + applied_adjustment, 6),
+            "refund_ids": tuple(dict.fromkeys((*refund_ids, refund_id))),
             "updated_at": updated_at,
             "funds_moved": False,
         }

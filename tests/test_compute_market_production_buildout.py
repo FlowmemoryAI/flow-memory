@@ -3279,6 +3279,7 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     service.dispatch_job(job_id, {})
     completed = service.complete_job(job_id, {"account_id": "acct_refund", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
     usage_charge_id = str(completed["usage_charge"]["usage_charge_id"])
+    payout_id = str(completed["provider_payout"]["provider_payout_id"])
 
     assert service.billing_balance({"account_id": "acct_refund"})["balance"]["available_credits"] == 0.82
     refund = service.billing_refund({"usage_charge_id": usage_charge_id, "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"})
@@ -3290,12 +3291,22 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     assert refund["credit_transaction"]["transaction_type"] == "refund_credit"
     assert refund["credit_transaction"]["funds_moved"] is False
     assert service.billing_balance({"account_id": "acct_refund"})["balance"]["available_credits"] == 1.0
+    assert refund["provider_payout_adjustment"]["adjusted"] is True
+    assert refund["provider_payout_adjustment"]["applied_adjustment_amount"] == 0.18
+    adjusted_payout = service.store.get_record("provider_payout", payout_id)
+    assert adjusted_payout["amount"] == 0.0
+    assert adjusted_payout["status"] == "adjusted_no_payout_due"
+    assert adjusted_payout["refund_adjustment_amount"] == 0.18
 
     replay = service.billing_refund({"usage_charge_id": usage_charge_id, "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"})
     assert replay["idempotent_replay"] is True
     assert replay["refund"]["refund_id"] == refund["refund"]["refund_id"]
+    assert replay["provider_payout_adjustment"]["reason"] == "already_adjusted"
     assert service.store.count_records("refund") == 1
-    assert service.reconciliation({})["reconciliation"]["refund_count"] == 1
+    reconciliation = service.reconciliation({})["reconciliation"]
+    assert reconciliation["refund_count"] == 1
+    assert reconciliation["provider_payout_total"] == 0.0
+    assert reconciliation["ledger_balanced"] is True
     reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
     assert reputation["refund_count"] == 1
     assert reputation["refund_rate"] == 1.0
@@ -3406,7 +3417,7 @@ def test_billing_ledger_audit_export_readback_verifies_custody_safety(tmp_path: 
     provider_payout_id = str(completed["provider_payout"]["provider_payout_id"])
 
     refund = service.billing_refund(
-        {"usage_charge_id": usage_charge_id, "reason": "sla_credit", "idempotency_key": "refund-billing-audit"}
+        {"usage_charge_id": usage_charge_id, "amount": 0.05, "reason": "sla_credit", "idempotency_key": "refund-billing-audit"}
     )
     settled = service.settle_provider_payout(
         provider_payout_id,
@@ -3440,6 +3451,7 @@ def test_billing_ledger_audit_export_readback_verifies_custody_safety(tmp_path: 
         "billing.usage.debited",
         "billing.provider_payout.accrued",
         "billing.refund.recorded",
+        "billing.provider_payout.adjusted_for_refund",
         "billing.provider_payout.settled",
     }.issubset(actions)
     assert billing_events

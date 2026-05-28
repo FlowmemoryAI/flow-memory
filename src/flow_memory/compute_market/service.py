@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_HALF_UP
 from dataclasses import replace
 from pathlib import Path
-from typing import Any, Mapping, cast
+from typing import Any, Mapping, Sequence, cast
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.adapters import build_external_provider_adapter
@@ -4471,6 +4471,8 @@ class ComputeMarketService:
         last_sequence = int((last_checkpoint or {}).get("to_sequence", 0) or 0)
         pending_events = tuple(event for event in events if int(event.get("sequence_number", 0) or 0) > last_sequence)
         interval_due = _checkpoint_interval_due(last_checkpoint, interval_seconds)
+        if not interval_due and not last_checkpoint:
+            interval_due = _initial_checkpoint_interval_due(pending_events, interval_seconds)
         due = force or len(pending_events) >= min_events or interval_due
         result: Mapping[str, Any] = {}
         if due:
@@ -5459,6 +5461,25 @@ def _checkpoint_interval_due(last_checkpoint: Mapping[str, Any] | None, interval
     except ValueError:
         return False
     elapsed = datetime.now(timezone.utc) - last_created.astimezone(timezone.utc)
+    return elapsed.total_seconds() >= max(1, interval_seconds)
+
+
+def _initial_checkpoint_interval_due(pending_events: Sequence[Mapping[str, Any]], interval_seconds: int) -> bool:
+    if not pending_events:
+        return False
+    created_at_values = tuple(str(event.get("created_at", "")).strip() for event in pending_events)
+    parsed_created_at: list[datetime] = []
+    for created_at in created_at_values:
+        if not created_at:
+            continue
+        try:
+            parsed_created_at.append(datetime.fromisoformat(created_at.replace("Z", "+00:00")))
+        except ValueError:
+            continue
+    if not parsed_created_at:
+        return False
+    oldest_event = min(parsed_created_at).astimezone(timezone.utc)
+    elapsed = datetime.now(timezone.utc) - oldest_event
     return elapsed.total_seconds() >= max(1, interval_seconds)
 
 _READINESS_FAILURE_METRICS = {

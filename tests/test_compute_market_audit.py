@@ -523,6 +523,21 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
     assert stale_metric_total == 1.0
 
 
+def test_audit_checkpoint_schedule_initial_interval_uses_oldest_pending_event() -> None:
+    service = _service()
+    service.plan({"task": "initial interval checkpoint", "request_id": "initial-checkpoint-interval"})
+    event = dict(service.store.list_records("audit_event", limit=1).records[0])
+    event["created_at"] = "2000-01-01T00:00:00Z"
+    service.store.put_record("audit_event", event["audit_event_id"], event, action=event["action"])
+
+    scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100, "interval_seconds": 1})
+
+    assert scheduled["interval_due"] is True
+    assert scheduled["due"] is True
+    assert scheduled["pending_event_count"] >= 1
+    assert scheduled["scheduled_result"]["checkpoint_record"]["checkpoint_id"]
+
+
 def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None:
     service = _service()
     service.plan({"task": "replay source", "request_id": "replay-1"})

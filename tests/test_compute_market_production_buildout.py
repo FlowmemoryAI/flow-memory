@@ -3375,6 +3375,8 @@ def test_compute_worker_dispatch_calls_provider_execution_adapter() -> None:
     assert dispatched["event"]["details"]["provider_execution"]["status"] == "running"
     assert dispatched["event"]["details"]["provider_execution"]["funds_moved"] is False
     assert dispatched["event"]["details"]["provider_execution"]["broadcast_allowed"] is False
+    assert dispatched["event"]["details"]["provider_execution"]["execution_idempotency_key"]
+    assert dispatched["event"]["details"]["provider_execution"]["private_key_required"] is False
 
 def test_provider_execution_synchronous_success_completes_and_bills_job() -> None:
     class SyncSuccessExecutionHandler(BaseHTTPRequestHandler):
@@ -3478,6 +3480,9 @@ def test_provider_execution_synchronous_success_completes_and_bills_job() -> Non
     assert dispatched["event"]["event_type"] == "job.started"
     assert dispatched["terminal_event"]["event_type"] == "job.completed"
     assert dispatched["provider_execution"]["status"] == "succeeded"
+    assert dispatched["provider_execution"]["execution_idempotency_key"]
+    assert dispatched["provider_execution"]["dry_run_only"] is True
+    assert dispatched["provider_execution"]["private_key_required"] is False
     assert dispatched["completion"]["artifact"]["artifact_ref"] == "s3://flow-memory-results/sync-success.json"
     assert dispatched["completion"]["artifact"]["metadata"] == {"result": "completed-by-provider"}
     assert dispatched["completion"]["usage_charge"]["amount"] == 0.18
@@ -3589,6 +3594,9 @@ def test_provider_execution_synchronous_failure_fails_job_and_releases_credit() 
     assert dispatched["event"]["event_type"] == "job.started"
     assert dispatched["terminal_event"]["event_type"] == "job.failed"
     assert dispatched["provider_execution"]["status"] == "failed"
+    assert dispatched["provider_execution"]["execution_idempotency_key"]
+    assert dispatched["provider_execution"]["dry_run_only"] is True
+    assert dispatched["provider_execution"]["private_key_required"] is False
     assert dispatched["failure"]["job"]["error_code"] == "provider_runtime_failed"
     assert dispatched["failure"]["credit_release"]["transaction_type"] == "reserve_release"
     assert balance["available_credits"] == 1.0

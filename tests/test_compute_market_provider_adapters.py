@@ -917,6 +917,7 @@ def test_provider_sandbox_execution_adapter_dispatches_without_settlement() -> N
     assert result["funds_moved"] is False
     assert result["broadcast_allowed"] is False
     assert result["private_key_required"] is False
+    assert result["execution_idempotency_key"]
 
 def test_provider_sandbox_execution_adapter_signs_dispatch_when_key_configured(monkeypatch: Any) -> None:
     key = LocalKeyPair("sandbox-provider-exec-signing", "sandbox-provider-exec-shared-secret")
@@ -982,3 +983,6 @@ def test_provider_sandbox_execution_adapter_signs_dispatch_when_key_configured(m
     assert signed_result["status"] == "running"
     assert signed_result["dry_run_only"] is True
     assert signed_result["funds_moved"] is False
+    assert signed_result["execution_idempotency_key"]
+    assert signed_result["broadcast_allowed"] is False
+    assert signed_result["private_key_required"] is False

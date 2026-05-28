@@ -218,6 +218,7 @@ class HttpApiGateway:
                 payload=payload,
             )
             credential_resolved = bool(auth.key_id or auth.principal)
+            api_key_authenticated = bool(_header(header_map, "x-flow-memory-api-key")) or auth.key_id == "legacy"
             global_admin_credential = "api:admin" in auth.scopes or "compute:admin" in auth.scopes
             if (
                 auth.ok
@@ -227,9 +228,14 @@ class HttpApiGateway:
                 and auth.key_id != "legacy"
                 and not global_admin_credential
             ):
+                if api_key_authenticated:
+                    raise forbidden_error(
+                        "API key is not bound to the requested tenant",
+                        details={"key_id": auth.key_id, "requested_tenant_id": context.tenant_id, "key_tenant_id": ""},
+                    )
                 raise forbidden_error(
-                    "API key is not bound to the requested tenant",
-                    details={"key_id": auth.key_id, "requested_tenant_id": context.tenant_id},
+                    "JWT is not bound to the requested tenant",
+                    details={"key_id": auth.key_id, "requested_tenant_id": context.tenant_id, "jwt_tenant_id": ""},
                 )
             if (
                 auth.ok
@@ -238,8 +244,17 @@ class HttpApiGateway:
                 and auth.tenant_id
                 and context.tenant_id != auth.tenant_id
             ):
+                if api_key_authenticated:
+                    raise forbidden_error(
+                        "API key is not bound to the requested tenant",
+                        details={
+                            "key_id": auth.key_id,
+                            "requested_tenant_id": context.tenant_id,
+                            "key_tenant_id": auth.tenant_id,
+                        },
+                    )
                 raise forbidden_error(
-                    "API key tenant does not match the requested tenant",
+                    "JWT tenant does not match the requested tenant",
                     details={
                         "key_id": auth.key_id,
                         "tenant_id": auth.tenant_id,

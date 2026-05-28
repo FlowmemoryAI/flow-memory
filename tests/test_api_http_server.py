@@ -1,3 +1,4 @@
+import base64
 import json
 import hmac
 import time
@@ -16,6 +17,18 @@ from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import sign_payload
 from flow_memory.crypto.hashes import content_hash
 
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def _jwt(secret: str, claims: dict[str, object], header: dict[str, object] | None = None) -> str:
+    jwt_header = {"alg": "HS256", "typ": "JWT", **(header or {})}
+    encoded_header = _b64url(json.dumps(jwt_header, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    encoded_claims = _b64url(json.dumps(claims, separators=(",", ":"), sort_keys=True).encode("utf-8"))
+    signed = f"{encoded_header}.{encoded_claims}".encode("ascii")
+    signature = hmac.new(secret.encode("utf-8"), signed, "sha256").digest()
+    return f"{encoded_header}.{encoded_claims}.{_b64url(signature)}"
 
 def test_http_gateway_health_response() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
@@ -209,8 +222,67 @@ def test_http_gateway_rejects_mismatched_tenant_header_for_tenant_key() -> None:
     assert response.status == 403
     assert response.body["error"]["code"] == "auth.forbidden"
     assert response.body["error"]["details"]["key_id"] == "tenant-key"
-    assert response.body["error"]["details"]["tenant_id"] == "tenant_http"
+    assert response.body["error"]["details"]["key_tenant_id"] == "tenant_http"
     assert response.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert response.body["error"]["message"] == "API key is not bound to the requested tenant"
+
+
+def test_http_gateway_binds_jwt_tenant_to_tenant_header() -> None:
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            jwt_hs256_secret="jwt-secret",
+            jwt_audience="flow-memory-api",
+        )
+    )
+    now = int(time.time())
+
+    def token(tenant_id: str) -> str:
+        claims: dict[str, object] = {
+            "sub": "jwt-user",
+            "scope": "compute:read",
+            "aud": "flow-memory-api",
+            "iat": now,
+            "exp": now + 300,
+        }
+        if tenant_id:
+            claims["tenant_id"] = tenant_id
+        return _jwt("jwt-secret", claims)
+
+    matching = gateway.handle(
+        "GET",
+        "/compute/health",
+        {
+            "authorization": f"Bearer {token('tenant_jwt')}",
+            "x-flow-memory-tenant": "tenant_jwt",
+        },
+    )
+    mismatched = gateway.handle(
+        "GET",
+        "/compute/health",
+        {
+            "authorization": f"Bearer {token('tenant_jwt')}",
+            "x-flow-memory-tenant": "tenant_other",
+        },
+    )
+    tenantless = gateway.handle(
+        "GET",
+        "/compute/health",
+        {
+            "authorization": f"Bearer {token('')}",
+            "x-flow-memory-tenant": "tenant_other",
+        },
+    )
+
+    assert matching.status == 200
+    assert mismatched.status == 403
+    assert mismatched.body["error"]["message"] == "JWT tenant does not match the requested tenant"
+    assert mismatched.body["error"]["details"]["tenant_id"] == "tenant_jwt"
+    assert mismatched.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert tenantless.status == 403
+    assert tenantless.body["error"]["message"] == "JWT is not bound to the requested tenant"
+    assert tenantless.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
 
 def test_http_gateway_rejects_scope_header_escalation_for_unscoped_key_record() -> None:
     gateway = HttpApiGateway(
@@ -581,6 +653,8 @@ def test_http_gateway_tenantless_non_admin_key_rejects_tenant_header() -> None:
     assert with_tenant_header.body["error"]["code"] == "auth.forbidden"
     assert with_tenant_header.body["error"]["details"]["key_id"] == "tenantless-read-key"
     assert with_tenant_header.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert with_tenant_header.body["error"]["message"] == "API key is not bound to the requested tenant"
+    assert with_tenant_header.body["error"]["details"]["key_tenant_id"] == ""
 
 
 def test_http_gateway_legacy_key_still_accepts_tenant_header() -> None:
@@ -1183,6 +1257,12 @@ def test_http_gateway_user_registry_is_workspace_isolated() -> None:
         {"x-flow-memory-api-key": key_a},
         json.dumps({"display_name": "stolen"}).encode("utf-8"),
     )
+    disable_b_from_a = gateway.handle(
+        "POST",
+        "/auth/users/user_workspace_b/disable",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"reason": "workspace_boundary"}).encode("utf-8"),
+    )
     create_mismatch = gateway.handle(
         "POST",
         "/auth/users",
@@ -1204,9 +1284,96 @@ def test_http_gateway_user_registry_is_workspace_isolated() -> None:
     assert update_b_from_a.status == 403
     assert update_b_from_a.body["error"]["details"]["workspace_id"] == "workspace_user_a"
     assert update_b_from_a.body["error"]["details"]["requested_workspace_id"] == "workspace_user_b"
+    assert disable_b_from_a.status == 403
+    assert disable_b_from_a.body["error"]["details"]["workspace_id"] == "workspace_user_a"
+    assert disable_b_from_a.body["error"]["details"]["requested_workspace_id"] == "workspace_user_b"
     assert create_mismatch.status == 403
     assert create_mismatch.body["error"]["details"]["workspace_id"] == "workspace_user_a"
     assert create_mismatch.body["error"]["details"]["requested_workspace_id"] == "workspace_user_b"
+
+
+def test_http_gateway_user_registry_is_tenant_isolated() -> None:
+    key_a = "fmk_user_registry_tenant_a"
+    key_b = "fmk_user_registry_tenant_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "user-registry-tenant-a-key",
+                    "key_prefix": "fmk_user_registry_tenant_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_user_a",
+                    "principal": "svc-user-registry-tenant-a",
+                    "scopes": ("api:admin",),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "user-registry-tenant-b-key",
+                    "key_prefix": "fmk_user_registry_tenant_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_user_b",
+                    "principal": "svc-user-registry-tenant-b",
+                    "scopes": ("api:admin",),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    created_a = gateway.handle(
+        "POST",
+        "/auth/users",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"user_id": "user_tenant_a", "email": "tenant-a@example.com"}).encode("utf-8"),
+    )
+    created_b = gateway.handle(
+        "POST",
+        "/auth/users",
+        {"x-flow-memory-api-key": key_b},
+        json.dumps({"user_id": "user_tenant_b", "email": "tenant-b@example.com"}).encode("utf-8"),
+    )
+    listed_a = gateway.handle("GET", "/auth/users", {"x-flow-memory-api-key": key_a})
+    fetched_b_from_a = gateway.handle("GET", "/auth/users/user_tenant_b", {"x-flow-memory-api-key": key_a})
+    update_b_from_a = gateway.handle(
+        "PATCH",
+        "/auth/users/user_tenant_b",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"display_name": "stolen"}).encode("utf-8"),
+    )
+    disable_b_from_a = gateway.handle(
+        "POST",
+        "/auth/users/user_tenant_b/disable",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"reason": "tenant_boundary"}).encode("utf-8"),
+    )
+    create_mismatch = gateway.handle(
+        "POST",
+        "/auth/users",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"user_id": "user_tenant_mismatch", "tenant_id": "tenant_user_b", "email": "m@example.com"}).encode(
+            "utf-8"
+        ),
+    )
+
+    assert created_a.status == 200
+    assert created_a.body["data"]["user"]["tenant_id"] == "tenant_user_a"
+    assert created_b.status == 200
+    assert created_b.body["data"]["user"]["tenant_id"] == "tenant_user_b"
+    assert [user["user_id"] for user in listed_a.body["data"]["users"]] == ["user_tenant_a"]
+    assert fetched_b_from_a.status == 403
+    assert fetched_b_from_a.body["error"]["details"]["tenant_id"] == "tenant_user_a"
+    assert fetched_b_from_a.body["error"]["details"]["requested_tenant_id"] == "tenant_user_b"
+    assert update_b_from_a.status == 403
+    assert update_b_from_a.body["error"]["details"]["tenant_id"] == "tenant_user_a"
+    assert update_b_from_a.body["error"]["details"]["requested_tenant_id"] == "tenant_user_b"
+    assert disable_b_from_a.status == 403
+    assert disable_b_from_a.body["error"]["details"]["tenant_id"] == "tenant_user_a"
+    assert disable_b_from_a.body["error"]["details"]["requested_tenant_id"] == "tenant_user_b"
+    assert create_mismatch.status == 403
+    assert create_mismatch.body["error"]["details"]["tenant_id"] == "tenant_user_a"
+    assert create_mismatch.body["error"]["details"]["requested_tenant_id"] == "tenant_user_b"
 
 
 def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:

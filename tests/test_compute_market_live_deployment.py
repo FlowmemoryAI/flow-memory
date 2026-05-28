@@ -522,6 +522,9 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '"telemetry": checks["telemetry"][0]' in render_script
     assert '"audit_export_write": checks["audit_export_write"][0]' in render_script
     assert '"audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash"))' in render_script
+    assert "Get-PublicUrlBlockReason" in smoke_script
+    assert "public_url_placeholder_not_allowed" in smoke_script
+    assert "public_url_must_use_global_host" in smoke_script
     assert "deployments/compute-market/prometheus-alerts.yml" in render_script
     assert 'checks["jwt_health"] = call_json(' in render_script
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script

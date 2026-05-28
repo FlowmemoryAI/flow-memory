@@ -309,6 +309,29 @@ def test_redis_circuit_breaker_recovers_across_instances_after_half_open_success
     assert half_open.state == "half_open"
     assert breaker_a.allow_request("provider", route_id="route").state == "closed"
 
+
+def test_redis_circuit_breaker_reopens_across_instances_after_half_open_failure() -> None:
+    redis = FakeRedis()
+    breaker_a = RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=1, reset_after_seconds=60, client=redis)
+    breaker_b = RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=1, reset_after_seconds=60, client=redis)
+
+    breaker_a.record_failure("provider", route_id="route", error_class="provider_timeout")
+    circuit_key = next(iter(redis.hashes))
+    redis.hashes[circuit_key]["opened_at"] = time.monotonic() - 61
+    half_open = breaker_b.allow_request("provider", route_id="route")
+    breaker_b.record_failure("provider", route_id="route", error_class="half_open_failure")
+    reopened = breaker_a.allow_request("provider", route_id="route")
+    state = breaker_a.get_state("provider", route_id="route")
+
+    assert half_open.ok is True
+    assert half_open.state == "half_open"
+    assert reopened.ok is False
+    assert reopened.state == "open"
+    assert reopened.reason_code == "circuit_open"
+    assert state["state"] == "open"
+    assert state["last_reason"] == "half_open_failure"
+
+
 def test_redis_circuit_breaker_fail_closed_and_fail_open_modes() -> None:
     fail_closed = RedisCircuitBreaker("redis://localhost", fail_closed=True, client=FakeRedis(fail=True))
     fail_open = RedisCircuitBreaker("redis://localhost", fail_closed=False, client=FakeRedis(fail=True))

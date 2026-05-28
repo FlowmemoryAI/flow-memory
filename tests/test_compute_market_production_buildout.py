@@ -1017,6 +1017,39 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     assert replacement["reservation"]["status"] == "held"
 
 
+def test_capacity_listing_rejects_shrinking_window_below_active_reservations() -> None:
+    service = _service()
+    window_payload = {
+        "provider_id": "provider_live_gpu_1",
+        "route_id": "route_live_gpu_1",
+        "resource_type": "gpu_hour",
+        "gpu_type": "H100",
+        "available_units": 10,
+        "region": "us-east",
+        "starts_at": "2099-01-01T00:00:00Z",
+        "ends_at": "2099-01-01T01:00:00Z",
+        "price_floor": 2.4,
+    }
+    service.list_capacity(window_payload)
+    held = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 4})
+
+    try:
+        service.list_capacity({**window_payload, "available_units": 3})
+    except ValueError as exc:
+        assert "active reservation commitments" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("capacity window shrank below active reservations")
+
+    safe_shrink = service.list_capacity({**window_payload, "available_units": 5})
+    expanded = service.list_capacity({**window_payload, "available_units": 12})
+    service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})
+    no_active_shrink = service.list_capacity({**window_payload, "available_units": 2})
+
+    assert safe_shrink["capacity_window"]["capacity_units"] == 5
+    assert expanded["capacity_window"]["capacity_units"] == 12
+    assert no_active_shrink["capacity_window"]["capacity_units"] == 2
+
+
 def test_expire_capacity_only_expires_elapsed_held_reservations() -> None:
     service = _service()
     service.list_capacity(

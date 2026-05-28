@@ -1517,6 +1517,16 @@ class ComputeMarketService:
         _assert_provider_catalog_access(self.store, str(payload.get("provider_id", "")), payload)
         expired_reservations = self._expire_capacity_holds(payload, request_id=request_id)
         window = _capacity_window(payload)
+        existing_window = self.store.get_record("compute_capacity_window", str(window["window_id"]))
+        if existing_window is not None:
+            _assert_capacity_window_shrink_safe(
+                window,
+                existing_window,
+                self._all_records(
+                    "compute_reservation",
+                    filters={"provider_id": str(window["provider_id"]), "route_id": str(window["route_id"])},
+                ),
+            )
         self.store.put_record(
             "compute_capacity_window",
             str(window["window_id"]),
@@ -6896,6 +6906,28 @@ def _capacity_window(payload: Mapping[str, Any]) -> dict[str, Any]:
         "workspace_id": str(payload.get("workspace_id", "")),
         "created_at": utc_now_iso(),
     }
+
+
+def _assert_capacity_window_shrink_safe(
+    window: Mapping[str, Any],
+    existing_window: Mapping[str, Any],
+    reservations: tuple[Mapping[str, Any], ...],
+) -> None:
+    current_units = _safe_non_negative_float(existing_window.get("capacity_units", existing_window.get("available_units", 0.0)))
+    next_units = _safe_non_negative_float(window.get("capacity_units", window.get("available_units", 0.0)))
+    if next_units >= current_units:
+        return
+    now = utc_now_iso()
+    window_start = str(window.get("starts_at", ""))
+    window_end = str(window.get("ends_at", ""))
+    blocking_units = sum(
+        _capacity_reservation_blocking_units(reservation, now)
+        for reservation in reservations
+        if str(reservation.get("status", "")) in {"held", "confirmed", "consumed"}
+        and _capacity_reservation_overlaps(reservation, window_start, window_end)
+    )
+    if blocking_units > next_units + 0.000001:
+        raise ValueError("cannot reduce capacity window below active reservation commitments")
 
 
 def _capacity_time_range(payload: Mapping[str, Any]) -> tuple[str, str]:

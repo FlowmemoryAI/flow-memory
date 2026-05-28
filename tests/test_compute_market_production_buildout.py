@@ -3038,6 +3038,47 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert webhook["credit_transaction"]["amount"] == 100.0
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
 
+def test_billing_checkout_idempotent_replay() -> None:
+    service = _service()
+    first = service.billing_checkout(
+        {
+            "account_id": "acct_checkout_idempotent",
+            "amount": 25,
+            "currency": "USD",
+            "idempotency_key": "checkout-idem-1",
+            "request_id": "checkout-idem-request-1",
+        }
+    )
+    replay = service.billing_checkout(
+        {
+            "account_id": "acct_checkout_idempotent",
+            "amount": 25,
+            "currency": "USD",
+            "idempotency_key": "checkout-idem-1",
+            "request_id": "checkout-idem-request-2",
+        }
+    )
+    conflict = service.billing_checkout(
+        {
+            "account_id": "acct_checkout_idempotent",
+            "amount": 30,
+            "currency": "USD",
+            "idempotency_key": "checkout-idem-1",
+            "request_id": "checkout-idem-request-3",
+        }
+    )
+
+    assert first["ok"] is False
+    assert replay["ok"] is False
+    assert replay["idempotent_replay"] is True
+    assert replay["checkout"]["payment_event_id"] == first["checkout"]["payment_event_id"]
+    assert replay["invoice"]["invoice_id"] == first["invoice"]["invoice_id"]
+    assert conflict["ok"] is False
+    assert conflict["error"]["error_code"] == "billing.checkout.idempotency_conflict"
+    assert service.store.count_records("payment_event") == 1
+    assert service.store.count_records("billing_invoice") == 1
+
+
 
 def test_billing_webhook_converts_sub_dollar_stripe_minor_units() -> None:
     service = _service()
@@ -3149,6 +3190,51 @@ def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:
     assert missing_body["payment_event"]["status"] == "rejected_unverified"
     assert expired["ok"] is False
     assert expired["payment_event"]["status"] == "rejected_unverified"
+
+def test_billing_webhook_v1_signature_replay_beyond_tolerance_is_idempotent() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_stripe_header_idempotent_replay",
+        "type": "checkout.session.completed",
+        "amount_total": 3300,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_header_replay"},
+    }
+    raw_event_body = json.dumps(raw_event, separators=(",", ":"), sort_keys=True)
+    secret = "whsec_test_secret"
+    timestamp = str(int(time.time()))
+    digest = hmac.new(secret.encode("utf-8"), f"{timestamp}.{raw_event_body}".encode("utf-8"), "sha256").hexdigest()
+    expired_timestamp = str(int(time.time()) - 1_000)
+    expired_digest = hmac.new(
+        secret.encode("utf-8"),
+        f"{expired_timestamp}.{raw_event_body}".encode("utf-8"),
+        "sha256",
+    ).hexdigest()
+
+    first = service.billing_webhook_stripe(
+        {
+            "raw_event": raw_event,
+            "raw_event_body": raw_event_body,
+            "webhook_secret": secret,
+            "stripe_signature": f"t={timestamp},v1={digest}",
+        }
+    )
+    replay = service.billing_webhook_stripe(
+        {
+            "raw_event": raw_event,
+            "raw_event_body": raw_event_body,
+            "webhook_secret": secret,
+            "stripe_signature": f"t={expired_timestamp},v1={expired_digest}",
+        }
+    )
+
+    assert first["ok"] is True
+    assert replay["ok"] is True
+    assert replay["idempotent_replay"] is True
+    assert replay["credit_transaction"]["credit_transaction_id"] == first["credit_transaction"]["credit_transaction_id"]
+    assert service.store.count_records("payment_event") == 1
+    assert service.store.count_records("credit_transaction") == 1
+    assert service.billing_balance({"account_id": "acct_header_replay"})["balance"]["available_credits"] == 33.0
 
 
 def test_billing_webhook_records_verified_payment_failure_without_crediting_balance() -> None:

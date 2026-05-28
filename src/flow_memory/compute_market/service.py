@@ -4058,6 +4058,50 @@ class ComputeMarketService:
         account_id = _billing_account_id(payload)
         amount = _positive_float(payload.get("amount"), "amount")
         currency = str(payload.get("currency", "USD")).upper()
+        idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        if idempotency_key:
+            existing_checkout = self.store.find_by_idempotency("payment_event", idempotency_key)
+            if existing_checkout is not None and str(existing_checkout.get("event_type", "")) == "checkout.requested":
+                invoice: Mapping[str, Any] = {}
+                invoice_id = str(existing_checkout.get("invoice_id", ""))
+                if invoice_id:
+                    invoice = self.store.get_record("billing_invoice", invoice_id) or {}
+                existing_amount = float(existing_checkout.get("amount", 0.0) or 0.0)
+                existing_currency = str(existing_checkout.get("currency", "")).upper()
+                existing_account_id = str(existing_checkout.get("account_id", ""))
+                if (
+                    existing_account_id != account_id
+                    or abs(existing_amount - amount) > 1e-9
+                    or existing_currency != currency
+                ):
+                    error = compute_error(
+                        "billing.checkout.idempotency_conflict",
+                        "Billing checkout idempotency key was replayed with different checkout parameters.",
+                        details={
+                            "account_id": account_id,
+                            "existing_account_id": existing_account_id,
+                            "amount": amount,
+                            "existing_amount": existing_amount,
+                            "currency": currency,
+                            "existing_currency": existing_currency,
+                        },
+                        request_id=request_id,
+                    )
+                    return {
+                        "ok": False,
+                        "checkout": existing_checkout,
+                        "invoice": invoice,
+                        "error": error.as_record(),
+                        "idempotent_replay": False,
+                        "next_safe_actions": ("use a new idempotency_key for different checkout parameters",),
+                    }
+                return {
+                    "ok": str(existing_checkout.get("status", "")) == "checkout_redirect_pending",
+                    "checkout": existing_checkout,
+                    "invoice": invoice,
+                    "idempotent_replay": True,
+                    "next_safe_actions": ("reuse existing checkout result for this idempotency_key",),
+                }
         account = _billing_account(account_id, payload)
         self.store.put_record("billing_account", account_id, account, tenant_id=str(account.get("tenant_id", "")), workspace_id=str(account.get("workspace_id", "")), status="active", request_id=request_id)
         payment_event_id = deterministic_id(
@@ -4224,6 +4268,17 @@ class ComputeMarketService:
                     reason_codes=("billing.webhook.event_id_hash_mismatch",),
                 )
                 return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": False}
+            if bool(existing.get("verified", False)):
+                existing_account_id = str(existing.get("account_id", ""))
+                credit_transaction: Mapping[str, Any] = {}
+                if existing_account_id:
+                    credit_transaction_id = deterministic_id(
+                        "credit_transaction",
+                        {"account_id": existing_account_id, "source_event_id": event_id, "type": "credit"},
+                    )
+                    credit_transaction = self.store.get_record("credit_transaction", credit_transaction_id) or {}
+                self._audit("billing.webhook.replayed", payload, request_id=request_id, result=str(existing.get("status", "verified")))
+                return {"ok": True, "payment_event": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
             if not verified:
                 error = compute_error(
                     "billing.webhook.signature_required",
@@ -4240,17 +4295,6 @@ class ComputeMarketService:
                     reason_codes=("billing.webhook.signature_required",),
                 )
                 return {"ok": False, "payment_event": existing, "credit_transaction": {}, "error": error.as_record(), "idempotent_replay": True}
-            if bool(existing.get("verified", False)):
-                existing_account_id = str(existing.get("account_id", ""))
-                credit_transaction: Mapping[str, Any] = {}
-                if existing_account_id:
-                    credit_transaction_id = deterministic_id(
-                        "credit_transaction",
-                        {"account_id": existing_account_id, "source_event_id": event_id, "type": "credit"},
-                    )
-                    credit_transaction = self.store.get_record("credit_transaction", credit_transaction_id) or {}
-                self._audit("billing.webhook.replayed", payload, request_id=request_id, result=str(existing.get("status", "verified")))
-                return {"ok": True, "payment_event": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
         reason_codes = _stripe_webhook_reason_codes(status, failure)
         record = {
             "payment_event_id": event_id,

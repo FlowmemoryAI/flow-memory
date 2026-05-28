@@ -19,6 +19,19 @@ from flow_memory.compute_market.storage_backends import PostgresComputeMarketSto
 POSTGRES_ENV_NAMES = ("FLOW_MEMORY_TEST_POSTGRES_URL", "FLOW_MEMORY_COMPUTE_DATABASE_URL")
 REDIS_ENV_NAMES = ("FLOW_MEMORY_TEST_REDIS_URL", "FLOW_MEMORY_COMPUTE_REDIS_URL")
 POSTGRES_SECURE_SSL_MODES = ("require", "verify-ca", "verify-full")
+PLACEHOLDER_VALUE_FRAGMENTS = (
+    "<",
+    ">",
+    "changeme",
+    "your-domain",
+    "yourdomain.com",
+    "managed-postgres-host",
+    "managed-redis-host",
+    "managed_postgres_url",
+    "managed_redis_url",
+    "audit_export_uri",
+)
+
 
 REQUIRED_POSTGRES_INDEX_GROUPS: Mapping[str, tuple[str, ...]] = {
     "economic_memory_by_agent_id": ("idx_compute_economic_memory_agent",),
@@ -57,6 +70,15 @@ def is_loopback_endpoint(value: str) -> bool:
     except ValueError:
         return False
     return bool(address.is_loopback or address.is_unspecified)
+
+
+def placeholder_value_names(values: Mapping[str, str]) -> Mapping[str, str]:
+    blocked: dict[str, str] = {}
+    for name, value in values.items():
+        raw = value.strip().lower()
+        if any(fragment in raw for fragment in PLACEHOLDER_VALUE_FRAGMENTS):
+            blocked[name] = "placeholder_value_not_allowed"
+    return blocked
 
 
 def required_postgres_index_evidence(schema: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -295,6 +317,16 @@ def main(argv: list[str] | None = None) -> int:
     if missing:
         print(json.dumps({"ok": False, "status": "blocked_missing_live_infra", "missing_values": missing}, indent=2, sort_keys=True))
         return 2
+    placeholders = placeholder_value_names({"postgres_url": postgres_url, "redis_url": redis_url})
+    if placeholders:
+        print(
+            json.dumps(
+                {"ok": False, "status": "blocked_placeholder_values", "placeholder_values": placeholders},
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 7
     postgres_is_loopback = is_loopback_endpoint(postgres_url)
     postgres_ssl_mode = args.postgres_ssl_mode.strip().lower()
     if postgres_ssl_mode not in POSTGRES_SECURE_SSL_MODES and not (args.allow_local_postgres and postgres_is_loopback):

@@ -23,6 +23,36 @@ def test_live_infra_validator_blocks_missing_urls(monkeypatch: Any, capsys: Any)
     assert "FLOW_MEMORY_TEST_POSTGRES_URL or FLOW_MEMORY_COMPUTE_DATABASE_URL" in payload["missing_values"]
     assert "FLOW_MEMORY_TEST_REDIS_URL or FLOW_MEMORY_COMPUTE_REDIS_URL" in payload["missing_values"]
 
+def test_live_infra_validator_blocks_placeholder_urls_before_network(monkeypatch: Any, capsys: Any) -> None:
+    _clear_live_env(monkeypatch)
+
+    def fail_postgres(database_url: str, *, ssl_mode: str = "require") -> dict[str, object]:
+        raise AssertionError(f"postgres validation should not run for {database_url!r} with {ssl_mode!r}")
+
+    def fail_redis(redis_url: str, *, require_tls: bool = True) -> dict[str, object]:
+        raise AssertionError(f"redis validation should not run for {redis_url!r} with {require_tls!r}")
+
+    monkeypatch.setattr(validator, "validate_postgres", fail_postgres)
+    monkeypatch.setattr(validator, "validate_redis", fail_redis)
+
+    exit_code = validator.main(
+        [
+            "--postgres-url",
+            "postgresql://flow_memory:CHANGEME_PASSWORD@managed-postgres-host/flow_memory",
+            "--redis-url",
+            "rediss://:CHANGEME_REDIS@managed-redis-host:6379/0",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 7
+    assert payload["status"] == "blocked_placeholder_values"
+    assert payload["placeholder_values"] == {
+        "postgres_url": "placeholder_value_not_allowed",
+        "redis_url": "placeholder_value_not_allowed",
+    }
+
+
 
 def test_live_infra_validator_reports_required_postgres_index_evidence() -> None:
     passing = validator.required_postgres_index_evidence({"ok": True, "missing_indexes": ()})

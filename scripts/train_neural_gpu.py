@@ -51,8 +51,9 @@ def run_gpu_training(*, steps: int, batch_size: int, device: str, out: Path, see
             "gpu_info": _gpu_info(torch, device),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
+        gpu_info = result["gpu_info"]
         _write_json(out / "metrics.json", result)
-        _write_json(out / "gpu_info.json", result["gpu_info"])
+        _write_json(out / "gpu_info.json", gpu_info if isinstance(gpu_info, dict) else {})
         return result
     torch.manual_seed(seed)
     checkpoint_dir = out / "checkpoints"

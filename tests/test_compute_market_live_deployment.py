@@ -621,6 +621,7 @@ def test_named_render_powershell_wrapper_blocks_missing_env_file(tmp_path: Path)
     powershell = shutil.which("powershell") or shutil.which("pwsh")
     if powershell is None:
         pytest.skip("PowerShell is required for Render wrapper validation")
+    assert powershell is not None
 
     missing_env_file = tmp_path / "missing-render.env"
     result = subprocess.run(

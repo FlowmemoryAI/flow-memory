@@ -25,7 +25,7 @@ def main() -> int:
 
     key = generate_local_keypair("release-manifest-local-dev") if args.sign_local else None
     manifest = build_release_manifest(args.root, signing_key=key)
-    payload = manifest.as_record()
+    payload = dict(manifest.as_record())
     if key is not None:
         payload["signature_key"] = key.as_public_record()
         payload["signature_warning"] = "local development HMAC key is ephemeral; use production signing before relying on release signatures"

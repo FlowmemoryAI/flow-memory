@@ -626,7 +626,9 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
         stale_checkpoint,
     )
     stale_monitor = service.audit_chain_monitor({})
-    stale_metric_total = service.telemetry.summary()["metric_totals"].get("audit_checkpoint_stale_total", 0.0)
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert isinstance(metric_totals, dict)
+    stale_metric_total = metric_totals.get("audit_checkpoint_stale_total", 0.0)
     interval_scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100, "interval_seconds": 1})
     assert interval_scheduled["interval_due"] is True
     assert interval_scheduled["due"] is True

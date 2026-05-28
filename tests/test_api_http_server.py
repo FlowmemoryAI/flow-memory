@@ -5,7 +5,7 @@ import time
 import threading
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, cast
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway, create_http_server
 from flow_memory.api.auth import RedisNonceReplayStore, api_key_hash
@@ -1572,11 +1572,12 @@ def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
     assert tenant_b_dispatch.status == 404
     assert tenant_b_mismatched_job.status == 400
     assert tenant_b_mismatched_job.body["error"]["message"] == "account_id must match tenant_id"
+    metrics = cast(tuple[dict[str, Any], ...], service.telemetry.snapshot(reset=False)["metrics"])
     assert any(
         metric.get("name") == "billing_payout_settled_total"
         and metric.get("labels", {}).get("provider_id") == "provider_gateway_paid"
         and metric.get("value") == 0.18
-        for metric in service.telemetry.snapshot(reset=False)["metrics"]
+        for metric in metrics
     )
 
 

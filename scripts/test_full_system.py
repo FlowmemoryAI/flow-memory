@@ -162,7 +162,11 @@ def _markdown(record: Mapping[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _tail(text: str, limit: int = 1600) -> str:
+def _tail(text: str | bytes | None, limit: int = 1600) -> str:
+    if text is None:
+        return ""
+    if isinstance(text, bytes):
+        text = text.decode("utf-8", "replace")
     return text[-limit:] if len(text) > limit else text
 
 

@@ -7,7 +7,7 @@ SRC=ROOT/"src"
 if str(SRC) not in sys.path: sys.path.insert(0,str(SRC))
 from flow_memory.neural.gpu_evidence import DEFAULT_RUN_ID, import_gpu_run_artifact
 
-def main(argv=None)->int:
+def main(argv: list[str] | None = None) -> int:
     p=argparse.ArgumentParser(description="Import Flow Memory GPU run artifact")
     p.add_argument("artifact", nargs="?", type=Path, default=ROOT/"artifacts"/"incoming"/"flow-memory-cloud-gpu-run-001.tar.gz")
     p.add_argument("--out", type=Path, default=ROOT/"release_evidence"/"gpu_runs")

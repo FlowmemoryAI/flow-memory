@@ -113,7 +113,8 @@ def _confirmed_capacity_reservation(
             "capacity_units": capacity_units,
         }
     )["reservation"]
-    return service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    confirmed = service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    return cast(Mapping[str, Any], confirmed)
 
 
 def _signed_state_callback(
@@ -2056,7 +2057,9 @@ def test_dispatch_rejects_unconfirmed_or_mismatched_capacity_reservation_before_
     assert rejected["ok"] is False
     assert rejected["error"]["error_code"] == "capacity.reservation_unconfirmed"
     assert rejected["job"]["status"] == "queued"
-    assert service.store.get_record("compute_job", unconfirmed_job_id)["status"] == "queued"
+    stored_unconfirmed_job = service.store.get_record("compute_job", unconfirmed_job_id)
+    assert stored_unconfirmed_job is not None
+    assert stored_unconfirmed_job["status"] == "queued"
     balance = service.billing_balance({"account_id": "acct_capacity_reject"})["balance"]
     assert balance["available_credits"] == 1.0
     assert balance["reserved_credits"] == 0.0
@@ -4026,7 +4029,9 @@ def test_fail_job_status_race_does_not_release_reserved_credit(monkeypatch: Any)
     assert failed["error"]["error_code"] == "job.status_changed"
     assert failed["job"]["status"] == "running"
     assert service.get_job(job_id)["job"]["status"] == "running"
-    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "reserved"
+    failed_reservation = service.store.get_record("credit_transaction", reservation_id)
+    assert failed_reservation is not None
+    assert failed_reservation["status"] == "reserved"
     assert not any(record["transaction_type"] == "reserve_release" for record in transactions)
     assert balance["available_credits"] == 0.82
     assert balance["reserved_credits"] == 0.18
@@ -4080,7 +4085,9 @@ def test_cancel_job_status_race_does_not_release_reserved_credit(monkeypatch: An
     assert cancelled["error"]["error_code"] == "job.status_changed"
     assert cancelled["job"]["status"] == "running"
     assert service.get_job(job_id)["job"]["status"] == "running"
-    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "reserved"
+    cancelled_reservation = service.store.get_record("credit_transaction", reservation_id)
+    assert cancelled_reservation is not None
+    assert cancelled_reservation["status"] == "reserved"
     assert not any(record["transaction_type"] == "reserve_release" for record in transactions)
     assert balance["available_credits"] == 0.82
     assert balance["reserved_credits"] == 0.18
@@ -4130,7 +4137,9 @@ def test_retry_job_status_race_does_not_release_reserved_credit(monkeypatch: Any
     assert retried["error"]["error_code"] == "job.status_changed"
     assert retried["job"]["status"] == "running"
     assert service.get_job(job_id)["job"]["status"] == "running"
-    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "reserved"
+    retried_reservation = service.store.get_record("credit_transaction", reservation_id)
+    assert retried_reservation is not None
+    assert retried_reservation["status"] == "reserved"
     assert not any(record["transaction_type"] == "reserve_release" for record in transactions)
     assert balance["available_credits"] == 0.82
     assert balance["reserved_credits"] == 0.18
@@ -5100,7 +5109,7 @@ def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_re
     session_id = str(checkout["checkout"]["external_checkout_session_id"])
     secret = str(service.config.stripe_webhook_secret)
 
-    def _signed_webhook(raw_event: Mapping[str, object]) -> Mapping[str, object]:
+    def _signed_webhook(raw_event: Mapping[str, Any]) -> Mapping[str, Any]:
         return service.billing_webhook_stripe(
             {
                 "raw_event": raw_event,
@@ -5119,7 +5128,7 @@ def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_re
         checkout_session_id: str = session_id,
         amount_total: int = 1234,
         currency: str = "usd",
-    ) -> dict[str, object]:
+    ) -> dict[str, Any]:
         return {
             "id": event_id,
             "type": "checkout.session.completed",
@@ -5321,7 +5330,9 @@ def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> Non
     assert dispatched["error"]["error_code"] == "billing.credit_preauthorization_failed"
     assert dispatched["credit_reservation"]["status"] == "insufficient_credit"
     assert dispatched["job"]["status"] == "queued"
-    assert service.store.get_record("compute_job", job_id)["status"] == "queued"
+    stored_preauth_job = service.store.get_record("compute_job", job_id)
+    assert stored_preauth_job is not None
+    assert stored_preauth_job["status"] == "queued"
     balance = service.billing_balance({"account_id": "acct_preauth_low"})["balance"]
     assert balance["available_credits"] == 0.1
     assert balance["reserved_credits"] == 0.0
@@ -5393,7 +5404,9 @@ def test_billing_spending_quota_rejects_dispatch_above_daily_limit() -> None:
     assert dispatched["event"]["event_type"] == "job.spending_quota_exceeded"
     assert dispatched["job"]["status"] == "queued"
     assert dispatched["quota"]["daily_spend_limit"] == 0.1
-    assert service.store.get_record("compute_job", job_id)["status"] == "queued"
+    stored_quota_job = service.store.get_record("compute_job", job_id)
+    assert stored_quota_job is not None
+    assert stored_quota_job["status"] == "queued"
     balance = service.billing_balance({"account_id": account_id})["balance"]
     assert balance["available_credits"] == 1.0
     assert balance["reserved_credits"] == 0.0
@@ -5555,7 +5568,9 @@ def test_prepaid_credit_preauthorization_reserves_and_settles_usage() -> None:
 
     assert completed["credit_debit"]["status"] == "posted"
     assert completed["credit_debit"]["reservation_transaction_id"] == reservation_id
-    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "settled"
+    settled_reservation = service.store.get_record("credit_transaction", reservation_id)
+    assert settled_reservation is not None
+    assert settled_reservation["status"] == "settled"
     settled_balance = service.billing_balance({"account_id": "acct_preauth_ok"})["balance"]
     assert settled_balance["available_credits"] == 0.82
     assert settled_balance["reserved_credits"] == 0.0
@@ -5631,7 +5646,9 @@ def test_prepaid_credit_preauthorization_releases_hold_on_retry() -> None:
     assert retried["job"]["attempt"] == 1
     assert "credit_reservation_id" not in retried["job"]
     assert retried["credit_release"]["reservation_transaction_id"] == reservation_id
-    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "released"
+    released_reservation = service.store.get_record("credit_transaction", reservation_id)
+    assert released_reservation is not None
+    assert released_reservation["status"] == "released"
     released_balance = service.billing_balance({"account_id": "acct_preauth_retry"})["balance"]
     assert released_balance["available_credits"] == 1.0
     assert released_balance["reserved_credits"] == 0.0
@@ -5764,6 +5781,7 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     assert refund["provider_payout_adjustment"]["adjusted"] is True
     assert refund["provider_payout_adjustment"]["applied_adjustment_amount"] == 0.18
     adjusted_payout = service.store.get_record("provider_payout", payout_id)
+    assert adjusted_payout is not None
     assert adjusted_payout["amount"] == 0.0
     assert adjusted_payout["status"] == "adjusted_no_payout_due"
     assert adjusted_payout["refund_adjustment_amount"] == 0.18

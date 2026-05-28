@@ -5,6 +5,7 @@ import argparse
 import json
 from pathlib import Path
 import sys
+from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED = ROOT / "artifacts" / "incoming" / "flow-memory-cloud-gpu-run-001.tar.gz"
@@ -44,7 +45,8 @@ def main() -> int:
     if args.json:
         text = json.dumps(record, indent=2, sort_keys=True)
     else:
-        lines = ["# GPU Artifact Recovery", "", f"Expected path: `{record['expected_path']}`", "", "Run:", "", "```powershell", *record["powershell_commands"], "```", "", "Do not fake GPU evidence. The release gate must remain blocked until the real tarball is imported."]
+        commands = cast(list[str], record["powershell_commands"])
+        lines = ["# GPU Artifact Recovery", "", f"Expected path: `{record['expected_path']}`", "", "Run:", "", "```powershell", *commands, "```", "", "Do not fake GPU evidence. The release gate must remain blocked until the real tarball is imported."]
         text = "\n".join(lines) + "\n"
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)

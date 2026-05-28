@@ -8,7 +8,7 @@ if str(SRC) not in sys.path: sys.path.insert(0,str(SRC))
 from flow_memory.neural.artifacts import load_json_if_present
 from flow_memory.neural.gpu_evidence import verify_gpu_run
 
-def main(argv=None)->int:
+def main(argv: list[str] | None = None) -> int:
     p=argparse.ArgumentParser(description="Summarize imported GPU run evidence")
     p.add_argument("path", type=Path, default=ROOT/"release_evidence"/"gpu_runs", nargs="?")
     args=p.parse_args(argv)

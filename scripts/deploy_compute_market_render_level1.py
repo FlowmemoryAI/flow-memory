@@ -14,7 +14,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 API_BASE = "https://api.render.com/v1"
 SERVICE_NAME = os.environ.get("RENDER_SERVICE_NAME", "flow-memory-compute-market-api")
@@ -491,6 +491,13 @@ def render_request(api_key: str, method: str, path: str, body: Any | None = None
         raise RenderError(exc.code, message) from exc
 
 
+def _expect_dict(value: Any, label: str) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return cast(dict[str, Any], value)
+    emit("failed_deployment", 39, reason="render_response_not_object", resource=label)
+    raise AssertionError("unreachable")
+
+
 def query(params: dict[str, str]) -> str:
     return urllib.parse.urlencode(params, safe=",")
 
@@ -519,7 +526,7 @@ def service_env_value(api_key: str, service_id: str, key: str) -> str:
 
 def wait_available(api_key: str, path: str, resource_id: str, label: str) -> dict[str, Any]:
     for _ in range(90):
-        obj = render_request(api_key, "GET", f"{path}/{urllib.parse.quote(resource_id)}")
+        obj = _expect_dict(render_request(api_key, "GET", f"{path}/{urllib.parse.quote(resource_id)}"), label)
         status = str(obj.get("status", "")).lower()
         suspended = str(obj.get("suspended", "")).lower()
         if status == "available" or suspended == "not_suspended":
@@ -621,11 +628,14 @@ def ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str | Non
     existing = find_named(api_key, "/postgres", "postgres", owner_id, POSTGRES_NAME)
     if existing is not None:
         if _requires_paid_plan_update(existing, plan):
-            return render_request(
-                api_key,
-                "PATCH",
-                f"/postgres/{urllib.parse.quote(str(existing['id']))}",
-                {"plan": plan},
+            return _expect_dict(
+                render_request(
+                    api_key,
+                    "PATCH",
+                    f"/postgres/{urllib.parse.quote(str(existing['id']))}",
+                    {"plan": plan},
+                ),
+                "postgres",
             )
         return existing
     body = {
@@ -638,7 +648,7 @@ def ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str | Non
         "region": region,
         "ipAllowList": [],
     }
-    return render_request(api_key, "POST", "/postgres", body)
+    return _expect_dict(render_request(api_key, "POST", "/postgres", body), "postgres")
 
 
 def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
@@ -692,16 +702,19 @@ def ensure_keyvalue(
     existing = find_named(api_key, "/key-value", "keyValue", owner_id, KEYVALUE_NAME)
     if existing is not None:
         if _requires_paid_plan_update(existing, plan):
-            return render_request(
-                api_key,
-                "PATCH",
-                f"/key-value/{urllib.parse.quote(str(existing['id']))}",
-                {
-                    "plan": plan,
-                    "maxmemoryPolicy": "noeviction",
-                    "persistenceMode": "journal_snapshot",
-                    "ipAllowList": ip_allow_list,
-                },
+            return _expect_dict(
+                render_request(
+                    api_key,
+                    "PATCH",
+                    f"/key-value/{urllib.parse.quote(str(existing['id']))}",
+                    {
+                        "plan": plan,
+                        "maxmemoryPolicy": "noeviction",
+                        "persistenceMode": "journal_snapshot",
+                        "ipAllowList": ip_allow_list,
+                    },
+                ),
+                "key_value",
             )
         return existing
     body = {
@@ -714,7 +727,7 @@ def ensure_keyvalue(
     }
     if plan != "free":
         body["persistenceMode"] = "journal_snapshot"
-    return render_request(api_key, "POST", "/key-value", body)
+    return _expect_dict(render_request(api_key, "POST", "/key-value", body), "key_value")
 
 
 def env_var(key: str, value: str) -> dict[str, str]:
@@ -986,7 +999,7 @@ def ensure_service(
         if enable_disk:
             ensure_service_disk(api_key, service_id)
         render_request(api_key, "PUT", f"/services/{urllib.parse.quote(service_id)}/env-vars", env_vars)
-        return render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}")
+        return _expect_dict(render_request(api_key, "GET", f"/services/{urllib.parse.quote(service_id)}"), "service")
     body = {
         "type": "web_service",
         "name": SERVICE_NAME,
@@ -997,8 +1010,8 @@ def ensure_service(
         "envVars": env_vars,
         "serviceDetails": service_details,
     }
-    created = render_request(api_key, "POST", "/services", body)
-    return created.get("service", created) if isinstance(created, dict) else created
+    created = _expect_dict(render_request(api_key, "POST", "/services", body), "service")
+    return _expect_dict(created.get("service", created), "service")
 
 
 def public_url(service: dict[str, Any]) -> str:

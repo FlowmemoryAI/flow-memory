@@ -255,12 +255,12 @@ def test_live_infra_validator_fail_closed_probe_reports_structured_reasons() -> 
 def test_live_infra_validator_exercises_redis_shared_state_with_injected_client(monkeypatch: Any) -> None:
     redis_client = _FakeRedisClient()
 
-    class FakeRedisRateLimiter(validator.RedisRateLimiter):
+    class FakeRedisRateLimiter(validator.RedisRateLimiter):  # type: ignore[misc]
         def __init__(self, redis_url: str, **kwargs: Any) -> None:
             client = kwargs.pop("client", redis_client)
             super().__init__(redis_url, **kwargs, client=client)
 
-    class FakeRedisCircuitBreaker(validator.RedisCircuitBreaker):
+    class FakeRedisCircuitBreaker(validator.RedisCircuitBreaker):  # type: ignore[misc]
         def __init__(self, redis_url: str, **kwargs: Any) -> None:
             client = kwargs.pop("client", redis_client)
             super().__init__(redis_url, **kwargs, client=client)

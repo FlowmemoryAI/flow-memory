@@ -4455,6 +4455,62 @@ class ComputeMarketService:
             raw_event_body=raw_event_body,
             tolerance_seconds=self.config.stripe_webhook_tolerance_seconds,
         )
+        if verified and raw_event_body and "v1=" in signature:
+            try:
+                signed_raw_event = json.loads(raw_event_body)
+            except json.JSONDecodeError:
+                signed_raw_event = None
+            signed_body_matches = isinstance(signed_raw_event, Mapping) and (
+                content_hash(signed_raw_event) == content_hash(raw_event)
+            )
+            if not signed_body_matches:
+                event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
+                event_type = str(raw_event.get("type", ""))
+                raw_event_hash = content_hash(raw_event)
+                status = "rejected_signed_body_mismatch"
+                record = {
+                    "payment_event_id": event_id,
+                    "account_id": str(payload.get("account_id") or payload.get("tenant_id") or ""),
+                    "provider": "stripe",
+                    "event_type": event_type,
+                    "verified": False,
+                    "signature_verified": True,
+                    "status": status,
+                    "raw_event_hash": raw_event_hash,
+                    "amount": 0.0,
+                    "currency": "",
+                    "failure_recorded": False,
+                    "failure_code": "billing.webhook.signed_body_mismatch",
+                    "failure_reason": "Stripe webhook raw_event does not match the signed raw_event_body.",
+                    "dry_run_only": True,
+                    "funds_moved": False,
+                    "external_payment_recorded": False,
+                    "created_at": utc_now_iso(),
+                }
+                error = compute_error(
+                    "billing.webhook.signed_body_mismatch",
+                    "Stripe webhook raw_event does not match the signed raw_event_body.",
+                    details={"payment_event_id": event_id, "provider": "stripe"},
+                    request_id=request_id,
+                )
+                self.store.put_record(
+                    "payment_event",
+                    event_id,
+                    record,
+                    tenant_id=str(record["account_id"]),
+                    status=status,
+                    request_id=request_id,
+                    idempotency_key=event_id,
+                )
+                self.telemetry.increment("billing_webhook_failures_total", {"provider": "stripe"})
+                self._audit(
+                    "billing.webhook.rejected",
+                    payload,
+                    request_id=request_id,
+                    result="rejected",
+                    reason_codes=("billing.webhook.signed_body_mismatch",),
+                )
+                return {"ok": False, "payment_event": record, "credit_transaction": {}, "error": error.as_record()}
         event_id = str(raw_event.get("id") or deterministic_id("payment_event", raw_event))
         event_type = str(raw_event.get("type", ""))
         account_id = _billing_account_id(payload, fallback_account_id=_stripe_account_id(raw_event, {}))

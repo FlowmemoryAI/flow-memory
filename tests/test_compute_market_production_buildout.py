@@ -3646,6 +3646,46 @@ def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:
     assert expired["ok"] is False
     assert expired["payment_event"]["status"] == "rejected_unverified"
 
+
+def test_billing_webhook_v1_signature_rejects_processed_dict_mismatch() -> None:
+    service = _service()
+    signed_event = {
+        "id": "evt_stripe_signed_body_mismatch",
+        "type": "checkout.session.completed",
+        "amount_total": 2500,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_signed_body"},
+    }
+    tampered_event = {
+        **signed_event,
+        "amount_total": 999900,
+        "metadata": {"account_id": "acct_tampered_body"},
+    }
+    raw_event_body = json.dumps(signed_event, separators=(",", ":"), sort_keys=True)
+    secret = "whsec_signed_body_mismatch"
+    timestamp = str(int(time.time()))
+    digest = hmac.new(secret.encode("utf-8"), f"{timestamp}.{raw_event_body}".encode("utf-8"), "sha256").hexdigest()
+
+    webhook = service.billing_webhook_stripe(
+        {
+            "raw_event": tampered_event,
+            "raw_event_body": raw_event_body,
+            "webhook_secret": secret,
+            "stripe_signature": f"t={timestamp},v1={digest}",
+        }
+    )
+    signed_balance = service.billing_balance({"account_id": "acct_signed_body"})["balance"]
+    tampered_balance = service.billing_balance({"account_id": "acct_tampered_body"})["balance"]
+
+    assert webhook["ok"] is False
+    assert webhook["error"]["error_code"] == "billing.webhook.signed_body_mismatch"
+    assert webhook["payment_event"]["status"] == "rejected_signed_body_mismatch"
+    assert webhook["payment_event"]["amount"] == 0.0
+    assert webhook["credit_transaction"] == {}
+    assert signed_balance["available_credits"] == 0.0
+    assert tampered_balance["available_credits"] == 0.0
+
+
 def test_billing_webhook_v1_signature_replay_beyond_tolerance_is_idempotent() -> None:
     service = _service()
     raw_event = {

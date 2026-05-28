@@ -2425,6 +2425,170 @@ def test_complete_job_status_race_does_not_record_usage_or_debit(monkeypatch: An
     assert balance["reserved_credits"] == 0.18
     assert not any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
+def test_completed_job_replay_recovers_missing_financial_side_effects() -> None:
+    service = _service()
+    account_id = "acct_complete_recovery"
+    _credit_account(service, account_id, 1.0, event_id="evt_complete_recovery")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_complete_recovery",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    crashed_job = dict(service.get_job(job_id)["job"])
+    crashed_job.update(
+        {
+            "status": "succeeded",
+            "completed_at": "2026-05-26T00:00:00Z",
+            "updated_at": "2026-05-26T00:00:00Z",
+            "actual_units": 2.0,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 900.0,
+            "completion_request_id": "req_original_completion",
+            "lifecycle": (*tuple(crashed_job.get("lifecycle", ())), "succeeded"),
+            "lease_expires_at": "",
+        }
+    )
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        crashed_job,
+        provider_id=str(crashed_job["provider_id"]),
+        route_id=str(crashed_job["route_id"]),
+        task_type=str(crashed_job["task_type"]),
+        status="succeeded",
+        request_id="crash-after-status",
+        tenant_id=str(crashed_job.get("tenant_id", "")),
+        workspace_id=str(crashed_job.get("workspace_id", "")),
+    )
+
+    recovered = service.complete_job(
+        job_id,
+        {
+            "account_id": account_id,
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "artifact_ref": "s3://flow-memory-results/job-recovered.json",
+            "artifact_data": {"result": "recovered"},
+            "request_id": "req_retry_completion",
+        },
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    reservation = service.store.get_record("credit_transaction", str(dispatched["job"]["credit_reservation_id"]))
+
+    assert recovered["ok"] is True
+    assert recovered["recovered"] is True
+    assert recovered["idempotent_replay"] is True
+    assert recovered["usage_charge"]["amount"] == 0.18
+    assert recovered["credit_debit"]["status"] == "posted"
+    assert recovered["provider_payout"]["status"] == "accrued"
+    assert recovered["usage_invoice"]["source_id"] == recovered["usage_charge"]["usage_charge_id"]
+    assert recovered["event"]["event_type"] == "job.completion_recovered"
+    assert balance["available_credits"] == 0.82
+    assert balance["reserved_credits"] == 0.0
+    assert reservation is not None
+    assert reservation["status"] == "settled"
+    assert service.store.count_records("usage_charge") == 1
+    assert service.store.count_records("billing_invoice") == 1
+    assert service.store.count_records("provider_payout") == 1
+
+
+def test_completed_job_replay_rejects_conflicting_cost_without_debit() -> None:
+    service = _service()
+    account_id = "acct_complete_replay_conflict"
+    _credit_account(service, account_id, 1.0, event_id="evt_complete_replay_conflict")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_complete_replay_conflict",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {"account_id": account_id})
+    crashed_job = dict(service.get_job(job_id)["job"])
+    crashed_job.update(
+        {
+            "status": "succeeded",
+            "completed_at": "2026-05-26T00:00:00Z",
+            "updated_at": "2026-05-26T00:00:00Z",
+            "actual_units": 2.0,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 900.0,
+            "completion_request_id": "req_original_conflict",
+            "lifecycle": (*tuple(crashed_job.get("lifecycle", ())), "succeeded"),
+            "lease_expires_at": "",
+        }
+    )
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        crashed_job,
+        provider_id=str(crashed_job["provider_id"]),
+        route_id=str(crashed_job["route_id"]),
+        task_type=str(crashed_job["task_type"]),
+        status="succeeded",
+        request_id="crash-after-status",
+        tenant_id=str(crashed_job.get("tenant_id", "")),
+        workspace_id=str(crashed_job.get("workspace_id", "")),
+    )
+
+    replayed = service.complete_job(
+        job_id,
+        {
+            "account_id": account_id,
+            "actual_units": 2,
+            "actual_total_cost": 0.19,
+            "currency": "USD",
+            "request_id": "req_conflicting_completion",
+        },
+    )
+
+    assert replayed["ok"] is False
+    assert replayed["error"]["error_code"] == "job.completion_replay_conflict"
+    assert service.store.count_records("usage_charge") == 0
+    assert service.store.count_records("billing_invoice") == 0
+    assert service.store.count_records("provider_payout") == 0
+
+
+def test_credit_webhook_replay_rebuilds_balance_from_existing_transaction() -> None:
+    service = _service()
+    account_id = "acct_credit_rebuild"
+    raw_event = {
+        "id": "evt_credit_rebuild",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": account_id},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    credited = service.billing_webhook_stripe(
+        {"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature}
+    )
+    service.store.delete_record("credit_balance", account_id)
+
+    replayed = service.billing_webhook_stripe(
+        {"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature}
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+
+    assert credited["credit_transaction"]["status"] == "posted"
+    assert replayed["idempotent_replay"] is True
+    assert replayed["credit_transaction"]["credit_transaction_id"] == credited["credit_transaction"]["credit_transaction_id"]
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+
 def test_compute_job_expire_leases_requeues_claims_and_expires_running_jobs() -> None:
     service = _service()
     expired_at = "2000-01-01T00:00:00Z"

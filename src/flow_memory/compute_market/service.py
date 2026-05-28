@@ -3322,6 +3322,15 @@ class ComputeMarketService:
                     callback_action="complete",
                     audit_action="compute.job.complete_rejected",
                 )
+        if str(job.get("status", "")) == "succeeded":
+            worker_id = _assert_claim_owner(job, payload, "complete")
+            return self._recover_completed_job_side_effects(
+                job,
+                payload,
+                request_id=request_id,
+                worker_id=worker_id,
+                callback_signature_verification=callback_signature_verification,
+            )
         _assert_job_status(job, ("running",), "complete")
         worker_id = _assert_claim_owner(job, payload, "complete")
         capacity_consumption_result = self._consume_job_capacity_reservation(job, payload, request_id=request_id)
@@ -3362,6 +3371,7 @@ class ComputeMarketService:
                 "actual_latency_ms": actual_latency_ms,
                 "provider_sla_max_latency_ms": sla_max_latency_ms,
                 "provider_sla_latency_breached": sla_latency_breached,
+                "completion_request_id": request_id,
                 "lifecycle": _append_lifecycle(job, "succeeded"),
                 "lease_expires_at": "",
             }
@@ -3646,6 +3656,281 @@ class ComputeMarketService:
             "capacity_consumption": capacity_consumption,
             "usage_invoice": usage_invoice,
             "provider_callback_verification": callback_signature_verification,
+        }
+
+    def _recover_completed_job_side_effects(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+        worker_id: str,
+        callback_signature_verification: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        job_id = str(job.get("job_id", ""))
+        provider_id = str(job.get("provider_id", ""))
+        route_id = str(job.get("route_id", ""))
+        stored_cost = _safe_non_negative_float(job.get("actual_total_cost", 0.0))
+        cost_data = payload.get("cost_data", {})
+        has_replayed_cost = "actual_total_cost" in payload or (
+            isinstance(cost_data, Mapping)
+            and ("actual_total_cost" in cost_data or "estimated_total_cost" in cost_data or "amount" in cost_data)
+        )
+        if has_replayed_cost:
+            replayed_cost = _job_cost(payload)
+            if abs(replayed_cost - stored_cost) > 0.000001:
+                error = compute_error(
+                    "job.completion_replay_conflict",
+                    "Completed compute job replay used different completion economics.",
+                    details={
+                        "job_id": job_id,
+                        "stored_actual_total_cost": stored_cost,
+                        "replayed_actual_total_cost": replayed_cost,
+                        "funds_moved": False,
+                    },
+                    request_id=request_id,
+                )
+                event = _job_event(
+                    job_id,
+                    "job.complete_replay_conflict",
+                    status="succeeded",
+                    request_id=request_id,
+                    details={"error": error.as_record(), "funds_moved": False},
+                )
+                self.store.put_record(
+                    "compute_job_event",
+                    str(event["event_id"]),
+                    event,
+                    provider_id=provider_id,
+                    route_id=route_id,
+                    status="succeeded",
+                    request_id=request_id,
+                    actor_id=worker_id,
+                    tenant_id=str(job.get("tenant_id", "")),
+                    workspace_id=str(job.get("workspace_id", "")),
+                )
+                return {"ok": False, "job": job, "event": event, "error": error.as_record()}
+
+        completion_request_id = str(job.get("completion_request_id", request_id)).strip() or request_id
+        actual_units = _safe_non_negative_float(job.get("actual_units", payload.get("actual_units", payload.get("units", 0.0))))
+        actual_latency_ms = _safe_non_negative_float(job.get("actual_latency_ms", payload.get("actual_latency_ms", payload.get("latency_ms", 0.0))))
+        effective_payload: dict[str, Any] = dict(payload)
+        effective_payload.setdefault("actual_total_cost", stored_cost)
+        effective_payload.setdefault("actual_units", actual_units)
+        effective_payload.setdefault("actual_latency_ms", actual_latency_ms)
+        if str(job.get("account_id", "")).strip() and not str(effective_payload.get("account_id", "")).strip():
+            effective_payload["account_id"] = str(job.get("account_id", "")).strip()
+        if str(job.get("currency", "")).strip() and not str(effective_payload.get("currency", "")).strip():
+            effective_payload["currency"] = str(job.get("currency", "")).strip()
+
+        artifact = _job_artifact(job, effective_payload, request_id=completion_request_id)
+        if artifact and self.store.get_record("compute_job_artifact", str(artifact["artifact_id"])) is None:
+            self.store.put_record(
+                "compute_job_artifact",
+                str(artifact["artifact_id"]),
+                artifact,
+                provider_id=provider_id,
+                route_id=route_id,
+                task_type=str(job.get("task_type", "")),
+                status="available",
+                request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+                actor_id=worker_id,
+            )
+
+        usage_records = tuple(
+            self.store.list_records(
+                "usage_charge",
+                filters={"job_id": job_id},
+                limit=2,
+            ).records
+        )
+        usage_charge: Mapping[str, Any] = dict(usage_records[0]) if usage_records else {}
+        usage_invoice: Mapping[str, Any] = {}
+        credit_debit: Mapping[str, Any] = {}
+        provider_payout: Mapping[str, Any] = {}
+        provider_sla_penalty: Mapping[str, Any] = {}
+        credit_release: Mapping[str, Any] = {}
+
+        if not usage_charge and stored_cost:
+            usage_charge = _usage_charge(
+                job,
+                effective_payload,
+                request_id=completion_request_id,
+                amount=stored_cost,
+                units=actual_units,
+            )
+        provider = self.store.get_record("compute_provider", provider_id) or {}
+        if usage_charge:
+            invoice_id = str(
+                usage_charge.get("invoice_id")
+                or deterministic_id(
+                    "billing_invoice",
+                    {"source_type": "usage_charge", "usage_charge_id": str(usage_charge["usage_charge_id"])},
+                )
+            )
+            existing_invoice = self.store.get_record("billing_invoice", invoice_id)
+            if existing_invoice is not None:
+                usage_invoice = existing_invoice
+            else:
+                usage_invoice = _billing_invoice(
+                    invoice_id=invoice_id,
+                    account_id=str(usage_charge.get("account_id", "")),
+                    source_type="usage_charge",
+                    source_id=str(usage_charge["usage_charge_id"]),
+                    amount=float(usage_charge["amount"]),
+                    currency=str(usage_charge["currency"]),
+                    status=str(usage_charge["status"]),
+                    line_items=(
+                        {
+                            "description": f"Compute usage for job {job_id}",
+                            "quantity": float(usage_charge.get("units", 0.0) or 0.0),
+                            "unit_type": str(usage_charge.get("unit_type", "")),
+                            "amount": float(usage_charge["amount"]),
+                            "currency": str(usage_charge["currency"]),
+                        },
+                    ),
+                    request_id=request_id,
+                    provider_id=provider_id,
+                    route_id=route_id,
+                )
+            usage_charge = {**dict(usage_charge), "invoice_id": invoice_id}
+            self.store.put_record(
+                "usage_charge",
+                str(usage_charge["usage_charge_id"]),
+                usage_charge,
+                tenant_id=str(usage_charge.get("account_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+                provider_id=provider_id,
+                route_id=route_id,
+                task_type=str(job.get("task_type", "")),
+                status=str(usage_charge["status"]),
+                request_id=request_id,
+                idempotency_key=str(usage_charge["usage_charge_id"]),
+            )
+            self.store.put_record(
+                "billing_invoice",
+                str(usage_invoice["invoice_id"]),
+                usage_invoice,
+                tenant_id=str(usage_invoice.get("account_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+                provider_id=provider_id,
+                route_id=route_id,
+                status=str(usage_invoice["status"]),
+                request_id=request_id,
+                idempotency_key=str(usage_invoice["invoice_id"]),
+            )
+            provider_sla_penalty_candidate = _provider_sla_penalty(
+                provider if isinstance(provider, Mapping) else {},
+                job,
+                usage_charge,
+                request_id=request_id,
+            )
+            if provider_sla_penalty_candidate:
+                existing_penalty = self.store.get_record(
+                    "provider_sla_penalty",
+                    str(provider_sla_penalty_candidate["sla_penalty_id"]),
+                )
+                provider_sla_penalty = existing_penalty or provider_sla_penalty_candidate
+                if existing_penalty is None:
+                    self.store.put_record(
+                        "provider_sla_penalty",
+                        str(provider_sla_penalty["sla_penalty_id"]),
+                        provider_sla_penalty,
+                        tenant_id=str(provider_sla_penalty.get("account_id", "")),
+                        provider_id=str(provider_sla_penalty.get("provider_id", "")),
+                        route_id=str(provider_sla_penalty.get("route_id", "")),
+                        status=str(provider_sla_penalty.get("status", "")),
+                        request_id=request_id,
+                        idempotency_key=str(provider_sla_penalty["sla_penalty_id"]),
+                    )
+            account_id = str(usage_charge.get("account_id", ""))
+            if account_id:
+                credit_debit = _debit_credit(
+                    self.store,
+                    account_id,
+                    amount=float(usage_charge["amount"]),
+                    currency=str(usage_charge["currency"]),
+                    request_id=request_id,
+                    usage_charge_id=str(usage_charge["usage_charge_id"]),
+                    reservation_transaction_id=str(job.get("credit_reservation_id", "")),
+                )
+                if str(credit_debit.get("status", "")) == "posted":
+                    provider_payout = _accrue_provider_payout(
+                        self.store,
+                        provider_id=provider_id,
+                        job_id=job_id,
+                        account_id=account_id,
+                        route_id=route_id,
+                        amount=float(usage_charge["amount"]),
+                        currency=str(usage_charge["currency"]),
+                        request_id=request_id,
+                        usage_charge_id=str(usage_charge["usage_charge_id"]),
+                    )
+        else:
+            credit_release = _release_credit_reservation(
+                self.store,
+                job,
+                request_id=request_id,
+                reason="job_completed_without_charge",
+            )
+
+        self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
+        event = _job_event(
+            job_id,
+            "job.completion_recovered",
+            status="succeeded",
+            request_id=request_id,
+            details={
+                "artifact_recorded": bool(artifact),
+                "usage_charge_recorded": bool(usage_charge),
+                "credit_debit_recorded": bool(credit_debit),
+                "credit_release_recorded": bool(credit_release),
+                "provider_payout_recorded": bool(provider_payout),
+                "provider_sla_penalty_recorded": bool(provider_sla_penalty),
+                "usage_invoice_recorded": bool(usage_invoice),
+                "actual_total_cost": stored_cost,
+                "funds_moved": False,
+                "worker_id": worker_id,
+                "recovered": True,
+            },
+        )
+        self.store.put_record(
+            "compute_job_event",
+            str(event["event_id"]),
+            event,
+            provider_id=provider_id,
+            route_id=route_id,
+            status="succeeded",
+            request_id=request_id,
+            actor_id=worker_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
+        self._audit(
+            "compute.job.completion_recovered",
+            {**dict(payload), "job_id": job_id, "worker_id": worker_id},
+            request_id=request_id,
+            result="succeeded",
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return {
+            "ok": True,
+            "job": job,
+            "event": event,
+            "artifact": artifact,
+            "usage_charge": usage_charge,
+            "credit_debit": credit_debit,
+            "provider_payout": provider_payout,
+            "provider_sla_penalty": provider_sla_penalty,
+            "credit_release": credit_release,
+            "capacity_consumption": job.get("capacity_consumption", {}),
+            "usage_invoice": usage_invoice,
+            "provider_callback_verification": callback_signature_verification,
+            "idempotent_replay": True,
+            "recovered": True,
         }
 
     def fail_job(
@@ -4639,6 +4924,13 @@ class ComputeMarketService:
                         {"account_id": existing_account_id, "source_event_id": event_id, "type": "credit"},
                     )
                     credit_transaction = self.store.get_record("credit_transaction", credit_transaction_id) or {}
+                    if credit_transaction:
+                        _rebuild_credit_balance_from_transactions(
+                            self.store,
+                            existing_account_id,
+                            currency=str(credit_transaction.get("currency", existing.get("currency", credit_currency))),
+                            request_id=request_id,
+                        )
                 self._audit("billing.webhook.replayed", payload, request_id=request_id, result=str(existing.get("status", "verified")))
                 return {"ok": True, "payment_event": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
             if not verified:
@@ -9156,7 +9448,11 @@ def _payload_enabled(payload: Mapping[str, Any], *, default: bool) -> bool:
 def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request_id: str, amount: float, units: float) -> dict[str, Any]:
     if amount <= 0:
         return {}
-    account_id = _billing_account_id(payload, fallback_account_id=str(job.get("tenant_id", "")).strip(), required=False)
+    account_id = _billing_account_id(
+        payload,
+        fallback_account_id=str(job.get("account_id", job.get("tenant_id", ""))).strip(),
+        required=False,
+    )
     currency = str(payload.get("currency", payload.get("asset", "USD"))).upper()
     now = utc_now_iso()
     usage_charge_id = str(payload.get("usage_charge_id") or deterministic_id("usage_charge", {"job_id": job.get("job_id", ""), "amount": amount, "request_id": request_id}))
@@ -9802,6 +10098,90 @@ def _is_https_url(value: str) -> bool:
     return parsed.scheme == "https" and bool(parsed.netloc)
 
 
+def _expected_credit_balance_from_transactions(
+    account_id: str,
+    credit_transactions: Sequence[Mapping[str, Any]],
+) -> tuple[float, float]:
+    reserve_by_id = {
+        str(transaction.get("credit_transaction_id", "")): transaction
+        for transaction in credit_transactions
+        if str(transaction.get("transaction_type", "")) == "reserve"
+    }
+    expected_available = 0.0
+    expected_reserved = 0.0
+    account_transactions = sorted(
+        (
+            transaction
+            for transaction in credit_transactions
+            if str(transaction.get("account_id", "")).strip() == account_id
+        ),
+        key=lambda transaction: (
+            str(transaction.get("created_at", "")),
+            str(transaction.get("credit_transaction_id", "")),
+        ),
+    )
+    for transaction in account_transactions:
+        transaction_type = str(transaction.get("transaction_type", ""))
+        status = str(transaction.get("status", ""))
+        amount = _safe_non_negative_float(transaction.get("amount", 0.0))
+        if transaction_type in {"credit", "refund_credit"} and status == "posted":
+            expected_available += amount
+        elif transaction_type == "reserve" and status == "reserved":
+            expected_available -= amount
+            expected_reserved += amount
+        elif transaction_type == "debit" and status == "posted":
+            reservation_id = str(transaction.get("reservation_transaction_id", ""))
+            reservation = reserve_by_id.get(reservation_id)
+            if reservation is not None and str(reservation.get("status", "")) == "reserved":
+                reservation_amount = _safe_non_negative_float(reservation.get("amount", 0.0))
+                expected_reserved = max(0.0, expected_reserved - reservation_amount)
+                expected_available += max(0.0, reservation_amount - amount)
+                expected_available -= max(0.0, amount - reservation_amount)
+            else:
+                expected_available -= amount
+    return round(expected_available, 6), round(expected_reserved, 6)
+
+
+def _rebuild_credit_balance_from_transactions(
+    store: ComputeMarketStoreProtocol,
+    account_id: str,
+    *,
+    currency: str,
+    request_id: str,
+) -> Mapping[str, Any]:
+    if not account_id:
+        return {}
+    now = utc_now_iso()
+    transactions = tuple(
+        store.list_records(
+            "credit_transaction",
+            filters={"tenant_id": account_id},
+            limit=10_000,
+        ).records
+    )
+    available, reserved = _expected_credit_balance_from_transactions(account_id, transactions)
+    current = store.get_record("credit_balance", account_id) or {
+        "account_id": account_id,
+        "created_at": now,
+    }
+    balance = {
+        **dict(current),
+        "account_id": account_id,
+        "available_credits": available,
+        "reserved_credits": reserved,
+        "currency": currency,
+        "updated_at": now,
+    }
+    store.put_record(
+        "credit_balance",
+        account_id,
+        balance,
+        tenant_id=account_id,
+        status="active",
+        request_id=request_id,
+    )
+    return balance
+
 def _apply_credit(
     store: ComputeMarketStoreProtocol,
     account_id: str,
@@ -9814,24 +10194,14 @@ def _apply_credit(
     transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "source_event_id": source_event_id, "type": "credit"})
     existing = store.get_record("credit_transaction", transaction_id)
     if existing is not None:
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=str(existing.get("currency", currency)),
+            request_id=request_id,
+        )
         return existing
     now = utc_now_iso()
-    current = store.get_record("credit_balance", account_id) or {
-        "account_id": account_id,
-        "available_credits": 0.0,
-        "reserved_credits": 0.0,
-        "currency": currency,
-        "created_at": now,
-    }
-    available = float(current.get("available_credits", 0.0) or 0.0) + amount
-    balance = {
-        **dict(current),
-        "account_id": account_id,
-        "available_credits": round(available, 6),
-        "reserved_credits": float(current.get("reserved_credits", 0.0) or 0.0),
-        "currency": currency,
-        "updated_at": now,
-    }
     transaction = {
         "credit_transaction_id": transaction_id,
         "account_id": account_id,
@@ -9845,8 +10215,13 @@ def _apply_credit(
         "created_at": now,
         "request_id": request_id,
     }
-    store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
     store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status="posted", request_id=request_id, idempotency_key=transaction_id)
+    _rebuild_credit_balance_from_transactions(
+        store,
+        account_id,
+        currency=currency,
+        request_id=request_id,
+    )
     return transaction
 
 
@@ -10022,6 +10397,12 @@ def _reserve_credit_for_job(
     )
     existing = store.get_record("credit_transaction", transaction_id)
     if existing is not None:
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=str(existing.get("currency", currency)),
+            request_id=request_id,
+        )
         return existing
     now = utc_now_iso()
     current = store.get_record("credit_balance", account_id) or {
@@ -10032,7 +10413,6 @@ def _reserve_credit_for_job(
         "created_at": now,
     }
     available = float(current.get("available_credits", 0.0) or 0.0)
-    reserved = float(current.get("reserved_credits", 0.0) or 0.0)
     sufficient = available >= amount
     transaction = {
         "credit_transaction_id": transaction_id,
@@ -10048,16 +10428,6 @@ def _reserve_credit_for_job(
         "created_at": now,
         "request_id": request_id,
     }
-    if sufficient:
-        balance = {
-            **dict(current),
-            "account_id": account_id,
-            "available_credits": round(available - amount, 6),
-            "reserved_credits": round(reserved + amount, 6),
-            "currency": currency,
-            "updated_at": now,
-        }
-        store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
     store.put_record(
         "credit_transaction",
         transaction_id,
@@ -10066,6 +10436,12 @@ def _reserve_credit_for_job(
         status=str(transaction["status"]),
         request_id=request_id,
         idempotency_key=transaction_id,
+    )
+    _rebuild_credit_balance_from_transactions(
+        store,
+        account_id,
+        currency=currency,
+        request_id=request_id,
     )
     return transaction
 
@@ -10081,7 +10457,7 @@ def _release_credit_reservation(
     if not reservation_id:
         return {}
     reservation = store.get_record("credit_transaction", reservation_id)
-    if reservation is None or str(reservation.get("status", "")) != "reserved":
+    if reservation is None:
         return {}
     account_id = str(reservation.get("account_id", ""))
     amount = _safe_non_negative_float(reservation.get("amount", 0.0))
@@ -10091,28 +10467,38 @@ def _release_credit_reservation(
         "credit_transaction",
         {"account_id": account_id, "reservation_transaction_id": reservation_id, "type": "reserve_release"},
     )
+    currency = str(reservation.get("currency", "USD"))
     existing = store.get_record("credit_transaction", release_id)
     if existing is not None:
+        if str(reservation.get("status", "")) == "reserved":
+            now = utc_now_iso()
+            released_reservation = {
+                **dict(reservation),
+                "status": "released",
+                "released_at": now,
+                "release_reason": reason,
+                "updated_at": now,
+            }
+            store.put_record(
+                "credit_transaction",
+                reservation_id,
+                released_reservation,
+                tenant_id=account_id,
+                status="released",
+                request_id=request_id,
+                idempotency_key=reservation_id,
+            )
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=str(existing.get("currency", currency)),
+            request_id=request_id,
+        )
         return existing
+    if str(reservation.get("status", "")) != "reserved":
+        return {}
     now = utc_now_iso()
     currency = str(reservation.get("currency", "USD"))
-    current = store.get_record("credit_balance", account_id) or {
-        "account_id": account_id,
-        "available_credits": 0.0,
-        "reserved_credits": 0.0,
-        "currency": currency,
-        "created_at": now,
-    }
-    available = float(current.get("available_credits", 0.0) or 0.0)
-    reserved = float(current.get("reserved_credits", 0.0) or 0.0)
-    balance = {
-        **dict(current),
-        "account_id": account_id,
-        "available_credits": round(available + amount, 6),
-        "reserved_credits": round(max(0.0, reserved - amount), 6),
-        "currency": currency,
-        "updated_at": now,
-    }
     released_reservation = {
         **dict(reservation),
         "status": "released",
@@ -10135,7 +10521,6 @@ def _release_credit_reservation(
         "created_at": now,
         "request_id": request_id,
     }
-    store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
     store.put_record(
         "credit_transaction",
         reservation_id,
@@ -10154,6 +10539,12 @@ def _release_credit_reservation(
         request_id=request_id,
         idempotency_key=release_id,
     )
+    _rebuild_credit_balance_from_transactions(
+        store,
+        account_id,
+        currency=currency,
+        request_id=request_id,
+    )
     return release
 
 def _debit_credit(
@@ -10171,6 +10562,40 @@ def _debit_credit(
     transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
     existing = store.get_record("credit_transaction", transaction_id)
     if existing is not None:
+        reservation = store.get_record("credit_transaction", reservation_transaction_id) if reservation_transaction_id else None
+        if (
+            str(existing.get("status", "")) == "posted"
+            and reservation is not None
+            and str(reservation.get("status", "")) == "reserved"
+            and str(reservation.get("account_id", "")) == account_id
+        ):
+            now = utc_now_iso()
+            existing_amount = _safe_non_negative_float(existing.get("amount", amount))
+            reservation_amount = _safe_non_negative_float(reservation.get("amount", 0.0))
+            settled_reservation = {
+                **dict(reservation),
+                "status": "settled",
+                "settled_at": now,
+                "settled_usage_charge_id": usage_charge_id,
+                "settled_amount": existing_amount,
+                "unused_released_amount": max(0.0, reservation_amount - existing_amount),
+                "updated_at": now,
+            }
+            store.put_record(
+                "credit_transaction",
+                reservation_transaction_id,
+                settled_reservation,
+                tenant_id=account_id,
+                status="settled",
+                request_id=request_id,
+                idempotency_key=reservation_transaction_id,
+            )
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=str(existing.get("currency", currency)),
+            request_id=request_id,
+        )
         return existing
     now = utc_now_iso()
     current = store.get_record("credit_balance", account_id) or {
@@ -10189,7 +10614,6 @@ def _debit_credit(
         else 0.0
     )
     available = float(current.get("available_credits", 0.0) or 0.0)
-    reserved = float(current.get("reserved_credits", 0.0) or 0.0)
     extra_due = max(0.0, amount - reservation_amount)
     unused_reservation = max(0.0, reservation_amount - amount)
     sufficient = available >= extra_due
@@ -10207,35 +10631,6 @@ def _debit_credit(
         "created_at": now,
         "request_id": request_id,
     }
-    if sufficient:
-        balance = {
-            **dict(current),
-            "account_id": account_id,
-            "available_credits": round(available - extra_due + unused_reservation, 6),
-            "reserved_credits": round(max(0.0, reserved - reservation_amount), 6),
-            "currency": currency,
-            "updated_at": now,
-        }
-        store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
-        if reservation is not None and reservation_amount:
-            settled_reservation = {
-                **dict(reservation),
-                "status": "settled",
-                "settled_at": now,
-                "settled_usage_charge_id": usage_charge_id,
-                "settled_amount": amount,
-                "unused_released_amount": unused_reservation,
-                "updated_at": now,
-            }
-            store.put_record(
-                "credit_transaction",
-                reservation_transaction_id,
-                settled_reservation,
-                tenant_id=account_id,
-                status="settled",
-                request_id=request_id,
-                idempotency_key=reservation_transaction_id,
-            )
     store.put_record(
         "credit_transaction",
         transaction_id,
@@ -10244,6 +10639,31 @@ def _debit_credit(
         status=str(transaction["status"]),
         request_id=request_id,
         idempotency_key=transaction_id,
+    )
+    if sufficient and reservation is not None and reservation_amount:
+        settled_reservation = {
+            **dict(reservation),
+            "status": "settled",
+            "settled_at": now,
+            "settled_usage_charge_id": usage_charge_id,
+            "settled_amount": amount,
+            "unused_released_amount": unused_reservation,
+            "updated_at": now,
+        }
+        store.put_record(
+            "credit_transaction",
+            reservation_transaction_id,
+            settled_reservation,
+            tenant_id=account_id,
+            status="settled",
+            request_id=request_id,
+            idempotency_key=reservation_transaction_id,
+        )
+    _rebuild_credit_balance_from_transactions(
+        store,
+        account_id,
+        currency=currency,
+        request_id=request_id,
     )
     return transaction
 
@@ -10284,24 +10704,14 @@ def _apply_refund_credit(
     transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "refund_id": refund_id, "type": "refund_credit"})
     existing = store.get_record("credit_transaction", transaction_id)
     if existing is not None:
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=str(existing.get("currency", currency)),
+            request_id=request_id,
+        )
         return existing
     now = utc_now_iso()
-    current = store.get_record("credit_balance", account_id) or {
-        "account_id": account_id,
-        "available_credits": 0.0,
-        "reserved_credits": 0.0,
-        "currency": currency,
-        "created_at": now,
-    }
-    available = float(current.get("available_credits", 0.0) or 0.0) + amount
-    balance = {
-        **dict(current),
-        "account_id": account_id,
-        "available_credits": round(available, 6),
-        "reserved_credits": float(current.get("reserved_credits", 0.0) or 0.0),
-        "currency": currency,
-        "updated_at": now,
-    }
     transaction = {
         "credit_transaction_id": transaction_id,
         "account_id": account_id,
@@ -10316,8 +10726,13 @@ def _apply_refund_credit(
         "created_at": now,
         "request_id": request_id,
     }
-    store.put_record("credit_balance", account_id, balance, tenant_id=account_id, status="active", request_id=request_id)
     store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status="posted", request_id=request_id, idempotency_key=transaction_id)
+    _rebuild_credit_balance_from_transactions(
+        store,
+        account_id,
+        currency=currency,
+        request_id=request_id,
+    )
     return transaction
 
 
@@ -10508,46 +10923,12 @@ def _credit_ledger_integrity(
         account_id = str(transaction.get("account_id", "")).strip()
         if account_id:
             accounts.add(account_id)
-    reserve_by_id = {
-        str(transaction.get("credit_transaction_id", "")): transaction
-        for transaction in credit_transactions
-        if str(transaction.get("transaction_type", "")) == "reserve"
-    }
     mismatches: list[Mapping[str, Any]] = []
     for account_id in sorted(accounts):
-        expected_available = 0.0
-        expected_reserved = 0.0
-        account_transactions = sorted(
-            (
-                transaction
-                for transaction in credit_transactions
-                if str(transaction.get("account_id", "")).strip() == account_id
-            ),
-            key=lambda transaction: (
-                str(transaction.get("created_at", "")),
-                str(transaction.get("credit_transaction_id", "")),
-            ),
+        expected_available, expected_reserved = _expected_credit_balance_from_transactions(
+            account_id,
+            credit_transactions,
         )
-        for transaction in account_transactions:
-            transaction_type = str(transaction.get("transaction_type", ""))
-            status = str(transaction.get("status", ""))
-            amount = _safe_non_negative_float(transaction.get("amount", 0.0))
-            if transaction_type in {"credit", "refund_credit"} and status == "posted":
-                expected_available += amount
-            elif transaction_type == "reserve" and status == "reserved":
-                expected_available -= amount
-                expected_reserved += amount
-            elif transaction_type == "debit" and status == "posted":
-                reservation_id = str(transaction.get("reservation_transaction_id", ""))
-                reservation = reserve_by_id.get(reservation_id)
-                if reservation is not None and str(reservation.get("status", "")) == "reserved":
-                    expected_reserved = max(
-                        0.0,
-                        expected_reserved - _safe_non_negative_float(reservation.get("amount", 0.0)),
-                    )
-                expected_available -= amount
-        expected_available = round(expected_available, 6)
-        expected_reserved = round(expected_reserved, 6)
         balance = balances_by_account.get(account_id, {})
         actual_available = round(_safe_non_negative_float(balance.get("available_credits", 0.0)), 6)
         actual_reserved = round(_safe_non_negative_float(balance.get("reserved_credits", 0.0)), 6)

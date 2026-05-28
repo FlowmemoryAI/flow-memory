@@ -308,6 +308,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     payout_calls = [call for call in calls if "/billing/provider-payouts" in call[1]]
     assert len(payout_calls) == 2
     assert payout_calls[0][2] is not None and payout_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"
+    assert payout_calls[1][2] is not None and payout_calls[1][2]["x-flow-memory-scopes"] == "compute:settlement-admin"
     assert payout_calls[1][3] is not None
     assert payout_calls[1][3]["settled_by"] == "public-buildout-validator"
     assert receipt_calls[0][2] is not None and receipt_calls[0][2]["x-flow-memory-scopes"] == "compute:read"

@@ -117,6 +117,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     headers_provider = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:provider-admin"}
     headers_execute = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:execute"}
     headers_billing = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:billing"}
+    headers_settlement = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:settlement-admin"}
     headers_admin = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:admin"}
 
     checks: dict[str, Any] = {}
@@ -262,7 +263,7 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     checks["billing_provider_payout_settle"] = call_json(
         "POST",
         f"{base}/billing/provider-payouts/{payout_id}/settle",
-        headers_billing,
+        headers_settlement,
         {"external_payout_reference": f"public_validation_payout_{suffix}", "settled_by": "public-buildout-validator"},
     )
     checks["job_fail_create"] = call_json(

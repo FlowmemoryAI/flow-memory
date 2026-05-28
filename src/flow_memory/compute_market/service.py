@@ -6424,7 +6424,7 @@ class ComputeMarketService:
     def _audit_writable(self) -> bool:
         try:
             audit_id = self._audit("compute.audit.probe", {}, result="ok")
-            self.store.delete_record("audit_event", audit_id)
+            self.store.delete_record("audit_event", audit_id, _allow_audit_event_mutation=True)
             return True
         except Exception:
             return False

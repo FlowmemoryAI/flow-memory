@@ -14,6 +14,7 @@ from flow_memory.compute_market.models import SCHEMA_VERSION
 from flow_memory.crypto.hashes import content_hash
 
 COMPUTE_MARKET_STORAGE_VERSION = SCHEMA_VERSION
+APPEND_ONLY_COMPUTE_RECORD_TYPES = frozenset({"audit_event"})
 COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "compute_provider",
     "compute_route",
@@ -276,11 +277,14 @@ class ComputeMarketStore:
         actor_id: str = "",
         action: str = "",
         archived: bool = False,
+        _allow_audit_event_mutation: bool = False,
     ) -> None:
         if record_type not in COMPUTE_RECORD_TYPES:
             raise ValueError(f"unknown compute market record type: {record_type}")
         now = utc_now_iso()
         existing = self.get_record(record_type, record_id)
+        if record_type in APPEND_ONLY_COMPUTE_RECORD_TYPES and existing is not None and not _allow_audit_event_mutation:
+            raise ValueError(f"{record_type} records are append-only and cannot be overwritten")
         created_at = str((existing or payload).get("created_at") or now)
         normalized = dict(payload)
         normalized.setdefault("record_id", record_id)
@@ -346,9 +350,12 @@ class ComputeMarketStore:
         actor_id: str = "",
         action: str = "",
         archived: bool = False,
+        _allow_audit_event_mutation: bool = False,
     ) -> bool:
         if record_type not in COMPUTE_RECORD_TYPES:
             raise ValueError(f"unknown compute market record type: {record_type}")
+        if record_type in APPEND_ONLY_COMPUTE_RECORD_TYPES and not _allow_audit_event_mutation:
+            raise ValueError(f"{record_type} records are append-only and cannot be updated")
         expected = tuple(str(item) for item in expected_statuses if str(item))
         if not expected:
             return False
@@ -477,7 +484,9 @@ class ComputeMarketStore:
         next_cursor = str(offset + bounded_limit) if len(rows) > bounded_limit else ""
         return RecordPage(records=payloads, next_cursor=next_cursor, limit=bounded_limit)
 
-    def delete_record(self, record_type: str, record_id: str) -> bool:
+    def delete_record(self, record_type: str, record_id: str, *, _allow_audit_event_mutation: bool = False) -> bool:
+        if record_type in APPEND_ONLY_COMPUTE_RECORD_TYPES and not _allow_audit_event_mutation:
+            raise ValueError(f"{record_type} records are append-only and cannot be deleted")
         with self._connection() as conn:
             cursor = conn.execute(
                 "delete from compute_market_records where record_type = ? and record_id = ?",

@@ -65,7 +65,19 @@ def test_modified_audit_event_fails_verification() -> None:
     service.plan({"task": "tamper action"})
     event = dict(service.audit({})["audit_events"][0])
     event["action"] = "compute.audit.tampered"
-    service.store.put_record("audit_event", event["audit_event_id"], event, action=event["action"])
+    try:
+        service.store.put_record("audit_event", event["audit_event_id"], event, action=event["action"])
+    except ValueError as exc:
+        assert "append-only" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("audit event overwrite was accepted without force")
+    service.store.put_record(
+        "audit_event",
+        event["audit_event_id"],
+        event,
+        action=event["action"],
+        _allow_audit_event_mutation=True,
+    )
 
     result = service.store.verify_audit_chain()
     assert result.ok is False
@@ -81,7 +93,13 @@ def test_missing_audit_event_fails_verification() -> None:
         service.plan({"task": f"missing audit {index}", "request_id": f"audit-{index}"})
     events = service.audit({})["audit_events"]
     middle = next(event for event in events if int(event.get("sequence_number", 0) or 0) == 2)
-    service.store.delete_record("audit_event", middle["audit_event_id"])
+    try:
+        service.store.delete_record("audit_event", middle["audit_event_id"])
+    except ValueError as exc:
+        assert "append-only" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("audit event deletion was accepted without force")
+    service.store.delete_record("audit_event", middle["audit_event_id"], _allow_audit_event_mutation=True)
 
     result = service.store.verify_audit_chain()
     assert result.ok is False
@@ -94,7 +112,13 @@ def test_wrong_previous_hash_fails_verification_and_chain_can_continue_after_val
     service.plan({"task": "second"})
     event = dict(service.audit({})["audit_events"][1])
     event["previous_hash"] = "bad-previous-hash"
-    service.store.put_record("audit_event", event["audit_event_id"], event, action=event["action"])
+    service.store.put_record(
+        "audit_event",
+        event["audit_event_id"],
+        event,
+        action=event["action"],
+        _allow_audit_event_mutation=True,
+    )
 
     broken = service.store.verify_audit_chain()
     assert broken.ok is False
@@ -558,7 +582,13 @@ def test_audit_checkpoint_schedule_initial_interval_uses_oldest_pending_event() 
     service.plan({"task": "initial interval checkpoint", "request_id": "initial-checkpoint-interval"})
     event = dict(service.store.list_records("audit_event", limit=1).records[0])
     event["created_at"] = "2000-01-01T00:00:00Z"
-    service.store.put_record("audit_event", event["audit_event_id"], event, action=event["action"])
+    service.store.put_record(
+        "audit_event",
+        event["audit_event_id"],
+        event,
+        action=event["action"],
+        _allow_audit_event_mutation=True,
+    )
 
     scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100, "interval_seconds": 1})
 

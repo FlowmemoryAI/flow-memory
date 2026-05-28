@@ -16,6 +16,7 @@ from typing import Any, Iterator, Mapping, Protocol
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.storage import (
     COMPUTE_MARKET_STORAGE_VERSION,
+    APPEND_ONLY_COMPUTE_RECORD_TYPES,
     COMPUTE_RECORD_TYPES,
     AuditChainVerification,
     ComputeMarketStore,
@@ -150,6 +151,7 @@ class ComputeMarketStoreProtocol(Protocol):
         actor_id: str = "",
         action: str = "",
         archived: bool = False,
+        _allow_audit_event_mutation: bool = False,
     ) -> None: ...
     def put_record_if_state(
         self,
@@ -175,6 +177,7 @@ class ComputeMarketStoreProtocol(Protocol):
         actor_id: str = "",
         action: str = "",
         archived: bool = False,
+        _allow_audit_event_mutation: bool = False,
     ) -> bool: ...
 
     def get_record(self, record_type: str, record_id: str) -> Mapping[str, Any] | None: ...
@@ -191,7 +194,7 @@ class ComputeMarketStoreProtocol(Protocol):
         include_archived: bool = False,
     ) -> RecordPage: ...
 
-    def delete_record(self, record_type: str, record_id: str) -> bool: ...
+    def delete_record(self, record_type: str, record_id: str, *, _allow_audit_event_mutation: bool = False) -> bool: ...
 
     def count_records(self, record_type: str) -> int: ...
 
@@ -478,10 +481,13 @@ class PostgresComputeMarketStore:
         actor_id: str = "",
         action: str = "",
         archived: bool = False,
+        _allow_audit_event_mutation: bool = False,
     ) -> None:
         table = _postgres_table(record_type)
         now = utc_now_iso()
         existing = self.get_record(record_type, record_id)
+        if record_type in APPEND_ONLY_COMPUTE_RECORD_TYPES and existing is not None and not _allow_audit_event_mutation:
+            raise ValueError(f"{record_type} records are append-only and cannot be overwritten")
         created_at = str((existing or payload).get("created_at") or now)
         normalized = dict(payload)
         normalized.setdefault("record_id", record_id)
@@ -540,8 +546,11 @@ class PostgresComputeMarketStore:
         actor_id: str = "",
         action: str = "",
         archived: bool = False,
+        _allow_audit_event_mutation: bool = False,
     ) -> bool:
         table = _postgres_table(record_type)
+        if record_type in APPEND_ONLY_COMPUTE_RECORD_TYPES and not _allow_audit_event_mutation:
+            raise ValueError(f"{record_type} records are append-only and cannot be updated")
         expected = tuple(str(item) for item in expected_statuses if str(item))
         if not expected:
             return False
@@ -654,7 +663,9 @@ class PostgresComputeMarketStore:
         next_cursor = str(offset + bounded_limit) if len(rows) > bounded_limit else ""
         return RecordPage(records=payloads, next_cursor=next_cursor, limit=bounded_limit)
 
-    def delete_record(self, record_type: str, record_id: str) -> bool:
+    def delete_record(self, record_type: str, record_id: str, *, _allow_audit_event_mutation: bool = False) -> bool:
+        if record_type in APPEND_ONLY_COMPUTE_RECORD_TYPES and not _allow_audit_event_mutation:
+            raise ValueError(f"{record_type} records are append-only and cannot be deleted")
         table = _postgres_table(record_type)
         with self._connection() as conn:
             cursor = conn.execute(f"delete from {table} where record_id = %s", (record_id,))

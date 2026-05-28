@@ -1046,6 +1046,87 @@ def test_http_gateway_workspace_bound_keys_are_workspace_isolated() -> None:
     assert rotate_other_workspace.body["error"]["details"]["workspace_id"] == "workspace_a"
     assert rotate_other_workspace.body["error"]["details"]["requested_workspace_id"] == "workspace_b"
 
+def test_http_gateway_workspace_registry_is_workspace_isolated() -> None:
+    key_a = "fmk_workspace_registry_a"
+    key_b = "fmk_workspace_registry_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "workspace-registry-a-key",
+                    "key_prefix": "fmk_workspace_registry_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_registry",
+                    "workspace_id": "workspace_registry_a",
+                    "principal": "svc-workspace-registry-a",
+                    "scopes": ("api:admin",),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "workspace-registry-b-key",
+                    "key_prefix": "fmk_workspace_registry_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_registry",
+                    "workspace_id": "workspace_registry_b",
+                    "principal": "svc-workspace-registry-b",
+                    "scopes": ("api:admin",),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    created_a = gateway.handle(
+        "POST",
+        "/auth/workspaces",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"org_name": "Registry A", "display_name": "Registry Workspace A"}).encode("utf-8"),
+    )
+    created_b = gateway.handle(
+        "POST",
+        "/auth/workspaces",
+        {"x-flow-memory-api-key": key_b},
+        json.dumps({"org_name": "Registry B", "display_name": "Registry Workspace B"}).encode("utf-8"),
+    )
+    listed_a = gateway.handle("GET", "/auth/workspaces", {"x-flow-memory-api-key": key_a})
+    fetched_b_from_a = gateway.handle(
+        "GET",
+        "/auth/workspaces/workspace_registry_b",
+        {"x-flow-memory-api-key": key_a},
+    )
+    update_b_from_a = gateway.handle(
+        "PATCH",
+        "/auth/workspaces/workspace_registry_b",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"display_name": "stolen"}).encode("utf-8"),
+    )
+    create_mismatch = gateway.handle(
+        "POST",
+        "/auth/workspaces",
+        {"x-flow-memory-api-key": key_a},
+        json.dumps({"workspace_id": "workspace_registry_b", "org_name": "Mismatch"}).encode("utf-8"),
+    )
+
+    assert created_a.status == 200
+    assert created_a.body["data"]["workspace"]["tenant_id"] == "tenant_registry"
+    assert created_a.body["data"]["workspace"]["workspace_id"] == "workspace_registry_a"
+    assert created_b.status == 200
+    assert created_b.body["data"]["workspace"]["workspace_id"] == "workspace_registry_b"
+    assert [workspace["workspace_id"] for workspace in listed_a.body["data"]["workspaces"]] == [
+        "workspace_registry_a"
+    ]
+    assert fetched_b_from_a.status == 403
+    assert fetched_b_from_a.body["error"]["details"]["workspace_id"] == "workspace_registry_a"
+    assert fetched_b_from_a.body["error"]["details"]["requested_workspace_id"] == "workspace_registry_b"
+    assert update_b_from_a.status == 403
+    assert update_b_from_a.body["error"]["details"]["workspace_id"] == "workspace_registry_a"
+    assert update_b_from_a.body["error"]["details"]["requested_workspace_id"] == "workspace_registry_b"
+    assert create_mismatch.status == 403
+    assert create_mismatch.body["error"]["details"]["workspace_id"] == "workspace_registry_a"
+    assert create_mismatch.body["error"]["details"]["requested_workspace_id"] == "workspace_registry_b"
+
 
 def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
     service = ComputeMarketService(

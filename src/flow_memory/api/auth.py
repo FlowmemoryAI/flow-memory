@@ -159,6 +159,7 @@ class UserRecord:
 @dataclass(frozen=True)
 class WorkspaceRecord:
     workspace_id: str
+    tenant_id: str
     org_name: str
     display_name: str
     enabled: bool
@@ -173,6 +174,7 @@ class WorkspaceRecord:
 @dataclass(frozen=True)
 class MembershipRecord:
     workspace_id: str
+    tenant_id: str
     user_id: str
     role: str
     added_at_epoch: int
@@ -403,6 +405,7 @@ def create_workspace_record(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     metadata = payload.get("metadata", {})
     return WorkspaceRecord(
         workspace_id=str(payload.get("workspace_id") or f"ws_{secrets.token_hex(8)}"),
+        tenant_id=str(payload.get("tenant_id", "")),
         org_name=org_name,
         display_name=display_name,
         enabled=True,
@@ -438,6 +441,7 @@ def disable_workspace_record(record: Mapping[str, Any], *, reason: str = "operat
 def create_membership_record(workspace_id: str, user_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return MembershipRecord(
         workspace_id=workspace_id,
+        tenant_id=str(payload.get("tenant_id", "")),
         user_id=user_id,
         role=validate_role_name(str(payload.get("role", "member"))),
         added_at_epoch=int(time.time()),

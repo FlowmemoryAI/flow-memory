@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 177,
-  "manifest_hash": "41c19c50c4e9497092ff632762e2b2739acc28b6bc6143d0c16c5b2e85ea8db8",
-  "openapi_hash": "9ced9b978e40e9b0eb3361f583c2da31126dce92851412b6b0651aefa60ddfb4",
+  "endpoint_count": 179,
+  "manifest_hash": "46faddc372e299a4a5392c63fd20909aefe5b28c3fd23afa7852b35c1f679141",
+  "openapi_hash": "7adcfefc8d71452a10d9c01450cb0fe721973261d57b19af8f89069370279f7a",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -20,6 +20,7 @@
     "GET /auth/workspaces/{workspace_id}/members",
     "GET /billing/balance",
     "GET /billing/provider-payouts",
+    "GET /billing/quota",
     "GET /billing/usage",
     "GET /compute/alerts",
     "GET /compute/audit",
@@ -106,6 +107,7 @@
     "POST /auth/workspaces/{workspace_id}/members/{user_id}/remove",
     "POST /billing/checkout",
     "POST /billing/provider-payouts/{payout_id}/settle",
+    "POST /billing/quota",
     "POST /billing/refund",
     "POST /billing/webhooks/stripe",
     "POST /compute/alerts/route",
@@ -181,7 +183,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 163,
+  "path_count": 164,
   "paths": [
     "/admin/audit/export",
     "/admin/compute/otlp/export",
@@ -213,6 +215,7 @@
     "/billing/checkout",
     "/billing/provider-payouts",
     "/billing/provider-payouts/{payout_id}/settle",
+    "/billing/quota",
     "/billing/refund",
     "/billing/usage",
     "/billing/webhooks/stripe",

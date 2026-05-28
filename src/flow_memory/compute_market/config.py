@@ -74,6 +74,9 @@ class ComputeMarketConfig:
     stripe_checkout_product_name: str = "Flow Memory compute credits"
     stripe_webhook_secret: str = ""
     stripe_webhook_tolerance_seconds: int = 300
+    spending_quota_enabled: bool = True
+    default_daily_spend_limit: float = 0.0
+    default_monthly_spend_limit: float = 0.0
     alert_routing_enabled: bool = False
     alert_webhook_url: str = ""
     alert_webhook_secret: str = ""
@@ -189,6 +192,10 @@ class ComputeMarketConfig:
             errors.append("stripe_webhook_secret must be high entropy when configured")
         if self.stripe_webhook_tolerance_seconds < 1:
             errors.append("stripe_webhook_tolerance_seconds must be positive")
+        if self.default_daily_spend_limit < 0:
+            errors.append("default_daily_spend_limit must be non-negative")
+        if self.default_monthly_spend_limit < 0:
+            errors.append("default_monthly_spend_limit must be non-negative")
         if self.audit_export_object_lock_mode and self.audit_export_object_lock_mode.upper() not in {"COMPLIANCE", "GOVERNANCE"}:
             errors.append("audit_export_object_lock_mode must be COMPLIANCE or GOVERNANCE")
         if self.audit_export_retention_days < 0:
@@ -293,6 +300,9 @@ class ComputeMarketConfig:
             "stripe_checkout_urls_configured": bool(self.stripe_checkout_success_url and self.stripe_checkout_cancel_url),
             "stripe_checkout_timeout_ms": self.stripe_checkout_timeout_ms,
             "stripe_webhook_tolerance_seconds": self.stripe_webhook_tolerance_seconds,
+            "spending_quota_enabled": self.spending_quota_enabled,
+            "default_daily_spend_limit": self.default_daily_spend_limit,
+            "default_monthly_spend_limit": self.default_monthly_spend_limit,
             "alert_routing_enabled": self.alert_routing_enabled,
             "alert_webhook_configured": bool(self.alert_webhook_url),
             "alert_webhook_secret_configured": bool(self.alert_webhook_secret),
@@ -382,6 +392,9 @@ def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig
         stripe_checkout_product_name=source.get("FLOW_MEMORY_BILLING_STRIPE_PRODUCT_NAME", "Flow Memory compute credits"),
         stripe_webhook_secret=source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET", ""),
         stripe_webhook_tolerance_seconds=_int(source.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS"), 300),
+        spending_quota_enabled=_bool(source.get("FLOW_MEMORY_BILLING_SPENDING_QUOTA_ENABLED"), True),
+        default_daily_spend_limit=_float(source.get("FLOW_MEMORY_BILLING_DEFAULT_DAILY_SPEND_LIMIT"), 0.0),
+        default_monthly_spend_limit=_float(source.get("FLOW_MEMORY_BILLING_DEFAULT_MONTHLY_SPEND_LIMIT"), 0.0),
         alert_routing_enabled=_bool(source.get("FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"), False),
         alert_webhook_url=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL", ""),
         alert_webhook_secret=source.get("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET", ""),
@@ -418,6 +431,12 @@ def _int(value: str | None, default: int) -> int:
     if value is None or value == "":
         return default
     return int(value)
+
+
+def _float(value: str | None, default: float) -> float:
+    if value is None or value == "":
+        return default
+    return float(value)
 
 
 def _redact_database_url(value: str) -> str:

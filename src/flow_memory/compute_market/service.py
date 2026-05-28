@@ -2563,6 +2563,38 @@ class ComputeMarketService:
                 "capacity_reservation": capacity_check.get("reservation", {}),
                 "error": error_record,
             }
+        quota_decision = _spending_quota_decision(self.store, self.config, job, payload, request_id=request_id)
+        if quota_decision.get("ok") is not True:
+            error_record = cast(Mapping[str, Any], quota_decision.get("error", {}))
+            event = _job_event(
+                job_id,
+                "job.spending_quota_exceeded",
+                status=str(job.get("status", "queued")),
+                request_id=request_id,
+                details={"quota": quota_decision.get("quota", {}), "error": error_record, "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(job.get("status", "queued")),
+                request_id=request_id,
+                actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            self._audit(
+                "billing.spending_quota_exceeded",
+                {**dict(payload), "job_id": job_id},
+                request_id=request_id,
+                result="rejected",
+                reason_codes=("spending_quota_exceeded",),
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+            )
+            return {"ok": False, "job": job, "event": event, "quota": quota_decision.get("quota", {}), "error": error_record}
         credit_reservation = _reserve_credit_for_job(self.store, job, payload, request_id=request_id)
         if str(credit_reservation.get("status", "")) == "insufficient_credit":
             amount = float(credit_reservation.get("amount", 0.0) or 0.0)
@@ -3794,6 +3826,45 @@ class ComputeMarketService:
             "updated_at": utc_now_iso(),
         }
         return {"ok": True, "balance": balance}
+
+    def set_billing_quota(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
+        request_id = _request_id(payload)
+        account_id = _billing_account_id(payload)
+        now = utc_now_iso()
+        quota = {
+            "account_id": account_id,
+            "enabled": _payload_enabled(payload, default=True),
+            "daily_spend_limit": _non_negative_float(
+                payload.get("daily_spend_limit", payload.get("daily_limit", 0.0)),
+                "daily_spend_limit",
+            ),
+            "monthly_spend_limit": _non_negative_float(
+                payload.get("monthly_spend_limit", payload.get("monthly_limit", 0.0)),
+                "monthly_spend_limit",
+            ),
+            "currency": str(payload.get("currency", "USD")).upper(),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "created_at": now,
+            "updated_at": now,
+            "request_id": request_id,
+        }
+        self.store.put_record(
+            "billing_quota",
+            account_id,
+            quota,
+            tenant_id=account_id,
+            status="active" if quota["enabled"] else "disabled",
+            request_id=request_id,
+            idempotency_key=str(payload.get("idempotency_key", account_id)),
+        )
+        self._audit("billing.quota.set", payload, request_id=request_id, result=str(quota["enabled"]))
+        return {"ok": True, "quota": quota}
+
+    def billing_quota(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        account_id = _billing_account_id(payload)
+        return {"ok": True, "quota": _billing_quota_record(self.store, self.config, account_id)}
 
     def billing_usage(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         account_id = _billing_account_id(payload)
@@ -7381,6 +7452,13 @@ def _billing_account_id(payload: Mapping[str, Any], *, fallback_account_id: str 
     return resolved
 
 
+def _payload_enabled(payload: Mapping[str, Any], *, default: bool) -> bool:
+    value = payload.get("enabled", default)
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _usage_charge(job: Mapping[str, Any], payload: Mapping[str, Any], *, request_id: str, amount: float, units: float) -> dict[str, Any]:
     if amount <= 0:
         return {}
@@ -8057,6 +8135,135 @@ def _job_estimated_total_cost(job: Mapping[str, Any], payload: Mapping[str, Any]
     else:
         value = fallback
     return _safe_non_negative_float(value)
+
+
+def _billing_quota_record(
+    store: ComputeMarketStoreProtocol,
+    config: ComputeMarketConfig,
+    account_id: str,
+) -> Mapping[str, Any]:
+    stored = store.get_record("billing_quota", account_id)
+    if stored is not None:
+        return stored
+    return {
+        "account_id": account_id,
+        "enabled": bool(config.spending_quota_enabled),
+        "daily_spend_limit": float(config.default_daily_spend_limit),
+        "monthly_spend_limit": float(config.default_monthly_spend_limit),
+        "currency": "USD",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "source": "config_default",
+        "updated_at": utc_now_iso(),
+    }
+
+
+def _spending_quota_decision(
+    store: ComputeMarketStoreProtocol,
+    config: ComputeMarketConfig,
+    job: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    *,
+    request_id: str,
+) -> Mapping[str, Any]:
+    amount = _job_estimated_total_cost(job, payload)
+    account_id = _billing_account_id(
+        payload,
+        fallback_account_id=str(job.get("account_id", job.get("tenant_id", ""))).strip(),
+        required=False,
+    )
+    if not account_id or amount <= 0.0:
+        return {"ok": True, "account_id": account_id, "amount": amount, "quota_enforced": False}
+    quota = _billing_quota_record(store, config, account_id)
+    if not bool(quota.get("enabled", True)):
+        return {"ok": True, "account_id": account_id, "amount": amount, "quota": quota, "quota_enforced": False}
+    daily_limit = _safe_non_negative_float(quota.get("daily_spend_limit", 0.0))
+    monthly_limit = _safe_non_negative_float(quota.get("monthly_spend_limit", 0.0))
+    if daily_limit <= 0.0 and monthly_limit <= 0.0:
+        return {"ok": True, "account_id": account_id, "amount": amount, "quota": quota, "quota_enforced": False}
+    transactions = tuple(
+        store.list_records(
+            "credit_transaction",
+            filters={"tenant_id": account_id},
+            limit=500,
+        ).records
+    )
+    daily_spent, monthly_spent = _active_spend_totals_for_current_period(transactions)
+    projected_daily = round(daily_spent + amount, 6)
+    projected_monthly = round(monthly_spent + amount, 6)
+    exceeded: list[str] = []
+    if daily_limit > 0.0 and projected_daily > daily_limit:
+        exceeded.append("daily_spend_limit")
+    if monthly_limit > 0.0 and projected_monthly > monthly_limit:
+        exceeded.append("monthly_spend_limit")
+    if not exceeded:
+        return {
+            "ok": True,
+            "account_id": account_id,
+            "amount": amount,
+            "quota": quota,
+            "quota_enforced": True,
+            "daily_spent": daily_spent,
+            "monthly_spent": monthly_spent,
+            "projected_daily_spend": projected_daily,
+            "projected_monthly_spend": projected_monthly,
+        }
+    error = compute_error(
+        "billing.spending_quota_exceeded",
+        "Compute job dispatch would exceed the account spending quota.",
+        details={
+            "account_id": account_id,
+            "amount": amount,
+            "daily_spend_limit": daily_limit,
+            "monthly_spend_limit": monthly_limit,
+            "daily_spent": daily_spent,
+            "monthly_spent": monthly_spent,
+            "projected_daily_spend": projected_daily,
+            "projected_monthly_spend": projected_monthly,
+            "exceeded": tuple(exceeded),
+        },
+        request_id=request_id,
+    )
+    return {
+        "ok": False,
+        "account_id": account_id,
+        "amount": amount,
+        "quota": quota,
+        "quota_enforced": True,
+        "error": error.as_record(),
+    }
+
+
+def _active_spend_totals_for_current_period(transactions: tuple[Mapping[str, Any], ...]) -> tuple[float, float]:
+    now = datetime.now(timezone.utc)
+    daily_total = 0.0
+    monthly_total = 0.0
+    for transaction in transactions:
+        transaction_type = str(transaction.get("transaction_type", ""))
+        status = str(transaction.get("status", ""))
+        is_posted_debit = transaction_type == "debit" and status == "posted"
+        is_active_reserve = transaction_type == "reserve" and status == "reserved"
+        if not is_posted_debit and not is_active_reserve:
+            continue
+        created_at = _parse_utc_datetime(str(transaction.get("created_at", "")))
+        if created_at is None:
+            continue
+        amount = _safe_non_negative_float(transaction.get("amount", 0.0))
+        if created_at.date() == now.date():
+            daily_total += amount
+        if created_at.year == now.year and created_at.month == now.month:
+            monthly_total += amount
+    return round(daily_total, 6), round(monthly_total, 6)
+
+
+def _parse_utc_datetime(value: str) -> datetime | None:
+    if not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def _reserve_credit_for_job(

@@ -71,6 +71,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "compute_job_event": "compute_job_events",
     "compute_job_artifact": "compute_job_artifacts",
     "billing_account": "compute_billing_accounts",
+    "billing_quota": "compute_billing_quotas",
     "credit_balance": "compute_credit_balances",
     "credit_transaction": "compute_credit_transactions",
     "payment_event": "compute_payment_events",

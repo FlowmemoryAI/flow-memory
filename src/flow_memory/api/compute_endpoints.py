@@ -379,6 +379,14 @@ def billing_balance(payload: Mapping[str, Any] | None = None) -> Mapping[str, An
     return default_service().billing_balance(payload or {})
 
 
+def billing_quota(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().billing_quota(payload or {})
+
+
+def billing_quota_set(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return default_service().set_billing_quota(payload)
+
+
 def billing_usage(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     return default_service().billing_usage(payload or {})
 

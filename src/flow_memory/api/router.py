@@ -53,6 +53,8 @@ from flow_memory.api.compute_endpoints import (
     admin_storage_diagnostics,
     billing_balance,
     billing_checkout,
+    billing_quota,
+    billing_quota_set,
     billing_refund,
     billing_provider_payouts,
     billing_provider_payout_settle,
@@ -786,6 +788,12 @@ class LocalApiRouter:
     def _billing_balance(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_balance(payload)
 
+    def _billing_quota(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_quota(payload)
+
+    def _billing_quota_set(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return billing_quota_set(payload)
+
     def _billing_usage(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return billing_usage(payload)
 
@@ -1167,6 +1175,8 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/billing/checkout", router._billing_checkout, "billing_checkout")
     router.register("POST", "/billing/webhooks/stripe", router._billing_webhook_stripe, "billing_webhook_stripe")
     router.register("GET", "/billing/balance", router._billing_balance, "billing_balance")
+    router.register("GET", "/billing/quota", router._billing_quota, "billing_quota")
+    router.register("POST", "/billing/quota", router._billing_quota_set, "billing_quota_set")
     router.register("GET", "/billing/usage", router._billing_usage, "billing_usage")
     router.register("GET", "/billing/provider-payouts", router._billing_provider_payouts, "billing_provider_payouts")
     router.register("POST", "/billing/provider-payouts/{payout_id}/settle", router._billing_provider_payout_settle, "billing_provider_payout_settle")

@@ -55,6 +55,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "compute_job_event",
     "compute_job_artifact",
     "billing_account",
+    "billing_quota",
     "credit_balance",
     "credit_transaction",
     "payment_event",

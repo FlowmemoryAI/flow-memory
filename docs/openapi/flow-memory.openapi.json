@@ -1537,6 +1537,89 @@
         ]
       }
     },
+    "/billing/quota": {
+      "get": {
+        "operationId": "billing_quota",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "quota": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get account spending quota guardrails",
+        "tags": [
+          "billing"
+        ]
+      },
+      "post": {
+        "operationId": "billing_quota_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "daily_spend_limit": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "string"
+                  },
+                  "monthly_spend_limit": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "quota": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Set account daily and monthly spending quotas without moving funds",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/billing/refund": {
       "post": {
         "operationId": "billing_refund",

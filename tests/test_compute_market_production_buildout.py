@@ -92,6 +92,19 @@ def _metric_total(service: ComputeMarketService, name: str, labels: Mapping[str,
     return total
 
 
+def _credit_account(service: ComputeMarketService, account_id: str, amount: float, *, event_id: str) -> None:
+    raw_event = {
+        "id": event_id,
+        "type": "checkout.session.completed",
+        "amount": amount,
+        "currency": "usd",
+        "metadata": {"account_id": account_id},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+
 _STRIPE_CHECKOUT_REQUESTS: list[dict[str, object]] = []
 _STRIPE_CHECKOUT_STATUS = 200
 
@@ -2917,6 +2930,151 @@ def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> Non
     assert retried_balance["reserved_credits"] == 0.18
 
 
+def test_billing_spending_quota_rejects_dispatch_above_daily_limit() -> None:
+    service = _service()
+    account_id = "acct_quota_daily"
+    _credit_account(service, account_id, 1.0, event_id="evt_quota_daily_credit")
+    quota = service.set_billing_quota(
+        {
+            "account_id": account_id,
+            "daily_spend_limit": 0.1,
+            "monthly_spend_limit": 10.0,
+        }
+    )
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_quota_daily_reject",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {})
+
+    assert quota["quota"]["funds_moved"] is False
+    assert dispatched["ok"] is False
+    assert dispatched["error"]["error_code"] == "billing.spending_quota_exceeded"
+    assert dispatched["event"]["event_type"] == "job.spending_quota_exceeded"
+    assert dispatched["quota"]["daily_spend_limit"] == 0.1
+    assert service.store.get_record("compute_job", job_id)["status"] == "queued"
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+    assert any(event["event_type"] == "job.spending_quota_exceeded" for event in service.job_events(job_id)["events"])
+    transactions = service.store.list_records("credit_transaction", filters={"tenant_id": account_id}, limit=10).records
+    assert all(record["transaction_type"] != "reserve" for record in transactions)
+
+
+def test_billing_spending_quota_allows_dispatch_within_limit() -> None:
+    service = _service()
+    account_id = "acct_quota_ok"
+    _credit_account(service, account_id, 1.0, event_id="evt_quota_ok_credit")
+    service.set_billing_quota(
+        {
+            "account_id": account_id,
+            "daily_spend_limit": 1.0,
+            "monthly_spend_limit": 10.0,
+        }
+    )
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_quota_dispatch_ok",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {})
+
+    assert dispatched["ok"] is True
+    assert dispatched["credit_reservation"]["status"] == "reserved"
+    assert dispatched["job"]["status"] == "running"
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    assert balance["available_credits"] == 0.82
+    assert balance["reserved_credits"] == 0.18
+
+
+def test_billing_spending_quota_counts_active_credit_reserves() -> None:
+    service = _service()
+    account_id = "acct_quota_reserved"
+    _credit_account(service, account_id, 1.0, event_id="evt_quota_reserved_credit")
+    service.set_billing_quota(
+        {
+            "account_id": account_id,
+            "daily_spend_limit": 0.3,
+            "monthly_spend_limit": 10.0,
+        }
+    )
+
+    first_job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_quota_reserved_first",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    second_job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_quota_reserved_second",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+
+    first_dispatch = service.dispatch_job(first_job_id, {})
+    second_dispatch = service.dispatch_job(second_job_id, {})
+
+    assert first_dispatch["ok"] is True
+    assert second_dispatch["ok"] is False
+    assert second_dispatch["error"]["error_code"] == "billing.spending_quota_exceeded"
+    assert second_dispatch["error"]["details"]["daily_spent"] == 0.18
+    assert second_dispatch["error"]["details"]["projected_daily_spend"] == 0.36
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    assert balance["available_credits"] == 0.82
+    assert balance["reserved_credits"] == 0.18
+
+
+def test_billing_spending_quota_defaults_to_unlimited_when_not_configured() -> None:
+    service = _service()
+    account_id = "acct_quota_default"
+    _credit_account(service, account_id, 1.0, event_id="evt_quota_default_credit")
+
+    quota = service.billing_quota({"account_id": account_id})
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_quota_default_ok",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {})
+
+    assert quota["quota"]["source"] == "config_default"
+    assert quota["quota"]["daily_spend_limit"] == 0.0
+    assert dispatched["ok"] is True
+    assert dispatched["credit_reservation"]["status"] == "reserved"
+
+
 def test_prepaid_credit_preauthorization_reserves_and_settles_usage() -> None:
     service = _service()
     raw_event = {
@@ -3480,6 +3638,8 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/compute/jobs/job_1/heartbeat") == ("compute:execute",)
         assert required_scopes_for("POST", "/compute/jobs/job_1/release-claim") == ("compute:execute",)
         assert required_scopes_for("POST", "/billing/checkout") == ("compute:billing",)
+        assert required_scopes_for("GET", "/billing/quota") == ("compute:billing",)
+        assert required_scopes_for("POST", "/billing/quota") == ("compute:billing",)
         assert required_scopes_for("POST", "/billing/refund") == ("compute:billing",)
         assert required_scopes_for("GET", "/billing/provider-payouts") == ("compute:billing",)
         assert required_scopes_for("POST", "/billing/provider-payouts/payout_1/settle") == ("compute:billing",)
@@ -3533,6 +3693,12 @@ def test_marketplace_api_routes_and_scopes() -> None:
         price_forecast = router.dispatch("POST", "/compute/prices/forecast", {})
         usage = router.dispatch("GET", "/compute/usage/by-agent/agent_api")
         statement = router.dispatch("GET", "/compute/usage/statement")
+        quota_set = router.dispatch(
+            "POST",
+            "/billing/quota",
+            {"account_id": "acct_api_quota", "daily_spend_limit": 0.5, "monthly_spend_limit": 5.0},
+        )
+        quota_get = router.dispatch("GET", "/billing/quota", {"account_id": "acct_api_quota"})
         assert dispatched["job"]["status"] == "running"
         assert claimed["job"]["status"] == "dispatched"
         assert completed["job"]["status"] == "succeeded"
@@ -3547,5 +3713,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert price_forecast["ok"] is True
         assert tuple(record["agent_id"] for record in usage["usage_records"]) == ("agent_api",)
         assert statement["statement"]["record_count"] >= 1
+        assert quota_set["quota"]["daily_spend_limit"] == 0.5
+        assert quota_get["quota"]["monthly_spend_limit"] == 5.0
     finally:
         reset_default_service(None)

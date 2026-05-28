@@ -23,6 +23,7 @@ from flow_memory.crypto.signatures import verify_payload
 _REQUEST_COUNTS: dict[str, int] = {}
 _CAPTURED_AUTH: list[str] = []
 _CAPTURED_SIGNATURE_HEADERS: list[dict[str, str]] = []
+_CAPTURED_REQUEST_BODIES: list[dict[str, Any]] = []
 _SIGNED_QUOTE_RESPONSE: dict[str, Any] | None = None
 
 def _signed_provider_payload(payload: Mapping[str, Any], signer: LocalTestSigner, signature_context: str) -> dict[str, Any]:
@@ -65,6 +66,13 @@ class _QuoteHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802 - http.server API
         _REQUEST_COUNTS[self.path] = _REQUEST_COUNTS.get(self.path, 0) + 1
         _CAPTURED_AUTH.append(self.headers.get("x-provider-token", ""))
+        request_length = int(self.headers.get("content-length", "0") or "0")
+        request_body = self.rfile.read(request_length) if request_length else b""
+        try:
+            decoded_body = json.loads(request_body.decode("utf-8")) if request_body else {}
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            decoded_body = {}
+        _CAPTURED_REQUEST_BODIES.append(decoded_body if isinstance(decoded_body, dict) else {})
         _CAPTURED_SIGNATURE_HEADERS.append(
             {
                 "signature": self.headers.get("x-flow-memory-provider-signature", ""),
@@ -72,6 +80,8 @@ class _QuoteHandler(BaseHTTPRequestHandler):
                 "key_id": self.headers.get("x-flow-memory-provider-signature-key-id", ""),
                 "timestamp": self.headers.get("x-flow-memory-provider-request-timestamp", ""),
                 "nonce": self.headers.get("x-flow-memory-provider-request-nonce", ""),
+                "idempotency_key": self.headers.get("idempotency-key", ""),
+                "provider_idempotency_key": self.headers.get("x-flow-memory-provider-idempotency-key", ""),
             }
         )
         if self.path == "/invalid-json":
@@ -107,6 +117,25 @@ class _QuoteHandler(BaseHTTPRequestHandler):
         if self.path == "/signed":
             self._send_json({"quote": dict(_SIGNED_QUOTE_RESPONSE or _quote())})
             return
+        if self.path == "/execute-capture":
+            job = decoded_body.get("job", {}) if isinstance(decoded_body.get("job"), Mapping) else {}
+            self._send_json(
+                {
+                    "execution": {
+                        "execution_id": "exec-captured-idempotency",
+                        "provider_job_id": "exec-captured-idempotency",
+                        "job_id": str(job.get("job_id", "")),
+                        "provider_id": "market-token-provider",
+                        "status": "running",
+                        "artifact_ref": "",
+                        "artifact_data": {},
+                        "actual_units": 0.0,
+                        "actual_total_cost": 0.0,
+                        "actual_latency_ms": 0.0,
+                    }
+                }
+            )
+            return
         self._send_json({"quote": _quote()})
 
     def _send_json(self, payload: dict[str, Any]) -> None:
@@ -125,6 +154,7 @@ def _server() -> tuple[ThreadingHTTPServer, str]:
     _CAPTURED_AUTH.clear()
     _CAPTURED_SIGNATURE_HEADERS.clear()
     _SIGNED_QUOTE_RESPONSE = None
+    _CAPTURED_REQUEST_BODIES.clear()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _QuoteHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -393,6 +423,57 @@ def test_signed_provider_request_headers_are_payload_bound() -> None:
     assert signature_payload["timestamp"] == "1234567890"
     assert signature_payload["nonce"] == "nonce-1"
     assert verify_payload(signature_payload, envelope, key) is True
+
+def test_http_provider_execution_sends_stable_idempotency_contract() -> None:
+    server, base = _server()
+    seed_provider = _provider(f"{base}/valid")
+    adapter = HTTPQuoteProvider(
+        seed_provider.provider,
+        seed_provider.routes,
+        execution_endpoint=f"{base}/execute-capture",
+        execution_enabled=True,
+        allow_private_networks=True,
+        allowed_hosts=("127.0.0.1",),
+        retry_policy=RetryPolicy(max_retries=0, backoff_seconds=0.01),
+    )
+    plan = {
+        "job_id": "job_exec_idempotent",
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/job.json",
+        "model_or_runtime": "sandbox-runtime",
+        "resource_request": {"gpu_type": "H100"},
+        "budget_policy_id": "policy_default",
+        "route_id": "market-token-route",
+        "provider_id": "market-token-provider",
+        "attempt": 2,
+    }
+
+    try:
+        first = adapter.execute_plan(plan)
+        second = adapter.execute_plan(plan)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    first_body = _CAPTURED_REQUEST_BODIES[0]
+    second_body = _CAPTURED_REQUEST_BODIES[1]
+    first_key = str(first_body["job"]["execution_idempotency_key"])
+    second_key = str(second_body["job"]["execution_idempotency_key"])
+
+    assert first["ok"] is True
+    assert first["execution_idempotency_key"] == first_key
+    assert second["execution_idempotency_key"] == first_key
+    assert first_key
+    assert first_key == second_key
+    assert first_body["job"]["attempt"] == 2
+    assert first_body["job"]["dry_run_only"] is True
+    assert first_body["job"]["funds_moved"] is False
+    assert first_body["job"]["broadcast_allowed"] is False
+    assert first_body["job"]["private_key_required"] is False
+    assert _CAPTURED_SIGNATURE_HEADERS[0]["idempotency_key"] == first_key
+    assert _CAPTURED_SIGNATURE_HEADERS[0]["provider_idempotency_key"] == first_key
+    assert _CAPTURED_SIGNATURE_HEADERS[1]["idempotency_key"] == first_key
+    assert _CAPTURED_SIGNATURE_HEADERS[1]["provider_idempotency_key"] == first_key
 
 def test_http_provider_classifies_invalid_oversized_timeout_and_retry_paths() -> None:
     server, base = _server()

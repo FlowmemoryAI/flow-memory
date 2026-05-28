@@ -389,14 +389,20 @@ class HTTPQuoteProvider:
                 provider_id=self.provider.provider_id,
                 job_id=str(plan.get("job_id", "")),
             )
+        execution_job = _execution_job_contract(plan)
         payload_record = {
-            "job": _execution_job_contract(plan),
+            "job": execution_job,
             "provider_id": self.provider.provider_id,
             "dry_run_only": True,
             "funds_moved": False,
             "broadcast_allowed": False,
             "private_key_required": False,
         }
+        execution_idempotency_key = str(execution_job.get("execution_idempotency_key", ""))
+        request_headers = self._request_headers(execution=True, payload=payload_record)
+        if execution_idempotency_key:
+            request_headers["idempotency-key"] = execution_idempotency_key
+            request_headers["x-flow-memory-provider-idempotency-key"] = execution_idempotency_key
         payload = json.dumps(payload_record, sort_keys=True, default=str).encode("utf-8")
         attempts = max(1, self.retry_policy.max_retries + 1)
         last_error = "provider_execution.provider_error"
@@ -405,7 +411,7 @@ class HTTPQuoteProvider:
                 request = urllib.request.Request(
                     self.execution_endpoint,
                     data=payload,
-                    headers=self._request_headers(execution=True, payload=payload_record),
+                    headers=request_headers,
                     method="POST",
                 )
                 opener = urllib.request.build_opener(_NoRedirectHandler())
@@ -414,7 +420,10 @@ class HTTPQuoteProvider:
                 if len(raw_bytes) > self.max_response_bytes:
                     raise ValueError("provider execution response exceeds max_response_bytes")
                 raw = json.loads(raw_bytes.decode("utf-8"))
-                return self.normalize_execution_result(raw, plan)
+                return self.normalize_execution_result(
+                    raw,
+                    {**dict(plan), "execution_idempotency_key": execution_idempotency_key},
+                )
             except TimeoutError:
                 last_error = "provider_execution.timeout"
             except urllib.error.HTTPError as exc:
@@ -474,6 +483,7 @@ class HTTPQuoteProvider:
             "funds_moved": False,
             "broadcast_allowed": False,
             "private_key_required": False,
+            "execution_idempotency_key": str(plan.get("execution_idempotency_key", "")),
             "raw_result_hash": content_hash(result),
         }
         if raw_signature:
@@ -883,15 +893,30 @@ def _extract_execution_result(raw: object) -> Mapping[str, Any]:
 
 def _execution_job_contract(job: Mapping[str, Any]) -> Mapping[str, Any]:
     resource_request = job.get("resource_request", {})
+    provider_id = str(job.get("provider_id", ""))
+    route_id = str(job.get("route_id", ""))
+    job_id = str(job.get("job_id", ""))
+    attempt = int(float(job.get("attempt", 0) or 0))
+    execution_idempotency_key = deterministic_id(
+        "provider_execution",
+        {
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "job_id": job_id,
+            "attempt": attempt,
+        },
+    )
     return {
-        "job_id": str(job.get("job_id", "")),
+        "job_id": job_id,
         "task_type": str(job.get("task_type", "")),
         "input_ref": str(job.get("input_ref", "")),
         "model_or_runtime": str(job.get("model_or_runtime", "")),
         "resource_request": dict(resource_request) if isinstance(resource_request, Mapping) else {},
         "budget_policy_id": str(job.get("budget_policy_id", "")),
-        "route_id": str(job.get("route_id", "")),
-        "provider_id": str(job.get("provider_id", "")),
+        "route_id": route_id,
+        "provider_id": provider_id,
+        "attempt": attempt,
+        "execution_idempotency_key": execution_idempotency_key,
         "dry_run_only": True,
         "funds_moved": False,
         "broadcast_allowed": False,

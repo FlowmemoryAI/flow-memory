@@ -332,7 +332,7 @@ class S3WormAuditExporter:
             ObjectLockMode=self.object_lock_mode,
             ObjectLockRetainUntilDate=retention_until,
         )
-        self._assert_object_lock_readback(client, key, expected_metadata=metadata)
+        self._assert_object_lock_readback(client, key, expected_metadata=metadata, expected_retention_until=retention_until)
         self._last_export_key = key
         return AuditExportResult(True, export_uri, checkpoint, manifest_hash, len(events))
 
@@ -363,7 +363,7 @@ class S3WormAuditExporter:
             ObjectLockMode=self.object_lock_mode,
             ObjectLockRetainUntilDate=retention_until,
         )
-        self._assert_object_lock_readback(client, key, expected_metadata=metadata)
+        self._assert_object_lock_readback(client, key, expected_metadata=metadata, expected_retention_until=retention_until)
         return {"ok": True, "path": f"s3://{self.bucket}/{key}", "checkpoint": checkpoint.as_record(), "checkpoint_record": checkpoint_record, "object_lock_mode": self.object_lock_mode}
 
     def verify_export(self) -> AuditExportVerification:
@@ -413,10 +413,12 @@ class S3WormAuditExporter:
             }
             if signing_key is not None:
                 expected_metadata["manifest-signature-key-id"] = signing_key.key_id
+            expected_retention_until = _parse_iso_datetime(str(manifest.get("retention_until", "")))
             self._assert_object_lock_readback(
                 client,
                 self._last_export_key,
                 expected_metadata=expected_metadata,
+                expected_retention_until=expected_retention_until,
             )
             return AuditExportVerification(True, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash)
         except Exception as exc:
@@ -485,7 +487,14 @@ class S3WormAuditExporter:
         if not self._bucket_object_lock_enabled():
             raise RuntimeError("S3 audit exporter requires bucket Object Lock to be enabled")
 
-    def _assert_object_lock_readback(self, client: Any, key: str, *, expected_metadata: Mapping[str, str]) -> None:
+    def _assert_object_lock_readback(
+        self,
+        client: Any,
+        key: str,
+        *,
+        expected_metadata: Mapping[str, str],
+        expected_retention_until: datetime | None = None,
+    ) -> None:
         if not hasattr(client, "head_object"):
             raise RuntimeError("S3 audit exporter requires head_object readback")
         response = client.head_object(Bucket=self.bucket, Key=key)
@@ -500,8 +509,14 @@ class S3WormAuditExporter:
         object_lock_mode = str(response.get("ObjectLockMode", ""))
         if object_lock_mode != self.object_lock_mode:
             raise RuntimeError("S3 audit exporter readback Object Lock mode mismatch")
-        if not response.get("ObjectLockRetainUntilDate"):
+        retention_until = response.get("ObjectLockRetainUntilDate")
+        actual_retention_until = _retention_compare_value(retention_until)
+        if actual_retention_until is None:
             raise RuntimeError("S3 audit exporter readback retention timestamp is missing")
+        if expected_retention_until is not None:
+            expected = _retention_compare_value(expected_retention_until)
+            if expected is None or actual_retention_until != expected:
+                raise RuntimeError("S3 audit exporter readback retention timestamp mismatch")
 
     def _client(self) -> Any:
         if not self.bucket:
@@ -753,6 +768,26 @@ def _retention_until(retention_days: int) -> datetime:
 
 def _iso_timestamp(value: datetime) -> str:
     return value.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _parse_iso_datetime(value: str) -> datetime | None:
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    try:
+        return datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _retention_compare_value(value: object) -> datetime | None:
+    if isinstance(value, datetime):
+        return value.astimezone(timezone.utc).replace(microsecond=0)
+    if isinstance(value, str):
+        parsed = _parse_iso_datetime(value)
+        if parsed is not None:
+            return parsed.astimezone(timezone.utc).replace(microsecond=0)
+    return None
 
 
 def _int_query_value(value: object, *, default: int) -> int:

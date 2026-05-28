@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from typing import Any
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
@@ -294,6 +295,45 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     tampered = exporter.verify_export()
     assert tampered.ok is False
     assert tampered.error_code == "manifest_hash_mismatch"
+
+def test_s3_object_lock_readback_rejects_wrong_retention_date() -> None:
+    class TruncatingRetentionClient(FakeS3Client):
+        def put_object(self, **kwargs: Any) -> dict[str, Any]:
+            result = super().put_object(**kwargs)
+            bucket = str(kwargs["Bucket"])
+            key = str(kwargs["Key"])
+            self.heads[(bucket, key)]["ObjectLockRetainUntilDate"] = kwargs["ObjectLockRetainUntilDate"] - timedelta(days=1)
+            return result
+
+    client = TruncatingRetentionClient()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = _service()
+    service.plan({"task": "truncated retention export", "request_id": "s3-retention-truncated-write"})
+
+    try:
+        exporter.export_events(service.store, chain_id="all")
+    except RuntimeError as exc:
+        assert "retention timestamp mismatch" in str(exc)
+    else:
+        raise AssertionError("S3 Object Lock exporter accepted a truncated retention timestamp")
+
+
+def test_s3_object_lock_verify_export_detects_retention_truncation() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = _service()
+    service.plan({"task": "verify truncated retention", "request_id": "s3-retention-truncated-verify"})
+
+    exported = exporter.export_events(service.store, chain_id="all")
+    export_key = exported.path.removeprefix("s3://flow-memory-audit/")
+    head = client.heads[("flow-memory-audit", export_key)]
+    head["ObjectLockRetainUntilDate"] = head["ObjectLockRetainUntilDate"] - timedelta(days=1)
+
+    verified = exporter.verify_export()
+
+    assert verified.ok is False
+    assert verified.error_code == "RuntimeError"
+    assert "retention timestamp mismatch" in verified.message
 
 
 def test_s3_object_lock_exporter_signs_manifest_and_checkpoint(monkeypatch: Any) -> None:

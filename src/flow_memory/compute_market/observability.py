@@ -53,6 +53,7 @@ _METRIC_NAMES: tuple[str, ...] = (
     "billing_debit_total",
     "billing_payout_settled_total",
     "billing_insufficient_credit_total",
+    "billing_refund_skipped_no_debit_total",
     "billing_checkout_created_total",
     "billing_checkout_failed_total",
     "billing_webhook_failures_total",

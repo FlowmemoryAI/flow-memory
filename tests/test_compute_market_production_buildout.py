@@ -2145,6 +2145,59 @@ def test_reconciliation_applies_provider_sla_credit_and_payout_adjustment_withou
     assert payout["funds_moved"] is False
 
 
+def test_reconciliation_skips_sla_refund_when_credit_debit_did_not_post() -> None:
+    service = _service()
+    service.apply_market_provider(_provider_application())
+    service.verify_market_provider("provider_live_gpu_1", {})
+    raw_event = {
+        "id": "evt_sla_insufficient_credit",
+        "type": "checkout.session.completed",
+        "amount": 0.1,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_sla_insufficient"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_sla_insufficient_credit"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": "acct_sla_insufficient",
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 1500,
+            "currency": "USD",
+        },
+    )
+    reconciliation = service.reconciliation({})["reconciliation"]
+    penalty = service.store.get_record(
+        "provider_sla_penalty",
+        str(completed["provider_sla_penalty"]["sla_penalty_id"]),
+    )
+
+    assert completed["credit_debit"]["status"] == "insufficient_credit"
+    assert completed["provider_payout"] == {}
+    assert service.store.count_records("refund") == 0
+    assert penalty is not None
+    assert penalty["status"] == "pending_reconciliation"
+    assert not penalty.get("refund_id")
+    assert reconciliation["provider_sla_penalty_reconciled_this_run"] == 0
+    assert reconciliation["provider_sla_penalty_reconciled_count"] == 0
+    assert reconciliation["refund_count"] == 0
+    assert reconciliation["ledger_balanced"] is False
+    assert reconciliation["ledger_balance_delta"] == 0.18
+    assert (
+        _metric_total(
+            service,
+            "billing_refund_skipped_no_debit_total",
+            {"provider_id": "provider_live_gpu_1", "debit_status": "insufficient_credit"},
+        )
+        == 0.18
+    )
+
 def test_provider_reputation_uses_capacity_fulfillment_from_confirmed_reservations() -> None:
     service = _service()
     service.list_capacity(

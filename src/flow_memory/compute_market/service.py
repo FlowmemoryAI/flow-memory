@@ -4227,6 +4227,27 @@ class ComputeMarketService:
             amount = _safe_non_negative_float(penalty.get("recommended_credit_amount", 0.0))
             if not penalty_id or not account_id or not usage_charge_id or amount <= 0.0:
                 continue
+            debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
+            debit = self.store.get_record("credit_transaction", debit_id)
+            if debit is None or str(debit.get("status", "")) != "posted":
+                self.telemetry.increment(
+                    "billing_refund_skipped_no_debit_total",
+                    {
+                        "provider_id": str(penalty.get("provider_id", "")),
+                        "debit_status": str((debit or {}).get("status", "missing")),
+                    },
+                    value=amount,
+                )
+                self._audit(
+                    "billing.provider_sla_penalty.refund_skipped",
+                    payload,
+                    request_id=request_id,
+                    result="debit_not_posted",
+                    reason_codes=("billing.debit_not_posted",),
+                    provider_id=str(penalty.get("provider_id", "")),
+                    route_id=str(penalty.get("route_id", "")),
+                )
+                continue
             refund_result = self.billing_refund(
                 {
                     "usage_charge_id": usage_charge_id,
@@ -4417,7 +4438,7 @@ class ComputeMarketService:
         credit_balances = self._all_records("credit_balance")
         credit_transactions = self._all_records("credit_transaction")
         usage_total = _record_amount_total(usage_charges)
-        refund_total = _record_amount_total(refunds)
+        refund_total = _posted_refund_total(refunds, credit_transactions)
         provider_payout_total = _record_amount_total(provider_payouts)
         invoice_total = _record_amount_total(billing_invoices)
         credit_ledger_integrity = _credit_ledger_integrity(credit_balances, credit_transactions)
@@ -8817,6 +8838,27 @@ def _debit_credit(
         idempotency_key=transaction_id,
     )
     return transaction
+
+
+def _posted_refund_total(
+    refunds: Sequence[Mapping[str, Any]],
+    credit_transactions: Sequence[Mapping[str, Any]],
+) -> float:
+    posted_refund_ids = {
+        str(transaction.get("refund_id", ""))
+        for transaction in credit_transactions
+        if str(transaction.get("transaction_type", "")) == "refund_credit"
+        and str(transaction.get("status", "")) == "posted"
+        and str(transaction.get("refund_id", ""))
+    }
+    return round(
+        sum(
+            _safe_non_negative_float(refund.get("amount", 0.0))
+            for refund in refunds
+            if str(refund.get("refund_id", "")) in posted_refund_ids
+        ),
+        6,
+    )
 
 
 def _apply_refund_credit(

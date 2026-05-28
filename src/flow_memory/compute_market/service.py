@@ -1805,6 +1805,13 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         _assert_provider_catalog_access(self.store, provider_id, payload)
+        idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        if idempotency_key:
+            existing = self.store.find_by_idempotency("compute_reservation", idempotency_key)
+            if existing is not None:
+                if not _tenant_can_access_record(payload, existing):
+                    raise KeyError("Unknown capacity reservation for idempotency key")
+                return {"ok": True, "reservation": existing, "idempotent_replay": True}
         capacity_filters = {"provider_id": provider_id, "route_id": route_id}
         if _payload_tenant_id(payload):
             capacity_filters["tenant_id"] = _payload_tenant_id(payload)
@@ -1818,14 +1825,14 @@ class ComputeMarketService:
             route_id=route_id,
             status=str(reservation["status"]),
             expires_at=str(reservation["hold_expires_at"]),
-            idempotency_key=str(payload.get("idempotency_key", "")),
+            idempotency_key=idempotency_key,
             request_id=request_id,
             tenant_id=str(payload.get("tenant_id", "")),
             workspace_id=str(payload.get("workspace_id", "")),
         )
         self.telemetry.increment("capacity_reserved_total", {"provider_id": provider_id, "route_id": route_id}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
         self._audit("market.capacity.reserved", payload, request_id=request_id, result="held", provider_id=provider_id, route_id=route_id)
-        return {"ok": True, "reservation": reservation}
+        return {"ok": True, "reservation": reservation, "idempotent_replay": False}
 
     def confirm_capacity(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -1893,6 +1900,8 @@ class ComputeMarketService:
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
         if not _tenant_can_access_record(payload, current):
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
+        if str(current.get("status", "")) == "released":
+            return {"ok": True, "reservation": current, "idempotent_replay": True}
         released_at = utc_now_iso()
         released_capacity_units = _capacity_reservation_remaining_units(current)
         reservation = {
@@ -1914,9 +1923,16 @@ class ComputeMarketService:
             tenant_id=str(reservation.get("tenant_id", "")),
             workspace_id=str(reservation.get("workspace_id", "")),
         )
-        self.telemetry.increment("capacity_released_total", {"provider_id": str(reservation.get("provider_id", "")), "route_id": str(reservation.get("route_id", ""))}, value=float(reservation.get("capacity_units", 0.0) or 0.0))
+        self.telemetry.increment(
+            "capacity_released_total",
+            {
+                "provider_id": str(reservation.get("provider_id", "")),
+                "route_id": str(reservation.get("route_id", "")),
+            },
+            value=released_capacity_units,
+        )
         self._audit("market.capacity.released", payload, request_id=request_id, result="released", provider_id=str(reservation.get("provider_id", "")), route_id=str(reservation.get("route_id", "")))
-        return {"ok": True, "reservation": reservation}
+        return {"ok": True, "reservation": reservation, "idempotent_replay": False}
 
     def _expire_capacity_holds(self, payload: Mapping[str, Any], *, request_id: str) -> tuple[Mapping[str, Any], ...]:
         provider_id = str(payload.get("provider_id", ""))

@@ -1274,6 +1274,55 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     replacement = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 10})
     assert replacement["reservation"]["status"] == "held"
 
+def test_reserve_capacity_idempotency_replay_does_not_mutate_capacity_or_metrics() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 10,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+
+    first = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 4,
+            "idempotency_key": "reserve-capacity-replay-1",
+        }
+    )
+    replay = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "capacity_units": 7,
+            "allow_partial": True,
+            "idempotency_key": "reserve-capacity-replay-1",
+        }
+    )
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert replay["idempotent_replay"] is True
+    assert replay["reservation"]["reservation_id"] == first["reservation"]["reservation_id"]
+    assert replay["reservation"]["capacity_units"] == 4
+    assert service.store.count_records("compute_reservation") == 1
+    assert summary["held_capacity_units"] == 4
+    assert summary["available_capacity_units"] == 6
+    assert _metric_total(
+        service,
+        "capacity_reserved_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 4.0
+
 
 def test_capacity_listing_rejects_shrinking_window_below_active_reservations() -> None:
     service = _service()
@@ -1388,8 +1437,10 @@ def test_release_capacity_is_safe_for_replay_and_unknown_reservations() -> None:
         {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 4}
     )["reservation"]
 
-    first_release = service.release_capacity({"reservation_id": held["reservation_id"]})["reservation"]
-    second_release = service.release_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    first_release_result = service.release_capacity({"reservation_id": held["reservation_id"]})
+    second_release_result = service.release_capacity({"reservation_id": held["reservation_id"]})
+    first_release = first_release_result["reservation"]
+    second_release = second_release_result["reservation"]
     stored_after_second_release = service.store.get_record("compute_reservation", str(held["reservation_id"]))
     summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
         "summary"
@@ -1402,11 +1453,18 @@ def test_release_capacity_is_safe_for_replay_and_unknown_reservations() -> None:
     assert second_release["status"] == "released"
     assert second_release["dry_run_only"] is True
     assert second_release["funds_moved"] is False
+    assert second_release_result["idempotent_replay"] is True
+    assert first_release["released_at"] == second_release["released_at"]
     assert stored_after_second_release is not None
     assert stored_after_second_release["status"] == "released"
     assert summary["held_capacity_units"] == 0
     assert summary["reserved_capacity_units"] == 0
     assert summary["available_capacity_units"] == 4
+    assert _metric_total(
+        service,
+        "capacity_released_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 4.0
 
     try:
         service.release_capacity({"reservation_id": "reservation_missing"})
@@ -1414,6 +1472,62 @@ def test_release_capacity_is_safe_for_replay_and_unknown_reservations() -> None:
         assert "Unknown capacity reservation: reservation_missing" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("unknown capacity reservation was released")
+
+def test_release_capacity_reports_only_remaining_units_after_partial_consumption() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 5,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 3}
+    )["reservation"]
+    reservation_id = str(service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]["reservation_id"])
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_partial_release",
+                "capacity_reservation_id": reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+    service.complete_job(
+        job_id,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "capacity_units_consumed": 2,
+        },
+    )
+
+    released = service.release_capacity({"reservation_id": reservation_id})["reservation"]
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert released["status"] == "released"
+    assert released["consumed_capacity_units"] == 2
+    assert released["released_capacity_units"] == 1
+    assert released["remaining_capacity_units"] == 0.0
+    assert summary["consumed_capacity_units"] == 2
+    assert summary["available_capacity_units"] == 3
+    assert _metric_total(
+        service,
+        "capacity_released_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 1.0
 
 def test_capacity_listing_expires_stale_holds_before_publishing_inventory() -> None:
     service = _service()

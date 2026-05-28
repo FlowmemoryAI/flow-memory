@@ -864,7 +864,7 @@ def test_http_gateway_billing_writes_are_tenant_scoped_and_fail_closed() -> None
                     "key_hash": api_key_hash(tenant_key),
                     "tenant_id": "tenant_billing_write_a",
                     "principal": "svc-billing-write-a",
-                    "scopes": "compute:billing",
+                    "scopes": "compute:billing compute:settlement-admin",
                     "enabled": True,
                 },
             ),
@@ -1411,6 +1411,7 @@ def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
     )
     reset_default_service(service)
     key_a = "fmk_tenant_billing_lifecycle_a"
+    key_a_billing_only = "fmk_tenant_billing_lifecycle_a_billing_only"
     key_b = "fmk_tenant_billing_lifecycle_b"
     gateway = HttpApiGateway(
         config=HttpApiConfig(
@@ -1423,6 +1424,20 @@ def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
                     "key_hash": api_key_hash(key_a),
                     "tenant_id": "tenant_billing_lifecycle_a",
                     "principal": "svc-billing-lifecycle-a",
+                    "scopes": (
+                        "compute:billing",
+                        "compute:execute",
+                        "compute:read",
+                        "compute:settlement-admin",
+                    ),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "tenant-billing-lifecycle-a-billing-only-key",
+                    "key_prefix": "fmk_tenant_billing_lifecycle_a_billing_only",
+                    "key_hash": api_key_hash(key_a_billing_only),
+                    "tenant_id": "tenant_billing_lifecycle_a",
+                    "principal": "svc-billing-lifecycle-a-billing-only",
                     "scopes": ("compute:billing", "compute:execute", "compute:read"),
                     "enabled": True,
                 },
@@ -1501,6 +1516,17 @@ def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
         balance = gateway.handle("GET", "/billing/balance", {"x-flow-memory-api-key": key_a})
         payouts = gateway.handle("GET", "/billing/provider-payouts?status=accrued", {"x-flow-memory-api-key": key_a})
         payout_id = str(completed.body["data"]["provider_payout"]["provider_payout_id"])
+        billing_only_settle = gateway.handle(
+            "POST",
+            f"/billing/provider-payouts/{payout_id}/settle",
+            {"x-flow-memory-api-key": key_a_billing_only},
+            json.dumps(
+                {
+                    "external_payout_reference": "manual-ledger-gateway-billing-only",
+                    "settled_by": "billing-only",
+                }
+            ).encode("utf-8"),
+        )
         settled = gateway.handle(
             "POST",
             f"/billing/provider-payouts/{payout_id}/settle",
@@ -1537,6 +1563,8 @@ def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
     assert balance.body["data"]["balance"]["reserved_credits"] == 0.0
     assert payouts.status == 200
     assert [payout["provider_payout_id"] for payout in payouts.body["data"]["provider_payouts"]] == [payout_id]
+    assert billing_only_settle.status == 403
+    assert billing_only_settle.body["error"]["details"]["missing"] == ("compute:settlement-admin",)
     assert settled.status == 200
     assert settled.body["data"]["provider_payout"]["status"] == "settled"
     assert settled.body["data"]["provider_payout"]["funds_moved"] is False

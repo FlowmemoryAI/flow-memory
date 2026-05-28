@@ -173,6 +173,8 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         return (VISUAL_STREAM_SCOPE,)
     if path_key == "/metrics":
         return (COMPUTE_READ_SCOPE,)
+    if path_key.startswith("/billing/provider-payouts/") and path_key.endswith("/settle"):
+        return (COMPUTE_SETTLEMENT_ADMIN_SCOPE,)
     if path_key.startswith("/billing/"):
         return (COMPUTE_BILLING_SCOPE,)
     if path_key.startswith("/admin/"):

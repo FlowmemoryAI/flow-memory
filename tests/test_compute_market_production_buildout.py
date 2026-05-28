@@ -6046,7 +6046,7 @@ def test_marketplace_api_routes_and_scopes() -> None:
         assert required_scopes_for("POST", "/billing/quota") == ("compute:billing",)
         assert required_scopes_for("POST", "/billing/refund") == ("compute:billing",)
         assert required_scopes_for("GET", "/billing/provider-payouts") == ("compute:billing",)
-        assert required_scopes_for("POST", "/billing/provider-payouts/payout_1/settle") == ("compute:billing",)
+        assert required_scopes_for("POST", "/billing/provider-payouts/payout_1/settle") == ("compute:settlement-admin",)
         assert required_scopes_for("POST", "/admin/providers/provider_admin_api/approve") == ("compute:admin",)
         assert required_scopes_for("POST", "/admin/providers/provider_admin_api/suspend") == ("compute:admin",)
         assert required_scopes_for("POST", "/admin/routes/route_live_gpu_1/disable") == ("compute:admin",)

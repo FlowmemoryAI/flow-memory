@@ -108,6 +108,14 @@ PLACEHOLDERS = (
     "managed-postgres-host",
     "managed-redis-host",
 )
+RESERVED_PUBLIC_HOST_SUFFIXES = (
+    "example.com",
+    "example.test",
+    "example.invalid",
+    "test",
+    "invalid",
+)
+
 
 
 class RenderError(RuntimeError):
@@ -748,6 +756,8 @@ def public_url_block_reason(url: str) -> str:
         return "public_url_missing_host"
     if host in {"localhost", "ip6-localhost", "ip6-loopback"} or host.endswith(".local"):
         return "public_url_must_not_use_localhost"
+    if host in RESERVED_PUBLIC_HOST_SUFFIXES or any(host.endswith(f".{suffix}") for suffix in RESERVED_PUBLIC_HOST_SUFFIXES):
+        return "public_url_placeholder_not_allowed"
     try:
         address = ipaddress.ip_address(host)
     except ValueError:

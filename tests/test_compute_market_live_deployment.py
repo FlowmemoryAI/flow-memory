@@ -227,6 +227,13 @@ def test_render_deploy_requires_https_public_url_before_smoke() -> None:
     assert placeholder_blocked.value.code == 33
     assert placeholder_smoke["ok"] is False
     assert placeholder_smoke["reason"] == "public_url_placeholder_not_allowed"
+    with pytest.raises(SystemExit) as reserved_blocked:
+        render_deploy.assert_https_public_url("https://api.example.com")
+    reserved_smoke = render_deploy.smoke_public("https://api.example.test", "api-key")
+
+    assert reserved_blocked.value.code == 33
+    assert reserved_smoke["ok"] is False
+    assert reserved_smoke["reason"] == "public_url_placeholder_not_allowed"
 
 
 def test_render_deploy_blocks_unsafe_level1_env_overrides() -> None:
@@ -278,7 +285,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         request_headers = headers or {}
         calls.append((method, url, headers, body))
         scopes = request_headers.get("x-flow-memory-scopes", "")
-        if url == "https://api.example.test/":
+        if url == "https://api.flowmemory.ai/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
         if url.endswith("/compute/health") and request_headers.get("authorization"):
             jwt_health_calls += 1
@@ -375,7 +382,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     monkeypatch.setattr(render_deploy, "call_text", fake_call_text)
 
     result = render_deploy.smoke_public(
-        "https://api.example.test",
+        "https://api.flowmemory.ai",
         "api-key",
         {
             "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-jwt-secret-with-at-least-32-characters",
@@ -416,7 +423,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
-        "https://api.example.test",
+        "https://api.flowmemory.ai",
         "api-key",
         require_immutable_audit=True,
     )
@@ -425,7 +432,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
 
     audit_exporter = "s3_object_lock"
     strict_s3_result = render_deploy.smoke_public(
-        "https://api.example.test",
+        "https://api.flowmemory.ai",
         "api-key",
         require_immutable_audit=True,
     )
@@ -442,7 +449,7 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
     ) -> tuple[int, dict[str, object]]:
         request_headers = headers or {}
         scopes = request_headers.get("x-flow-memory-scopes", "")
-        if url == "https://api.example.test/":
+        if url == "https://api.flowmemory.ai/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
         if url.endswith("/compute/health") and not request_headers.get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
@@ -524,7 +531,7 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
     monkeypatch.setattr(render_deploy, "call_json", fake_call_json)
     monkeypatch.setattr(render_deploy, "call_text", lambda *_args, **_kwargs: (200, "compute_plan_requests_total 1\n"))
 
-    result = render_deploy.smoke_public("https://api.example.test", "api-key")
+    result = render_deploy.smoke_public("https://api.flowmemory.ai", "api-key")
 
     assert result["ok"] is False
     assert result["require_managed_sql_in_production"] is False

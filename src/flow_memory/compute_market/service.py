@@ -1211,6 +1211,40 @@ class ComputeMarketService:
             )
             self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
+        stale_same_provider_replay = _same_provider_stale_quote_replay(
+            self.store,
+            quote_id,
+            quote_hash,
+            provider_id,
+            payload,
+        )
+        if stale_same_provider_replay:
+            replayed_quote = stale_same_provider_replay.get("quote", {})
+            signal = _record_provider_fraud_signal(
+                self.store,
+                provider_id=provider_id,
+                route_id=route_id,
+                quote_id=quote_id,
+                signal_type="stale_quote_submission",
+                severity="warning",
+                request_id=request_id,
+                details={
+                    "quote_hash": quote_hash,
+                    "previous_status": str(replayed_quote.get("status", "")) if isinstance(replayed_quote, Mapping) else "",
+                    "previous_expires_at": str(replayed_quote.get("expires_at", "")) if isinstance(replayed_quote, Mapping) else "",
+                },
+                tenant_id=str(payload.get("tenant_id", "")),
+                workspace_id=str(payload.get("workspace_id", "")),
+                telemetry=self.telemetry,
+            )
+            error = compute_error(
+                "quote.stale_replay_detected",
+                "Provider quote replay matched a stale or expired prior quote.",
+                details={"quote_id": quote_id, "provider_id": provider_id, "signal_id": signal["signal_id"]},
+                request_id=request_id,
+            )
+            self._audit("market.quote.stale_replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("stale_quote_replay_detected",), provider_id=provider_id, route_id=route_id)
+            return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
         if not validation.ok:
             validation_fraud_signals = _fraud_signals_from_validation(
                 self.store,
@@ -6695,6 +6729,51 @@ def _cross_provider_quote_replay(
         observed_provider_id = str(observed.get("provider_id", ""))
         if observed_provider_id and observed_provider_id != provider_id and str(observed.get("quote_hash", "")) == quote_hash:
             return observed
+    return {}
+
+_STALE_QUOTE_REPLAY_STATUSES = frozenset(("stale", "expired", "invalidated", "disabled"))
+
+
+def _same_provider_stale_quote_replay(
+    store: ComputeMarketStoreProtocol,
+    quote_id: str,
+    quote_hash: str,
+    provider_id: str,
+    payload: Mapping[str, Any] | None = None,
+) -> Mapping[str, Any]:
+    access_payload = payload or {}
+    tenant_id = _payload_tenant_id(access_payload)
+    existing_guard = _get_tenant_scoped_record(
+        store,
+        "quote_replay_guard",
+        quote_id,
+        _quote_replay_record_id(quote_id, tenant_id),
+        access_payload,
+    )
+    if not existing_guard or not _tenant_can_access_record(access_payload, existing_guard):
+        return {}
+    if str(existing_guard.get("provider_id", "")) != provider_id:
+        return {}
+    if str(existing_guard.get("quote_hash", "")) != quote_hash:
+        return {}
+    existing_quote = _get_tenant_scoped_record(
+        store,
+        "compute_quote",
+        quote_id,
+        _quote_record_id(quote_id, tenant_id),
+        access_payload,
+    )
+    if not existing_quote or not _tenant_can_access_record(access_payload, existing_quote):
+        return {}
+    status = str(existing_quote.get("status", "")).lower()
+    expires_at = str(existing_quote.get("expires_at", ""))
+    if (
+        status in _STALE_QUOTE_REPLAY_STATUSES
+        or existing_quote.get("stale") is True
+        or existing_quote.get("expired") is True
+        or bool(expires_at and expires_at <= utc_now_iso())
+    ):
+        return {"guard": existing_guard, "quote": existing_quote}
     return {}
 
 

@@ -594,6 +594,39 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["fraud_signal_count"] == 2
 
 
+def test_quote_broker_rejects_same_provider_stale_quote_replay() -> None:
+    service = _service()
+    accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+    assert accepted["ok"] is True
+
+    stale_quote = {
+        **dict(accepted["quote"]),
+        "status": "stale",
+        "stale": True,
+        "expires_at": "2000-01-01T00:00:00Z",
+    }
+    service.store.put_record(
+        "compute_quote",
+        str(stale_quote["record_id"]),
+        stale_quote,
+        provider_id="provider_live_gpu_1",
+        route_id="route_live_gpu_1",
+        status="stale",
+        expires_at=str(stale_quote["expires_at"]),
+    )
+
+    replay = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+    stored_quote = service.store.get_record("compute_quote", str(stale_quote["record_id"]))
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+
+    assert replay["ok"] is False
+    assert replay["error"]["error_code"] == "quote.stale_replay_detected"
+    assert replay["fraud_signals"][0]["signal_type"] == "stale_quote_submission"
+    assert stored_quote is not None
+    assert stored_quote["status"] == "stale"
+    assert reputation["stale_quote_submission_count"] == 1
+    assert service.store.count_records("compute_quote") == 1
+
 def test_marketplace_plan_selects_verified_provider_cached_quote() -> None:
     service = _service()
     service.apply_market_provider(_provider_application())

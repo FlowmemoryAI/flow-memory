@@ -164,6 +164,47 @@ def audit_export_s3_region_from_env(values: dict[str, str], audit_export_uri: st
         )
     return region
 
+def validate_audit_export_immutable_settings(
+    audit_export_uri: str,
+    object_lock_mode: str,
+    retention_days: str,
+    immutable_required: str,
+) -> None:
+    if not audit_export_uri.startswith("s3://") or not _truthy_env(immutable_required):
+        return
+    normalized_mode = object_lock_mode.strip().upper()
+    invalid_values: list[dict[str, str]] = []
+    if normalized_mode not in {"COMPLIANCE", "GOVERNANCE"}:
+        invalid_values.append(
+            {
+                "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
+                "value": object_lock_mode,
+                "reason": "must be COMPLIANCE or GOVERNANCE when immutable audit export is required",
+            }
+        )
+    try:
+        retention_days_int = int(retention_days)
+    except ValueError:
+        retention_days_int = 0
+    if retention_days_int < 1:
+        invalid_values.append(
+            {
+                "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
+                "value": retention_days,
+                "reason": "must be a positive integer when immutable audit export is required",
+            }
+        )
+    if invalid_values:
+        emit(
+            "blocked_invalid_audit_object_lock",
+            23,
+            invalid_values=invalid_values,
+            required_action=(
+                "configure S3 Object Lock mode and positive retention before requiring immutable "
+                "public audit export"
+            ),
+        )
+
 
 def _audit_export_setting(values: dict[str, str], key: str, default: str) -> str:
     return values.get(key) or default
@@ -789,6 +830,12 @@ def build_env_vars(
         {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist}
     )
     validate_gateway_jwt_config(jwt_hs256_secret, jwt_issuer, jwt_audience, jwt_leeway_seconds)
+    validate_audit_export_immutable_settings(
+        audit_export_uri,
+        audit_export_object_lock_mode,
+        audit_export_retention_days,
+        audit_export_immutable_required,
+    )
     if public_api_url:
         assert_https_public_url(public_api_url)
     values = {
@@ -1057,6 +1104,8 @@ def smoke_public(
     base_url: str,
     api_key_value: str,
     gateway_jwt: dict[str, str] | None = None,
+    *,
+    require_immutable_audit: bool = False,
 ) -> dict[str, Any]:
     base = base_url.rstrip("/")
     if not base.startswith("https://"):
@@ -1119,6 +1168,16 @@ def smoke_public(
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
     audit_export_write_payload = checks["audit_export_write"][1].get("data", {}) if isinstance(checks["audit_export_write"][1], dict) else {}
+    audit_exporter_status = audit_export_payload.get("audit_exporter_status", {})
+    audit_exporter = audit_exporter_status.get("exporter") if isinstance(audit_exporter_status, dict) else ""
+    audit_export_is_immutable = audit_export_payload.get("immutable") is True
+    audit_export_is_local_file = audit_exporter == "local_file"
+    audit_export_is_s3_object_lock = audit_export_is_immutable and audit_exporter == "s3_object_lock"
+    audit_export_ready = (
+        audit_export_is_s3_object_lock
+        if require_immutable_audit
+        else audit_export_is_immutable or audit_export_is_local_file
+    )
     storage_diag = checks["admin_storage_diagnostics"][1].get("data", {}) if isinstance(checks["admin_storage_diagnostics"][1], dict) else {}
     schema_verification = storage_diag.get("schema_verification", {}) if isinstance(storage_diag, dict) else {}
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {}) if isinstance(schema_verification, dict) else {}
@@ -1171,8 +1230,7 @@ def smoke_public(
             redis_diag.get("circuit_breaker_probe", {}).get("ok") is True,
             redis_diag.get("rate_limit_fail_closed") is True,
             redis_diag.get("circuit_breaker_fail_closed") is True,
-            audit_export_payload.get("immutable") is True
-            or audit_export_payload.get("audit_exporter_status", {}).get("exporter") == "local_file",
+            audit_export_ready,
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
         )
@@ -1188,6 +1246,9 @@ def smoke_public(
         "broadcast_allowed": plan_payload.get("broadcast_allowed"),
         "private_key_required": plan_payload.get("private_key_required"),
         "audit_export_immutable": audit_export_payload.get("immutable"),
+        "audit_exporter": audit_exporter,
+        "require_immutable_audit": require_immutable_audit,
+        "audit_export_s3_object_lock": audit_export_is_s3_object_lock,
         "audit_export_write": checks["audit_export_write"][0],
         "audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash")),
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
@@ -1411,7 +1472,12 @@ def main() -> int:
         trigger_service_deploy(render_api_key, str(service["id"]))
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
-            last_smoke = smoke_public(deployment_public_url, api_key_value, gateway_jwt)
+            last_smoke = smoke_public(
+                deployment_public_url,
+                api_key_value,
+                gateway_jwt,
+                require_immutable_audit=audit_export_uri.startswith("s3://"),
+            )
             if last_smoke.get("ok") is True:
                 emit(
                     "public_level_1_live",

@@ -1879,6 +1879,8 @@ class ComputeMarketService:
         if not _tenant_can_access_record(payload, current):
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
         status = str(current.get("status", ""))
+        if status == "confirmed":
+            return {"ok": True, "reservation": current, "idempotent_replay": True}
         if status != "held":
             raise ValueError(f"cannot confirm capacity reservation from status {status}; expected held")
         confirmed_at = utc_now_iso()

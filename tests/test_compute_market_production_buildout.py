@@ -1659,12 +1659,11 @@ def test_capacity_reservation_confirm_creates_dry_run_commitment() -> None:
         {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
     ) == 3.0
 
-    try:
-        service.confirm_capacity({"reservation_id": reservation_id})
-    except ValueError as exc:
-        assert "expected held" in str(exc)
-    else:  # pragma: no cover
-        raise AssertionError("confirmed reservation was confirmed twice")
+    replay = service.confirm_capacity({"reservation_id": reservation_id})
+    assert replay["ok"] is True
+    assert replay["idempotent_replay"] is True
+    assert replay["reservation"]["status"] == "confirmed"
+    assert replay["reservation"]["reservation_id"] == reservation_id
 
     released = service.release_capacity({"reservation_id": reservation_id})
     assert released["reservation"]["status"] == "released"

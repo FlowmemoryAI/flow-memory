@@ -241,6 +241,7 @@ def test_render_deploy_blocks_disabled_level1_control_planes(capsys: Any) -> Non
 def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []
     jwt_health_calls = 0
+    audit_exporter = ""
 
     def fake_call_json(
         method: str,
@@ -301,7 +302,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             assert body == {"chain_id": "all"}
             return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 3}}
         if url.endswith("/admin/audit/export"):
-            return 200, {"ok": True, "data": {"immutable": True}}
+            exporter_status = {"exporter": audit_exporter} if audit_exporter else {}
+            return 200, {"ok": True, "data": {"immutable": True, "audit_exporter_status": exporter_status}}
         if url.endswith("/admin/storage/diagnostics"):
             return 200, {
                 "ok": True,
@@ -374,6 +376,22 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert len(authenticated_headers) == 14
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
+    strict_audit_result = render_deploy.smoke_public(
+        "https://api.example.test",
+        "api-key",
+        require_immutable_audit=True,
+    )
+    assert strict_audit_result["ok"] is False
+    assert strict_audit_result["audit_export_s3_object_lock"] is False
+
+    audit_exporter = "s3_object_lock"
+    strict_s3_result = render_deploy.smoke_public(
+        "https://api.example.test",
+        "api-key",
+        require_immutable_audit=True,
+    )
+    assert strict_s3_result["ok"] is True
+    assert strict_s3_result["audit_export_s3_object_lock"] is True
 
 
 def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1188,6 +1206,8 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED=true",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED=true",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
                 "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
@@ -1296,8 +1316,19 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
     monkeypatch.setattr(render_deploy, "service_env_value", fake_service_env_value)
     monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
-    def fake_smoke_public(url: str, api_key: str, gateway_jwt: Mapping[str, str] | None = None) -> dict[str, object]:
-        calls["smoke"] = {"url": url, "api_key": api_key, "gateway_jwt": gateway_jwt}
+    def fake_smoke_public(
+        url: str,
+        api_key: str,
+        gateway_jwt: Mapping[str, str] | None = None,
+        *,
+        require_immutable_audit: bool = False,
+    ) -> dict[str, object]:
+        calls["smoke"] = {
+            "url": url,
+            "api_key": api_key,
+            "gateway_jwt": gateway_jwt,
+            "require_immutable_audit": require_immutable_audit,
+        }
         return {"ok": True}
 
     monkeypatch.setattr(render_deploy, "smoke_public", fake_smoke_public)
@@ -1331,8 +1362,24 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert "compute:admin" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert calls["smoke"]["api_key"] == "fmk_existing_render_service_key"
     assert calls["smoke"]["url"] == "https://flow-memory-api.onrender.com"
+    assert calls["smoke"]["require_immutable_audit"] is True
 
 
+
+def test_render_env_builder_blocks_incomplete_immutable_s3_audit_settings() -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.build_env_vars(
+            "dev-key",
+            "postgresql://db/flow_memory",
+            "rediss://redis/0",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_object_lock_mode="",
+            audit_export_retention_days="0",
+            audit_export_immutable_required="true",
+            audit_export_s3_region="us-east-1",
+        )
+
+    assert blocked.value.code == 23
 
 def test_render_env_builder_blocks_insecure_redis_and_non_postgres_urls() -> None:
     with pytest.raises(SystemExit) as redis_blocked:

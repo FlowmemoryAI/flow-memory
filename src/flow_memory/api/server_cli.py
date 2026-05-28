@@ -142,12 +142,16 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
     errors = config.validate()
     if errors:
         parser.error("; ".join(errors))
+    public_bind = _public_bind(config.host)
+    allow_public_override = bool(args.allow_unauthenticated_public_bind)
+    if public_bind and not config.require_scopes and not allow_public_override:
+        parser.error("FLOW_MEMORY_API_REQUIRE_SCOPES=true is required when binding the API server to a non-local host")
     if (
-        _public_bind(config.host)
+        public_bind
         and not config.api_key
         and not config.api_key_records
         and not config.jwt_hs256_secret
-        and not bool(args.allow_unauthenticated_public_bind)
+        and not allow_public_override
     ):
         parser.error("FLOW_MEMORY_API_KEY, FLOW_MEMORY_API_KEYS_JSON, or FLOW_MEMORY_API_JWT_HS256_SECRET is required when binding the API server to a non-local host")
     return config

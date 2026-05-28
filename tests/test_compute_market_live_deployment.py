@@ -646,6 +646,31 @@ def test_api_server_cli_rejects_public_bind_without_api_key() -> None:
         build_http_api_config(["--host", "0.0.0.0"], env={})
 
 
+def test_api_server_cli_rejects_public_bind_without_scope_enforcement() -> None:
+    with pytest.raises(SystemExit):
+        build_http_api_config(["--host", "0.0.0.0", "--api-key", "dev-key"], env={})
+    with pytest.raises(SystemExit):
+        build_http_api_config(
+            ["--host", "0.0.0.0"],
+            env={
+                "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-shared-secret",
+                "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+            },
+        )
+
+
+def test_api_server_cli_public_bind_override_allows_private_proxy_auth() -> None:
+    config = build_http_api_config(
+        ["--host", "0.0.0.0", "--allow-unauthenticated-public-bind"],
+        env={},
+    )
+
+    assert config.host == "0.0.0.0"
+    assert config.api_key == ""
+    assert config.require_scopes is False
+
+
 def test_api_server_cli_accepts_public_bind_with_api_key_and_scopes() -> None:
     config = build_http_api_config(
         ["--host", "0.0.0.0", "--api-key", "dev-key", "--require-scopes"],

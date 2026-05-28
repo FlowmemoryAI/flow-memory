@@ -3299,6 +3299,8 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
     assert reputation["refund_count"] == 1
     assert reputation["refund_rate"] == 1.0
+    assert reputation["dispute_count"] == 0
+    assert reputation["dispute_rate"] == 0.0
 
     try:
         service.billing_refund({"usage_charge_id": usage_charge_id, "amount": 0.01, "reason": "excess_refund"})
@@ -3306,6 +3308,65 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
         assert "exceeds remaining" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("over-refund was accepted")
+
+
+def test_provider_reputation_counts_dispute_refunds_and_signals() -> None:
+    service = _service()
+    account_id = "acct_dispute"
+    _credit_account(service, account_id, 1.0, event_id="evt_dispute_credit")
+
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_dispute_reputation",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": account_id,
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+        },
+    )
+    refund = service.billing_refund(
+        {
+            "usage_charge_id": completed["usage_charge"]["usage_charge_id"],
+            "reason": "customer_dispute",
+            "idempotency_key": "refund-dispute-idempotent",
+        }
+    )
+    service.store.put_record(
+        "provider_fraud_signal",
+        "fraud_dispute_signal",
+        {
+            "fraud_signal_id": "fraud_dispute_signal",
+            "provider_id": "provider_live_gpu_1",
+            "signal_type": "payment_dispute",
+            "severity": "review",
+            "status": "open",
+            "created_at": "2026-05-26T00:00:00Z",
+        },
+        provider_id="provider_live_gpu_1",
+        status="open",
+    )
+
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+
+    assert refund["refund"]["reason"] == "customer_dispute"
+    assert reputation["dispute_count"] == 2
+    assert reputation["dispute_refund_count"] == 1
+    assert reputation["dispute_signal_count"] == 1
+    assert reputation["dispute_rate"] == 1.0
+    assert "payment_dispute" in reputation["manual_review_flags"]
+
 
 def test_billing_ledger_audit_export_readback_verifies_custody_safety(tmp_path: Any) -> None:
     service = _service()

@@ -6402,6 +6402,20 @@ def _fraud_signal_counts(fraud_signals: tuple[Mapping[str, Any], ...]) -> dict[s
             counts[signal_type] = counts.get(signal_type, 0) + 1
     return counts
 
+_DISPUTE_SIGNAL_TYPES = frozenset({"provider_dispute", "billing_dispute", "payment_dispute", "customer_dispute", "chargeback"})
+
+
+def _refund_is_dispute(refund: Mapping[str, Any]) -> bool:
+    reason = str(refund.get("reason", "")).strip().lower()
+    if not reason:
+        return False
+    return "dispute" in reason or "chargeback" in reason
+
+
+def _fraud_signal_is_dispute(signal: Mapping[str, Any]) -> bool:
+    signal_type = str(signal.get("signal_type", "")).strip().lower()
+    return signal_type in _DISPUTE_SIGNAL_TYPES or "dispute" in signal_type or "chargeback" in signal_type
+
 
 def _safe_non_negative_float(value: object) -> float:
     try:
@@ -6469,8 +6483,13 @@ def _provider_reputation(
     critical_fraud_signal_count = sum(1 for signal in fraud_signals if str(signal.get("severity", "")) == "critical")
     fraud_penalty = min(1.0, fraud_signal_count / total_quotes)
     stale_quote_rate = stale_quotes / total_quotes
-    refund_count = sum(1 for refund in refunds if str(refund.get("status", "")) not in {"cancelled", "rejected"})
+    active_refunds = tuple(refund for refund in refunds if str(refund.get("status", "")) not in {"cancelled", "rejected"})
+    refund_count = len(active_refunds)
     refund_rate = refund_count / total_jobs
+    dispute_refund_count = sum(1 for refund in active_refunds if _refund_is_dispute(refund))
+    dispute_signal_count = sum(1 for signal in fraud_signals if _fraud_signal_is_dispute(signal))
+    dispute_count = dispute_refund_count + dispute_signal_count
+    dispute_rate = min(1.0, dispute_count / total_jobs)
     sla_breach_penalty = min(1.0, sla_breach_count / total_jobs)
     capacity_fulfillment_rate = _capacity_fulfillment_rate(reservations)
     score = max(
@@ -6485,6 +6504,7 @@ def _provider_reputation(
             - (fraud_penalty * 0.2)
             - (sla_breach_penalty * 0.1)
             - (min(1.0, refund_rate) * 0.05)
+            - (min(1.0, dispute_rate) * 0.05)
             - ((1.0 - capacity_fulfillment_rate) * 0.1)
         ),
     )
@@ -6505,7 +6525,10 @@ def _provider_reputation(
         "latency_reliability": round(latency_reliability, 4),
         "capacity_fulfillment_rate": round(capacity_fulfillment_rate, 4),
         "refund_rate": round(refund_rate, 4),
-        "dispute_rate": 0.0,
+        "dispute_rate": round(dispute_rate, 4),
+        "dispute_count": dispute_count,
+        "dispute_refund_count": dispute_refund_count,
+        "dispute_signal_count": dispute_signal_count,
         "stale_quote_rate": round(stale_quote_rate, 4),
         "provider_uptime": round(uptime, 4),
         "sla_max_latency_ms": sla_max_latency_ms,

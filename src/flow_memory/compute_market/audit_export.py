@@ -199,6 +199,7 @@ class LocalFileAuditExporter:
 
     def write_checkpoint(self, checkpoint: AuditCheckpoint) -> Mapping[str, Any]:
         checkpoint_path = self.path.with_suffix(self.path.suffix + ".checkpoint.json")
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         checkpoint_path.write_text(_canonical_json(checkpoint.as_record()) + "\n", encoding="utf-8")
         return {"ok": True, "path": str(checkpoint_path), "checkpoint": checkpoint.as_record()}
 

@@ -537,6 +537,64 @@ def test_s3_exporter_factory_uses_first_class_region_endpoint_and_retention_conf
     assert exporter.manifest_signing_secret_env == "FLOW_MEMORY_AUDIT_SIGNING_SECRET"
 
 
+def test_audit_checkpoint_writes_configured_local_exporter_checkpoint(tmp_path: Any) -> None:
+    out = tmp_path / "configured" / "audit.ndjson"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", audit_export_uri=str(out), audit_export_required=True),
+    )
+    service.plan({"task": "configured checkpoint write", "request_id": "checkpoint-local-write"})
+
+    result = service.audit_checkpoint({"chain_id": "all"})
+    checkpoint_path = out.with_suffix(out.suffix + ".checkpoint.json")
+    written = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+
+    assert checkpoint_path.exists()
+    assert written["checkpoint_id"] == result["checkpoint"]["checkpoint_id"]
+    assert result["checkpoint"]["exported_to"] == "local_file_checkpoint"
+    assert result["checkpoint_record"]["storage_uri"] == str(checkpoint_path)
+    assert result["checkpoint_record"]["checkpoint_write"]["ok"] is True
+    assert result["checkpoint_record"]["checkpoint_write"]["path"] == str(checkpoint_path)
+
+
+def test_audit_checkpoint_writes_immutable_s3_checkpoint_when_required() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            audit_export_required=True,
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_immutable_required=True,
+            audit_export_object_lock_mode="COMPLIANCE",
+            audit_export_retention_days=30,
+            audit_export_s3_region="us-east-1",
+        ),
+        audit_exporter=exporter,
+    )
+    service.plan({"task": "immutable checkpoint write", "request_id": "checkpoint-s3-write"})
+
+    result = service.audit_checkpoint({"chain_id": "all"})
+    put = client.puts[0]
+    checkpoint_bucket = str(put["Bucket"])
+    checkpoint_key = str(put["Key"])
+    checkpoint_record = json.loads(client.objects[(checkpoint_bucket, checkpoint_key)].decode("utf-8"))
+
+    assert result["checkpoint"]["exported_to"] == "s3_object_lock_checkpoint"
+    assert len(client.puts) == 1
+    assert put["ContentType"] == "application/json"
+    assert put["ObjectLockMode"] == "COMPLIANCE"
+    assert put["ObjectLockRetainUntilDate"]
+    assert result["checkpoint_record"]["storage_uri"].startswith("s3://flow-memory-audit/compute-market/checkpoints/")
+    assert result["checkpoint_record"]["object_lock_mode"] == "COMPLIANCE"
+    assert result["checkpoint_record"]["retention_until"]
+    assert checkpoint_record["storage_uri"] == result["checkpoint_record"]["storage_uri"]
+    assert checkpoint_record["object_lock_mode"] == "COMPLIANCE"
+    assert checkpoint_record["retention_until"] == result["checkpoint_record"]["retention_until"]
+
+
 def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> None:
     out = tmp_path / "scheduled.ndjson"
     service = ComputeMarketService(

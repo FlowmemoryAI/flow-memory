@@ -5359,6 +5359,16 @@ class ComputeMarketService:
         chain_id = str(payload.get("chain_id", "all") or "all")
         from_sequence = int(payload.get("from_sequence", 1) or 1)
         to_sequence = int(payload.get("to_sequence", 0) or 0)
+        out = str(payload.get("out") or payload.get("path") or "")
+        exporter = LocalFileAuditExporter(Path(out)) if out else self.audit_exporter
+        status = exporter.get_status()
+        exporter_configured = status.get("configured") is not False
+        checkpoint_export_uri = out or str(self.config.audit_export_uri or "")
+        checkpoint_exported_to = (
+            f"{status.get('exporter', 'audit_exporter')}_checkpoint"
+            if out or exporter_configured
+            else "checkpoint_only"
+        )
         events = self._all_audit_events()
         if chain_id not in {"", "all"}:
             events = tuple(event for event in events if isinstance(event, Mapping) and str(event.get("chain_id", "")) == chain_id)
@@ -5373,11 +5383,32 @@ class ComputeMarketService:
             chain_id=chain_id,
             from_sequence=from_sequence,
             to_sequence=to_sequence,
-            export_uri=str(payload.get("out", "")),
-            exported_to="checkpoint_only",
+            export_uri=checkpoint_export_uri,
+            exported_to=checkpoint_exported_to,
         )
+        checkpoint_write: Mapping[str, Any] = {}
+        checkpoint_storage_uri = out
+        write_required = bool(out or self.config.audit_export_required or self.config.audit_export_immutable_required)
+        if out or exporter_configured:
+            try:
+                checkpoint_write = exporter.write_checkpoint(checkpoint)
+            except Exception as exc:
+                self._audit("compute.audit.checkpoint_failed", payload, result="failed", reason_codes=("audit_checkpoint_write_failed",))
+                if write_required:
+                    raise RuntimeError(f"audit checkpoint write failed: {exc}") from exc
+                checkpoint_write = {"ok": False, "reason": "audit_checkpoint_write_failed", "error": str(exc)}
+            else:
+                checkpoint_storage_uri = str(checkpoint_write.get("path") or checkpoint_storage_uri)
+        elif write_required:
+            self._audit("compute.audit.checkpoint_failed", payload, result="failed", reason_codes=("audit_checkpoint_exporter_unavailable",))
+            raise ValueError("audit checkpoint requires configured audit_export_uri or --out/path")
         manifest_hash = content_hash({"checkpoint": checkpoint.as_record(), "event_count": checkpoint.event_count})
-        checkpoint_record = self._persist_audit_checkpoint(checkpoint, manifest_hash=manifest_hash, storage_uri=str(payload.get("out", "")))
+        checkpoint_record = self._persist_audit_checkpoint(
+            checkpoint,
+            manifest_hash=manifest_hash,
+            storage_uri=checkpoint_storage_uri,
+            checkpoint_write=checkpoint_write,
+        )
         self._audit("compute.audit.checkpointed", payload, result="completed", reason_codes=())
         return {"ok": True, "checkpoint": checkpoint.as_record(), "checkpoint_record": checkpoint_record}
 
@@ -5531,14 +5562,24 @@ class ComputeMarketService:
         storage_uri: str,
         checkpoint_write: Mapping[str, Any] | None = None,
     ) -> Mapping[str, Any]:
+        checkpoint_write_record = (checkpoint_write or {}).get("checkpoint_record") if isinstance(checkpoint_write, Mapping) else None
+        checkpoint_write_path = str((checkpoint_write or {}).get("path", "")) if isinstance(checkpoint_write, Mapping) else ""
+        persisted_storage_uri = storage_uri or checkpoint_write_path or str(checkpoint.as_record().get("storage_uri", ""))
         record = {
             **checkpoint.as_record(),
             "manifest_hash": manifest_hash,
-            "storage_uri": storage_uri or str(checkpoint.as_record().get("storage_uri", "")),
+            "storage_uri": persisted_storage_uri,
             "checkpoint_write": dict(checkpoint_write or {}),
             "status": "completed",
             "updated_at": utc_now_iso(),
         }
+        if isinstance(checkpoint_write_record, Mapping):
+            if not record.get("object_lock_mode") and checkpoint_write_record.get("object_lock_mode"):
+                record["object_lock_mode"] = checkpoint_write_record["object_lock_mode"]
+            if not record.get("retention_until") and checkpoint_write_record.get("retention_until"):
+                record["retention_until"] = checkpoint_write_record["retention_until"]
+            if not record.get("storage_uri") and checkpoint_write_record.get("storage_uri"):
+                record["storage_uri"] = checkpoint_write_record["storage_uri"]
         self.store.put_record(
             "audit_checkpoint_manifest",
             str(record["checkpoint_id"]),

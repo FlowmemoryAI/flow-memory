@@ -70,6 +70,30 @@ class ApiAuthTests(unittest.TestCase):
         self.assertEqual(decision.scopes, ("compute:plan", "compute:read"))
         self.assertFalse(require_api_key({"x-flow-memory-api-key": "wrong"}, config))
 
+    def test_authorize_request_rejects_api_key_record_with_unknown_scope(self) -> None:
+        config = ApiAuthConfig(
+            api_key_records=(
+                {
+                    "key_id": "key_invalid_scope",
+                    "key_prefix": "fmk_invalid_",
+                    "key_hash": api_key_hash("fmk_invalid_secret"),
+                    "tenant_id": "tenant_invalid_scope",
+                    "principal": "svc-invalid-scope",
+                    "scopes": ["compute:read", "compute:not-a-real-scope"],
+                    "enabled": True,
+                },
+            )
+        )
+
+        decision = authorize_request({"x-flow-memory-api-key": "fmk_invalid_secret"}, config)
+
+        self.assertFalse(decision.ok)
+        self.assertEqual(
+            decision.reasons,
+            ("api key record contains unknown scope: compute:not-a-real-scope",),
+        )
+        self.assertEqual(decision.key_id, "")
+
     def test_authorize_request_accepts_valid_api_key_and_signature(self) -> None:
         key = generate_local_keypair("api-auth")
         payload = {"goal": "local"}

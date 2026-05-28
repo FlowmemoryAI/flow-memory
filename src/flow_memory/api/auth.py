@@ -197,15 +197,30 @@ def require_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> bool:
 
 
 def resolve_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> ApiKeyIdentity | None:
+    identity, _ = _resolve_api_key_with_reasons(headers, config)
+    return identity
+
+
+def _resolve_api_key_with_reasons(
+    headers: Mapping[str, str],
+    config: ApiAuthConfig,
+) -> tuple[ApiKeyIdentity | None, tuple[str, ...]]:
     supplied = _header(headers, "x-flow-memory-api-key")
     if not supplied:
-        return None
+        return None, ()
     if config.api_key and supplied == config.api_key:
-        return ApiKeyIdentity(
-            key_id="legacy",
-            principal=_header(headers, "x-flow-memory-principal") or "api-key",
-            tenant_id=_header(headers, "x-flow-memory-tenant"),
-            scopes=_parse_scopes(config.api_key_scopes),
+        scopes = _parse_scopes(config.api_key_scopes)
+        invalid_scopes = tuple(scope for scope in scopes if scope not in KNOWN_SCOPES)
+        if invalid_scopes:
+            return None, (f"api key configuration contains unknown scope: {', '.join(invalid_scopes)}",)
+        return (
+            ApiKeyIdentity(
+                key_id="legacy",
+                principal=_header(headers, "x-flow-memory-principal") or "api-key",
+                tenant_id=_header(headers, "x-flow-memory-tenant"),
+                scopes=scopes,
+            ),
+            (),
         )
     supplied_hash = api_key_hash(supplied)
     for record in config.api_key_records:
@@ -214,14 +229,23 @@ def resolve_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> ApiKey
         expected_hash = str(record.get("key_hash", ""))
         prefix = str(record.get("key_prefix", ""))
         if expected_hash and _constant_time_equal(supplied_hash, expected_hash) and (not prefix or supplied.startswith(prefix)):
-            return ApiKeyIdentity(
-                key_id=str(record.get("key_id", "")),
-                tenant_id=str(record.get("tenant_id", "")),
-                principal=str(record.get("principal", record.get("created_by", "api-key"))),
-                scopes=_api_key_record_scopes(record),
-                key_prefix=prefix,
+            scopes = _api_key_record_scopes(record)
+            invalid_scopes = tuple(scope for scope in scopes if scope not in KNOWN_SCOPES)
+            if invalid_scopes:
+                return None, (
+                    f"api key record contains unknown scope: {', '.join(invalid_scopes)}",
+                )
+            return (
+                ApiKeyIdentity(
+                    key_id=str(record.get("key_id", "")),
+                    tenant_id=str(record.get("tenant_id", "")),
+                    principal=str(record.get("principal", record.get("created_by", "api-key"))),
+                    scopes=scopes,
+                    key_prefix=prefix,
+                ),
+                (),
             )
-    return None
+    return None, ()
 
 
 def api_key_hash(api_key: str) -> str:
@@ -455,7 +479,8 @@ def authorize_request(
     signature_key: LocalKeyPair | None = None,
 ) -> ApiAuthDecision:
     reasons: list[str] = []
-    api_identity = resolve_api_key(headers, config)
+    api_reasons: tuple[str, ...] = ()
+    api_identity, api_reasons = _resolve_api_key_with_reasons(headers, config)
     jwt_identity, jwt_reasons = resolve_bearer_jwt(headers, config)
     identity = api_identity or jwt_identity
     signature_nonce = ""
@@ -464,7 +489,9 @@ def authorize_request(
         signature_nonce, signature_timestamp = _request_nonce_timestamp(headers, identity)
     auth_configured = bool(config.api_key or config.api_key_records or config.jwt_hs256_secret)
     if auth_configured and identity is None:
-        if jwt_reasons:
+        if api_reasons:
+            reasons.extend(api_reasons)
+        elif jwt_reasons:
             reasons.extend(jwt_reasons)
         else:
             reasons.append(

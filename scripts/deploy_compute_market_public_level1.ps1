@@ -436,7 +436,7 @@ if ([string]::IsNullOrWhiteSpace($PublicApiUrl)) {
     exit 14
 }
 
-$smoke = Invoke-ExternalQuiet -FilePath 'powershell' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $smokeScript, '-ApiUrl', $PublicApiUrl, '-ApiKey', [string]$envValues['FLOW_MEMORY_API_KEY'])
+$smoke = Invoke-ExternalQuiet -FilePath 'powershell' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $smokeScript, '-ApiUrl', $PublicApiUrl, '-ApiKey', [string]$envValues['FLOW_MEMORY_API_KEY'], '-RequireImmutableAudit')
 if ($smoke.ExitCode -ne 0) {
     Write-Status -Status 'failed_public_smoke_tests' -Fields @{ public_url = $PublicApiUrl; exit_code = $smoke.ExitCode }
     exit 15

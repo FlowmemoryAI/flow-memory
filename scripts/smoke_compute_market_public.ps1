@@ -6,7 +6,10 @@ param(
 
     [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$ApiKey
+    [string]$ApiKey,
+
+    [Parameter()]
+    [switch]$RequireImmutableAudit
 )
 
 Set-StrictMode -Version Latest
@@ -247,8 +250,14 @@ Assert-True (($auditVerify.Json.ok -eq $true) -and ($auditVerify.Json.data.ok -e
 $auditExport = Invoke-ComputeMarketRequest -Method GET -Path '/admin/audit/export' -Scopes 'compute:admin'
 Assert-Status -Response $auditExport -Expected 200 -Name 'admin audit export'
 $auditExporter = $auditExport.Json.data.audit_exporter_status
-$auditExportConfigured = ($auditExport.Json.data.immutable -eq $true) -or ($auditExporter.exporter -eq 'local_file')
-Assert-True $auditExportConfigured 'admin audit export did not report configured immutable Object Lock or Render disk local-file storage.'
+if ($RequireImmutableAudit) {
+    $auditExportConfigured = ($auditExport.Json.data.immutable -eq $true) -and ($auditExporter.exporter -eq 's3_object_lock')
+    Assert-True $auditExportConfigured 'admin audit export did not report immutable S3 Object Lock storage.'
+}
+else {
+    $auditExportConfigured = ($auditExport.Json.data.immutable -eq $true) -or ($auditExporter.exporter -eq 'local_file')
+    Assert-True $auditExportConfigured 'admin audit export did not report configured immutable Object Lock or Render disk local-file storage.'
+}
 
 $auditExportWrite = Invoke-ComputeMarketRequest -Method POST -Path '/compute/audit/export' -Scopes 'compute:audit' -Body @{ chain_id = 'all' }
 Assert-Status -Response $auditExportWrite -Expected 200 -Name 'audit export write'

@@ -525,6 +525,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "Get-PublicUrlBlockReason" in smoke_script
     assert "public_url_placeholder_not_allowed" in smoke_script
     assert "public_url_must_use_global_host" in smoke_script
+    assert "RequireImmutableAudit" in smoke_script
+    assert "s3_object_lock" in smoke_script
     assert "deployments/compute-market/prometheus-alerts.yml" in render_script
     assert 'checks["jwt_health"] = call_json(' in render_script
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script
@@ -552,6 +554,7 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "$placeholders.Add('FLOW_MEMORY_PUBLIC_API_URL')" in deploy_script
     assert "$placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')" in deploy_script
     assert "blocked_invalid_public_url" in deploy_script
+    assert "'-RequireImmutableAudit'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'" in deploy_script
 

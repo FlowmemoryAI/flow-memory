@@ -673,6 +673,28 @@ def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None
     assert file_replay["replay"]["summary"]["event_count"] == file_replay["replay"]["event_count"]
     assert service.store.count_records("audit_replay_run") == 2
 
+def test_audit_forensic_replay_rejects_export_manifest_tampering(tmp_path: Any) -> None:
+    service = _service()
+    service.plan({"task": "replay tampered manifest", "request_id": "replay-manifest"})
+    out = tmp_path / "replay-tampered.ndjson"
+    exported = service.audit_export({"out": str(out), "chain_id": "all"})
+    lines = out.read_text(encoding="utf-8").splitlines()
+    manifest = json.loads(lines[0])
+    manifest["created_at"] = "2099-01-01T00:00:00Z"
+    lines[0] = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    replay = service.audit_forensic_replay({"path": str(out), "request_id": "replay-tampered"})
+    replay_run = service.store.get_record("audit_replay_run", replay["replay"]["replay_id"])
+
+    assert exported["ok"] is True
+    assert replay["ok"] is False
+    assert replay["replay"]["integrity"]["ok"] is True
+    assert replay["replay"]["export_verification"]["ok"] is False
+    assert replay["replay"]["export_verification"]["error_code"] == "manifest_hash_mismatch"
+    assert replay_run is not None
+    assert replay_run["status"] == "failed"
+
 def test_audit_replay_checkpoint_schedule_and_monitor_cli(capsys: Any) -> None:
     service = _service()
     service.plan({"task": "cli audit operations", "request_id": "cli-audit-ops"})

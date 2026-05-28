@@ -5570,6 +5570,10 @@ class ComputeMarketService:
             integrity = self.store.verify_audit_chain(chain_id=chain_id).as_record()
             export_verification = {}
             source = "store"
+        integrity_ok = bool(integrity.get("ok"))
+        export_ok = bool(export_verification.get("ok", True))
+        replay_ok = integrity_ok and export_ok
+        replay_status = "verified" if replay_ok else "failed"
         filtered = tuple(
             event
             for event in events
@@ -5591,11 +5595,13 @@ class ComputeMarketService:
             "summary": _audit_replay_summary(filtered),
             "integrity": integrity,
             "export_verification": export_verification,
+            "status": replay_status,
             "created_at": utc_now_iso(),
         }
-        self.store.put_record("audit_replay_run", replay_id, replay, status="verified" if bool(integrity.get("ok")) else "failed", request_id=str(payload.get("request_id", "")))
-        self._audit("compute.audit.replayed", payload, result="completed" if bool(integrity.get("ok")) else "failed", reason_codes=() if bool(integrity.get("ok")) else (str(integrity.get("error_code", "audit_replay_failed")),))
-        return {"ok": bool(integrity.get("ok")), "replay": replay}
+        failure_code = str(integrity.get("error_code") or export_verification.get("error_code") or "audit_replay_failed")
+        self.store.put_record("audit_replay_run", replay_id, replay, status=replay_status, request_id=str(payload.get("request_id", "")))
+        self._audit("compute.audit.replayed", payload, result="completed" if replay_ok else "failed", reason_codes=() if replay_ok else (failure_code,))
+        return {"ok": replay_ok, "replay": replay}
 
     def audit_verify_export(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         path = str(payload.get("path") or payload.get("out") or "")

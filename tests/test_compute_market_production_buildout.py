@@ -3888,6 +3888,112 @@ def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None
     assert balance["available_credits"] == 12.34
     assert service.store.count_records("credit_transaction") == 1
 
+def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_references() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_rejections",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-rejection-request",
+                "idempotency_key": "checkout-rejection-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    secret = str(service.config.stripe_webhook_secret)
+
+    def _signed_webhook(raw_event: Mapping[str, object]) -> Mapping[str, object]:
+        return service.billing_webhook_stripe(
+            {
+                "raw_event": raw_event,
+                "stripe_signature": hmac.new(
+                    secret.encode("utf-8"),
+                    content_hash(raw_event).encode("utf-8"),
+                    "sha256",
+                ).hexdigest(),
+            }
+        )
+
+    def _checkout_event(
+        event_id: str,
+        *,
+        checkout_payment_event_id: str,
+        checkout_session_id: str = session_id,
+        amount_total: int = 1234,
+        currency: str = "usd",
+    ) -> dict[str, object]:
+        return {
+            "id": event_id,
+            "type": "checkout.session.completed",
+            "data": {
+                "object": {
+                    "id": checkout_session_id,
+                    "amount_total": amount_total,
+                    "currency": currency,
+                    "metadata": {
+                        "account_id": "acct_checkout_rejections",
+                        "payment_event_id": checkout_payment_event_id,
+                    },
+                }
+            },
+        }
+
+    invalid_reference_seed = _signed_webhook(
+        {
+            "id": "evt_checkout_invalid_reference_seed",
+            "type": "payment_intent.payment_failed",
+            "amount": 0,
+            "currency": "usd",
+            "metadata": {"account_id": "acct_checkout_rejections"},
+        }
+    )
+    unknown = _signed_webhook(
+        _checkout_event(
+            "evt_checkout_unknown_reference",
+            checkout_payment_event_id="payment_event_missing_checkout_reference",
+        )
+    )
+    invalid = _signed_webhook(
+        _checkout_event(
+            "evt_checkout_invalid_reference",
+            checkout_payment_event_id="evt_checkout_invalid_reference_seed",
+        )
+    )
+    session_mismatch = _signed_webhook(
+        _checkout_event(
+            "evt_checkout_session_mismatch",
+            checkout_payment_event_id=payment_event_id,
+            checkout_session_id="cs_test_wrong_session",
+        )
+    )
+    currency_mismatch = _signed_webhook(
+        _checkout_event(
+            "evt_checkout_currency_mismatch",
+            checkout_payment_event_id=payment_event_id,
+            currency="eur",
+        )
+    )
+    balance = service.billing_balance({"account_id": "acct_checkout_rejections"})["balance"]
+
+    assert invalid_reference_seed["ok"] is True
+    assert unknown["ok"] is False
+    assert unknown["error"]["error_code"] == "billing.webhook.checkout_reference_unknown"
+    assert unknown["payment_event"]["status"] == "rejected_untrusted_checkout"
+    assert invalid["ok"] is False
+    assert invalid["error"]["error_code"] == "billing.webhook.checkout_reference_invalid"
+    assert session_mismatch["ok"] is False
+    assert session_mismatch["error"]["error_code"] == "billing.webhook.checkout_session_mismatch"
+    assert currency_mismatch["ok"] is False
+    assert currency_mismatch["error"]["error_code"] == "billing.webhook.checkout_currency_mismatch"
+    assert balance["available_credits"] == 0.0
+    assert service.store.count_records("credit_transaction") == 0
 
 def test_billing_checkout_fails_closed_when_stripe_api_fails() -> None:
     server, base_url = _stripe_checkout_server(status=500)

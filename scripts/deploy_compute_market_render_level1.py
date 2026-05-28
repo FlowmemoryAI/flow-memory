@@ -118,6 +118,7 @@ RESERVED_PUBLIC_HOST_SUFFIXES = (
     "test",
     "invalid",
 )
+WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", "password"))
 
 
 
@@ -413,6 +414,17 @@ def gateway_jwt_config_from_env(values: dict[str, str]) -> dict[str, str]:
 def has_placeholder(value: str) -> bool:
     raw = value.lower()
     return any(token.lower() in raw for token in PLACEHOLDERS)
+
+
+def api_key_block_reason(value: str) -> str:
+    raw = value.strip().lower()
+    if has_placeholder(raw):
+        return "api_key_placeholder_not_allowed"
+    if raw in WEAK_API_KEYS:
+        return "api_key_weak_value_not_allowed"
+    return ""
+
+
 
 
 def validate_render_plans(
@@ -1152,6 +1164,14 @@ def smoke_public(
             "public_url": base,
             "reason": block_reason,
         }
+    api_key_reason = api_key_block_reason(api_key_value)
+    if api_key_reason:
+        return {
+            "ok": False,
+            "statuses": {},
+            "public_url": base,
+            "reason": api_key_reason,
+        }
     plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "dry_run": True}
     checks: dict[str, Any] = {}
     checks["root"] = call_json("GET", f"{base}/")
@@ -1419,7 +1439,7 @@ def main() -> int:
     owner_id = infer_owner_id(render_api_key, render_owner_id)
 
     api_key_value = env_values.get("FLOW_MEMORY_API_KEY", "")
-    if not api_key_value or has_placeholder(api_key_value):
+    if not api_key_value or api_key_block_reason(api_key_value):
         existing_service = find_named(render_api_key, "/services", "service", owner_id, SERVICE_NAME)
         existing_api_key = (
             service_env_value(render_api_key, str(existing_service["id"]), "FLOW_MEMORY_API_KEY")
@@ -1428,7 +1448,7 @@ def main() -> int:
         )
         api_key_value = (
             existing_api_key
-            if existing_api_key and not has_placeholder(existing_api_key)
+            if existing_api_key and not api_key_block_reason(existing_api_key)
             else "fmk_live_" + secrets.token_urlsafe(48)
         )
 

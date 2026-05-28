@@ -34,6 +34,7 @@ _PLACEHOLDER_API_KEY_FRAGMENTS = (
     "changeme",
     "high-entropy-api-key",
 )
+_WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", "password"))
 
 
 
@@ -122,6 +123,8 @@ def api_key_block_reason(api_key: str) -> str:
     raw = api_key.strip().lower()
     if any(fragment in raw for fragment in _PLACEHOLDER_API_KEY_FRAGMENTS):
         return "api_key_placeholder_not_allowed"
+    if raw in _WEAK_API_KEYS:
+        return "api_key_weak_value_not_allowed"
     return ""
 
 

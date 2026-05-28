@@ -82,6 +82,9 @@ function Get-ApiKeyBlockReason {
     if ($Value -match 'CHANGEME|<[^>]*>|high-entropy-api-key') {
         return 'api_key_placeholder_not_allowed'
     }
+    if ($Value.Trim().ToLowerInvariant() -in @('api-key', 'dev-key', 'prod-key', 'test', 'secret', 'password')) {
+        return 'api_key_weak_value_not_allowed'
+    }
     return ''
 }
 

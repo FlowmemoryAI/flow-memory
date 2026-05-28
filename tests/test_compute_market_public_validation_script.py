@@ -61,9 +61,25 @@ def test_public_buildout_main_blocks_placeholder_api_key_before_network(tmp_path
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted a placeholder API key")
 
-def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any, monkeypatch: Any) -> None:
+def test_public_buildout_main_blocks_weak_api_key_before_network(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
     env_file.write_text("FLOW_MEMORY_API_KEY=prod-key\n", encoding="utf-8")
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        assert "api_key_weak_value_not_allowed" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted a weak API key")
+
+def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any, monkeypatch: Any) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text("FLOW_MEMORY_API_KEY=fmk_live_test_secret\n", encoding="utf-8")
     captured: dict[str, Any] = {}
 
     def fake_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
@@ -88,7 +104,7 @@ def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any
     )
     assert captured == {
         "base_url": "https://api.flowmemory.ai",
-        "api_key": "prod-key",
+        "api_key": "fmk_live_test_secret",
         "require_immutable_audit": True,
     }
 

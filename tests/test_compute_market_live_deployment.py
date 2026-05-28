@@ -383,7 +383,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
 
     result = render_deploy.smoke_public(
         "https://api.flowmemory.ai",
-        "api-key",
+        "fmk_live_smoke_secret",
         {
             "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-jwt-secret-with-at-least-32-characters",
             "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
@@ -424,7 +424,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
         "https://api.flowmemory.ai",
-        "api-key",
+        "fmk_live_smoke_secret",
         require_immutable_audit=True,
     )
     assert strict_audit_result["ok"] is False
@@ -433,7 +433,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     audit_exporter = "s3_object_lock"
     strict_s3_result = render_deploy.smoke_public(
         "https://api.flowmemory.ai",
-        "api-key",
+        "fmk_live_smoke_secret",
         require_immutable_audit=True,
     )
     assert strict_s3_result["ok"] is True
@@ -531,7 +531,7 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
     monkeypatch.setattr(render_deploy, "call_json", fake_call_json)
     monkeypatch.setattr(render_deploy, "call_text", lambda *_args, **_kwargs: (200, "compute_plan_requests_total 1\n"))
 
-    result = render_deploy.smoke_public("https://api.flowmemory.ai", "api-key")
+    result = render_deploy.smoke_public("https://api.flowmemory.ai", "fmk_live_smoke_secret")
 
     assert result["ok"] is False
     assert result["require_managed_sql_in_production"] is False
@@ -709,6 +709,8 @@ def test_render_placeholder_detection_rejects_generic_secret_placeholders() -> N
     assert render_deploy.has_placeholder("CHANGEME-high-entropy-api-key") is True
     assert render_deploy.has_placeholder("managed-postgres-host") is True
     assert render_deploy.has_placeholder("fmk_live_realistic_secret_value") is False
+    assert render_deploy.api_key_block_reason("api-key") == "api_key_weak_value_not_allowed"
+    assert render_deploy.api_key_block_reason("fmk_live_realistic_secret_value") == ""
 
 
 def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> None:

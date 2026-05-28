@@ -362,7 +362,11 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
         def _handle(self, *, head_only: bool = False) -> None:
             length = int(self.headers.get("content-length", "0") or "0")
             body = self.rfile.read(length) if length else b""
-            headers = dict(self.headers.items())
+            headers = {
+                key: value
+                for key, value in self.headers.items()
+                if key.lower() != "x-flow-memory-client-ip"
+            }
             headers["x-flow-memory-client-ip"] = str(self.client_address[0])
             response = resolved_gateway.handle(self.command, self.path, headers, body)
             payload = response.to_bytes()

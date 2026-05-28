@@ -1628,6 +1628,71 @@ def test_http_gateway_enforces_provider_callback_allowlist_for_quote_ingest() ->
     assert service.store.count_records("compute_quote") == 1
 
 
+def test_dependency_free_http_server_uses_socket_client_ip_over_spoofed_header(tmp_path: Any) -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(str(tmp_path / "socket-ip.sqlite3")),
+        config=ComputeMarketConfig(
+            database_url=str(tmp_path / "socket-ip.sqlite3"),
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("127.0.0.1",),
+        ),
+    )
+    quote = {
+        "quote_id": "quote_http_socket_ip",
+        "provider_id": "provider_http_socket_ip",
+        "route_id": "route_http_socket_ip",
+        "unit_type": "gpu_minute",
+        "unit_price": 0.09,
+        "estimated_units": 2,
+        "estimated_total_cost": 0.18,
+        "currency_or_asset": "USDC",
+        "network": "solana",
+        "confidence": 0.93,
+        "capacity_available": True,
+        "quote_ttl_seconds": 300,
+        "expires_at": "2099-01-01T00:00:00Z",
+        "settlement_modes": ["generic_dry_run"],
+        "dry_run_supported": True,
+        "assumptions": [],
+    }
+    data: dict[str, Any] = {}
+
+    reset_default_service(service)
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            api_key="dev",
+            require_scopes=True,
+            enable_rate_limit=False,
+            provider_callback_ip_allowlist=("127.0.0.1",),
+        )
+    )
+    server = create_http_server(gateway, host="127.0.0.1", port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/market/quotes/ingest",
+            data=json.dumps({"quote": quote}).encode("utf-8"),
+            headers={
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:provider-admin",
+                "x-flow-memory-client-ip": "203.0.113.42",
+            },
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    finally:
+        server.shutdown()
+        server.server_close()
+        reset_default_service(None)
+
+    assert data["data"]["ok"] is True
+    assert service.store.count_records("compute_quote") == 1
+
+
 def test_dependency_free_http_server_handles_local_request() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server = create_http_server(gateway, host="127.0.0.1", port=0)

@@ -727,6 +727,81 @@ class ApiAuthTests(unittest.TestCase):
         self.assertEqual(decision.scopes, ("compute:billing", "compute:plan", "compute:read"))
         self.assertNotIn("compute:provider-admin", decision.scopes)
 
+
+    def test_api_key_record_expiration_is_enforced(self) -> None:
+        now = int(time.time())
+        expired = issue_api_key_record(
+            {
+                "key_id": "key_expired",
+                "key_prefix": "fmk_expired_",
+                "tenant_id": "tenant_expiry",
+                "scopes": ["compute:read"],
+                "expires_at_epoch": now - 1,
+            },
+            api_key="fmk_expired_secret",
+        )
+        active = issue_api_key_record(
+            {
+                "key_id": "key_active",
+                "key_prefix": "fmk_active_",
+                "tenant_id": "tenant_expiry",
+                "scopes": ["compute:read"],
+                "expires_in_seconds": 60,
+            },
+            api_key="fmk_active_secret",
+        )
+
+        expired_decision = authorize_request(
+            {"x-flow-memory-api-key": "fmk_expired_secret"},
+            ApiAuthConfig(api_key_records=(expired["record"],)),
+        )
+        active_decision = authorize_request(
+            {"x-flow-memory-api-key": "fmk_active_secret"},
+            ApiAuthConfig(api_key_records=(active["record"],)),
+        )
+
+        self.assertFalse(expired_decision.ok)
+        self.assertIn("api key expired", expired_decision.reasons)
+        self.assertTrue(active_decision.ok, active_decision.reasons)
+        self.assertGreater(active["record"]["expires_at_epoch"], now)
+
+    def test_api_key_rotation_and_disable_emit_lifecycle_audit_without_secret(self) -> None:
+        router = create_default_router()
+
+        created = router.dispatch(
+            "POST",
+            "/auth/api-keys",
+            {
+                "key_id": "key_audit_v1",
+                "key_prefix": "fmk_audit_",
+                "tenant_id": "tenant_audit",
+                "scopes": ["compute:read"],
+                "expires_in_seconds": 600,
+            },
+        )
+        rotated = router.dispatch(
+            "POST",
+            "/auth/api-keys/key_audit_v1/rotate",
+            {"key_id": "key_audit_v2", "reason": "scheduled_rotation"},
+        )
+        disabled = router.dispatch(
+            "POST",
+            "/auth/api-keys/key_audit_v2/disable",
+            {"reason": "compromised"},
+        )
+
+        lifecycle_events = tuple(event for event in router.audit_events if str(event.get("event_type", "")).startswith("auth.api_key."))
+        lifecycle_event_types = {event["event_type"] for event in lifecycle_events}
+        audit_text = json.dumps(lifecycle_events, sort_keys=True)
+
+        self.assertEqual(created["record"]["expires_at_epoch"], rotated["record"]["expires_at_epoch"])
+        self.assertEqual(disabled["record"]["status"], "disabled")
+        self.assertEqual(lifecycle_event_types, {"auth.api_key.created", "auth.api_key.rotated", "auth.api_key.disabled"})
+        self.assertIn("key_audit_v1", audit_text)
+        self.assertIn("key_audit_v2", audit_text)
+        self.assertNotIn(str(created["api_key"]), audit_text)
+        self.assertNotIn(str(rotated["api_key"]), audit_text)
+
     def test_issue_api_key_record_rejects_unknown_scopes(self) -> None:
         with self.assertRaisesRegex(ValueError, "unknown API scopes"):
             issue_api_key_record(

@@ -884,6 +884,7 @@ class LocalApiRouter:
             raise ValueError("api key issuer returned invalid record")
         key_id = str(record["key_id"])
         self.api_key_records[key_id] = record
+        self.audit_events.append(_auth_api_key_audit_event("auth.api_key.created", record))
         return {"ok": True, "api_key": issued["api_key"], "record": public_api_key_record(record)}
 
     def _auth_api_key_rotate(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -901,6 +902,12 @@ class LocalApiRouter:
         next_key_id = str(record["key_id"])
         self.api_key_records[previous_key_id] = previous_record
         self.api_key_records[next_key_id] = record
+        self.audit_events.append(
+            {
+                **_auth_api_key_audit_event("auth.api_key.rotated", record),
+                "previous_key_id": previous_key_id,
+            }
+        )
         return {
             "ok": True,
             "api_key": rotated["api_key"],
@@ -916,6 +923,7 @@ class LocalApiRouter:
         _assert_auth_record_tenant_access(payload, existing, "disable")
         disabled = disable_api_key_record(existing, reason=str(payload.get("reason", "operator_requested")))
         self.api_key_records[key_id] = disabled
+        self.audit_events.append(_auth_api_key_audit_event("auth.api_key.disabled", disabled))
         return {"ok": True, "record": public_api_key_record(disabled)}
 
     def _auth_users(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -1252,6 +1260,21 @@ def manifest() -> Mapping[str, Any]:
 
 def _membership_key(workspace_id: str, user_id: str) -> str:
     return f"{workspace_id}:{user_id}"
+
+
+def _auth_api_key_audit_event(event_type: str, record: Mapping[str, Any]) -> Mapping[str, Any]:
+    return {
+        "event_type": event_type,
+        "key_id": str(record.get("key_id", "")),
+        "tenant_id": str(record.get("tenant_id", "")),
+        "workspace_id": str(record.get("workspace_id", "")),
+        "principal": str(record.get("principal", "")),
+        "status": str(record.get("status", "")),
+        "created_at_epoch": int(record.get("created_at_epoch", 0) or 0),
+        "rotated_at_epoch": int(record.get("rotated_at_epoch", 0) or 0),
+        "disabled_at_epoch": int(record.get("disabled_at_epoch", 0) or 0),
+        "expires_at_epoch": int(record.get("expires_at_epoch", 0) or 0),
+    }
 
 
 def _payload_tenant_id(payload: Mapping[str, Any]) -> str:

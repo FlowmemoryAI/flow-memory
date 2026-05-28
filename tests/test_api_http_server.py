@@ -227,6 +227,34 @@ def test_http_gateway_rejects_mismatched_tenant_header_for_tenant_key() -> None:
     assert response.body["error"]["message"] == "API key is not bound to the requested tenant"
 
 
+def test_http_gateway_rejects_expired_api_key_record() -> None:
+    key = "fmk_expired_gateway_secret"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "expired-gateway-key",
+                    "key_prefix": "fmk_expired_gateway_",
+                    "key_hash": api_key_hash(key),
+                    "tenant_id": "tenant_expired_gateway",
+                    "principal": "svc-expired-gateway",
+                    "scopes": "compute:read",
+                    "enabled": True,
+                    "expires_at_epoch": int(time.time()) - 1,
+                },
+            ),
+        )
+    )
+
+    response = gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": key})
+
+    assert response.status == 401
+    assert response.body["error"]["code"] == "auth.invalid"
+    assert "api key expired" in response.body["error"]["details"]["reasons"]
+
+
 def test_http_gateway_binds_jwt_tenant_to_tenant_header() -> None:
     gateway = HttpApiGateway(
         config=HttpApiConfig(

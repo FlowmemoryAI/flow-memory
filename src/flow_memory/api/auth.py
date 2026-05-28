@@ -8,6 +8,7 @@ import hmac
 import secrets
 import time
 import hashlib
+from datetime import datetime, timezone
 import ssl
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
@@ -246,6 +247,12 @@ def _resolve_api_key_with_reasons(
                 return None, (
                     f"api key record contains unknown scope: {', '.join(invalid_scopes)}",
                 )
+            try:
+                expiry_rejection = _api_key_expiry_rejection(record, now_epoch=time.time())
+            except ValueError as exc:
+                return None, (f"api key record invalid: {exc}",)
+            if expiry_rejection:
+                return None, (expiry_rejection,)
             return (
                 ApiKeyIdentity(
                     key_id=str(record.get("key_id", "")),
@@ -262,6 +269,53 @@ def _resolve_api_key_with_reasons(
 
 def api_key_hash(api_key: str) -> str:
     return hashlib.sha256(api_key.encode("utf-8")).hexdigest()
+
+
+def _api_key_expiry_epoch(payload: Mapping[str, Any], *, issued_at_epoch: int) -> int:
+    if "expires_at_epoch" in payload and str(payload.get("expires_at_epoch", "")).strip():
+        expires_at_epoch = _positive_epoch(payload.get("expires_at_epoch"), "expires_at_epoch")
+    elif "expires_at" in payload and str(payload.get("expires_at", "")).strip():
+        expires_at_epoch = _parse_iso_epoch(str(payload.get("expires_at", "")), "expires_at")
+    elif "expires_in_seconds" in payload and str(payload.get("expires_in_seconds", "")).strip():
+        ttl_seconds = _positive_epoch(payload.get("expires_in_seconds"), "expires_in_seconds")
+        expires_at_epoch = issued_at_epoch + ttl_seconds
+    else:
+        return 0
+    if expires_at_epoch <= issued_at_epoch and "expires_in_seconds" in payload:
+        raise ValueError("expires_in_seconds must place expiration after issue time")
+    return expires_at_epoch
+
+
+def _api_key_expiry_rejection(record: Mapping[str, Any], *, now_epoch: float) -> str:
+    if "expires_at_epoch" in record and str(record.get("expires_at_epoch", "")).strip():
+        expires_at_epoch = _positive_epoch(record.get("expires_at_epoch"), "expires_at_epoch")
+    elif "expires_at" in record and str(record.get("expires_at", "")).strip():
+        expires_at_epoch = _parse_iso_epoch(str(record.get("expires_at", "")), "expires_at")
+    else:
+        return ""
+    if expires_at_epoch <= int(now_epoch):
+        return "api key expired"
+    return ""
+
+
+def _positive_epoch(value: Any, field_name: str) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} must be an integer epoch") from exc
+    if parsed <= 0:
+        raise ValueError(f"{field_name} must be positive")
+    return parsed
+
+
+def _parse_iso_epoch(value: str, field_name: str) -> int:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return int(parsed.timestamp())
 
 
 def issue_api_key_record(
@@ -301,6 +355,11 @@ def issue_api_key_record(
         "created_at_epoch": now,
         "rotation_counter": int(payload.get("rotation_counter", 0) or 0),
     }
+    expires_at_epoch = _api_key_expiry_epoch(payload, issued_at_epoch=now)
+    if expires_at_epoch:
+        record["expires_at_epoch"] = expires_at_epoch
+        if "expires_at" in payload and str(payload.get("expires_at", "")).strip():
+            record["expires_at"] = str(payload["expires_at"]).strip()
     previous_key_id = str(payload.get("previous_key_id", ""))
     if previous_key_id:
         record["previous_key_id"] = previous_key_id
@@ -336,6 +395,15 @@ def rotate_api_key_record(
         "previous_key_id": previous_key_id,
         "rotation_counter": int(existing.get("rotation_counter", 0) or 0) + 1,
     }
+    for expiry_field in ("expires_at_epoch", "expires_at", "expires_in_seconds"):
+        if expiry_field in update and str(update.get(expiry_field, "")).strip():
+            next_payload[expiry_field] = update[expiry_field]
+            break
+    else:
+        for expiry_field in ("expires_at_epoch", "expires_at"):
+            if expiry_field in existing and str(existing.get(expiry_field, "")).strip():
+                next_payload[expiry_field] = existing[expiry_field]
+                break
     if update.get("key_id"):
         next_payload["key_id"] = str(update["key_id"])
     issued = issue_api_key_record(next_payload, api_key=api_key)

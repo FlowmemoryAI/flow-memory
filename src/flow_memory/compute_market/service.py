@@ -6305,23 +6305,36 @@ def _first_text(values: tuple[str, ...], default: str) -> str:
 
 
 def _provider_public_key(payload: Mapping[str, Any], provider_id: str, service: ComputeMarketService) -> str | Mapping[str, Any]:
+    provider = service.store.get_record("compute_provider", provider_id) or {}
+    if isinstance(provider, Mapping):
+        provider_key = provider.get("public_key")
+        if isinstance(provider_key, Mapping):
+            return provider_key
+        if str(provider_key or ""):
+            return str(provider_key)
+        metadata = provider.get("metadata", {})
+        if isinstance(metadata, Mapping):
+            metadata_key = metadata.get("public_key")
+            if isinstance(metadata_key, Mapping):
+                return metadata_key
+            if str(metadata_key or ""):
+                return str(metadata_key)
+    try:
+        application = service._latest_provider_application(provider_id, payload)
+    except KeyError:
+        application = {}
+    if isinstance(application, Mapping):
+        application_key = application.get("public_key")
+        if isinstance(application_key, Mapping):
+            return application_key
+        if str(application_key or ""):
+            return str(application_key)
     for key in ("provider_public_key", "public_key"):
         value = payload.get(key)
-        if isinstance(value, Mapping) or str(value or ""):
-            return value  # type: ignore[return-value]
-    provider = service.store.get_record("compute_provider", provider_id) or {}
-    provider_key = provider.get("public_key") if isinstance(provider, Mapping) else ""
-    if provider_key:
-        return str(provider_key)
-    metadata = provider.get("metadata", {}) if isinstance(provider, Mapping) else {}
-    if isinstance(metadata, Mapping) and metadata.get("public_key"):
-        return str(metadata["public_key"])
-    try:
-        application = service._latest_provider_application(provider_id)
-    except KeyError:
-        return ""
-    if application.get("public_key"):
-        return str(application["public_key"])
+        if isinstance(value, Mapping):
+            return value
+        if str(value or ""):
+            return str(value)
     return ""
 
 

@@ -442,7 +442,6 @@ def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
         "provider_live_gpu_1",
         {
             "sample_quote": signed_quote,
-            "public_key": signer.public_record().as_record(),
             "allowed_assets": ["USDC"],
             "allowed_networks": ["solana"],
         },
@@ -450,7 +449,6 @@ def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
     ingested = service.broker_quote(
         {
             "quote": signed_quote,
-            "public_key": signer.public_record().as_record(),
             "allowed_assets": ["USDC"],
             "allowed_networks": ["solana"],
         }
@@ -460,6 +458,44 @@ def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
     assert conformance["signed_quote_valid"] is True
     assert ingested["ok"] is True
     assert ingested["quote"]["signed_quote_valid"] is True
+
+def test_broker_quote_ignores_payload_public_key_when_stored_key_exists() -> None:
+    trusted_signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")
+    spoofing_signer = LocalTestSigner("provider_live_gpu_1_spoof", "provider-spoof-seed")
+    service = _service()
+    application = _provider_application()
+    application["public_key"] = trusted_signer.public_record().public_key
+    service.apply_market_provider(application)
+    service.verify_market_provider("provider_live_gpu_1", {})
+
+    quote = {**_quote(), "quote_id": "quote_payload_key_spoof"}
+    spoofed_quote = {
+        **quote,
+        "signature": spoofing_signer.sign({**quote, "_signature_context": QUOTE_SIGNATURE_CONTEXT}).as_record(),
+    }
+    conformance = service.provider_conformance(
+        "provider_live_gpu_1",
+        {
+            "sample_quote": spoofed_quote,
+            "public_key": spoofing_signer.public_record().as_record(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        },
+    )
+    ingested = service.broker_quote(
+        {
+            "quote": spoofed_quote,
+            "public_key": spoofing_signer.public_record().as_record(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+
+    assert conformance["ok"] is False
+    assert conformance["validation"]["error_codes"] == ("invalid_signature",)
+    assert ingested["ok"] is False
+    assert ingested["validation"]["error_codes"] == ("invalid_signature",)
+    assert service.store.count_records("compute_quote") == 0
 
 def test_provider_conformance_records_fraud_signal_on_invalid_quote() -> None:
     signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")

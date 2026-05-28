@@ -4555,6 +4555,19 @@ def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None
             }
         },
     }
+    duplicate_terminal_event = {
+        "id": "evt_checkout_duplicate_payment_intent",
+        "type": "payment_intent.succeeded",
+        "data": {
+            "object": {
+                "id": "pi_checkout_duplicate",
+                "amount": 1234,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {"account_id": "acct_checkout_webhook", "payment_event_id": payment_event_id},
+            }
+        },
+    }
 
     mismatch = service.billing_webhook_stripe(
         {
@@ -4574,6 +4587,16 @@ def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None
             "stripe_signature": hmac.new(secret.encode("utf-8"), content_hash(accepted_event).encode("utf-8"), "sha256").hexdigest(),
         }
     )
+    duplicate_terminal = service.billing_webhook_stripe(
+        {
+            "raw_event": duplicate_terminal_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(duplicate_terminal_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
     balance = service.billing_balance({"account_id": "acct_checkout_webhook"})["balance"]
 
     assert mismatch["ok"] is False
@@ -4586,6 +4609,12 @@ def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None
     assert balance["available_credits"] == 12.34
     assert accepted["checkout_update"]["status"] == "payment_credited"
     assert accepted["invoice_update"]["status"] == "payment_credited"
+    assert duplicate_terminal["ok"] is True
+    assert duplicate_terminal["payment_event"]["status"] == "verified_duplicate_checkout_credit_ignored"
+    assert duplicate_terminal["payment_event"]["duplicate_checkout_terminal_event"] is True
+    assert duplicate_terminal["credit_transaction"] == {}
+    assert duplicate_terminal["checkout_update"] == {}
+    assert duplicate_terminal["invoice_update"] == {}
     stored_checkout = service.store.get_record("payment_event", payment_event_id)
     stored_invoice = service.store.get_record("billing_invoice", str(checkout["invoice"]["invoice_id"]))
     assert stored_checkout is not None
@@ -4836,6 +4865,22 @@ def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credit
             }
         },
     }
+    duplicate_refund_event = {
+        "id": "evt_checkout_refunded_duplicate_refund",
+        "type": "refund.created",
+        "data": {
+            "object": {
+                "id": "re_checkout_refunded_duplicate",
+                "amount": 1234,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_checkout_refunded",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
     excessive_refund_event = {
         "id": "evt_checkout_refunded_excessive",
         "type": "charge.refunded",
@@ -4893,6 +4938,16 @@ def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credit
             ).hexdigest(),
         }
     )
+    duplicate_refund = service.billing_webhook_stripe(
+        {
+            "raw_event": duplicate_refund_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(duplicate_refund_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
     stored_checkout = service.store.get_record("payment_event", payment_event_id)
     stored_invoice = service.store.get_record("billing_invoice", invoice_id)
     balance = service.billing_balance({"account_id": "acct_checkout_refunded"})["balance"]
@@ -4913,6 +4968,12 @@ def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credit
     assert refund_replay["ok"] is True
     assert refund_replay["idempotent_replay"] is True
     assert refund_replay["refund_debit"]["credit_transaction_id"] == refunded["refund_debit"]["credit_transaction_id"]
+    assert duplicate_refund["ok"] is True
+    assert duplicate_refund["payment_event"]["status"] == "verified_duplicate_checkout_refund_ignored"
+    assert duplicate_refund["payment_event"]["duplicate_checkout_terminal_event"] is True
+    assert duplicate_refund["refund_debit"] == {}
+    assert duplicate_refund["checkout_update"] == {}
+    assert duplicate_refund["invoice_update"] == {}
     assert refunded["checkout_update"]["status"] == "payment_refunded"
     assert refunded["checkout_update"]["refund_payment_event_id"] == "evt_checkout_refunded_refund"
     assert refunded["checkout_update"]["refunded_amount"] == 12.34

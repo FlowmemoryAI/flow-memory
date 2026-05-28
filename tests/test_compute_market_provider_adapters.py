@@ -691,7 +691,7 @@ def test_provider_health_pings_sandbox_health_endpoint_and_records_snapshot() ->
     assert snapshots[0]["status"] == "healthy"
 
 
-def test_provider_health_blocks_private_endpoint_outside_test_mode() -> None:
+def test_provider_onboarding_blocks_private_endpoint_outside_test_mode() -> None:
     store = ComputeMarketStore(":memory:")
     service = ComputeMarketService(
         store=store,
@@ -702,29 +702,26 @@ def test_provider_health_blocks_private_endpoint_outside_test_mode() -> None:
             provider_timeout_ms=1_000,
         ),
     )
-    service.apply_market_provider(
-        {
-            "provider_id": "private-provider",
-            "provider_name": "Private Provider",
-            "provider_type": "gpu",
-            "supported_unit_types": ("gpu_minute",),
-            "supported_assets": ("USDC",),
-            "supported_networks": ("offchain",),
-            "quote_endpoint": "https://provider.example.com/quote",
-            "health_endpoint": "https://127.0.0.1:9/health",
-        }
-    )
-    service.verify_market_provider("private-provider", {"verified_by": "ops"})
 
-    result = service.provider_health("private-provider")
+    try:
+        service.apply_market_provider(
+            {
+                "provider_id": "private-provider",
+                "provider_name": "Private Provider",
+                "provider_type": "gpu",
+                "supported_unit_types": ("gpu_minute",),
+                "supported_assets": ("USDC",),
+                "supported_networks": ("offchain",),
+                "quote_endpoint": "https://provider.example.com/quote",
+                "health_endpoint": "https://127.0.0.1:9/health",
+            }
+        )
+    except ValueError as exc:
+        assert "private or local network" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("private provider endpoint application was accepted")
 
-    health = cast(Mapping[str, Any], result["provider_health"])
-    metadata = cast(Mapping[str, Any], health["metadata"])
-    assert result["ok"] is False
-    assert health["status"] == "unhealthy"
-    assert health["error_code"] == "provider_health_endpoint_private_network_disallowed"
-    assert metadata["endpoint_checked"] is False
-    assert metadata["block_reason"] == "private_network_disallowed"
+    assert service.store.count_records("market_provider_application") == 0
 
 
 def test_provider_sandbox_rejects_unsigned_requests_when_signing_key_configured(monkeypatch: Any) -> None:

@@ -655,7 +655,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /market/providers/apply", request_id=request_id, provider_id=str(payload.get("provider_id", "")))
         if limited is not None:
             return limited
-        application = _provider_application(payload, request_id=request_id)
+        application = _provider_application(payload, request_id=request_id, config=self.config)
         application_id = str(application["application_id"])
         provider_id = str(application["provider_id"])
         self.store.put_record(
@@ -1245,6 +1245,28 @@ class ComputeMarketService:
         tenant_id = _payload_tenant_id(payload)
         workspace_id = str(payload.get("workspace_id", ""))
         _assert_provider_catalog_access(self.store, provider_id, payload)
+        route = _get_tenant_scoped_record(self.store, "compute_route", route_id, route_id, payload)
+        if route is not None and str(route.get("provider_id", "")) != provider_id:
+            error = compute_error(
+                "quote.route_provider_mismatch",
+                "Provider quote route_id does not belong to the specified provider_id.",
+                details={
+                    "provider_id": provider_id,
+                    "route_id": route_id,
+                    "route_provider_id": str(route.get("provider_id", "")),
+                },
+                request_id=request_id,
+            )
+            self._audit(
+                "market.quote.route_provider_mismatch_rejected",
+                payload,
+                request_id=request_id,
+                result="rejected",
+                reason_codes=("quote.route_provider_mismatch",),
+                provider_id=provider_id,
+                route_id=route_id,
+            )
+            return {"ok": False, "error": error.as_record()}
         stale_marked = _mark_expired_quotes_stale(
             self.store,
             provider_id,
@@ -6766,8 +6788,33 @@ def _provider_class_from_payload(provider_type: str, payload: Mapping[str, Any])
         raise ValueError(f"unsupported provider_class: {provider_class}")
     return provider_class
 
+def _assert_provider_application_endpoint_allowed(
+    endpoint_name: str,
+    endpoint: str,
+    *,
+    compute_market_mode: str,
+) -> None:
+    if not endpoint:
+        return
+    parsed = urllib.parse.urlparse(endpoint)
+    if parsed.scheme != "https":
+        raise ValueError(f"provider {endpoint_name} must be an https:// URL")
+    if not parsed.hostname:
+        raise ValueError(f"provider {endpoint_name} must include a host")
+    if parsed.username or parsed.password:
+        raise ValueError(f"provider {endpoint_name} must not include userinfo")
+    if compute_market_mode != "test" and _provider_health_private_or_local_host(parsed.hostname):
+        raise ValueError(f"provider {endpoint_name} must not point to a private or local network")
 
-def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dict[str, Any]:
+
+
+
+def _provider_application(
+    payload: Mapping[str, Any],
+    *,
+    request_id: str,
+    config: ComputeMarketConfig | None = None,
+) -> dict[str, Any]:
     provider_id = str(payload.get("provider_id") or deterministic_id("provider", payload))
     provider_name = str(payload.get("provider_name", "")).strip()
     provider_type = str(payload.get("provider_type", "")).strip()
@@ -6793,10 +6840,22 @@ def _provider_application(payload: Mapping[str, Any], *, request_id: str) -> dic
     )
     if missing:
         raise ValueError(f"provider application missing required fields: {', '.join(missing)}")
-    if not quote_endpoint.startswith("https://") or not health_endpoint.startswith("https://"):
-        raise ValueError("provider quote_endpoint and health_endpoint must be https:// URLs")
-    if execution_endpoint and not execution_endpoint.startswith("https://"):
-        raise ValueError("provider execution_endpoint must be an https:// URL")
+    compute_market_mode = config.compute_market_mode if config is not None else "test"
+    _assert_provider_application_endpoint_allowed(
+        "quote_endpoint",
+        quote_endpoint,
+        compute_market_mode=compute_market_mode,
+    )
+    _assert_provider_application_endpoint_allowed(
+        "health_endpoint",
+        health_endpoint,
+        compute_market_mode=compute_market_mode,
+    )
+    _assert_provider_application_endpoint_allowed(
+        "execution_endpoint",
+        execution_endpoint,
+        compute_market_mode=compute_market_mode,
+    )
     now = utc_now_iso()
     credential_bindings = _provider_credential_bindings(payload)
     return {

@@ -842,6 +842,32 @@ def test_quote_broker_rejects_cross_provider_quote_id_replay() -> None:
     assert reputation["critical_fraud_signal_count"] == 1
 
 
+def test_quote_broker_rejects_provider_route_ownership_mismatch() -> None:
+    service = _service()
+    service.apply_market_provider(_provider_application())
+    verified = service.verify_market_provider("provider_live_gpu_1", {"verification_notes": "contract reviewed"})
+    route_id = str(next(route for route in verified["routes"] if route["unit_type"] == "gpu_minute")["route_id"])
+
+    rejected = service.broker_quote(
+        {
+            "quote": {
+                **_quote(),
+                "quote_id": "quote_route_spoof",
+                "provider_id": "provider_live_gpu_2",
+                "route_id": route_id,
+            },
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+
+    assert rejected["ok"] is False
+    assert rejected["error"]["error_code"] == "quote.route_provider_mismatch"
+    assert rejected["error"]["details"]["route_provider_id"] == "provider_live_gpu_1"
+    assert service.store.count_records("compute_quote") == 0
+    assert service.store.count_records("quote_replay_guard") == 0
+
+
 def test_quote_broker_rejects_same_provider_stale_quote_replay() -> None:
     service = _service()
     accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})

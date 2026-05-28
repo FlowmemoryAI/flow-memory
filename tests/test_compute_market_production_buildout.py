@@ -818,6 +818,30 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["fraud_signal_count"] == 2
 
 
+def test_quote_broker_rejects_cross_provider_quote_id_replay() -> None:
+    service = _service()
+
+    accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+    replay = service.broker_quote(
+        {
+            "quote": {**_quote(), "provider_id": "provider_live_gpu_2"},
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+    reputation = service.provider_reputation("provider_live_gpu_2")["reputation"]
+
+    assert accepted["ok"] is True
+    assert replay["ok"] is False
+    assert replay["error"]["error_code"] == "quote.cross_provider_replay_detected"
+    assert replay["fraud_signals"][0]["signal_type"] == "provider_spoofing_replay"
+    assert replay["fraud_signals"][0]["severity"] == "critical"
+    assert replay["fraud_signals"][0]["details"]["matched_provider_id"] == "provider_live_gpu_1"
+    assert service.store.count_records("quote_replay_guard") == 1
+    assert reputation["provider_spoofing_count"] == 1
+    assert reputation["critical_fraud_signal_count"] == 1
+
+
 def test_quote_broker_rejects_same_provider_stale_quote_replay() -> None:
     service = _service()
     accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})

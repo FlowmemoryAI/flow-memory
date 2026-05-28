@@ -67,6 +67,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "quote_drift_observation": "compute_quote_drift_observations",
     "provider_fraud_signal": "compute_provider_fraud_signals",
     "provider_receipt_replay_guard": "compute_provider_receipt_replay_guard",
+    "provider_callback_replay_guard": "compute_provider_callback_replay_guard",
     "compute_job": "compute_jobs",
     "compute_job_event": "compute_job_events",
     "compute_job_artifact": "compute_job_artifacts",

@@ -87,6 +87,17 @@ _SAFE_DRY_RUN_SETTLEMENT_MODES = frozenset(
         "dry_run",
     }
 )
+_PROVIDER_STATE_CALLBACK_SIGNATURE_CONTEXT = "flowmemory.provider_state_callback.v1"
+_PROVIDER_STATE_CALLBACK_UNSIGNED_KEYS = frozenset(
+    {
+        "signature",
+        "verification",
+        "_flow_memory_client_ip",
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+    }
+)
 
 
 
@@ -2638,12 +2649,12 @@ class ComputeMarketService:
         if status in {"succeeded", "success", "completed", "complete"}:
             self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
-            completed = self.complete_job(job_id, completion_payload)
+            completed = self.complete_job(job_id, completion_payload, _verified_provider_receipt=True)
             return {"ok": True, "receipt": receipt, "verification": verification, "completion": completed, "job": completed["job"]}
         if status in {"failed", "failure", "error"}:
             self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
-            failed = self.fail_job(job_id, completion_payload)
+            failed = self.fail_job(job_id, completion_payload, _verified_provider_receipt=True)
             return {"ok": True, "receipt": receipt, "verification": verification, "failure": failed, "job": failed["job"]}
         error = compute_error(
             "provider_receipt.unsupported_status",
@@ -3069,7 +3080,13 @@ class ComputeMarketService:
         )
         return {"ok": True, "job": job, "event": event, "credit_reservation": credit_reservation}
 
-    def complete_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    def complete_job(
+        self,
+        job_id: str,
+        payload: Mapping[str, Any],
+        *,
+        _verified_provider_receipt: bool = False,
+    ) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
@@ -3086,6 +3103,25 @@ class ComputeMarketService:
         )
         if callback_rejection is not None:
             return callback_rejection
+        callback_signature_verification: Mapping[str, Any] = {"ok": True, "required": False}
+        if not _verified_provider_receipt:
+            callback_signature_verification = _verify_provider_state_callback(
+                self.store,
+                job,
+                payload,
+                callback_action="complete",
+            )
+            if callback_signature_verification.get("ok") is not True:
+                return self._provider_callback_signature_rejection(
+                    payload,
+                    callback_signature_verification,
+                    request_id=request_id,
+                    job_id=job_id,
+                    provider_id=provider_id,
+                    route_id=route_id,
+                    callback_action="complete",
+                    audit_action="compute.job.complete_rejected",
+                )
         _assert_job_status(job, ("running",), "complete")
         worker_id = _assert_claim_owner(job, payload, "complete")
         capacity_consumption_result = self._consume_job_capacity_reservation(job, payload, request_id=request_id)
@@ -3186,6 +3222,7 @@ class ComputeMarketService:
                 workspace_id=str(job.get("workspace_id", "")),
             )
             return {"ok": False, "job": current or job, "event": event, "error": error.as_record()}
+        self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
         artifact = _job_artifact(job, payload, request_id=request_id)
         if artifact:
             self.store.put_record(
@@ -3408,9 +3445,16 @@ class ComputeMarketService:
             "credit_release": credit_release,
             "capacity_consumption": capacity_consumption,
             "usage_invoice": usage_invoice,
+            "provider_callback_verification": callback_signature_verification,
         }
 
-    def fail_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    def fail_job(
+        self,
+        job_id: str,
+        payload: Mapping[str, Any],
+        *,
+        _verified_provider_receipt: bool = False,
+    ) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
@@ -3427,6 +3471,25 @@ class ComputeMarketService:
         )
         if callback_rejection is not None:
             return callback_rejection
+        callback_signature_verification: Mapping[str, Any] = {"ok": True, "required": False}
+        if not _verified_provider_receipt:
+            callback_signature_verification = _verify_provider_state_callback(
+                self.store,
+                job,
+                payload,
+                callback_action="fail",
+            )
+            if callback_signature_verification.get("ok") is not True:
+                return self._provider_callback_signature_rejection(
+                    payload,
+                    callback_signature_verification,
+                    request_id=request_id,
+                    job_id=job_id,
+                    provider_id=provider_id,
+                    route_id=route_id,
+                    callback_action="fail",
+                    audit_action="compute.job.fail_rejected",
+                )
         _assert_job_status(job, ("queued", "dispatched", "running"), "fail")
         worker_id = _assert_claim_owner(job, payload, "fail")
         credit_release: Mapping[str, Any] = {}
@@ -3497,6 +3560,7 @@ class ComputeMarketService:
                 workspace_id=str(job.get("workspace_id", "")),
             )
             return {"ok": False, "job": current or job, "event": event, "error": error.as_record()}
+        self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
         credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_failed")
         capacity_release = self._release_job_capacity_reservation(
             job,
@@ -3556,7 +3620,14 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event, "credit_release": credit_release, "capacity_release": capacity_release}
+        return {
+            "ok": True,
+            "job": job,
+            "event": event,
+            "credit_release": credit_release,
+            "capacity_release": capacity_release,
+            "provider_callback_verification": callback_signature_verification,
+        }
 
     def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         request_id = _request_id(payload)
@@ -3939,6 +4010,23 @@ class ComputeMarketService:
         )
         if callback_rejection is not None:
             return callback_rejection
+        callback_signature_verification = _verify_provider_state_callback(
+            self.store,
+            job,
+            payload,
+            callback_action="heartbeat",
+        )
+        if callback_signature_verification.get("ok") is not True:
+            return self._provider_callback_signature_rejection(
+                payload,
+                callback_signature_verification,
+                request_id=request_id,
+                job_id=job_id,
+                provider_id=provider_id,
+                route_id=route_id,
+                callback_action="heartbeat",
+                audit_action="compute.job.heartbeat_rejected",
+            )
         worker_id = _worker_id(payload)
         _assert_job_status(job, ("dispatched", "running"), "heartbeat")
         _assert_claim_owner(job, payload, "heartbeat")
@@ -3968,6 +4056,7 @@ class ComputeMarketService:
         )
         if not updated:
             raise ValueError(f"cannot heartbeat compute job {job_id}; worker lease changed")
+        self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
         event = _job_event(
             job_id,
             "job.heartbeat",
@@ -3993,7 +4082,13 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
-        return {"ok": True, "job": job, "event": event, "lease_expires_at": lease_expires_at}
+        return {
+            "ok": True,
+            "job": job,
+            "event": event,
+            "lease_expires_at": lease_expires_at,
+            "provider_callback_verification": callback_signature_verification,
+        }
 
     def release_job_claim(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -5907,6 +6002,70 @@ class ComputeMarketService:
             {"provider_id": provider_id, "route_id": route_id, "callback_action": callback_action, "reason": error_code},
         )
         return {"ok": False, "error": error.as_record()}
+    def _provider_callback_signature_rejection(
+        self,
+        payload: Mapping[str, Any],
+        verification: Mapping[str, Any],
+        *,
+        request_id: str,
+        job_id: str,
+        provider_id: str,
+        route_id: str,
+        callback_action: str,
+        audit_action: str,
+    ) -> Mapping[str, Any]:
+        error_record = cast(Mapping[str, Any], verification.get("error", {}))
+        error_code = str(error_record.get("error_code", "provider_callback.signature_invalid"))
+        error = compute_error(
+            error_code,
+            str(error_record.get("message", "Provider callback signature verification failed.")),
+            details={
+                **dict(error_record),
+                "job_id": job_id,
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": callback_action,
+            },
+            request_id=request_id,
+        )
+        self._audit(
+            audit_action,
+            payload,
+            request_id=request_id,
+            result="rejected",
+            reason_codes=(error_code,),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        self.telemetry.increment(
+            "compute_provider_callback_rejected_total",
+            {"provider_id": provider_id, "route_id": route_id, "callback_action": callback_action, "reason": error_code},
+        )
+        return {"ok": False, "error": error.as_record(), "verification": verification}
+
+    def _record_provider_callback_replay_guard(
+        self,
+        verification: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> None:
+        if verification.get("required") is not True:
+            return
+        replay_guard = verification.get("replay_guard", {})
+        if not isinstance(replay_guard, Mapping):
+            return
+        replay_guard_id = str(replay_guard.get("replay_guard_id", ""))
+        if not replay_guard_id:
+            return
+        record = {**dict(replay_guard), "request_id": request_id}
+        self.store.put_record(
+            "provider_callback_replay_guard",
+            replay_guard_id,
+            record,
+            provider_id=str(record.get("provider_id", "")),
+            route_id=str(record.get("route_id", "")),
+            request_id=request_id,
+        )
 
     def _open_circuit_provider_ids(self) -> tuple[str, ...]:
         open_ids = getattr(self.circuit_breaker, "open_provider_ids", None)
@@ -6983,6 +7142,128 @@ def _provider_callback_signing_key(provider: Mapping[str, Any]) -> LocalKeyPair 
     if not key_id or not secret:
         return None
     return LocalKeyPair(key_id=key_id, secret=secret)
+
+def _provider_state_callback_signature_payload(
+    job: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    *,
+    callback_action: str,
+) -> Mapping[str, Any]:
+    signed_payload = {
+        str(key): value
+        for key, value in payload.items()
+        if str(key) not in _PROVIDER_STATE_CALLBACK_UNSIGNED_KEYS
+    }
+    return {
+        "_signature_context": _PROVIDER_STATE_CALLBACK_SIGNATURE_CONTEXT,
+        "callback_action": callback_action,
+        "job_id": str(job.get("job_id", "")),
+        "provider_id": str(job.get("provider_id", "")),
+        "route_id": str(job.get("route_id", "")),
+        "payload": signed_payload,
+    }
+
+
+def _provider_state_callback_replay_guard_id(provider_id: str, callback_id: str) -> str:
+    return deterministic_id(
+        "provider_callback_replay_guard",
+        {"provider_id": provider_id, "callback_id": callback_id},
+    )
+
+
+def _verify_provider_state_callback(
+    store: ComputeMarketStoreProtocol,
+    job: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    *,
+    callback_action: str,
+) -> Mapping[str, Any]:
+    provider_id = str(job.get("provider_id", ""))
+    route_id = str(job.get("route_id", ""))
+    provider = store.get_record("compute_provider", provider_id) or {}
+    if not isinstance(provider, Mapping):
+        provider = {}
+    key = _provider_callback_signing_key(provider)
+    if key is None:
+        return {"ok": True, "required": False}
+    signature = payload.get("signature", payload.get("verification", {}))
+    if not isinstance(signature, Mapping) or not signature:
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.signature_missing",
+                "message": "Provider state callback signature is required.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": callback_action,
+            },
+        }
+    callback_id = str(payload.get("callback_id") or payload.get("nonce") or "").strip()
+    timestamp = str(payload.get("timestamp") or payload.get("created_at") or "").strip()
+    if not callback_id or not timestamp:
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.replay_fields_missing",
+                "message": "Provider state callbacks require callback_id or nonce plus timestamp.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": callback_action,
+            },
+        }
+    replay_guard_id = _provider_state_callback_replay_guard_id(provider_id, callback_id)
+    if store.get_record("provider_callback_replay_guard", replay_guard_id) is not None:
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.replay_detected",
+                "message": "Provider state callback replay detected.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": callback_action,
+                "callback_id": callback_id,
+            },
+        }
+    signature_payload = _provider_state_callback_signature_payload(
+        job,
+        payload,
+        callback_action=callback_action,
+    )
+    callback_hash = content_hash(signature_payload)
+    if not verify_payload(signature_payload, signature, key):
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.signature_invalid",
+                "message": "Provider state callback signature is invalid.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": callback_action,
+                "callback_id": callback_id,
+            },
+        }
+    return {
+        "ok": True,
+        "required": True,
+        "key_id": key.key_id,
+        "callback_id": callback_id,
+        "callback_hash": callback_hash,
+        "replay_guard": {
+            "replay_guard_id": replay_guard_id,
+            "callback_id": callback_id,
+            "callback_hash": callback_hash,
+            "job_id": str(job.get("job_id", "")),
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "callback_action": callback_action,
+            "timestamp": timestamp,
+            "created_at": utc_now_iso(),
+        },
+    }
 
 
 def _record_provider_fraud_signal(

@@ -14,7 +14,11 @@ from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEXT
 from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
-from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+from flow_memory.compute_market.service import (
+    ComputeMarketService,
+    _provider_state_callback_signature_payload,
+    reset_default_service,
+)
 from flow_memory.compute_market.models import IntelligenceTier, ProviderClass, ReasoningBudget, RunDecision, TaskEconomicProfile
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.hashes import content_hash
@@ -77,6 +81,21 @@ def _job_payload() -> dict[str, object]:
         "route_id": "route_live_gpu_1",
         "provider_id": "provider_live_gpu_1",
     }
+
+
+def _signed_state_callback(
+    job: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    key: LocalKeyPair,
+    *,
+    callback_action: str,
+) -> dict[str, object]:
+    signature_payload = _provider_state_callback_signature_payload(
+        job,
+        payload,
+        callback_action=callback_action,
+    )
+    return {**dict(payload), "signature": sign_payload(signature_payload, key).as_record()}
 
 
 def _metric_total(service: ComputeMarketService, name: str, labels: Mapping[str, str] | None = None) -> float:
@@ -2655,6 +2674,133 @@ def test_provider_job_state_callbacks_enforce_ip_allowlist() -> None:
     assert service.get_job(heartbeat_job_id)["job"]["status"] == "running"
     assert "heartbeat_count" not in service.get_job(heartbeat_job_id)["job"]
     assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.ip_not_allowed"}) == 3.0
+
+
+def test_provider_job_state_callbacks_verify_signature_and_replay(monkeypatch: Any) -> None:
+    service = _service()
+    key = LocalKeyPair("provider-state-callback-key", "provider-state-callback-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_STATE_CALLBACK_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "state-callback-provider",
+            "provider_name": "State Callback Provider",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_STATE_CALLBACK_SECRET",
+            },
+        }
+    )
+
+    missing_job_id = str(service.create_job({**_job_payload(), "provider_id": "state-callback-provider", "route_id": "state-route"})["job"]["job_id"])
+    tampered_job_id = str(service.create_job({**_job_payload(), "provider_id": "state-callback-provider", "route_id": "state-route"})["job"]["job_id"])
+    complete_job_id = str(service.create_job({**_job_payload(), "provider_id": "state-callback-provider", "route_id": "state-route"})["job"]["job_id"])
+    fail_job_id = str(service.create_job({**_job_payload(), "provider_id": "state-callback-provider", "route_id": "state-route"})["job"]["job_id"])
+    heartbeat_job_id = str(service.create_job({**_job_payload(), "provider_id": "state-callback-provider", "route_id": "state-route"})["job"]["job_id"])
+
+    service.dispatch_job(missing_job_id, {})
+    service.dispatch_job(tampered_job_id, {})
+    service.dispatch_job(complete_job_id, {})
+    service.claim_job({"job_id": heartbeat_job_id, "worker_id": "worker_state_callback", "ttl_seconds": 60})
+
+    missing = service.complete_job(
+        missing_job_id,
+        {"actual_total_cost": 0.2, "callback_id": "state-missing", "timestamp": "2099-01-01T00:00:00Z"},
+    )
+
+    original_tampered_payload = {
+        "actual_total_cost": 0.2,
+        "callback_id": "state-tampered",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    tampered_signature = sign_payload(
+        _provider_state_callback_signature_payload(
+            service.get_job(tampered_job_id)["job"],
+            original_tampered_payload,
+            callback_action="complete",
+        ),
+        key,
+    ).as_record()
+    tampered = service.complete_job(
+        tampered_job_id,
+        {**original_tampered_payload, "actual_total_cost": 0.4, "signature": tampered_signature},
+    )
+
+    complete_payload = {
+        "actual_total_cost": 0.2,
+        "actual_units": 2,
+        "callback_id": "state-complete",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    complete = service.complete_job(
+        complete_job_id,
+        _signed_state_callback(
+            service.get_job(complete_job_id)["job"],
+            complete_payload,
+            key,
+            callback_action="complete",
+        ),
+    )
+    replayed = service.complete_job(
+        complete_job_id,
+        _signed_state_callback(
+            service.get_job(complete_job_id)["job"],
+            complete_payload,
+            key,
+            callback_action="complete",
+        ),
+    )
+
+    fail_payload = {
+        "error_code": "provider_timeout",
+        "reason": "signed provider failure",
+        "callback_id": "state-fail",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    failed = service.fail_job(
+        fail_job_id,
+        _signed_state_callback(
+            service.get_job(fail_job_id)["job"],
+            fail_payload,
+            key,
+            callback_action="fail",
+        ),
+    )
+
+    heartbeat_payload = {
+        "worker_id": "worker_state_callback",
+        "ttl_seconds": 120,
+        "callback_id": "state-heartbeat",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    heartbeat = service.heartbeat_job(
+        heartbeat_job_id,
+        _signed_state_callback(
+            service.get_job(heartbeat_job_id)["job"],
+            heartbeat_payload,
+            key,
+            callback_action="heartbeat",
+        ),
+    )
+
+    assert missing["ok"] is False
+    assert missing["error"]["error_code"] == "provider_callback.signature_missing"
+    assert service.get_job(missing_job_id)["job"]["status"] == "running"
+    assert tampered["ok"] is False
+    assert tampered["error"]["error_code"] == "provider_callback.signature_invalid"
+    assert service.get_job(tampered_job_id)["job"]["status"] == "running"
+    assert complete["ok"] is True
+    assert complete["job"]["status"] == "succeeded"
+    assert replayed["ok"] is False
+    assert replayed["error"]["error_code"] == "provider_callback.replay_detected"
+    assert failed["ok"] is True
+    assert failed["job"]["status"] == "failed"
+    assert heartbeat["ok"] is True
+    assert heartbeat["job"]["heartbeat_count"] == 1
+    assert service.store.count_records("provider_callback_replay_guard") == 3
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.signature_missing"}) == 1.0
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.signature_invalid"}) == 1.0
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.replay_detected"}) == 1.0
 
 
 def test_compute_worker_claim_heartbeat_dispatch_and_complete() -> None:

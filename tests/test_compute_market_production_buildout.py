@@ -1988,6 +1988,68 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_complete_job_status_race_does_not_record_usage_or_debit(monkeypatch: Any) -> None:
+    service = _service()
+    account_id = "acct_complete_status_race"
+    _credit_account(service, account_id, 1.0, event_id="evt_complete_status_race")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_complete_status_race",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    original_put_record_if_state = service.store.put_record_if_state
+
+    def fail_completion_transition(
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        **kwargs: Any,
+    ) -> bool:
+        if record_type == "compute_job" and record_id == job_id and expected_statuses == ("running",):
+            return False
+        return original_put_record_if_state(record_type, record_id, expected_statuses, payload, **kwargs)
+
+    monkeypatch.setattr(service.store, "put_record_if_state", fail_completion_transition)
+
+    completed = service.complete_job(
+        job_id,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "artifact_ref": "s3://flow-memory-results/job-race.json",
+            "artifact_data": {"result": "late"},
+        },
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    transactions = service.store.list_records(
+        "credit_transaction",
+        filters={"tenant_id": account_id},
+        limit=10,
+    ).records
+
+    assert dispatched["ok"] is True
+    assert completed["ok"] is False
+    assert completed["error"]["error_code"] == "job.status_changed"
+    assert completed["job"]["status"] == "running"
+    assert service.get_job(job_id)["job"]["status"] == "running"
+    assert service.store.count_records("usage_charge") == 0
+    assert service.store.count_records("billing_invoice") == 0
+    assert service.store.count_records("compute_job_artifact") == 0
+    assert service.store.count_records("provider_payout") == 0
+    assert not any(record["transaction_type"] == "debit" for record in transactions)
+    assert balance["available_credits"] == 0.82
+    assert balance["reserved_credits"] == 0.18
+    assert not any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
+
 def test_compute_job_expire_leases_requeues_claims_and_expires_running_jobs() -> None:
     service = _service()
     expired_at = "2000-01-01T00:00:00Z"

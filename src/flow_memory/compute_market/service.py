@@ -3127,17 +3127,54 @@ class ComputeMarketService:
         if isinstance(capacity_consumption, Mapping) and capacity_consumption:
             job["capacity_consumption"] = capacity_consumption
             job["capacity_reservation_id"] = str(capacity_consumption.get("reservation_id", ""))
-        self.store.put_record(
+        transitioned_to_succeeded = self.store.put_record_if_state(
             "compute_job",
             job_id,
+            ("running",),
             job,
+            expected_actor_id=worker_id if str(job.get("claimed_by", "")) else "",
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
             task_type=str(job.get("task_type", "")),
             status="succeeded",
             request_id=request_id,
             actor_id=worker_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
         )
+        if not transitioned_to_succeeded:
+            current = self.store.get_record("compute_job", job_id) or {}
+            error = compute_error(
+                "job.status_changed",
+                "Compute job status changed before completion could be recorded.",
+                details={
+                    "job_id": job_id,
+                    "expected_statuses": ("running",),
+                    "actual_status": str(current.get("status", "")),
+                    "funds_moved": False,
+                },
+                request_id=request_id,
+            )
+            event = _job_event(
+                job_id,
+                "job.complete_status_changed",
+                status=str(current.get("status", job.get("status", "running"))),
+                request_id=request_id,
+                details={"error": error.as_record(), "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(current.get("status", job.get("status", "running"))),
+                request_id=request_id,
+                actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            return {"ok": False, "job": current or job, "event": event, "error": error.as_record()}
         artifact = _job_artifact(job, payload, request_id=request_id)
         if artifact:
             self.store.put_record(

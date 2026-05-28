@@ -9,9 +9,22 @@ param(
     [string]$ApiKey,
 
     [Parameter()]
-    [switch]$RequireImmutableAudit
-)
+    [switch]$RequireImmutableAudit,
 
+    [Parameter()]
+    [string]$GatewayJwtHs256Secret = $env:FLOW_MEMORY_API_JWT_HS256_SECRET,
+
+    [Parameter()]
+    [string]$GatewayJwtIssuer = $env:FLOW_MEMORY_API_JWT_ISSUER,
+
+    [Parameter()]
+    [string]$GatewayJwtAudience = $env:FLOW_MEMORY_API_JWT_AUDIENCE,
+
+    [Parameter()]
+    [ValidateRange(30, 3600)]
+    [int]$GatewayJwtTtlSeconds = 300
+
+)
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
@@ -81,6 +94,92 @@ function Add-NonceHeaders {
     $Headers['x-flow-memory-timestamp'] = [string][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
     $Headers['x-flow-memory-nonce'] = "$Label-$([Guid]::NewGuid().ToString('N'))"
     return $Headers
+}
+
+function ConvertTo-Base64Url {
+    param([Parameter(Mandatory = $true)] [byte[]]$Bytes)
+
+    return [Convert]::ToBase64String($Bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+}
+
+
+function New-GatewayJwt {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Secret,
+        [Parameter(Mandatory = $true)] [string]$Issuer,
+        [Parameter(Mandatory = $true)] [string]$Audience,
+        [Parameter(Mandatory = $true)] [string]$Scopes,
+        [Parameter(Mandatory = $true)] [int]$TtlSeconds
+    )
+
+    if ($Secret.Length -lt 32) {
+        throw 'Gateway JWT secret must be at least 32 characters when configured.'
+    }
+    if ([string]::IsNullOrWhiteSpace($Issuer) -or -not $Issuer.StartsWith('https://')) {
+        throw 'Gateway JWT issuer must be a non-empty https:// URL when JWT smoke is configured.'
+    }
+    if ([string]::IsNullOrWhiteSpace($Audience)) {
+        throw 'Gateway JWT audience must be non-empty when JWT smoke is configured.'
+    }
+
+    $now = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    $header = [ordered]@{ alg = 'HS256'; typ = 'JWT' }
+    $claims = [ordered]@{
+        iss = $Issuer
+        aud = $Audience
+        sub = 'flow-memory-public-smoke'
+        scope = $Scopes
+        iat = $now
+        nbf = $now
+        exp = $now + $TtlSeconds
+    }
+
+    $encoding = [System.Text.Encoding]::UTF8
+    $headerSegment = ConvertTo-Base64Url -Bytes $encoding.GetBytes(($header | ConvertTo-Json -Compress))
+    $payloadSegment = ConvertTo-Base64Url -Bytes $encoding.GetBytes(($claims | ConvertTo-Json -Compress))
+    $signingInput = "$headerSegment.$payloadSegment"
+    $hmac = [System.Security.Cryptography.HMACSHA256]::new($encoding.GetBytes($Secret))
+    try {
+        $signature = $hmac.ComputeHash($encoding.GetBytes($signingInput))
+    }
+    finally {
+        $hmac.Dispose()
+    }
+
+    return "$signingInput.$(ConvertTo-Base64Url -Bytes $signature)"
+}
+
+
+function Invoke-GatewayJwtRequest {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Token,
+        [Parameter(Mandatory = $true)] [string]$Path,
+        [Parameter(Mandatory = $true)] [string]$Scopes,
+        [Parameter(Mandatory = $true)] [string]$Label
+    )
+
+    $headers = Add-NonceHeaders -Headers @{
+        authorization = "Bearer $Token"
+        'x-flow-memory-scopes' = $Scopes
+    } -Label $Label
+
+    try {
+        $response = Invoke-WebRequest -Uri "$baseUrl$Path" -Method GET -Headers $headers -TimeoutSec 90
+        $content = [string]$response.Content
+        $json = $null
+        if ($content.Trim().Length -gt 0) {
+            $json = $content | ConvertFrom-Json
+        }
+        return @{ StatusCode = [int]$response.StatusCode; Json = $json; Body = $content }
+    }
+    catch {
+        $errorResult = Read-HttpErrorBody -ErrorRecord $_
+        $json = $null
+        if ([string]$errorResult.Body -and ([string]$errorResult.Body).Trim().Length -gt 0) {
+            try { $json = ([string]$errorResult.Body | ConvertFrom-Json) } catch { $json = $null }
+        }
+        return @{ StatusCode = [int]$errorResult.StatusCode; Json = $json; Body = [string]$errorResult.Body }
+    }
 }
 
 
@@ -289,6 +388,37 @@ Assert-Status -Response $missingKey -Expected 401 -Name 'missing-key health'
 $wrongScope = Invoke-ComputeMarketRequest -Method POST -Path '/compute/plan' -Scopes 'compute:read' -Body $planBody
 Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 
+$jwtHealth = $null
+$jwtWrongAudience = $null
+if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
+    $jwtScopes = 'compute:read compute:plan compute:audit compute:admin'
+    $jwtToken = New-GatewayJwt `
+        -Secret $GatewayJwtHs256Secret `
+        -Issuer $GatewayJwtIssuer `
+        -Audience $GatewayJwtAudience `
+        -Scopes $jwtScopes `
+        -TtlSeconds $GatewayJwtTtlSeconds
+    $badJwtToken = New-GatewayJwt `
+        -Secret $GatewayJwtHs256Secret `
+        -Issuer $GatewayJwtIssuer `
+        -Audience "$GatewayJwtAudience-wrong" `
+        -Scopes $jwtScopes `
+        -TtlSeconds $GatewayJwtTtlSeconds
+
+    $jwtHealth = Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-health'
+    Assert-Status -Response $jwtHealth -Expected 200 -Name 'jwt health'
+    Assert-True (($jwtHealth.Json.ok -eq $true) -or ((Get-DataField -Json $jwtHealth.Json -Name 'ok') -eq $true)) 'JWT health did not return ok=true.'
+
+    $jwtWrongAudience = Invoke-GatewayJwtRequest -Token $badJwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-wrong-audience'
+    Assert-Status -Response $jwtWrongAudience -Expected 401 -Name 'jwt wrong-audience health'
+    $jwtHealthStatus = [int]$jwtHealth.StatusCode
+    $jwtWrongAudienceStatus = [int]$jwtWrongAudience.StatusCode
+}
+else {
+    $jwtHealthStatus = 0
+    $jwtWrongAudienceStatus = 0
+}
+
 $result = [ordered]@{
     status = 'passed'
     public_url = $baseUrl
@@ -312,6 +442,8 @@ $result = [ordered]@{
     audit_export_immutable = [bool]$auditExport.Json.data.immutable
     missing_key = $missingKey.StatusCode
     wrong_scope = $wrongScope.StatusCode
+    jwt_health = $jwtHealthStatus
+    jwt_wrong_audience = $jwtWrongAudienceStatus
     dry_run_only = [bool]$computePlan.dry_run_only
     funds_moved = [bool]$computePlan.funds_moved
     broadcast_allowed = [bool]$computePlan.broadcast_allowed

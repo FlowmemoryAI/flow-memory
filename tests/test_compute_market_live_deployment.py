@@ -152,6 +152,24 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_NONCE_REQUIRE_TLS\n        value: true" in blueprint
     assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
 
+def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
+    script = (ROOT / "scripts" / "smoke_compute_market_public.ps1").read_text(encoding="utf-8")
+
+    for expected in (
+        "$GatewayJwtHs256Secret = $env:FLOW_MEMORY_API_JWT_HS256_SECRET",
+        "$GatewayJwtIssuer = $env:FLOW_MEMORY_API_JWT_ISSUER",
+        "$GatewayJwtAudience = $env:FLOW_MEMORY_API_JWT_AUDIENCE",
+        "function New-GatewayJwt",
+        "System.Security.Cryptography.HMACSHA256",
+        "Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health'",
+        "Invoke-GatewayJwtRequest -Token $badJwtToken -Path '/compute/health'",
+        "Assert-Status -Response $jwtWrongAudience -Expected 401",
+        "jwt_health = $jwtHealthStatus",
+        "jwt_wrong_audience = $jwtWrongAudienceStatus",
+    ):
+        assert expected in script
+
+
 
 def test_render_blueprint_and_env_builder_match_level1_safety_contract() -> None:
     blueprint = (ROOT / "render.yaml").read_text(encoding="utf-8")

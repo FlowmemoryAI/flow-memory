@@ -1724,9 +1724,42 @@ class ComputeMarketService:
             return limited
         _assert_provider_catalog_access(self.store, provider_id, payload)
         idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        idempotency_request_hash = _capacity_idempotency_request_hash(payload) if idempotency_key else ""
         if idempotency_key:
             existing = self.store.find_by_idempotency("capacity_auction", idempotency_key)
             if existing is not None:
+                if not _tenant_can_access_record(payload, existing):
+                    raise KeyError("Unknown capacity auction for idempotency key")
+                existing_hash = str(existing.get("idempotency_request_hash", ""))
+                if existing_hash and existing_hash != idempotency_request_hash:
+                    error = compute_error(
+                        "capacity.auction.idempotency_conflict",
+                        "Capacity auction idempotency key was replayed with different auction parameters.",
+                        details={
+                            "auction_id": str(existing.get("auction_id", "")),
+                            "provider_id": provider_id,
+                            "route_id": route_id,
+                            "existing_provider_id": str(existing.get("provider_id", "")),
+                            "existing_route_id": str(existing.get("route_id", "")),
+                        },
+                        request_id=request_id,
+                    )
+                    self._audit(
+                        "market.capacity.auction_replay_rejected",
+                        payload,
+                        request_id=request_id,
+                        result="rejected",
+                        reason_codes=("capacity.auction.idempotency_conflict",),
+                        provider_id=provider_id,
+                        route_id=route_id,
+                    )
+                    return {
+                        "ok": False,
+                        "clearing": existing,
+                        "error": error.as_record(),
+                        "idempotent_replay": False,
+                        "next_safe_actions": ("use a new idempotency_key for different auction parameters",),
+                    }
                 return {"ok": True, "clearing": existing, "idempotent_replay": True}
         self._expire_capacity_holds(payload, request_id=request_id)
         capacity_filters = {"provider_id": provider_id, "route_id": route_id}
@@ -1747,6 +1780,8 @@ class ComputeMarketService:
             ).records
         )
         clearing = _capacity_auction_clearing(payload, windows, reservations, request_id=request_id)
+        if idempotency_request_hash:
+            clearing["idempotency_request_hash"] = idempotency_request_hash
         self.store.put_record(
             "capacity_auction",
             str(clearing["auction_id"]),

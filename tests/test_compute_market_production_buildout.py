@@ -1982,6 +1982,18 @@ def test_capacity_auction_clears_highest_bids_without_mutating_reservations() ->
     assert replay["idempotent_replay"] is True
     assert replay["clearing"]["auction_id"] == clearing["auction_id"]
     assert service.store.count_records("capacity_auction") == 1
+    conflict = service.auction_capacity({**payload, "capacity_units": 4})
+    assert conflict["ok"] is False
+    assert conflict["idempotent_replay"] is False
+    assert conflict["clearing"]["auction_id"] == clearing["auction_id"]
+    assert conflict["error"]["error_code"] == "capacity.auction.idempotency_conflict"
+    assert conflict["next_safe_actions"] == ("use a new idempotency_key for different auction parameters",)
+    assert service.store.count_records("capacity_auction") == 1
+    assert _metric_total(
+        service,
+        "capacity_auction_cleared_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 5.0
     assert service.release_capacity({"reservation_id": held["reservation"]["reservation_id"]})["ok"] is True
 
 

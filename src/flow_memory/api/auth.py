@@ -105,6 +105,7 @@ class ApiKeyIdentity:
 @dataclass(frozen=True)
 class ApiAuthConfig:
     api_key: str = ""
+    api_key_scopes: tuple[str, ...] = ()
     require_signed_requests: bool = False
     api_key_records: tuple[Mapping[str, Any], ...] = ()
     enable_nonce_check: bool = False
@@ -200,7 +201,12 @@ def resolve_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> ApiKey
     if not supplied:
         return None
     if config.api_key and supplied == config.api_key:
-        return ApiKeyIdentity(key_id="legacy", principal=_header(headers, "x-flow-memory-principal") or "api-key", tenant_id=_header(headers, "x-flow-memory-tenant"), scopes=())
+        return ApiKeyIdentity(
+            key_id="legacy",
+            principal=_header(headers, "x-flow-memory-principal") or "api-key",
+            tenant_id=_header(headers, "x-flow-memory-tenant"),
+            scopes=_parse_scopes(config.api_key_scopes),
+        )
     supplied_hash = api_key_hash(supplied)
     for record in config.api_key_records:
         if not _truthy(record.get("enabled", True)):

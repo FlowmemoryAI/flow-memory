@@ -8,6 +8,7 @@ import sys
 from collections.abc import Mapping, Sequence
 
 from flow_memory.api.http_server import HttpApiConfig, serve_local_api
+from flow_memory.api.scopes import KNOWN_SCOPES, parse_scope_header
 
 _PUBLIC_BIND_HOSTS = frozenset({"0.0.0.0", "::", ""})
 
@@ -25,6 +26,7 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
     parser.add_argument("--host", default=source.get("FLOW_MEMORY_API_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=_int(source.get("FLOW_MEMORY_API_PORT"), 8765))
     parser.add_argument("--api-key", default=source.get("FLOW_MEMORY_API_KEY", ""))
+    parser.add_argument("--api-key-scopes", default=source.get("FLOW_MEMORY_API_KEY_SCOPES"))
     api_key_records = _api_key_records(source.get("FLOW_MEMORY_API_KEYS_JSON", ""))
     parser.add_argument(
         "--require-scopes",
@@ -107,6 +109,11 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         host=str(args.host),
         port=int(args.port),
         api_key=str(args.api_key),
+        api_key_scopes=(
+            parse_scope_header(str(args.api_key_scopes))
+            if args.api_key_scopes is not None
+            else tuple(sorted(KNOWN_SCOPES))
+        ),
         api_key_records=api_key_records,
         require_scopes=bool(args.require_scopes),
         rate_limit=int(args.rate_limit),

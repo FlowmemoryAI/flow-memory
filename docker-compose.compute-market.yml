@@ -15,6 +15,7 @@ services:
       - "8765:8765"
     environment:
       FLOW_MEMORY_API_KEY: ${FLOW_MEMORY_API_KEY:?Set FLOW_MEMORY_API_KEY to a high-entropy API key}
+      FLOW_MEMORY_API_KEY_SCOPES: ${FLOW_MEMORY_API_KEY_SCOPES:-api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin}
       FLOW_MEMORY_API_REQUIRE_SCOPES: "true"
       FLOW_MEMORY_API_RATE_LIMIT: ${FLOW_MEMORY_API_RATE_LIMIT:-120}
       FLOW_MEMORY_API_ENABLE_NONCE_CHECK: "true"

@@ -178,6 +178,53 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header() -> N
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
     assert gateway.audit_sink.events[-1]["tenant_id"] == "tenant_http"
 
+def test_http_gateway_rejects_scope_header_escalation_for_unscoped_key_record() -> None:
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "unscoped-key",
+                    "key_prefix": "fmk_unscoped_",
+                    "key_hash": api_key_hash("fmk_unscoped_secret"),
+                    "tenant_id": "tenant_unscoped",
+                    "principal": "svc-unscoped",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    denied = gateway.handle(
+        "GET",
+        "/compute/health",
+        {"x-flow-memory-api-key": "fmk_unscoped_secret", "x-flow-memory-scopes": "compute:read"},
+    )
+    local_dev = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))
+    local_allowed = local_dev.handle("GET", "/compute/health", {"x-flow-memory-scopes": "compute:read"})
+
+    assert denied.status == 403
+    assert denied.body["error"]["details"]["unauthorized"] == ("compute:read",)
+    assert local_allowed.status == 200
+
+
+def test_http_gateway_uses_requested_scope_subset_from_credential_grants() -> None:
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            api_key="dev",
+            api_key_scopes=("compute:read", "compute:plan"),
+            require_scopes=True,
+            enable_rate_limit=False,
+        )
+    )
+
+    wrong_scope = gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": "dev", "x-flow-memory-scopes": "compute:plan"})
+    allowed = gateway.handle("GET", "/compute/health", {"x-flow-memory-api-key": "dev", "x-flow-memory-scopes": "compute:read"})
+
+    assert wrong_scope.status == 403
+    assert wrong_scope.body["error"]["details"]["missing"] == ("compute:read",)
+    assert allowed.status == 200
+
 
 def test_http_gateway_enforces_credential_scopes_without_scope_header() -> None:
     service = ComputeMarketService(

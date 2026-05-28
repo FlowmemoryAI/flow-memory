@@ -21,7 +21,7 @@ from flow_memory.api.errors import ApiError, auth_error, error_response, forbidd
 from flow_memory.api.rate_limits import LocalRateLimiter, RateLimitRule
 from flow_memory.api.router import LocalApiRouter, create_default_router
 from flow_memory.api.request_context import RequestContext
-from flow_memory.api.scopes import COMPUTE_BILLING_SCOPE, context_from_headers, require_scopes
+from flow_memory.api.scopes import COMPUTE_BILLING_SCOPE, KNOWN_SCOPES, context_from_headers, require_scopes
 from flow_memory.core.types import new_id
 
 
@@ -30,6 +30,7 @@ class HttpApiConfig:
     host: str = "127.0.0.1"
     port: int = 8765
     api_key: str = ""
+    api_key_scopes: tuple[str, ...] = tuple(sorted(KNOWN_SCOPES))
     api_key_records: tuple[Mapping[str, Any], ...] = ()
     require_scopes: bool = False
     enable_rate_limit: bool = True
@@ -64,6 +65,9 @@ class HttpApiConfig:
             errors.append("max_request_age_seconds must be positive")
         if self.jwt_leeway_seconds < 0:
             errors.append("jwt_leeway_seconds must be non-negative")
+        invalid_api_key_scopes = tuple(scope for scope in self.api_key_scopes if scope not in KNOWN_SCOPES)
+        if invalid_api_key_scopes:
+            errors.append(f"api_key_scopes contains unknown scopes: {', '.join(invalid_api_key_scopes)}")
         normalized_nonce_backend = self.nonce_replay_backend.strip().lower()
         if normalized_nonce_backend not in {"memory", "in_memory", "redis"}:
             errors.append("nonce_replay_backend must be memory or redis")
@@ -192,6 +196,7 @@ class HttpApiGateway:
                 header_map,
                 ApiAuthConfig(
                     api_key=self.config.api_key,
+                    api_key_scopes=self.config.api_key_scopes,
                     api_key_records=api_key_records,
                     enable_nonce_check=self.config.enable_nonce_check,
                     max_request_age_seconds=self.config.max_request_age_seconds,
@@ -205,25 +210,28 @@ class HttpApiGateway:
                 path=context.path,
                 payload=payload,
             )
-            if auth.ok and auth.scopes and context.scopes:
-                unauthorized_scopes = tuple(sorted(set(context.scopes) - set(auth.scopes)))
+            credential_resolved = bool(auth.key_id or auth.principal)
+            requested_scopes = context.scopes
+            if auth.ok and credential_resolved and requested_scopes:
+                unauthorized_scopes = tuple(sorted(set(requested_scopes) - set(auth.scopes)))
                 if unauthorized_scopes:
                     raise forbidden_error(
                         "Requested API scopes are not granted to this credential",
                         details={
-                            "requested": tuple(sorted(context.scopes)),
+                            "requested": tuple(sorted(requested_scopes)),
                             "granted": tuple(sorted(auth.scopes)),
                             "unauthorized": unauthorized_scopes,
                             "key_id": auth.key_id,
                         },
                     )
             if auth.ok and (auth.scopes or auth.tenant_id or auth.principal):
+                effective_scopes = requested_scopes if requested_scopes else (() if auth.key_id == "legacy" and self.config.require_scopes else auth.scopes)
                 context = context.__class__(
                     method=context.method,
                     path=context.path,
                     request_id=context.request_id,
                     principal=auth.principal or context.principal,
-                    scopes=tuple(sorted(set(context.scopes) | set(auth.scopes))),
+                    scopes=tuple(sorted(effective_scopes)),
                     client_id=context.client_id,
                     tenant_id=auth.tenant_id or context.tenant_id,
                 )

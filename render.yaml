@@ -20,6 +20,8 @@ services:
         sync: false
       - key: FLOW_MEMORY_API_KEY
         generateValue: true
+      - key: FLOW_MEMORY_API_KEY_SCOPES
+        value: api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin
       - key: FLOW_MEMORY_API_REQUIRE_SCOPES
         value: true
       - key: FLOW_MEMORY_API_JWT_HS256_SECRET

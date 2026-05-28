@@ -795,6 +795,7 @@ def build_env_vars(
         "FLOW_MEMORY_API_HOST": "0.0.0.0",
         "FLOW_MEMORY_API_PORT": "8765",
         "FLOW_MEMORY_API_KEY": api_key_value,
+        "FLOW_MEMORY_API_KEY_SCOPES": "api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin",
         "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
         "FLOW_MEMORY_API_JWT_HS256_SECRET": jwt_hs256_secret,
         "FLOW_MEMORY_API_JWT_ISSUER": jwt_issuer,

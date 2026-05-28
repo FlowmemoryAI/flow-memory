@@ -2899,11 +2899,13 @@ class ComputeMarketService:
         routes = tuple(self.store.list_records("compute_route", filters={"provider_id": provider_id}, limit=100).records)
         adapter = build_external_provider_adapter(provider, routes, self.config)
         result = dict(adapter.execute_plan({**dict(job), "request_id": request_id, "worker_id": str(payload.get("worker_id", ""))}))
-        if result.get("ok") is True:
+        execution_status = str(result.get("status", "")).strip().lower()
+        terminal_provider_failure = bool(result.get("external_provider_called", False)) and execution_status == "failed"
+        if result.get("ok") is True or terminal_provider_failure:
             self.telemetry.increment("provider_execution_request_total", {"provider_id": provider_id})
             self.circuit_breaker.record_success(provider_id, route_id=route_id, adapter_type="external_execution")
             self._audit("compute.job.external_execution_requested", payload, request_id=request_id, result=str(result.get("status", "accepted")), provider_id=provider_id, route_id=route_id)
-            return {"required": True, **result}
+            return {"required": True, **result, "ok": True}
         error_code = str(result.get("error_code", "provider_execution.failed"))
         self.telemetry.increment("provider_execution_failure_total", {"provider_id": provider_id, "error_code": error_code})
         self.circuit_breaker.record_failure(provider_id, route_id=route_id, adapter_type="external_execution", error_class=error_code)
@@ -3278,6 +3280,52 @@ class ComputeMarketService:
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
         )
+        terminal_execution_status = str(execution.get("status", "")).strip().lower()
+        if execution.get("external_provider_called") is True and terminal_execution_status in {"succeeded", "failed"}:
+            provider_execution_details = {
+                key: value
+                for key, value in dict(execution).items()
+                if key not in {"required", "ok"}
+            }
+            terminal_payload: dict[str, Any] = {
+                **dict(payload),
+                "request_id": request_id,
+                "worker_id": worker_id,
+                "actual_units": execution.get("actual_units", 0.0),
+                "actual_total_cost": execution.get("actual_total_cost", 0.0),
+                "actual_latency_ms": execution.get("actual_latency_ms", 0.0),
+                "artifact_ref": str(execution.get("artifact_ref", "")),
+                "artifact_data": execution.get("artifact_data", {}),
+            }
+            if terminal_execution_status == "succeeded":
+                completion = self.complete_job(job_id, terminal_payload, _verified_provider_execution=True)
+                return {
+                    "ok": bool(completion.get("ok", False)),
+                    "job": completion.get("job", job),
+                    "event": event,
+                    "terminal_event": completion.get("event", {}),
+                    "completion": completion,
+                    "credit_reservation": credit_reservation,
+                    "provider_execution": provider_execution_details,
+                }
+            failure = self.fail_job(
+                job_id,
+                {
+                    **terminal_payload,
+                    "error_code": str(execution.get("error_code", "provider_execution_failed") or "provider_execution_failed"),
+                    "reason": str(execution.get("message", "Provider execution failed.") or "Provider execution failed."),
+                },
+                _verified_provider_execution=True,
+            )
+            return {
+                "ok": bool(failure.get("ok", False)),
+                "job": failure.get("job", job),
+                "event": event,
+                "terminal_event": failure.get("event", {}),
+                "failure": failure,
+                "credit_reservation": credit_reservation,
+                "provider_execution": provider_execution_details,
+            }
         return {"ok": True, "job": job, "event": event, "credit_reservation": credit_reservation}
 
     def complete_job(
@@ -3286,25 +3334,30 @@ class ComputeMarketService:
         payload: Mapping[str, Any],
         *,
         _verified_provider_receipt: bool = False,
+        _verified_provider_execution: bool = False,
     ) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
         provider_id = str(job.get("provider_id", ""))
         route_id = str(job.get("route_id", ""))
-        callback_rejection = self._provider_callback_ip_rejection(
-            payload,
-            request_id=request_id,
-            job_id=job_id,
-            provider_id=provider_id,
-            route_id=route_id,
-            callback_action="complete",
-            audit_action="compute.job.complete_rejected",
-        )
-        if callback_rejection is not None:
-            return callback_rejection
+        verified_provider_state = _verified_provider_receipt or _verified_provider_execution
+        if not verified_provider_state:
+            callback_rejection = self._provider_callback_ip_rejection(
+                payload,
+                request_id=request_id,
+                job_id=job_id,
+                provider_id=provider_id,
+                route_id=route_id,
+                callback_action="complete",
+                audit_action="compute.job.complete_rejected",
+            )
+            if callback_rejection is not None:
+                return callback_rejection
         callback_signature_verification: Mapping[str, Any] = {"ok": True, "required": False}
-        if not _verified_provider_receipt:
+        if _verified_provider_execution:
+            callback_signature_verification = {"ok": True, "required": False, "source": "external_provider_execution_response"}
+        if not verified_provider_state:
             callback_signature_verification = _verify_provider_state_callback(
                 self.store,
                 job,
@@ -3939,25 +3992,30 @@ class ComputeMarketService:
         payload: Mapping[str, Any],
         *,
         _verified_provider_receipt: bool = False,
+        _verified_provider_execution: bool = False,
     ) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
         provider_id = str(job.get("provider_id", ""))
         route_id = str(job.get("route_id", ""))
-        callback_rejection = self._provider_callback_ip_rejection(
-            payload,
-            request_id=request_id,
-            job_id=job_id,
-            provider_id=provider_id,
-            route_id=route_id,
-            callback_action="fail",
-            audit_action="compute.job.fail_rejected",
-        )
-        if callback_rejection is not None:
-            return callback_rejection
+        verified_provider_state = _verified_provider_receipt or _verified_provider_execution
+        if not verified_provider_state:
+            callback_rejection = self._provider_callback_ip_rejection(
+                payload,
+                request_id=request_id,
+                job_id=job_id,
+                provider_id=provider_id,
+                route_id=route_id,
+                callback_action="fail",
+                audit_action="compute.job.fail_rejected",
+            )
+            if callback_rejection is not None:
+                return callback_rejection
         callback_signature_verification: Mapping[str, Any] = {"ok": True, "required": False}
-        if not _verified_provider_receipt:
+        if _verified_provider_execution:
+            callback_signature_verification = {"ok": True, "required": False, "source": "external_provider_execution_response"}
+        if not verified_provider_state:
             callback_signature_verification = _verify_provider_state_callback(
                 self.store,
                 job,

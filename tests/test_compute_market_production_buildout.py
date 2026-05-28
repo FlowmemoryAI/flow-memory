@@ -3376,6 +3376,226 @@ def test_compute_worker_dispatch_calls_provider_execution_adapter() -> None:
     assert dispatched["event"]["details"]["provider_execution"]["funds_moved"] is False
     assert dispatched["event"]["details"]["provider_execution"]["broadcast_allowed"] is False
 
+def test_provider_execution_synchronous_success_completes_and_bills_job() -> None:
+    class SyncSuccessExecutionHandler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - inherited name
+            return
+
+        def do_POST(self) -> None:  # noqa: N802 - http.server API
+            length = int(self.headers.get("content-length", "0") or "0")
+            raw = self.rfile.read(length) if length else b"{}"
+            payload = json.loads(raw.decode("utf-8"))
+            job = payload.get("job", {}) if isinstance(payload.get("job"), Mapping) else {}
+            body = json.dumps(
+                {
+                    "ok": True,
+                    "execution": {
+                        "execution_id": "exec-sync-success",
+                        "provider_job_id": "exec-sync-success",
+                        "job_id": str(job.get("job_id", "")),
+                        "provider_id": "sync-provider",
+                        "status": "succeeded",
+                        "artifact_ref": "s3://flow-memory-results/sync-success.json",
+                        "artifact_data": {"result": "completed-by-provider"},
+                        "actual_units": 2,
+                        "actual_total_cost": 0.18,
+                        "actual_latency_ms": 750,
+                        "funds_moved": False,
+                        "broadcast_allowed": False,
+                        "private_key_required": False,
+                    },
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), SyncSuccessExecutionHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/execute"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_allowlist=("127.0.0.1",),
+            external_provider_execution_enabled=True,
+            provider_callback_ip_allowlist=("127.0.0.1",),
+            external_provider_execution_timeout_ms=1_000,
+        ),
+    )
+    service.store.put_record(
+        "compute_provider",
+        "sync-provider",
+        {
+            "provider_id": "sync-provider",
+            "provider_name": "Sync Success Provider",
+            "provider_type": "gpu",
+            "market_type": "marketplace",
+            "network": "offchain",
+            "payment_asset": "USDC",
+            "status": "active",
+            "supported_unit_types": ("gpu_minute",),
+            "supported_assets": ("USDC",),
+            "supported_networks": ("offchain",),
+            "metadata": {"execution_endpoint": endpoint},
+        },
+        provider_id="sync-provider",
+        status="active",
+    )
+    account_id = "acct_sync_provider_execution"
+    _credit_account(service, account_id, 1.0, event_id="evt_sync_provider_execution")
+    try:
+        job_id = str(
+            service.create_job(
+                {
+                    **_job_payload(),
+                    "provider_id": "sync-provider",
+                    "route_id": "sync-route",
+                    "job_id": "job_sync_provider_execution",
+                    "account_id": account_id,
+                    "estimated_total_cost": 0.18,
+                    "currency": "USD",
+                }
+            )["job"]["job_id"]
+        )
+        dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+
+    assert dispatched["ok"] is True
+    assert dispatched["job"]["status"] == "succeeded"
+    assert dispatched["event"]["event_type"] == "job.started"
+    assert dispatched["terminal_event"]["event_type"] == "job.completed"
+    assert dispatched["provider_execution"]["status"] == "succeeded"
+    assert dispatched["completion"]["artifact"]["artifact_ref"] == "s3://flow-memory-results/sync-success.json"
+    assert dispatched["completion"]["artifact"]["metadata"] == {"result": "completed-by-provider"}
+    assert dispatched["completion"]["usage_charge"]["amount"] == 0.18
+    assert dispatched["completion"]["credit_debit"]["status"] == "posted"
+    assert dispatched["completion"]["provider_payout"]["status"] == "accrued"
+    assert balance["available_credits"] == 0.82
+    assert balance["reserved_credits"] == 0.0
+    assert {"job.started", "job.completed"}.issubset(event_types)
+
+def test_provider_execution_synchronous_failure_fails_job_and_releases_credit() -> None:
+    class SyncFailureExecutionHandler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - inherited name
+            return
+
+        def do_POST(self) -> None:  # noqa: N802 - http.server API
+            length = int(self.headers.get("content-length", "0") or "0")
+            raw = self.rfile.read(length) if length else b"{}"
+            payload = json.loads(raw.decode("utf-8"))
+            job = payload.get("job", {}) if isinstance(payload.get("job"), Mapping) else {}
+            body = json.dumps(
+                {
+                    "ok": True,
+                    "execution": {
+                        "execution_id": "exec-sync-failed",
+                        "provider_job_id": "exec-sync-failed",
+                        "job_id": str(job.get("job_id", "")),
+                        "provider_id": "sync-failure-provider",
+                        "status": "failed",
+                        "error_code": "provider_runtime_failed",
+                        "message": "provider runtime rejected the task",
+                        "actual_units": 0,
+                        "actual_total_cost": 0,
+                        "actual_latency_ms": 100,
+                        "funds_moved": False,
+                        "broadcast_allowed": False,
+                        "private_key_required": False,
+                    },
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), SyncFailureExecutionHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/execute"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_allowlist=("127.0.0.1",),
+            external_provider_execution_enabled=True,
+            provider_callback_ip_allowlist=("127.0.0.1",),
+            external_provider_execution_timeout_ms=1_000,
+        ),
+    )
+    service.store.put_record(
+        "compute_provider",
+        "sync-failure-provider",
+        {
+            "provider_id": "sync-failure-provider",
+            "provider_name": "Sync Failure Provider",
+            "provider_type": "gpu",
+            "market_type": "marketplace",
+            "network": "offchain",
+            "payment_asset": "USDC",
+            "status": "active",
+            "supported_unit_types": ("gpu_minute",),
+            "supported_assets": ("USDC",),
+            "supported_networks": ("offchain",),
+            "metadata": {"execution_endpoint": endpoint},
+        },
+        provider_id="sync-failure-provider",
+        status="active",
+    )
+    account_id = "acct_sync_provider_failure"
+    _credit_account(service, account_id, 1.0, event_id="evt_sync_provider_failure")
+    try:
+        job_id = str(
+            service.create_job(
+                {
+                    **_job_payload(),
+                    "provider_id": "sync-failure-provider",
+                    "route_id": "sync-failure-route",
+                    "job_id": "job_sync_provider_failure",
+                    "account_id": account_id,
+                    "estimated_total_cost": 0.18,
+                    "currency": "USD",
+                }
+            )["job"]["job_id"]
+        )
+        dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+
+    assert dispatched["ok"] is True
+    assert dispatched["job"]["status"] == "failed"
+    assert dispatched["event"]["event_type"] == "job.started"
+    assert dispatched["terminal_event"]["event_type"] == "job.failed"
+    assert dispatched["provider_execution"]["status"] == "failed"
+    assert dispatched["failure"]["job"]["error_code"] == "provider_runtime_failed"
+    assert dispatched["failure"]["credit_release"]["transaction_type"] == "reserve_release"
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+    assert {"job.started", "job.failed"}.issubset(event_types)
+    assert service.store.count_records("usage_charge") == 0
+
 
 def test_provider_execution_fails_closed_when_configured_without_endpoint() -> None:
     service = ComputeMarketService(

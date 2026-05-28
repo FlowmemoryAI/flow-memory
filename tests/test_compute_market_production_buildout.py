@@ -4424,6 +4424,100 @@ def test_stripe_checkout_failure_webhook_marks_checkout_and_invoice_failed() -> 
     assert balance["available_credits"] == 0.0
     assert service.store.count_records("credit_transaction") == 0
 
+
+def test_stripe_checkout_failure_webhook_does_not_downgrade_credited_checkout() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_no_downgrade",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-no-downgrade-request",
+                "idempotency_key": "checkout-no-downgrade-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    invoice_id = str(checkout["invoice"]["invoice_id"])
+    secret = str(service.config.stripe_webhook_secret)
+    success_event = {
+        "id": "evt_checkout_no_downgrade_success",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 1234,
+                "currency": "usd",
+                "metadata": {
+                    "account_id": "acct_checkout_no_downgrade",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+    failure_event = {
+        "id": "evt_checkout_no_downgrade_failure",
+        "type": "payment_intent.payment_failed",
+        "data": {
+            "object": {
+                "id": "pi_checkout_no_downgrade_failure",
+                "amount": 1234,
+                "currency": "usd",
+                "metadata": {
+                    "account_id": "acct_checkout_no_downgrade",
+                    "payment_event_id": payment_event_id,
+                },
+                "last_payment_error": {
+                    "code": "card_declined",
+                    "message": "The card was declined.",
+                },
+            }
+        },
+    }
+
+    credited = service.billing_webhook_stripe(
+        {
+            "raw_event": success_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(success_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    failed = service.billing_webhook_stripe(
+        {
+            "raw_event": failure_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(failure_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    stored_checkout = service.store.get_record("payment_event", payment_event_id)
+    stored_invoice = service.store.get_record("billing_invoice", invoice_id)
+    balance = service.billing_balance({"account_id": "acct_checkout_no_downgrade"})["balance"]
+
+    assert credited["ok"] is True
+    assert credited["checkout_update"]["status"] == "payment_credited"
+    assert failed["ok"] is True
+    assert failed["payment_event"]["status"] == "verified_payment_failed"
+    assert failed["checkout_update"]["status"] == "payment_credited"
+    assert failed["invoice_update"]["status"] == "payment_credited"
+    assert stored_checkout is not None
+    assert stored_invoice is not None
+    assert stored_checkout["status"] == "payment_credited"
+    assert stored_invoice["status"] == "payment_credited"
+    assert balance["available_credits"] == 12.34
+    assert service.store.count_records("credit_transaction") == 1
+
 def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_references() -> None:
     server, base_url = _stripe_checkout_server()
     try:

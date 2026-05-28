@@ -114,6 +114,18 @@ function Get-PublicUrlBlockReason {
 
     return ''
 }
+function Get-EnvValueOrDefault {
+    param(
+        [Parameter(Mandatory = $true)] $Values,
+        [Parameter(Mandatory = $true)] [string]$Key,
+        [Parameter()] [string]$Default = ''
+    )
+    if ($Values.Contains($Key)) {
+        return [string]$Values[$Key]
+    }
+    return $Default
+}
+
 
 
 function ConvertTo-ProcessArgument {
@@ -326,6 +338,65 @@ if (-not $redisUri.StartsWith('rediss://')) {
         required_action = 'FLOW_MEMORY_COMPUTE_REDIS_URL must be a TLS rediss:// managed Redis URL.'
     }
     exit 15
+}
+$jwtSecret = (Get-EnvValueOrDefault -Values $envValues -Key 'FLOW_MEMORY_API_JWT_HS256_SECRET').Trim()
+$jwtIssuer = (Get-EnvValueOrDefault -Values $envValues -Key 'FLOW_MEMORY_API_JWT_ISSUER').Trim()
+$jwtAudience = (Get-EnvValueOrDefault -Values $envValues -Key 'FLOW_MEMORY_API_JWT_AUDIENCE').Trim()
+$jwtLeewaySeconds = (Get-EnvValueOrDefault -Values $envValues -Key 'FLOW_MEMORY_API_JWT_LEEWAY_SECONDS' -Default '60').Trim()
+if ([string]::IsNullOrWhiteSpace($jwtLeewaySeconds)) {
+    $jwtLeewaySeconds = '60'
+}
+$gatewayJwtConfigured = (
+    -not [string]::IsNullOrWhiteSpace($jwtSecret) -or
+    -not [string]::IsNullOrWhiteSpace($jwtIssuer) -or
+    -not [string]::IsNullOrWhiteSpace($jwtAudience)
+)
+if ($gatewayJwtConfigured) {
+    $gatewayPlaceholderPattern = "$placeholderPattern|high-entropy"
+    $jwtMissing = New-Object System.Collections.Generic.List[string]
+    if ([string]::IsNullOrWhiteSpace($jwtSecret) -or $jwtSecret -match $gatewayPlaceholderPattern) {
+        $jwtMissing.Add('FLOW_MEMORY_API_JWT_HS256_SECRET')
+    }
+    if ([string]::IsNullOrWhiteSpace($jwtIssuer) -or $jwtIssuer -match $gatewayPlaceholderPattern) {
+        $jwtMissing.Add('FLOW_MEMORY_API_JWT_ISSUER')
+    }
+    if ([string]::IsNullOrWhiteSpace($jwtAudience) -or $jwtAudience -match $gatewayPlaceholderPattern) {
+        $jwtMissing.Add('FLOW_MEMORY_API_JWT_AUDIENCE')
+    }
+    if ($jwtMissing.Count -gt 0) {
+        Write-Status -Status 'blocked_incomplete_gateway_jwt' -Fields @{
+            public_url = ''
+            missing_values = @($jwtMissing)
+            required_action = 'Configure FLOW_MEMORY_API_JWT_HS256_SECRET, FLOW_MEMORY_API_JWT_ISSUER, and FLOW_MEMORY_API_JWT_AUDIENCE together for public gateway JWT auth.'
+        }
+        exit 16
+    }
+    if ($jwtSecret.Length -lt 32) {
+        Write-Status -Status 'blocked_weak_gateway_jwt_secret' -Fields @{
+            public_url = ''
+            invalid_value = 'FLOW_MEMORY_API_JWT_HS256_SECRET'
+            required_action = 'Use a high-entropy gateway JWT HS256 secret with at least 32 characters.'
+        }
+        exit 16
+    }
+    if (-not $jwtIssuer.StartsWith('https://')) {
+        Write-Status -Status 'blocked_insecure_gateway_jwt_issuer' -Fields @{
+            public_url = ''
+            invalid_value = 'FLOW_MEMORY_API_JWT_ISSUER'
+            required_scheme = 'https'
+            required_action = 'Use an https:// issuer URL for public gateway JWT auth.'
+        }
+        exit 16
+    }
+    $jwtLeeway = 0
+    if (-not [int]::TryParse($jwtLeewaySeconds, [ref]$jwtLeeway) -or $jwtLeeway -lt 0) {
+        Write-Status -Status 'blocked_invalid_gateway_jwt_leeway' -Fields @{
+            public_url = ''
+            invalid_value = 'FLOW_MEMORY_API_JWT_LEEWAY_SECONDS'
+            required_action = 'Set FLOW_MEMORY_API_JWT_LEEWAY_SECONDS to a non-negative integer.'
+        }
+        exit 16
+    }
 }
 
 $safetyExpectations = @{

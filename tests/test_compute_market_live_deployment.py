@@ -762,6 +762,10 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "blocked_invalid_public_url" in deploy_script
     assert "Get-PublicUrlBlockReason" in deploy_script
     assert "public_url_must_use_global_host" in deploy_script
+    assert "blocked_incomplete_gateway_jwt" in deploy_script
+    assert "blocked_weak_gateway_jwt_secret" in deploy_script
+    assert "blocked_insecure_gateway_jwt_issuer" in deploy_script
+    assert "blocked_invalid_gateway_jwt_leeway" in deploy_script
     assert "'-RequireImmutableAudit'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'" in deploy_script
@@ -853,6 +857,62 @@ def test_public_powershell_preflight_rejects_weak_api_key(tmp_path: Path) -> Non
     payload = json.loads(result.stdout)
     assert payload["status"] == "blocked_missing_values"
     assert "FLOW_MEMORY_API_KEY" in payload["placeholder_values"]
+
+
+def test_public_powershell_preflight_rejects_placeholder_gateway_jwt_secret(tmp_path: Path) -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for public deployment preflight validation")
+    assert powershell is not None
+    env_values = {
+        item["key"]: item["value"]
+        for item in render_deploy.build_env_vars(
+            "fmk_live_test_secret",
+            "postgresql://db.example.com:5432/flow_memory",
+            "rediss://redis.example.com:6379/0",
+            public_api_url="https://api.flowmemory.ai",
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_immutable_required="true",
+            audit_export_object_lock_mode="COMPLIANCE",
+            audit_export_retention_days="30",
+            audit_export_s3_region="us-east-1",
+        )
+    }
+    env_values["FLOW_MEMORY_API_JWT_HS256_SECRET"] = "CHANGEME-gateway-jwt-secret-with-at-least-32-characters"
+    env_values["FLOW_MEMORY_API_JWT_ISSUER"] = "https://issuer.example"
+    env_values["FLOW_MEMORY_API_JWT_AUDIENCE"] = "flow-memory-api"
+    env_file = tmp_path / "placeholder-gateway-jwt.env"
+    env_file.write_text(
+        "\n".join(f"{key}={value}" for key, value in env_values.items()) + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "deploy_compute_market_public_level1.ps1"),
+            "-EnvFile",
+            str(env_file),
+            "-Mode",
+            "validate-only",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 16, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked_incomplete_gateway_jwt"
+    assert payload["missing_values"] == ["FLOW_MEMORY_API_JWT_HS256_SECRET"]
+
 
 def test_public_buildout_validator_requires_observability_endpoints() -> None:
     validator_script = (ROOT / "scripts" / "validate_compute_market_public_buildout.py").read_text(encoding="utf-8")

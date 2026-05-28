@@ -486,7 +486,9 @@ class ComputeMarketService:
             return limited
         provider_id = str(payload.get("provider_id") or deterministic_id("provider", payload))
         provider_payload = _provider_admin_payload(payload)
-        provider = _provider_with_credential_bindings({**provider_payload, "provider_id": provider_id, "status": str(provider_payload.get("status", "active"))}, payload)
+        requested_status = str(provider_payload.get("status", "")).strip()
+        provider_status = (requested_status or "active") if self.config.compute_market_mode == "test" else "probation"
+        provider = _provider_with_credential_bindings({**provider_payload, "provider_id": provider_id, "status": provider_status}, payload)
         self.store.put_record("compute_provider", provider_id, provider, provider_id=provider_id, status=str(provider["status"]), request_id=request_id)
         secret_ref = _provider_secret_reference(payload, provider_id=provider_id, request_id=request_id)
         if secret_ref:
@@ -502,7 +504,10 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         current = dict(self.get_provider(provider_id, payload)["provider"])
-        updated = _provider_with_credential_bindings({**current, **_provider_admin_payload(payload), "provider_id": provider_id}, payload)
+        admin_payload = _provider_admin_payload(payload)
+        if self.config.compute_market_mode != "test":
+            admin_payload.pop("status", None)
+        updated = _provider_with_credential_bindings({**current, **admin_payload, "provider_id": provider_id}, payload)
         for key in ("credentials", *_CREDENTIAL_VALUE_KEYS):
             updated.pop(key, None)
         self.store.put_record("compute_provider", provider_id, updated, provider_id=provider_id, status=str(updated.get("status", "")), request_id=request_id)

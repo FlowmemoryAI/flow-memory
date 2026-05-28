@@ -670,12 +670,11 @@ def test_provider_health_blocks_private_endpoint_outside_test_mode() -> None:
             provider_timeout_ms=1_000,
         ),
     )
-    service.create_provider(
+    service.apply_market_provider(
         {
             "provider_id": "private-provider",
             "provider_name": "Private Provider",
             "provider_type": "gpu",
-            "status": "active",
             "supported_unit_types": ("gpu_minute",),
             "supported_assets": ("USDC",),
             "supported_networks": ("offchain",),
@@ -683,6 +682,7 @@ def test_provider_health_blocks_private_endpoint_outside_test_mode() -> None:
             "health_endpoint": "https://127.0.0.1:9/health",
         }
     )
+    service.verify_market_provider("private-provider", {"verified_by": "ops"})
 
     result = service.provider_health("private-provider")
 

@@ -364,6 +364,33 @@ def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only()
     assert service.store.count_records("provider_secret_ref") == 1
 
 
+def test_provider_admin_status_cannot_bypass_onboarding_in_production_mode() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            require_managed_sql_in_production=False,
+            rate_limits_enabled=False,
+        ),
+    )
+    created = service.create_provider(
+        {
+            "provider_id": "direct-provider",
+            "provider_name": "Direct Provider",
+            "provider_type": "gpu",
+            "status": "active",
+        }
+    )
+    updated = service.update_provider("direct-provider", {"status": "active", "provider_name": "Updated Direct Provider"})
+    applied = service.apply_market_provider({**_provider_application(), "provider_id": "verified-provider"})
+    verified = service.verify_market_provider("verified-provider", {"verified_by": "ops"})
+
+    assert created["provider"]["status"] == "probation"
+    assert updated["provider"]["status"] == "probation"
+    assert applied["provider_application"]["status"] == "pending"
+    assert verified["provider"]["status"] == "active"
+
 def test_provider_listing_includes_global_and_filters_cross_tenant_catalog_records() -> None:
     service = _service()
     service.create_provider({"provider_id": "global-provider", "provider_name": "Global Provider", "provider_type": "catalog_test"})

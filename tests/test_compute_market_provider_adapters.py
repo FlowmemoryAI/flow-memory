@@ -784,23 +784,30 @@ def test_provider_onboarding_blocks_private_endpoint_outside_test_mode() -> None
         ),
     )
 
-    try:
-        service.apply_market_provider(
-            {
-                "provider_id": "private-provider",
-                "provider_name": "Private Provider",
-                "provider_type": "gpu",
-                "supported_unit_types": ("gpu_minute",),
-                "supported_assets": ("USDC",),
-                "supported_networks": ("offchain",),
-                "quote_endpoint": "https://provider.example.com/quote",
-                "health_endpoint": "https://127.0.0.1:9/health",
-            }
-        )
-    except ValueError as exc:
-        assert "private or local network" in str(exc)
-    else:  # pragma: no cover
-        raise AssertionError("private provider endpoint application was accepted")
+    blocked_endpoints = (
+        "https://127.0.0.1:9/health",
+        "https://0.0.0.0:9/health",
+        "https://provider-node.local/health",
+        "https://metadata.google.internal/computeMetadata/v1",
+    )
+    for index, health_endpoint in enumerate(blocked_endpoints):
+        try:
+            service.apply_market_provider(
+                {
+                    "provider_id": f"private-provider-{index}",
+                    "provider_name": "Private Provider",
+                    "provider_type": "gpu",
+                    "supported_unit_types": ("gpu_minute",),
+                    "supported_assets": ("USDC",),
+                    "supported_networks": ("offchain",),
+                    "quote_endpoint": "https://provider.example.com/quote",
+                    "health_endpoint": health_endpoint,
+                }
+            )
+        except ValueError as exc:
+            assert "private or local network" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError(f"private provider endpoint application was accepted: {health_endpoint}")
 
     assert service.store.count_records("market_provider_application") == 0
 

@@ -8065,7 +8065,11 @@ def _provider_health_host_allowed(host: str, allowlist: tuple[str, ...]) -> bool
 
 def _provider_health_private_or_local_host(host: str) -> bool:
     normalized_host = host.strip().strip("[]").lower().rstrip(".")
-    if normalized_host in {"localhost", "ip6-localhost", "ip6-loopback"} or normalized_host.endswith(".localhost"):
+    if (
+        normalized_host in {"localhost", "ip6-localhost", "ip6-loopback", "metadata.google.internal"}
+        or normalized_host.endswith(".localhost")
+        or normalized_host.endswith(".local")
+    ):
         return True
     try:
         parsed_ip = ipaddress.ip_address(normalized_host)

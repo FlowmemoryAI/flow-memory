@@ -848,15 +848,17 @@ def _validate_artifact_ref(artifact_ref: str, *, allowed_hosts: tuple[str, ...],
 
 def _is_private_or_local_host(host: str) -> bool:
     lowered = host.lower().rstrip(".")
-    if lowered in {"localhost", "ip6-localhost", "ip6-loopback"} or lowered.endswith(".local"):
-        return True
-    if lowered == "metadata.google.internal":
+    if (
+        lowered in {"localhost", "ip6-localhost", "ip6-loopback", "metadata.google.internal"}
+        or lowered.endswith(".localhost")
+        or lowered.endswith(".local")
+    ):
         return True
     try:
         address = ipaddress.ip_address(lowered)
     except ValueError:
         return False
-    return bool(address.is_private or address.is_loopback or address.is_link_local or address.is_reserved or address.is_multicast)
+    return bool(address.is_private or address.is_loopback or address.is_link_local or address.is_reserved or address.is_unspecified or address.is_multicast)
 
 def _quote_with_status(quote: ComputeQuote, status: str) -> ComputeQuote:
     return ComputeQuote(

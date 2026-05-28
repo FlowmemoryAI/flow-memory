@@ -66,6 +66,55 @@ function Test-CommandAvailable {
     param([Parameter(Mandatory = $true)] [string]$Command)
     return $null -ne (Get-Command $Command -ErrorAction SilentlyContinue)
 }
+function Get-PublicUrlBlockReason {
+    param([Parameter(Mandatory = $true)] [string]$Url)
+
+    try {
+        $uri = [System.Uri]$Url
+    }
+    catch {
+        return 'public_url_invalid'
+    }
+
+    $hostName = $uri.Host.Trim('[', ']').TrimEnd('.').ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($hostName)) {
+        return 'public_url_missing_host'
+    }
+    if ($hostName -in @('localhost', 'ip6-localhost', 'ip6-loopback') -or $hostName.EndsWith('.local')) {
+        return 'public_url_must_not_use_localhost'
+    }
+    if ($hostName -match '(^|\.)(yourdomain\.com|example\.com|example\.test|example\.invalid|test|invalid)$' -or $hostName -match '<your-domain>|changeme') {
+        return 'public_url_placeholder_not_allowed'
+    }
+
+    $address = $null
+    if (-not [System.Net.IPAddress]::TryParse($hostName, [ref]$address)) {
+        return ''
+    }
+    if ([System.Net.IPAddress]::IsLoopback($address)) {
+        return 'public_url_must_use_global_host'
+    }
+
+    $bytes = $address.GetAddressBytes()
+    if ($address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
+        if ($bytes[0] -eq 10) { return 'public_url_must_use_global_host' }
+        if ($bytes[0] -eq 127) { return 'public_url_must_use_global_host' }
+        if ($bytes[0] -eq 169 -and $bytes[1] -eq 254) { return 'public_url_must_use_global_host' }
+        if ($bytes[0] -eq 172 -and $bytes[1] -ge 16 -and $bytes[1] -le 31) { return 'public_url_must_use_global_host' }
+        if ($bytes[0] -eq 192 -and $bytes[1] -eq 168) { return 'public_url_must_use_global_host' }
+        if ($bytes[0] -eq 0) { return 'public_url_must_use_global_host' }
+    }
+    elseif ($address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
+        if ($address.IsIPv6LinkLocal -or $address.IsIPv6SiteLocal -or $address.IsIPv6Multicast) {
+            return 'public_url_must_use_global_host'
+        }
+        if ($bytes[0] -eq 0 -and $bytes[15] -le 1) { return 'public_url_must_use_global_host' }
+        if (($bytes[0] -band 254) -eq 252) { return 'public_url_must_use_global_host' }
+    }
+
+    return ''
+}
+
 
 function ConvertTo-ProcessArgument {
     param([Parameter(Mandatory = $true)] [AllowEmptyString()] [string]$Argument)
@@ -198,6 +247,17 @@ if (-not [string]::IsNullOrWhiteSpace($PublicApiUrl)) {
             required_action = 'FLOW_MEMORY_PUBLIC_API_URL/ PublicApiUrl must be an https:// URL.'
         }
         exit 14
+    }
+    else {
+        $publicUrlBlockReason = Get-PublicUrlBlockReason -Url $PublicApiUrl
+        if (-not [string]::IsNullOrWhiteSpace($publicUrlBlockReason)) {
+            Write-Status -Status 'blocked_invalid_public_url' -Fields @{
+                public_url = $PublicApiUrl
+                reason = $publicUrlBlockReason
+                required_action = 'FLOW_MEMORY_PUBLIC_API_URL/ PublicApiUrl must be a real public HTTPS endpoint.'
+            }
+            exit 14
+        }
     }
 }
 

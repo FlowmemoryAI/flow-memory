@@ -459,6 +459,44 @@ def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
     assert ingested["ok"] is True
     assert ingested["quote"]["signed_quote_valid"] is True
 
+
+
+def test_quote_ingest_enforces_provider_callback_ip_allowlist() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("203.0.113.0/24",),
+        ),
+    )
+
+    blocked = service.broker_quote(
+        {
+            "quote": _quote(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+            "_flow_memory_client_ip": "198.51.100.77",
+        }
+    )
+    allowed = service.broker_quote(
+        {
+            "quote": {**_quote(), "quote_id": "quote_live_gpu_allowed_ip"},
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+            "_flow_memory_client_ip": "203.0.113.10",
+        }
+    )
+
+    assert blocked["ok"] is False
+    assert blocked["error"]["error_code"] == "provider_callback.ip_not_allowed"
+    assert blocked["error"]["details"]["callback_action"] == "quote_ingest"
+    assert allowed["ok"] is True
+    assert service.store.count_records("compute_quote") == 1
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest"}) == 1.0
+
+
 def test_broker_quote_ignores_payload_public_key_when_stored_key_exists() -> None:
     trusted_signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")
     spoofing_signer = LocalTestSigner("provider_live_gpu_1_spoof", "provider-spoof-seed")

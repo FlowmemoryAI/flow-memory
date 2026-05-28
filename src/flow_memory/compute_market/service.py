@@ -1133,6 +1133,17 @@ class ComputeMarketService:
             raise ValueError("quote payload must be an object")
         provider_id = str(quote.get("provider_id", payload.get("provider_id", "")))
         route_id = str(quote.get("route_id", payload.get("route_id", "")))
+        callback_rejection = self._provider_callback_ip_rejection(
+            payload,
+            request_id=request_id,
+            job_id="",
+            provider_id=provider_id,
+            route_id=route_id,
+            callback_action="quote_ingest",
+            audit_action="market.quote.ingest_callback_rejected",
+        )
+        if callback_rejection is not None:
+            return callback_rejection
         limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited

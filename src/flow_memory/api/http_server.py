@@ -423,6 +423,7 @@ def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) 
 
 
 _PROVIDER_CALLBACK_IP_PATH_SUFFIXES = ("/receipt", "/complete", "/fail", "/heartbeat")
+_PROVIDER_CALLBACK_IP_EXACT_PATHS = ("/market/quotes/ingest",)
 
 def _inject_provider_callback_ip(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str]) -> Mapping[str, Any]:
     if not _is_provider_callback_path(method, path):
@@ -456,7 +457,11 @@ def _enforce_provider_callback_ip_allowlist(
 
 
 def _is_provider_callback_path(method: str, path: str) -> bool:
-    return method.upper() == "POST" and path.startswith("/compute/jobs/") and path.endswith(_PROVIDER_CALLBACK_IP_PATH_SUFFIXES)
+    normalized_method = method.upper()
+    return normalized_method == "POST" and (
+        path in _PROVIDER_CALLBACK_IP_EXACT_PATHS
+        or (path.startswith("/compute/jobs/") and path.endswith(_PROVIDER_CALLBACK_IP_PATH_SUFFIXES))
+    )
 
 
 def _provider_callback_ip_allowed(client_ip: str, allowlist: tuple[str, ...]) -> bool:

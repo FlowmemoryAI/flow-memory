@@ -84,6 +84,38 @@ def _job_payload() -> dict[str, object]:
     }
 
 
+def _confirmed_capacity_reservation(
+    service: ComputeMarketService,
+    *,
+    reservation_id: str,
+    capacity_units: float = 3.0,
+    provider_id: str = "provider_live_gpu_1",
+    route_id: str = "route_live_gpu_1",
+) -> Mapping[str, Any]:
+    service.list_capacity(
+        {
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": capacity_units,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity(
+        {
+            "reservation_id": reservation_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "capacity_units": capacity_units,
+        }
+    )["reservation"]
+    return service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+
+
 def _signed_state_callback(
     job: Mapping[str, Any],
     payload: Mapping[str, Any],
@@ -1809,6 +1841,108 @@ def test_compute_jobs_consume_confirmed_capacity_reservations() -> None:
         "capacity_consumed_total",
         {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
     ) == 3.0
+
+
+def test_capacity_consumption_rejects_overconsumption_without_terminal_job_change() -> None:
+    service = _service()
+    reservation = _confirmed_capacity_reservation(
+        service,
+        reservation_id="reservation_capacity_overconsume",
+        capacity_units=3,
+    )
+    reservation_id = str(reservation["reservation_id"])
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_overconsume",
+                "capacity_reservation_id": reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+
+    service.dispatch_job(job_id, {})
+    rejected = service.complete_job(
+        job_id,
+        {
+            "actual_units": 5,
+            "actual_total_cost": 0.45,
+            "currency": "USD",
+            "capacity_units_consumed": 5,
+        },
+    )
+    stored_job = service.get_job(job_id)["job"]
+    stored_reservation = service.store.get_record("compute_reservation", reservation_id)
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+
+    assert rejected["ok"] is False
+    assert rejected["error"]["error_code"] == "capacity.reservation_overconsumed"
+    assert rejected["error"]["details"]["remaining_capacity_units"] == 3
+    assert stored_job["status"] == "running"
+    assert stored_reservation is not None
+    assert stored_reservation["status"] == "confirmed"
+    assert stored_reservation["remaining_capacity_units"] == 3
+    assert service.store.count_records("usage_charge") == 0
+    assert "job.capacity_consumption_rejected" in event_types
+
+
+def test_failed_and_cancelled_jobs_release_confirmed_capacity_reservations() -> None:
+    service = _service()
+    failed_reservation_id = str(
+        _confirmed_capacity_reservation(
+            service,
+            reservation_id="reservation_capacity_failed",
+            capacity_units=2,
+        )["reservation_id"]
+    )
+    cancelled_reservation_id = str(
+        _confirmed_capacity_reservation(
+            service,
+            reservation_id="reservation_capacity_cancelled",
+            capacity_units=2,
+            route_id="route_live_gpu_2",
+        )["reservation_id"]
+    )
+    failed_job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_failed",
+                "capacity_reservation_id": failed_reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+    cancelled_job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_cancelled",
+                "route_id": "route_live_gpu_2",
+                "capacity_reservation_id": cancelled_reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+
+    service.dispatch_job(failed_job_id, {})
+    failed = service.fail_job(failed_job_id, {"reason": "provider_failed", "error_code": "provider_failed"})
+    service.dispatch_job(cancelled_job_id, {})
+    cancelled = service.cancel_job(cancelled_job_id, {"reason": "user_cancelled"})
+    failed_reservation = service.store.get_record("compute_reservation", failed_reservation_id)
+    cancelled_reservation = service.store.get_record("compute_reservation", cancelled_reservation_id)
+
+    assert failed["ok"] is True
+    assert failed["capacity_release"]["status"] == "released"
+    assert failed["capacity_release"]["release_reason"] == "job_failed"
+    assert failed["capacity_release"]["released_capacity_units"] == 2
+    assert failed_reservation is not None
+    assert failed_reservation["status"] == "released"
+    assert cancelled["ok"] is True
+    assert cancelled["capacity_release"]["status"] == "released"
+    assert cancelled["capacity_release"]["release_reason"] == "job_cancelled"
+    assert cancelled["capacity_release"]["released_capacity_units"] == 2
+    assert cancelled_reservation is not None
+    assert cancelled_reservation["status"] == "released"
+    assert _metric_total(service, "capacity_released_total", {"provider_id": "provider_live_gpu_1"}) == 4.0
 
 
 def test_dispatch_rejects_unconfirmed_or_mismatched_capacity_reservation_before_credit_hold() -> None:

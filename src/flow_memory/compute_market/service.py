@@ -1806,17 +1806,50 @@ class ComputeMarketService:
             return limited
         _assert_provider_catalog_access(self.store, provider_id, payload)
         idempotency_key = str(payload.get("idempotency_key", "")).strip()
+        idempotency_request_hash = _capacity_idempotency_request_hash(payload) if idempotency_key else ""
         if idempotency_key:
             existing = self.store.find_by_idempotency("compute_reservation", idempotency_key)
             if existing is not None:
                 if not _tenant_can_access_record(payload, existing):
                     raise KeyError("Unknown capacity reservation for idempotency key")
+                existing_hash = str(existing.get("idempotency_request_hash", ""))
+                if existing_hash and existing_hash != idempotency_request_hash:
+                    error = compute_error(
+                        "capacity.reservation.idempotency_conflict",
+                        "Capacity reservation idempotency key was replayed with different reservation parameters.",
+                        details={
+                            "reservation_id": str(existing.get("reservation_id", "")),
+                            "provider_id": provider_id,
+                            "route_id": route_id,
+                            "existing_provider_id": str(existing.get("provider_id", "")),
+                            "existing_route_id": str(existing.get("route_id", "")),
+                        },
+                        request_id=request_id,
+                    )
+                    self._audit(
+                        "market.capacity.reserve_replay_rejected",
+                        payload,
+                        request_id=request_id,
+                        result="rejected",
+                        reason_codes=("capacity.reservation.idempotency_conflict",),
+                        provider_id=provider_id,
+                        route_id=route_id,
+                    )
+                    return {
+                        "ok": False,
+                        "reservation": existing,
+                        "error": error.as_record(),
+                        "idempotent_replay": False,
+                        "next_safe_actions": ("use a new idempotency_key for different reservation parameters",),
+                    }
                 return {"ok": True, "reservation": existing, "idempotent_replay": True}
         capacity_filters = {"provider_id": provider_id, "route_id": route_id}
         if _payload_tenant_id(payload):
             capacity_filters["tenant_id"] = _payload_tenant_id(payload)
         self._expire_capacity_holds(payload, request_id=request_id)
         reservation = _capacity_reservation(payload, self.store.list_records("compute_capacity_window", filters=capacity_filters, limit=100).records, self.store.list_records("compute_reservation", filters=capacity_filters, limit=500).records)
+        if idempotency_request_hash:
+            reservation["idempotency_request_hash"] = idempotency_request_hash
         self.store.put_record(
             "compute_reservation",
             str(reservation["reservation_id"]),
@@ -8253,6 +8286,17 @@ def _capacity_reservation_active(reservation: Mapping[str, Any], now: str) -> bo
     hold_expires_at = str(reservation.get("hold_expires_at", reservation.get("expires_at", "")))
     return not hold_expires_at or hold_expires_at > now
 
+
+def _capacity_idempotency_request_hash(payload: Mapping[str, Any]) -> str:
+    return str(
+        content_hash(
+            {
+                str(key): value
+                for key, value in payload.items()
+                if str(key) not in {"idempotency_key", "request_id"}
+            }
+        )
+    )
 
 def _capacity_expiration_reason(reservation: Mapping[str, Any], now: str) -> str:
     status = str(reservation.get("status", ""))

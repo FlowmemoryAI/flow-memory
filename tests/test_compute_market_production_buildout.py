@@ -1326,6 +1326,15 @@ def test_reserve_capacity_idempotency_replay_does_not_mutate_capacity_or_metrics
         {
             "provider_id": "provider_live_gpu_1",
             "route_id": "route_live_gpu_1",
+            "capacity_units": 4,
+            "idempotency_key": "reserve-capacity-replay-1",
+            "request_id": "reserve-capacity-replay-request-2",
+        }
+    )
+    conflict = service.reserve_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
             "capacity_units": 7,
             "allow_partial": True,
             "idempotency_key": "reserve-capacity-replay-1",
@@ -1338,6 +1347,9 @@ def test_reserve_capacity_idempotency_replay_does_not_mutate_capacity_or_metrics
     assert replay["idempotent_replay"] is True
     assert replay["reservation"]["reservation_id"] == first["reservation"]["reservation_id"]
     assert replay["reservation"]["capacity_units"] == 4
+    assert conflict["ok"] is False
+    assert conflict["idempotent_replay"] is False
+    assert conflict["error"]["error_code"] == "capacity.reservation.idempotency_conflict"
     assert service.store.count_records("compute_reservation") == 1
     assert summary["held_capacity_units"] == 4
     assert summary["available_capacity_units"] == 6

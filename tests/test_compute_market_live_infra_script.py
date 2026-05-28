@@ -4,6 +4,8 @@ import json
 from typing import Any
 
 import scripts.validate_compute_market_live_infra as validator
+from flow_memory.compute_market.storage import COMPUTE_RECORD_TYPES, ComputeMarketStore
+from flow_memory.compute_market.storage_backends import PostgresComputeMarketStore, _POSTGRES_TABLES
 
 
 def _clear_live_env(monkeypatch: Any) -> None:
@@ -75,6 +77,56 @@ def test_live_infra_validator_reports_required_postgres_index_evidence() -> None
     )
     assert missing["groups"]["quote_expiration"]["ok"] is False
     assert missing["groups"]["audit_event_hash"]["ok"] is False
+
+
+def test_postgres_schema_sql_covers_all_compute_record_types() -> None:
+    statement_by_name = {statement.name: statement.sql for statement in PostgresComputeMarketStore.schema_statements()}
+    postgres_record_types = frozenset(_POSTGRES_TABLES)
+
+    assert postgres_record_types == frozenset(COMPUTE_RECORD_TYPES)
+    assert "compute_migrations" in statement_by_name
+    for record_type, table_name in _POSTGRES_TABLES.items():
+        assert f"{table_name}_table" in statement_by_name, record_type
+        assert f"create table if not exists {table_name} " in statement_by_name[f"{table_name}_table"]
+        assert f"idx_{table_name}_idempotency_unique" in statement_by_name
+
+
+def test_required_postgres_index_groups_are_generated_by_schema_sql() -> None:
+    generated_index_names = {
+        statement.name
+        for statement in PostgresComputeMarketStore.schema_statements()
+        if statement.sql.lower().startswith("create index") or statement.sql.lower().startswith("create unique index")
+    }
+
+    for group_name, index_names in validator.REQUIRED_POSTGRES_INDEX_GROUPS.items():
+        for index_name in index_names:
+            assert index_name in generated_index_names, group_name
+
+
+def test_sqlite_storage_idempotency_lookup_does_not_duplicate_replayed_record_id() -> None:
+    store = ComputeMarketStore(":memory:")
+    record_id = "job_live_infra_idempotency"
+    idempotency_key = "idem_live_infra_idempotency"
+
+    store.put_record(
+        "compute_job",
+        record_id,
+        {"job_id": record_id, "status": "queued", "idempotency_key": idempotency_key},
+        status="queued",
+        idempotency_key=idempotency_key,
+    )
+    store.put_record(
+        "compute_job",
+        record_id,
+        {"job_id": record_id, "status": "queued", "idempotency_key": idempotency_key},
+        status="queued",
+        idempotency_key=idempotency_key,
+    )
+
+    stored = store.find_by_idempotency("compute_job", idempotency_key)
+    assert stored is not None
+    assert stored["job_id"] == record_id
+    assert store.count_records("compute_job") == 1
 
 
 def test_live_infra_validator_blocks_plain_redis_before_network(monkeypatch: Any, capsys: Any) -> None:

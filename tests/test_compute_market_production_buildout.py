@@ -827,6 +827,30 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
         status="valid",
         expires_at=str(expired_quote["expires_at"]),
     )
+    expired_cache_key = "quote_cache_expired_prior"
+    service.store.put_record(
+        "quote_cache_entry",
+        expired_cache_key,
+        {
+            "cache_key": expired_cache_key,
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "task_hash": "",
+            "policy_hash": "",
+            "quote": expired_quote,
+            "source": "live_provider",
+            "created_at": "2000-01-01T00:00:00Z",
+            "updated_at": "2000-01-01T00:00:00Z",
+            "expires_at": "2099-01-01T00:00:00Z",
+            "ttl_seconds": 300,
+            "status": "valid",
+        },
+        provider_id="provider_live_gpu_1",
+        route_id="route_live_gpu_1",
+        task_hash="",
+        status="valid",
+        expires_at="2099-01-01T00:00:00Z",
+    )
     fresh = service.broker_quote(
         {
             "quote": {**_quote(), "quote_id": "quote_live_gpu_replacement"},
@@ -835,10 +859,14 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
         }
     )
     stale = service.store.get_record("compute_quote", str(expired_quote["quote_id"]))
+    stale_cache = service.store.get_record("quote_cache_entry", expired_cache_key)
 
     assert fresh["ok"] is True
     assert stale is not None
     assert stale["status"] == "stale"
+    assert stale_cache is not None
+    assert stale_cache["status"] == "invalidated"
+    assert stale_cache["invalidation_reason"] == "prior_quotes_marked_stale"
     assert _metric_total(
         service,
         "quote_stale_total",

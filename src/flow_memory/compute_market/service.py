@@ -1275,6 +1275,15 @@ class ComputeMarketService:
             tenant_id=tenant_id,
             workspace_id=workspace_id,
         )
+        if stale_marked:
+            cache_invalidation_payload: dict[str, object] = {
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "reason": "prior_quotes_marked_stale",
+            }
+            if tenant_id:
+                cache_invalidation_payload["tenant_id"] = tenant_id
+            self._invalidate_quote_cache_entries(cache_invalidation_payload, request_id=request_id)
         public_key = _provider_public_key(payload, provider_id, self)
         validation = validate_provider_quote_contract(
             quote,

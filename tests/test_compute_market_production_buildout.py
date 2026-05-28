@@ -1945,6 +1945,44 @@ def test_failed_and_cancelled_jobs_release_confirmed_capacity_reservations() -> 
     assert _metric_total(service, "capacity_released_total", {"provider_id": "provider_live_gpu_1"}) == 4.0
 
 
+def test_retry_clears_released_capacity_reservation_before_redispatch() -> None:
+    service = _service()
+    reservation_id = str(
+        _confirmed_capacity_reservation(
+            service,
+            reservation_id="reservation_capacity_retry",
+            capacity_units=2,
+        )["reservation_id"]
+    )
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_retry",
+                "capacity_reservation_id": reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+
+    first_dispatch = service.dispatch_job(job_id, {})
+    failed = service.fail_job(job_id, {"reason": "provider_failed", "error_code": "provider_failed"})
+    retried = service.retry_job(job_id, {})
+    second_dispatch = service.dispatch_job(job_id, {})
+    retried_job = retried["job"]
+
+    assert first_dispatch["ok"] is True
+    assert failed["ok"] is True
+    assert failed["capacity_release"]["status"] == "released"
+    assert retried["ok"] is True
+    assert retried["capacity_release"] == {}
+    assert not retried_job.get("capacity_reservation_id")
+    assert not retried_job.get("reserved_capacity_units")
+    assert retried["event"]["details"]["capacity_release"] == {}
+    assert second_dispatch["ok"] is True
+    assert second_dispatch["job"]["status"] == "running"
+    assert not second_dispatch["job"].get("capacity_reservation_id")
+
+
 def test_dispatch_rejects_unconfirmed_or_mismatched_capacity_reservation_before_credit_hold() -> None:
     service = _service()
     service.list_capacity(

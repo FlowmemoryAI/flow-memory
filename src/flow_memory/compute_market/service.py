@@ -4339,6 +4339,8 @@ class ComputeMarketService:
         )
         job.pop("credit_reservation_id", None)
         job.pop("credit_reserved_amount", None)
+        job.pop("capacity_reservation_id", None)
+        job.pop("reserved_capacity_units", None)
         retry_expected_status = str(original_job_for_release.get("status", ""))
         transitioned_to_retry = self.store.put_record_if_state(
             "compute_job",
@@ -4394,6 +4396,14 @@ class ComputeMarketService:
         )
         if credit_release:
             job["credit_release"] = credit_release
+        capacity_release = self._release_job_capacity_reservation(
+            original_job_for_release,
+            payload,
+            request_id=request_id,
+            reason="job_retried",
+        )
+        if capacity_release:
+            job["capacity_release"] = capacity_release
         self.store.put_record_if_state(
             "compute_job",
             job_id,
@@ -4413,7 +4423,7 @@ class ComputeMarketService:
             "job.retry_queued",
             status="queued",
             request_id=request_id,
-            details={"attempt": attempts, "credit_release": credit_release},
+            details={"attempt": attempts, "credit_release": credit_release, "capacity_release": capacity_release},
         )
         self.store.put_record(
             "compute_job_event",
@@ -4427,7 +4437,7 @@ class ComputeMarketService:
             workspace_id=str(job.get("workspace_id", "")),
         )
         self._audit("compute.job.retry_queued", payload, request_id=request_id, result="queued", provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
-        return {"ok": True, "job": job, "event": event, "credit_release": credit_release}
+        return {"ok": True, "job": job, "event": event, "credit_release": credit_release, "capacity_release": capacity_release}
 
     def claim_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)

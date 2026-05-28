@@ -14,6 +14,45 @@ def _clear_live_env(monkeypatch: Any) -> None:
     monkeypatch.delenv("FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION", raising=False)
 
 
+class _FakeRedisClient:
+    def __init__(self) -> None:
+        self.values: dict[str, int] = {}
+        self.hashes: dict[str, dict[str, object]] = {}
+        self.ttls: dict[str, int] = {}
+
+    def ping(self) -> bool:
+        return True
+
+    def incrby(self, key: str, amount: int) -> int:
+        self.values[key] = int(self.values.get(key, 0)) + amount
+        return self.values[key]
+
+    def expire(self, key: str, seconds: int) -> bool:
+        if seconds <= 0:
+            self.delete(key)
+            return True
+        self.ttls[key] = seconds
+        return True
+
+    def ttl(self, key: str) -> int:
+        return self.ttls.get(key, -1)
+
+    def hgetall(self, key: str) -> dict[str, object]:
+        return dict(self.hashes.get(key, {}))
+
+    def hset(self, key: str, *, mapping: dict[str, object]) -> int:
+        values = self.hashes.setdefault(key, {})
+        values.update(mapping)
+        return len(mapping)
+
+    def delete(self, key: str) -> int:
+        existed = int(key in self.values or key in self.hashes)
+        self.values.pop(key, None)
+        self.hashes.pop(key, None)
+        self.ttls.pop(key, None)
+        return existed
+
+
 def test_live_infra_validator_blocks_missing_urls(monkeypatch: Any, capsys: Any) -> None:
     _clear_live_env(monkeypatch)
 
@@ -211,6 +250,32 @@ def test_live_infra_validator_fail_closed_probe_reports_structured_reasons() -> 
     assert probe["ok"] is True
     assert probe["rate_limit_reason"] == "rate_limit_backend_unavailable"
     assert probe["circuit_reason"] == "circuit_backend_unavailable"
+
+
+def test_live_infra_validator_exercises_redis_shared_state_with_injected_client(monkeypatch: Any) -> None:
+    redis_client = _FakeRedisClient()
+
+    class FakeRedisRateLimiter(validator.RedisRateLimiter):
+        def __init__(self, redis_url: str, **kwargs: Any) -> None:
+            client = kwargs.pop("client", redis_client)
+            super().__init__(redis_url, **kwargs, client=client)
+
+    class FakeRedisCircuitBreaker(validator.RedisCircuitBreaker):
+        def __init__(self, redis_url: str, **kwargs: Any) -> None:
+            client = kwargs.pop("client", redis_client)
+            super().__init__(redis_url, **kwargs, client=client)
+
+    monkeypatch.setattr(validator, "RedisRateLimiter", FakeRedisRateLimiter)
+    monkeypatch.setattr(validator, "RedisCircuitBreaker", FakeRedisCircuitBreaker)
+
+    result = validator.validate_redis("rediss://cache.example:6379/0", require_tls=True)
+
+    assert result["ok"] is True
+    assert result["rate_limit_denial_reason"] == "rate_limited"
+    assert result["circuit_open_reason"] == "circuit_open"
+    assert result["circuit_recovered"] is True
+    assert result["diagnostics"]["ok"] is True
+    assert result["fail_closed_probe"]["ok"] is True
 
 
 def test_live_infra_validator_can_run_local_insecure_redis_when_explicitly_allowed(

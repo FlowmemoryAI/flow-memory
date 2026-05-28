@@ -201,8 +201,8 @@ def validate_redis(redis_url: str, *, require_tls: bool = True) -> Mapping[str, 
     try:
         limiter_a = RedisRateLimiter(redis_url, prefix=prefix, default_limit=1, window_seconds=30, require_tls=require_tls)
         limiter_b = RedisRateLimiter(redis_url, prefix=prefix, default_limit=1, window_seconds=30, require_tls=require_tls)
-        breaker_a = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=0, require_tls=require_tls)
-        breaker_b = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=0, require_tls=require_tls)
+        breaker_a = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=1, require_tls=require_tls)
+        breaker_b = RedisCircuitBreaker(redis_url, prefix=prefix, failure_threshold=1, reset_after_seconds=1, require_tls=require_tls)
         first = limiter_a.check_limit("actor", "POST /compute/plan")
         second = limiter_b.check_limit("actor", "POST /compute/plan")
         breaker_a.record_failure("provider", error_class="provider_timeout")

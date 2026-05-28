@@ -4703,6 +4703,35 @@ class ComputeMarketService:
         if idempotency_key:
             existing = self.store.find_by_idempotency("refund", idempotency_key)
             if existing is not None:
+                conflicts = _refund_replay_conflicts(self.store, existing, payload)
+                if conflicts:
+                    error = compute_error(
+                        "billing.refund.idempotency_conflict",
+                        "Billing refund idempotency key was replayed with different refund parameters.",
+                        details={
+                            "refund_id": str(existing.get("refund_id", "")),
+                            "idempotency_key": idempotency_key,
+                            "conflicts": conflicts,
+                        },
+                        request_id=request_id,
+                    )
+                    self._audit(
+                        "billing.refund.replay_rejected",
+                        payload,
+                        request_id=request_id,
+                        result="rejected",
+                        reason_codes=("billing.refund.idempotency_conflict",),
+                        provider_id=str(existing.get("provider_id", "")),
+                        route_id=str(existing.get("route_id", "")),
+                    )
+                    return {
+                        "ok": False,
+                        "refund": existing,
+                        "credit_transaction": {},
+                        "provider_payout_adjustment": {},
+                        "error": error.as_record(),
+                        "idempotent_replay": False,
+                    }
                 replay_credit_transaction = _refund_credit_transaction(self.store, existing)
                 usage_charge = self.store.get_record("usage_charge", str(existing.get("usage_charge_id", "")))
                 replay_payout_adjustment = self._adjust_provider_payout_for_refund(
@@ -4754,11 +4783,41 @@ class ComputeMarketService:
                     "source_event_id": str(payload.get("source_event_id", "")),
                     "idempotency_key": idempotency_key,
                     "reason": str(payload.get("reason", "")),
+                    "provider_id": provider_id,
+                    "route_id": route_id,
                 },
             )
         )
         existing_refund = self.store.get_record("refund", refund_id)
         if existing_refund is not None:
+            conflicts = _refund_replay_conflicts(self.store, existing_refund, payload)
+            if conflicts:
+                error = compute_error(
+                    "billing.refund.idempotency_conflict",
+                    "Billing refund identifier was replayed with different refund parameters.",
+                    details={
+                        "refund_id": str(existing_refund.get("refund_id", "")),
+                        "conflicts": conflicts,
+                    },
+                    request_id=request_id,
+                )
+                self._audit(
+                    "billing.refund.replay_rejected",
+                    payload,
+                    request_id=request_id,
+                    result="rejected",
+                    reason_codes=("billing.refund.idempotency_conflict",),
+                    provider_id=str(existing_refund.get("provider_id", "")),
+                    route_id=str(existing_refund.get("route_id", "")),
+                )
+                return {
+                    "ok": False,
+                    "refund": existing_refund,
+                    "credit_transaction": {},
+                    "provider_payout_adjustment": {},
+                    "error": error.as_record(),
+                    "idempotent_replay": False,
+                }
             existing_refund_credit_transaction = _refund_credit_transaction(self.store, existing_refund)
             usage_charge = self.store.get_record("usage_charge", str(existing_refund.get("usage_charge_id", "")))
             existing_payout_adjustment = self._adjust_provider_payout_for_refund(
@@ -9921,6 +9980,73 @@ def _refund_credit_transaction(store: ComputeMarketStoreProtocol, refund: Mappin
         refund_id=refund_id,
         usage_charge_id=usage_charge_id,
     )
+
+
+def _refund_replay_conflicts(
+    store: ComputeMarketStoreProtocol,
+    existing: Mapping[str, Any],
+    payload: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], ...]:
+    conflicts: list[Mapping[str, Any]] = []
+
+    def add_conflict(field: str, incoming: object, existing_value: object) -> None:
+        conflicts.append({"field": field, "incoming": incoming, "existing": existing_value})
+
+    def compare_text(field: str, incoming: object) -> None:
+        incoming_text = str(incoming).strip()
+        existing_text = str(existing.get(field, "")).strip()
+        if incoming_text and incoming_text != existing_text:
+            add_conflict(field, incoming_text, existing_text)
+
+    def compare_amount(field: str, incoming: object) -> None:
+        incoming_amount = _positive_float(incoming, field)
+        existing_amount = float(existing.get(field, 0.0) or 0.0)
+        if abs(incoming_amount - existing_amount) > 0.000001:
+            add_conflict(field, incoming_amount, existing_amount)
+
+    usage_charge_id = str(payload.get("usage_charge_id", "")).strip()
+    existing_usage_charge_id = str(existing.get("usage_charge_id", "")).strip()
+    if usage_charge_id:
+        compare_text("usage_charge_id", usage_charge_id)
+    lookup_usage_charge_id = usage_charge_id or existing_usage_charge_id
+    usage_charge = store.get_record("usage_charge", lookup_usage_charge_id) if lookup_usage_charge_id else None
+    usage_charge_map = usage_charge if isinstance(usage_charge, Mapping) else {}
+
+    account_id = str(payload.get("account_id") or payload.get("tenant_id") or usage_charge_map.get("account_id", "")).strip()
+    if account_id:
+        compare_text("account_id", account_id)
+    if "account_id" in payload and "tenant_id" in payload and str(payload.get("account_id", "")).strip() != str(payload.get("tenant_id", "")).strip():
+        add_conflict("account_id", str(payload.get("account_id", "")).strip(), str(payload.get("tenant_id", "")).strip())
+
+    if "amount" in payload:
+        compare_amount("amount", payload.get("amount"))
+    elif usage_charge_map:
+        compare_amount("amount", usage_charge_map.get("amount"))
+
+    if "currency" in payload:
+        compare_text("currency", str(payload.get("currency", "")).upper())
+    elif usage_charge_map:
+        compare_text("currency", str(usage_charge_map.get("currency", "")).upper())
+
+    provider_id = str(payload.get("provider_id") or usage_charge_map.get("provider_id", "")).strip()
+    if provider_id:
+        compare_text("provider_id", provider_id)
+    route_id = str(payload.get("route_id") or usage_charge_map.get("route_id", "")).strip()
+    if route_id:
+        compare_text("route_id", route_id)
+
+    if "source_event_id" in payload:
+        compare_text("source_event_id", str(payload.get("source_event_id", "")).strip())
+    elif usage_charge_id:
+        compare_text("source_event_id", usage_charge_id)
+
+    if "reason" in payload:
+        incoming_reason = str(payload.get("reason", ""))
+        existing_reason = str(existing.get("reason", ""))
+        if incoming_reason != existing_reason:
+            add_conflict("reason", incoming_reason, existing_reason)
+
+    return tuple(conflicts)
 
 
 def _accrue_provider_payout(

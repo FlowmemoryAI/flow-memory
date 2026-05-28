@@ -4220,6 +4220,19 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
     assert replay["idempotent_replay"] is True
     assert replay["refund"]["refund_id"] == refund["refund"]["refund_id"]
     assert replay["provider_payout_adjustment"]["reason"] == "already_adjusted"
+    idempotency_conflicts = (
+        {"usage_charge_id": usage_charge_id, "reason": "different_reason", "idempotency_key": "refund-idempotent-1"},
+        {"usage_charge_id": usage_charge_id, "amount": 0.01, "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"},
+        {"usage_charge_id": usage_charge_id, "account_id": "acct_other", "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"},
+        {"usage_charge_id": usage_charge_id, "provider_id": "provider_other", "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"},
+        {"usage_charge_id": usage_charge_id, "source_event_id": "evt_other", "reason": "sla_credit", "idempotency_key": "refund-idempotent-1"},
+    )
+    for conflict_payload in idempotency_conflicts:
+        conflict = service.billing_refund(conflict_payload)
+        assert conflict["ok"] is False
+        assert conflict["idempotent_replay"] is False
+        assert conflict["error"]["error_code"] == "billing.refund.idempotency_conflict"
+        assert conflict["error"]["details"]["conflicts"]
     assert service.store.count_records("refund") == 1
     reconciliation = service.reconciliation({})["reconciliation"]
     assert reconciliation["refund_count"] == 1

@@ -3552,13 +3552,8 @@ class ComputeMarketService:
         job = dict(self.get_job(job_id, payload)["job"])
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
-        credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_cancelled")
-        capacity_release = self._release_job_capacity_reservation(
-            job,
-            payload,
-            request_id=request_id,
-            reason="job_cancelled",
-        )
+        credit_release: Mapping[str, Any] = {}
+        capacity_release: Mapping[str, Any] = {}
         cancelled_at = utc_now_iso()
         job.update(
             {
@@ -3568,13 +3563,67 @@ class ComputeMarketService:
                 "lease_expires_at": "",
             }
         )
+        transitioned_to_cancelled = self.store.put_record_if_state(
+            "compute_job",
+            job_id,
+            ("queued", "dispatched", "running"),
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="cancelled",
+            expires_at="",
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
+        if not transitioned_to_cancelled:
+            current = self.store.get_record("compute_job", job_id) or {}
+            error = compute_error(
+                "job.status_changed",
+                "Compute job status changed before cancellation could be recorded.",
+                details={
+                    "job_id": job_id,
+                    "expected_statuses": ("queued", "dispatched", "running"),
+                    "actual_status": str(current.get("status", "")),
+                    "funds_moved": False,
+                },
+                request_id=request_id,
+            )
+            event = _job_event(
+                job_id,
+                "job.cancel_status_changed",
+                status=str(current.get("status", job.get("status", "running"))),
+                request_id=request_id,
+                details={"error": error.as_record(), "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(current.get("status", job.get("status", "running"))),
+                request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            return {"ok": False, "job": current or job, "event": event, "error": error.as_record()}
+        credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_cancelled")
+        capacity_release = self._release_job_capacity_reservation(
+            job,
+            payload,
+            request_id=request_id,
+            reason="job_cancelled",
+        )
         if credit_release:
             job["credit_release"] = credit_release
         if capacity_release:
             job["capacity_release"] = capacity_release
-        self.store.put_record(
+        self.store.put_record_if_state(
             "compute_job",
             job_id,
+            ("cancelled",),
             job,
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),

@@ -605,6 +605,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert 'checks["jwt_wrong_audience"] = call_json(' in render_script
     assert "_smoke_nonce_headers" in render_script
     assert "x-flow-memory-nonce" in smoke_script
+    assert "Get-ApiKeyBlockReason" in smoke_script
+    assert "api_key_placeholder_not_allowed" in smoke_script
     assert "require_managed_sql_in_production" in smoke_script
     assert "require_managed_sql_in_production" in render_script
     for expected in (
@@ -623,6 +625,36 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
         '"audit_export_required": safety.get("audit_export_required")',
     ):
         assert expected in render_script
+
+def test_public_smoke_rejects_placeholder_api_key_before_network() -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for public smoke preflight validation")
+    assert powershell is not None
+
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "smoke_compute_market_public.ps1"),
+            "-ApiUrl",
+            "https://api.flowmemory.ai",
+            "-ApiKey",
+            "CHANGEME-high-entropy-api-key",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "api_key_placeholder_not_allowed" in result.stderr
 
 
 def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:

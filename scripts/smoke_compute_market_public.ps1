@@ -76,6 +76,15 @@ function Get-PublicUrlBlockReason {
 
     return ''
 }
+function Get-ApiKeyBlockReason {
+    param([Parameter(Mandatory = $true)] [string]$Value)
+
+    if ($Value -match 'CHANGEME|<[^>]*>|high-entropy-api-key') {
+        return 'api_key_placeholder_not_allowed'
+    }
+    return ''
+}
+
 
 $baseUrl = $ApiUrl.TrimEnd('/')
 if (-not ($baseUrl -match '^https://')) {
@@ -84,6 +93,10 @@ if (-not ($baseUrl -match '^https://')) {
 $publicUrlBlockReason = Get-PublicUrlBlockReason -Url $baseUrl
 if (-not [string]::IsNullOrWhiteSpace($publicUrlBlockReason)) {
     throw "ApiUrl must be a real public endpoint for Level 1 smoke tests: $publicUrlBlockReason."
+}
+$apiKeyBlockReason = Get-ApiKeyBlockReason -Value $ApiKey
+if (-not [string]::IsNullOrWhiteSpace($apiKeyBlockReason)) {
+    throw "ApiKey must be a real production secret for Level 1 smoke tests: $apiKeyBlockReason."
 }
 function Add-NonceHeaders {
     param(

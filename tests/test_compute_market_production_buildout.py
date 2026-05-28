@@ -2016,6 +2016,51 @@ def test_provider_reputation_tracks_sla_latency_breaches() -> None:
     assert _metric_total(service, "provider_sla_penalty_total", {"provider_id": "provider_live_gpu_1"}) == 0.18
 
 
+def test_provider_reputation_uses_capacity_fulfillment_from_confirmed_reservations() -> None:
+    service = _service()
+    service.list_capacity(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "route_id": "route_live_gpu_1",
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 4,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 4}
+    )["reservation"]
+    reservation_id = str(service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]["reservation_id"])
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_reputation_partial",
+                "capacity_reservation_id": reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+
+    service.dispatch_job(job_id, {})
+    service.complete_job(
+        job_id,
+        {
+            "actual_units": 1,
+            "actual_total_cost": 0.09,
+            "capacity_units_consumed": 1,
+            "currency": "USD",
+        },
+    )
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+
+    assert reputation["capacity_fulfillment_rate"] == 0.25
+    assert reputation["score"] < 0.4
+
+
 def test_signed_provider_receipt_callback_completes_job_and_blocks_replay(monkeypatch: Any) -> None:
     service = _service()
     key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")

@@ -907,10 +907,11 @@ class ComputeMarketService:
         health = tuple(self.store.list_records("provider_health_snapshot", filters=filters, limit=100).records)
         fraud_signals = tuple(self.store.list_records("provider_fraud_signal", filters=filters, limit=500).records)
         refunds = tuple(self.store.list_records("refund", filters=filters, limit=500).records)
+        reservations = tuple(self.store.list_records("compute_reservation", filters=filters, limit=500).records)
         provider = self.store.get_record("compute_provider", provider_id) or {}
         if isinstance(provider, Mapping) and provider and not _tenant_can_access_catalog_record(payload, provider):
             raise KeyError(f"Unknown compute provider: {provider_id}")
-        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals, refunds=refunds, provider=provider if isinstance(provider, Mapping) else {})
+        reputation = _provider_reputation(provider_id, jobs=jobs, quotes=quotes, health=health, fraud_signals=fraud_signals, refunds=refunds, reservations=reservations, provider=provider if isinstance(provider, Mapping) else {})
         if not tenant_id:
             self.store.put_record("provider_reputation", provider_id, reputation, provider_id=provider_id, status=str(reputation["status"]))
         return {"ok": True, "reputation": reputation}
@@ -6193,6 +6194,7 @@ def _provider_reputation(
     health: tuple[Mapping[str, Any], ...],
     fraud_signals: tuple[Mapping[str, Any], ...],
     refunds: tuple[Mapping[str, Any], ...] = (),
+    reservations: tuple[Mapping[str, Any], ...] = (),
     provider: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     completed_jobs = tuple(job for job in jobs if str(job.get("status", "")) == "succeeded")
@@ -6230,6 +6232,7 @@ def _provider_reputation(
     refund_count = sum(1 for refund in refunds if str(refund.get("status", "")) not in {"cancelled", "rejected"})
     refund_rate = refund_count / total_jobs
     sla_breach_penalty = min(1.0, sla_breach_count / total_jobs)
+    capacity_fulfillment_rate = _capacity_fulfillment_rate(reservations)
     score = max(
         0.0,
         min(
@@ -6242,6 +6245,7 @@ def _provider_reputation(
             - (fraud_penalty * 0.2)
             - (sla_breach_penalty * 0.1)
             - (min(1.0, refund_rate) * 0.05)
+            - ((1.0 - capacity_fulfillment_rate) * 0.1)
         ),
     )
     manual_review_flags = tuple(
@@ -6259,7 +6263,7 @@ def _provider_reputation(
         "quote_accuracy_score": round(valid_quotes / total_quotes, 4),
         "execution_success_rate": round(completed / total_jobs, 4),
         "latency_reliability": round(latency_reliability, 4),
-        "capacity_fulfillment_rate": 1.0,
+        "capacity_fulfillment_rate": round(capacity_fulfillment_rate, 4),
         "refund_rate": round(refund_rate, 4),
         "dispute_rate": 0.0,
         "stale_quote_rate": round(stale_quote_rate, 4),
@@ -6280,6 +6284,22 @@ def _provider_reputation(
         "score": round(score, 4),
         "updated_at": utc_now_iso(),
     }
+
+
+def _capacity_fulfillment_rate(reservations: tuple[Mapping[str, Any], ...]) -> float:
+    confirmed_reservations = tuple(
+        reservation
+        for reservation in reservations
+        if str(reservation.get("status", "")) in {"confirmed", "consumed"}
+    )
+    confirmed_units = sum(_capacity_reservation_units(reservation) for reservation in confirmed_reservations)
+    if confirmed_units <= 0.0:
+        return 1.0
+    consumed_units = sum(
+        min(_capacity_reservation_units(reservation), _capacity_consumed_units(reservation))
+        for reservation in confirmed_reservations
+    )
+    return max(0.0, min(1.0, consumed_units / confirmed_units))
 
 
 def _contract_quote_from_normalized(quote: Mapping[str, Any]) -> dict[str, Any]:

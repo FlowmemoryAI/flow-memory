@@ -1423,6 +1423,7 @@ def test_dispatch_rejects_unconfirmed_or_mismatched_capacity_reservation_before_
 
     assert rejected["ok"] is False
     assert rejected["error"]["error_code"] == "capacity.reservation_unconfirmed"
+    assert rejected["job"]["status"] == "queued"
     assert service.store.get_record("compute_job", unconfirmed_job_id)["status"] == "queued"
     balance = service.billing_balance({"account_id": "acct_capacity_reject"})["balance"]
     assert balance["available_credits"] == 1.0
@@ -1443,6 +1444,7 @@ def test_dispatch_rejects_unconfirmed_or_mismatched_capacity_reservation_before_
 
     assert mismatch["ok"] is False
     assert mismatch["error"]["error_code"] == "capacity.reservation_route_mismatch"
+    assert mismatch["job"]["status"] == "queued"
     assert any(
         event["event_type"] == "job.capacity_reservation_rejected"
         for event in service.job_events(mismatch_job_id)["events"]
@@ -1816,6 +1818,45 @@ def test_capacity_auction_uses_target_interval_capacity() -> None:
     assert auction["clearing"]["available_capacity_units"] == 10
     assert auction["clearing"]["total_units_cleared"] == 5
     assert auction["clearing"]["winning_bids"][0]["bid_id"] == "bid_target_free"
+
+
+def test_dispatch_job_claim_race_does_not_start_or_reserve_credit(monkeypatch: Any) -> None:
+    service = _service()
+    account_id = "acct_dispatch_claim_race"
+    _credit_account(service, account_id, 1.0, event_id="evt_dispatch_claim_race")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_dispatch_claim_race",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+            }
+        )["job"]["job_id"]
+    )
+    original_put_record_if_state = service.store.put_record_if_state
+
+    def fail_dispatch_claim(
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        **kwargs: Any,
+    ) -> bool:
+        if record_type == "compute_job" and record_id == job_id and expected_statuses == ("queued",):
+            return False
+        return original_put_record_if_state(record_type, record_id, expected_statuses, payload, **kwargs)
+
+    monkeypatch.setattr(service.store, "put_record_if_state", fail_dispatch_claim)
+
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+
+    assert dispatched["ok"] is False
+    assert dispatched["error"]["error_code"] == "job.status_changed"
+    assert dispatched["job"]["status"] == "queued"
+    assert service.get_job(job_id)["job"]["status"] == "queued"
+    assert service.store.count_records("credit_transaction") == 1
+    assert not any(event["event_type"] == "job.started" for event in service.job_events(job_id)["events"])
 
 def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() -> None:
     service = _service()
@@ -3024,6 +3065,7 @@ def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> Non
     assert dispatched["ok"] is False
     assert dispatched["error"]["error_code"] == "billing.credit_preauthorization_failed"
     assert dispatched["credit_reservation"]["status"] == "insufficient_credit"
+    assert dispatched["job"]["status"] == "queued"
     assert service.store.get_record("compute_job", job_id)["status"] == "queued"
     balance = service.billing_balance({"account_id": "acct_preauth_low"})["balance"]
     assert balance["available_credits"] == 0.1
@@ -3094,6 +3136,7 @@ def test_billing_spending_quota_rejects_dispatch_above_daily_limit() -> None:
     assert dispatched["ok"] is False
     assert dispatched["error"]["error_code"] == "billing.spending_quota_exceeded"
     assert dispatched["event"]["event_type"] == "job.spending_quota_exceeded"
+    assert dispatched["job"]["status"] == "queued"
     assert dispatched["quota"]["daily_spend_limit"] == 0.1
     assert service.store.get_record("compute_job", job_id)["status"] == "queued"
     balance = service.billing_balance({"account_id": account_id})["balance"]

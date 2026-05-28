@@ -2660,6 +2660,77 @@ class ComputeMarketService:
         job = dict(self.get_job(job_id, payload)["job"])
         _assert_job_status(job, ("queued", "dispatched"), "dispatch")
         worker_id = _assert_claim_owner(job, payload, "dispatch")
+        direct_dispatch_original_job = dict(job)
+        direct_dispatch_claimed = False
+        initial_status = str(job.get("status", ""))
+        if initial_status == "queued":
+            dispatch_claimed_at = utc_now_iso()
+            dispatch_attempt = int(job.get("dispatch_attempt", 0) or 0) + 1
+            job.update(
+                {
+                    "status": "dispatched",
+                    "claimed_by": worker_id,
+                    "claimed_at": dispatch_claimed_at,
+                    "dispatch_attempt": dispatch_attempt,
+                    "updated_at": dispatch_claimed_at,
+                    "lifecycle": _append_lifecycle(job, "dispatched"),
+                    "provider_dispatch": "direct_dispatch_claim",
+                }
+            )
+            claimed = self.store.put_record_if_state(
+                "compute_job",
+                job_id,
+                ("queued",),
+                job,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                task_type=str(job.get("task_type", "")),
+                status="dispatched",
+                expires_at=str(job.get("lease_expires_at", "")),
+                request_id=request_id,
+                actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            if not claimed:
+                current = self.store.get_record("compute_job", job_id) or {}
+                error = compute_error(
+                    "job.status_changed",
+                    "Compute job status changed before dispatch could claim it.",
+                    details={
+                        "job_id": job_id,
+                        "expected_statuses": ("queued",),
+                        "actual_status": str(current.get("status", "")),
+                    },
+                    request_id=request_id,
+                )
+                return {"ok": False, "job": current or job, "event": {}, "error": error.as_record()}
+            direct_dispatch_claimed = True
+
+        def release_direct_dispatch_claim(reason: str) -> Mapping[str, Any]:
+            if not direct_dispatch_claimed:
+                return {}
+            restored = {**direct_dispatch_original_job, "released_at": utc_now_iso(), "release_reason": reason}
+            released = self.store.put_record_if_state(
+                "compute_job",
+                job_id,
+                ("dispatched",),
+                restored,
+                expected_actor_id=worker_id if str(job.get("claimed_by", "")) else "",
+                provider_id=str(restored.get("provider_id", "")),
+                route_id=str(restored.get("route_id", "")),
+                task_type=str(restored.get("task_type", "")),
+                status=str(restored.get("status", "queued")),
+                expires_at=str(restored.get("lease_expires_at", "")),
+                request_id=request_id,
+                actor_id=str(restored.get("claimed_by", "")),
+                tenant_id=str(restored.get("tenant_id", "")),
+                workspace_id=str(restored.get("workspace_id", "")),
+            )
+            if not released:
+                current = self.store.get_record("compute_job", job_id) or restored
+                return {"released": False, "reason": reason, "job": current}
+            return {"released": True, "reason": reason, "job": restored}
         capacity_check = self._validate_job_capacity_reservation(job, payload, request_id=request_id)
         if capacity_check.get("ok") is not True:
             error_record = cast(Mapping[str, Any], capacity_check.get("error", {}))
@@ -2672,9 +2743,10 @@ class ComputeMarketService:
                 audit_action="compute.job.capacity_reservation_rejected",
                 reservation=cast(Mapping[str, Any], capacity_check.get("reservation", {})),
             )
+            release = release_direct_dispatch_claim("capacity_reservation_rejected")
             return {
                 "ok": False,
-                "job": job,
+                "job": release.get("job", job),
                 "event": event,
                 "capacity_reservation": capacity_check.get("reservation", {}),
                 "error": error_record,
@@ -2710,7 +2782,14 @@ class ComputeMarketService:
                 provider_id=str(job.get("provider_id", "")),
                 route_id=str(job.get("route_id", "")),
             )
-            return {"ok": False, "job": job, "event": event, "quota": quota_decision.get("quota", {}), "error": error_record}
+            release = release_direct_dispatch_claim("spending_quota_exceeded")
+            return {
+                "ok": False,
+                "job": release.get("job", job),
+                "event": event,
+                "quota": quota_decision.get("quota", {}),
+                "error": error_record,
+            }
         credit_reservation = _reserve_credit_for_job(self.store, job, payload, request_id=request_id)
         if str(credit_reservation.get("status", "")) == "insufficient_credit":
             amount = float(credit_reservation.get("amount", 0.0) or 0.0)
@@ -2759,7 +2838,14 @@ class ComputeMarketService:
                 provider_id=str(job.get("provider_id", "")),
                 route_id=str(job.get("route_id", "")),
             )
-            return {"ok": False, "job": job, "event": event, "credit_reservation": credit_reservation, "error": error.as_record()}
+            release = release_direct_dispatch_claim("credit_preauthorization_failed")
+            return {
+                "ok": False,
+                "job": release.get("job", job),
+                "event": event,
+                "credit_reservation": credit_reservation,
+                "error": error.as_record(),
+            }
         execution = self._dispatch_external_provider_execution(job, payload, request_id=request_id)
         if execution.get("required") is True and execution.get("ok") is not True:
             credit_release = _release_credit_reservation(
@@ -2853,10 +2939,12 @@ class ComputeMarketService:
             job["reserved_capacity_units"] = _capacity_reservation_remaining_units(capacity_reservation)
         if execution.get("external_provider_called") is True:
             job["provider_execution"] = details["provider_execution"]
-        self.store.put_record(
+        transitioned_to_running = self.store.put_record_if_state(
             "compute_job",
             job_id,
+            ("dispatched",),
             job,
+            expected_actor_id=worker_id if str(job.get("claimed_by", "")) else "",
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),
             task_type=str(job.get("task_type", "")),
@@ -2867,6 +2955,45 @@ class ComputeMarketService:
             tenant_id=str(job.get("tenant_id", "")),
             workspace_id=str(job.get("workspace_id", "")),
         )
+        if not transitioned_to_running:
+            credit_release = _release_credit_reservation(
+                self.store,
+                job,
+                request_id=request_id,
+                reason="dispatch_state_changed_before_running",
+            )
+            current = self.store.get_record("compute_job", job_id) or {}
+            error = compute_error(
+                "job.status_changed",
+                "Compute job status changed before dispatch could transition to running.",
+                details={
+                    "job_id": job_id,
+                    "expected_statuses": ("dispatched",),
+                    "actual_status": str(current.get("status", "")),
+                    "credit_release_recorded": bool(credit_release),
+                },
+                request_id=request_id,
+            )
+            event = _job_event(
+                job_id,
+                "job.dispatch_status_changed",
+                status=str(current.get("status", job.get("status", "dispatched"))),
+                request_id=request_id,
+                details={"error": error.as_record(), "credit_release_recorded": bool(credit_release), "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(current.get("status", job.get("status", "dispatched"))),
+                request_id=request_id,
+                actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            return {"ok": False, "job": current or job, "event": event, "credit_release": credit_release, "error": error.as_record()}
         event = _job_event(
             job_id,
             "job.started",

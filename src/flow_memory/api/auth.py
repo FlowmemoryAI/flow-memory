@@ -115,7 +115,28 @@ class ApiAuthConfig:
     jwt_leeway_seconds: int = 60
     nonce_replay_store: NonceReplayStore | None = None
 
-KNOWN_AUTH_ROLES = frozenset({"admin", "member", "viewer", "billing", "auditor", "provider", "provider-admin"})
+KNOWN_AUTH_ROLES = frozenset({
+    "admin",
+    "auditor",
+    "billing",
+    "member",
+    "policy-admin",
+    "provider",
+    "provider-admin",
+    "settlement-admin",
+    "viewer",
+})
+ROLE_SCOPE_MAP: Mapping[str, tuple[str, ...]] = {
+    "admin": ("api:admin",),
+    "auditor": ("api:audit", "compute:audit", "compute:read"),
+    "billing": ("compute:billing", "compute:read"),
+    "member": ("api:read", "api:write", "compute:read", "compute:plan", "compute:execute"),
+    "policy-admin": ("compute:policy-admin", "compute:read"),
+    "provider": ("compute:read",),
+    "provider-admin": ("compute:provider-admin", "compute:read"),
+    "settlement-admin": ("compute:settlement-admin", "compute:read"),
+    "viewer": ("api:read", "compute:read"),
+}
 
 
 @dataclass(frozen=True)
@@ -489,7 +510,7 @@ def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tup
     subject = str(claims.get("sub", ""))
     if not subject:
         return None, ("jwt sub required",)
-    scopes = _parse_scopes(claims.get("scope", claims.get("scp", ())))
+    scopes = _jwt_scopes(claims)
     return (
         ApiKeyIdentity(
             key_id=str(header.get("kid", "jwt")),
@@ -570,6 +591,27 @@ def _header(headers: Mapping[str, str], name: str) -> str:
         if key.lower() == lowered:
             return value
     return ""
+
+
+def _jwt_scopes(claims: Mapping[str, Any]) -> tuple[str, ...]:
+    explicit = _parse_scopes(claims.get("scope", claims.get("scp", ())))
+    role_claim = claims.get("flow_memory_roles", claims.get("roles", claims.get("role", ())))
+    role_scopes = _scopes_from_roles(role_claim)
+    return tuple(sorted({*explicit, *role_scopes}))
+
+
+def _scopes_from_roles(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        parts: Sequence[str] = value.replace(",", " ").split()
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        parts = tuple(str(item) for item in value)
+    else:
+        parts = ()
+    scopes: set[str] = set()
+    for part in parts:
+        role = part.strip().lower()
+        scopes.update(ROLE_SCOPE_MAP.get(role, ()))
+    return tuple(sorted(scopes))
 
 
 def _parse_scopes(value: object) -> tuple[str, ...]:

@@ -235,6 +235,38 @@ class ApiAuthTests(unittest.TestCase):
         self.assertEqual(decision.scopes, ("compute:plan", "compute:read"))
         self.assertTrue(require_api_key({"authorization": f"Bearer {token}"}, ApiAuthConfig(jwt_hs256_secret="jwt-secret")))
 
+    def test_authorize_request_maps_jwt_roles_to_scopes(self) -> None:
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "provider-admin-user",
+                "tenant_id": "tenant_roles",
+                "roles": ["provider-admin", "billing", "settlement-admin"],
+                "aud": "flow-memory-api",
+                "exp": time.time() + 300,
+                "iat": time.time(),
+            },
+            {"kid": "gateway-role-key"},
+        )
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api"),
+        )
+
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.key_id, "gateway-role-key")
+        self.assertEqual(decision.tenant_id, "tenant_roles")
+        self.assertEqual(
+            decision.scopes,
+            (
+                "compute:billing",
+                "compute:provider-admin",
+                "compute:read",
+                "compute:settlement-admin",
+            ),
+        )
+
     def test_authorize_request_accepts_valid_bearer_jwt_and_signature_when_required(self) -> None:
         key = generate_local_keypair("api-auth-jwt-signed")
         payload = {"goal": "local"}
@@ -430,6 +462,7 @@ class ApiAuthTests(unittest.TestCase):
     def test_auth_role_name_validation_and_scopes(self) -> None:
         self.assertEqual(validate_role_name("admin"), "admin")
         self.assertTrue(is_valid_role("provider-admin"))
+        self.assertTrue(is_valid_role("settlement-admin"))
         for role in ("", "Admin", "billing manager", "unknown"):
             with self.assertRaises(ValueError):
                 validate_role_name(role)

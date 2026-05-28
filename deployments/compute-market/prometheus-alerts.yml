@@ -60,6 +60,26 @@ groups:
         annotations:
           summary: Provider execution receipt callback was rejected.
           description: Review receipt signature, replay guard, provider/job mismatch, callback IP allowlist, and compromised-provider indicators before accepting more callbacks.
+
+      - alert: FlowMemoryComputeMarketProviderCallbackRejected
+        expr: compute_provider_callback_rejected_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: providers
+        annotations:
+          summary: Provider callback was rejected before state transition.
+          description: Verify callback IP allowlist, gateway forwarding, provider credential binding, and replay/signature controls.
+
+      - alert: FlowMemoryComputeMarketProviderExecutionFailures
+        expr: rate(provider_execution_failure_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: providers
+        annotations:
+          summary: External provider execution dispatch is failing.
+          description: Inspect provider execution endpoints, credentials, allowlists, circuit state, and dispatch error codes.
       - alert: FlowMemoryComputeMarketProviderSlaPenalty
         expr: provider_sla_penalty_total > 0
         for: 5m
@@ -139,6 +159,16 @@ groups:
           summary: Compute jobs are completing without enough prepaid credit.
           description: Review credit balances, checkout health, tenant quota policy, and provider payout reconciliation before allowing paid execution to scale.
 
+
+      - alert: FlowMemoryComputeMarketPlanFailClosed
+        expr: rate(compute_plan_fail_closed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: policy
+        annotations:
+          summary: Compute planning is failing closed.
+          description: Review policy denials, provider circuit status, quote freshness, and settlement safety gates.
       - alert: FlowMemoryComputeMarketPolicyDenialSpike
         expr: rate(compute_policy_denials_total[5m]) > 10 or rate(policy_denied_total[5m]) > 10
         for: 5m

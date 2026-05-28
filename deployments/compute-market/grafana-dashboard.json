@@ -18,7 +18,8 @@
       "targets": [
         {"expr": "sum(rate(compute_plan_requests_total[5m]))", "legendFormat": "plans", "refId": "A"},
         {"expr": "sum(rate(route_selected_total[5m]))", "legendFormat": "routes selected", "refId": "B"},
-        {"expr": "sum(rate(policy_denied_total[5m]))", "legendFormat": "policy denied", "refId": "C"}
+        {"expr": "sum(rate(policy_denied_total[5m]))", "legendFormat": "policy denied", "refId": "C"},
+        {"expr": "sum(rate(compute_plan_fail_closed_total[5m]))", "legendFormat": "fail closed", "refId": "D"}
       ],
       "title": "Planning and policy throughput",
       "type": "timeseries"
@@ -63,7 +64,9 @@
         {"expr": "sum(rate(quote_stale_total[5m]))", "legendFormat": "stale quotes", "refId": "C"},
         {"expr": "sum(rate(quote_cache_invalidated_total[5m]))", "legendFormat": "cache invalidations", "refId": "D"},
         {"expr": "sum(rate(provider_fraud_signal_total[5m]))", "legendFormat": "fraud signals", "refId": "E"},
-        {"expr": "sum(rate(compute_provider_receipt_rejected_total[5m]))", "legendFormat": "receipt rejections", "refId": "F"}
+        {"expr": "sum(rate(compute_provider_receipt_rejected_total[5m]))", "legendFormat": "receipt rejections", "refId": "F"},
+        {"expr": "sum(rate(compute_provider_callback_rejected_total[5m]))", "legendFormat": "callback rejections", "refId": "G"},
+        {"expr": "sum(rate(provider_execution_failure_total[5m]))", "legendFormat": "execution failures", "refId": "H"}
       ],
       "title": "Provider quote health",
       "type": "timeseries"

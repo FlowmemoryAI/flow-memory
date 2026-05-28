@@ -653,6 +653,9 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     service.telemetry.increment("billing_ledger_mismatch_total")
     service.telemetry.increment("provider_sla_penalty_total")
     service.telemetry.increment("compute_provider_receipt_rejected_total")
+    service.telemetry.increment("compute_provider_callback_rejected_total")
+    service.telemetry.increment("provider_execution_failure_total")
+    service.telemetry.increment("compute_plan_fail_closed_total")
     alerts = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
     rule_names = {item["rule_name"] for item in alerts["firing"]}
     assert "billing-webhook-failures" in rule_names
@@ -661,6 +664,9 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     assert "billing-ledger-mismatch" in rule_names
     assert "provider-sla-penalty" in rule_names
     assert "provider-receipt-rejected" in rule_names
+    assert "provider-callback-rejected" in rule_names
+    assert "provider-execution-failure" in rule_names
+    assert "compute-plan-fail-closed" in rule_names
     assert "redis-unavailable" in rule_names
 
 def test_provider_fraud_signal_metric_alert_and_route_on_quote_drift() -> None:
@@ -748,6 +754,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "compute_plan_requests_total",
         "route_selected_total",
         "policy_denied_total",
+        "compute_plan_fail_closed_total",
         "compute_job_started_total",
         "compute_job_completed_total",
         "compute_job_failed_total",
@@ -757,6 +764,8 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "provider_circuit_open_total",
         "provider_fraud_signal_total",
         "compute_provider_receipt_rejected_total",
+        "compute_provider_callback_rejected_total",
+        "provider_execution_failure_total",
         "quote_stale_total",
         "capacity_reserved_total",
         "capacity_confirmed_total",
@@ -810,6 +819,9 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "FlowMemoryComputeMarketProviderFraudSignal",
         "FlowMemoryComputeMarketProviderSlaPenalty",
         "FlowMemoryComputeMarketProviderReceiptRejected",
+        "FlowMemoryComputeMarketProviderCallbackRejected",
+        "FlowMemoryComputeMarketProviderExecutionFailures",
+        "FlowMemoryComputeMarketPlanFailClosed",
         "FlowMemoryComputeMarketStaleQuotes",
         "FlowMemoryComputeMarketBillingWebhookFailures",
         "FlowMemoryComputeMarketBillingCheckoutFailures",
@@ -832,6 +844,9 @@ def test_prometheus_alert_rules_cover_public_production_failures() -> None:
         "provider_fraud_signal_total",
         "provider_sla_penalty_total",
         "compute_provider_receipt_rejected_total",
+        "compute_provider_callback_rejected_total",
+        "provider_execution_failure_total",
+        "compute_plan_fail_closed_total",
         "quote_stale_total",
         "billing_webhook_failures_total",
         "billing_checkout_failed_total",

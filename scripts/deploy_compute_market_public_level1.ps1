@@ -188,6 +188,7 @@ $requiredKeys = @(
 )
 
 $placeholderPattern = 'CHANGEME|<[^>]*>|<required>|<your-domain>|yourdomain\.com|api\.yourdomain\.com|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host|high-entropy-api-key'
+$weakApiKeys = @('api-key', 'dev-key', 'prod-key', 'test', 'secret', 'password')
 $envValues = Read-EnvFile -Path $envPath
 $renderApiKey = [Environment]::GetEnvironmentVariable('RENDER_API_KEY', 'Process')
 if ([string]::IsNullOrWhiteSpace($renderApiKey)) {
@@ -230,6 +231,13 @@ foreach ($key in $requiredKeys) {
     if ([string]$envValues[$key] -match $placeholderPattern) {
         $placeholders.Add($key)
     }
+}
+if (
+    $envValues.Contains('FLOW_MEMORY_API_KEY') -and
+    $weakApiKeys -contains ([string]$envValues['FLOW_MEMORY_API_KEY']).Trim().ToLowerInvariant() -and
+    -not $placeholders.Contains('FLOW_MEMORY_API_KEY')
+) {
+    $placeholders.Add('FLOW_MEMORY_API_KEY')
 }
 if ($envValues.Contains('RENDER_KEYVALUE_IP_ALLOWLIST') -and [string]$envValues['RENDER_KEYVALUE_IP_ALLOWLIST'] -match $placeholderPattern) {
     $placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')

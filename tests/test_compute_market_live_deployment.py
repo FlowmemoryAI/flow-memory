@@ -719,6 +719,7 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "$renderApiKey -match $placeholderPattern" in deploy_script
     assert "<[^>]*>" in deploy_script
     assert "high-entropy-api-key" in deploy_script
+    assert "$weakApiKeys" in deploy_script
     assert "$placeholders.Add('FLOW_MEMORY_PUBLIC_API_URL')" in deploy_script
     assert "$placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')" in deploy_script
     assert "blocked_invalid_public_url" in deploy_script
@@ -772,6 +773,49 @@ def test_public_powershell_preflight_rejects_private_public_url(tmp_path: Path) 
     assert payload["reason"] == "public_url_must_use_global_host"
     assert payload["public_url"] == "https://127.0.0.1:8443"
 
+
+def test_public_powershell_preflight_rejects_weak_api_key(tmp_path: Path) -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for public deployment preflight validation")
+    assert powershell is not None
+    env_file = tmp_path / "weak-api-key.env"
+    env_file.write_text(
+        "\n".join(
+            (
+                "FLOW_MEMORY_API_KEY=prod-key",
+                "FLOW_MEMORY_PUBLIC_API_URL=https://api.flowmemory.ai",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "deploy_compute_market_public_level1.ps1"),
+            "-EnvFile",
+            str(env_file),
+            "-Mode",
+            "validate-only",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 2, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "blocked_missing_values"
+    assert "FLOW_MEMORY_API_KEY" in payload["placeholder_values"]
 
 def test_public_buildout_validator_requires_observability_endpoints() -> None:
     validator_script = (ROOT / "scripts" / "validate_compute_market_public_buildout.py").read_text(encoding="utf-8")

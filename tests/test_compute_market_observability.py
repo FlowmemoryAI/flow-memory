@@ -11,7 +11,7 @@ from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.router import create_default_router
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.observability import AlertEvaluator, ComputeMarketTelemetry, MetricSample, TraceSpanRecord, metric_names, span_names
-from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
+from flow_memory.compute_market.service import ComputeMarketService, _READINESS_FAILURE_METRICS, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
 
 
@@ -616,6 +616,24 @@ def test_otlp_export_integrates_via_admin_gateway() -> None:
     assert body["data"]["status"] == "delivered"
     assert body["data"]["delivery"]["metric_count"] == 1
 
+def test_readiness_failure_metric_mapping_covers_public_production_gates() -> None:
+    expected = {
+        "migrations_pending": "postgres_unavailable_total",
+        "provider_registry_unavailable": "postgres_unavailable_total",
+        "sqlite_disallowed_in_production": "postgres_unavailable_total",
+        "external_provider_circuit_breaker_missing": "redis_unavailable_total",
+        "audit_unwritable": "audit_chain_verify_fail_total",
+        "audit_chain_invalid": "audit_chain_verify_fail_total",
+        "audit_export_unavailable": "audit_chain_verify_fail_total",
+        "provider_contracts_unverified": "external_provider_allowlist_missing_total",
+        "unsafe_broadcast_config": "unexpected_live_settlement_config_total",
+        "unsafe_private_key_config": "unexpected_live_settlement_config_total",
+    }
+
+    for failure, metric_name in expected.items():
+        assert _READINESS_FAILURE_METRICS[failure] == metric_name
+
+
 def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> None:
     service = _service()
     webhook = service.billing_webhook_stripe(
@@ -658,6 +676,10 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     service.telemetry.increment("compute_provider_callback_rejected_total")
     service.telemetry.increment("provider_execution_failure_total")
     service.telemetry.increment("compute_plan_fail_closed_total")
+    service.telemetry.increment("postgres_unavailable_total")
+    service.telemetry.increment("unexpected_live_settlement_config_total")
+    service.telemetry.increment("settlement_attempt_total")
+    service.telemetry.increment("external_provider_allowlist_missing_total")
     alerts = cast(dict[str, Any], AlertEvaluator().evaluate(service.telemetry).as_record())
     rule_names = {item["rule_name"] for item in alerts["firing"]}
     assert "billing-webhook-failures" in rule_names
@@ -671,6 +693,10 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     assert "provider-execution-failure" in rule_names
     assert "compute-plan-fail-closed" in rule_names
     assert "redis-unavailable" in rule_names
+    assert "postgres-unavailable" in rule_names
+    assert "unexpected-live-settlement-config" in rule_names
+    assert "unexpected-settlement-attempt" in rule_names
+    assert "external-provider-allowlist-missing" in rule_names
 
 def test_provider_fraud_signal_metric_alert_and_route_on_quote_drift() -> None:
     server, url = _alert_webhook_server()

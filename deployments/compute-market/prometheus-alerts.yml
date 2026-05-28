@@ -3,14 +3,22 @@ groups:
     interval: 30s
     rules:
       - alert: FlowMemoryComputeMarketReadinessUnavailable
-        expr: postgres_unavailable_total > 0 or redis_unavailable_total > 0
+        expr: >
+          postgres_unavailable_total > 0
+          or redis_unavailable_total > 0
+          or audit_chain_verify_fail_total > 0
+          or external_provider_allowlist_missing_total > 0
+          or unexpected_live_settlement_config_total > 0
+          or alert_delivery_failed_total > 0
+          or error_tracking_failed_total > 0
+          or otlp_export_failed_total > 0
         for: 1m
         labels:
           severity: critical
           component: readiness
         annotations:
-          summary: Managed PostgreSQL or Redis is unavailable for Compute Market.
-          description: Public Level 1 readiness must fail closed when managed Postgres or Redis cannot be reached.
+          summary: Compute Market production readiness dependency or safety gate failed.
+          description: Public Level 1 readiness must fail closed when managed dependencies, immutable audit, provider allowlists, settlement safety, or observability sinks fail.
 
       - alert: FlowMemoryComputeMarketAuditChainBreak
         expr: audit_chain_verify_fail_total > 0

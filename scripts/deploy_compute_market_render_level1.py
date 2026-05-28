@@ -400,7 +400,8 @@ def gateway_jwt_config_from_env(values: dict[str, str]) -> dict[str, str]:
 
 
 def has_placeholder(value: str) -> bool:
-    return any(token in value for token in PLACEHOLDERS)
+    raw = value.lower()
+    return any(token.lower() in raw for token in PLACEHOLDERS)
 
 
 def validate_render_plans(

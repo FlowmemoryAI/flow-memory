@@ -822,6 +822,7 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
     local_uri = "/var/lib/flow-memory/audit/compute-market.ndjson"
 
     assert render_deploy.audit_export_uri_from_env({}) == local_uri
+    assert render_deploy.audit_export_uri_from_env({"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://changeme-audit/compute-market"}) == local_uri
     assert render_deploy.audit_export_uri_from_env({"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": local_uri}) == local_uri
     with pytest.raises(SystemExit) as missing_region:
         render_deploy.audit_export_s3_region_from_env(
@@ -990,10 +991,15 @@ def test_render_env_builder_propagates_and_validates_provider_callback_ip_allowl
         render_deploy.provider_callback_ip_allowlist_from_env(
             {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "CHANGEME-provider-cidr"}
         )
+    with pytest.raises(SystemExit) as lowercase_placeholder:
+        render_deploy.provider_callback_ip_allowlist_from_env(
+            {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "changeme-provider-cidr"}
+        )
 
     assert missing.value.code == 30
     assert world_open.value.code == 31
     assert placeholder.value.code == 31
+    assert lowercase_placeholder.value.code == 31
 
 def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_HS256_SECRET", "")

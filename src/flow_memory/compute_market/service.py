@@ -4985,6 +4985,7 @@ class ComputeMarketService:
             if bool(existing.get("verified", False)):
                 existing_account_id = str(existing.get("account_id", ""))
                 credit_transaction: Mapping[str, Any] = {}
+                refund_debit: Mapping[str, Any] = {}
                 if existing_account_id:
                     credit_transaction_id = deterministic_id(
                         "credit_transaction",
@@ -4998,8 +4999,26 @@ class ComputeMarketService:
                             currency=str(credit_transaction.get("currency", existing.get("currency", credit_currency))),
                             request_id=request_id,
                         )
+                    refund_debit_id = deterministic_id(
+                        "credit_transaction",
+                        {"account_id": existing_account_id, "source_event_id": event_id, "type": "stripe_refund_debit"},
+                    )
+                    refund_debit = self.store.get_record("credit_transaction", refund_debit_id) or {}
+                    if refund_debit:
+                        _rebuild_credit_balance_from_transactions(
+                            self.store,
+                            existing_account_id,
+                            currency=str(refund_debit.get("currency", existing.get("currency", credit_currency))),
+                            request_id=request_id,
+                        )
                 self._audit("billing.webhook.replayed", payload, request_id=request_id, result=str(existing.get("status", "verified")))
-                return {"ok": True, "payment_event": existing, "credit_transaction": credit_transaction, "idempotent_replay": True}
+                return {
+                    "ok": True,
+                    "payment_event": existing,
+                    "credit_transaction": credit_transaction,
+                    "refund_debit": refund_debit,
+                    "idempotent_replay": True,
+                }
             if not verified:
                 error = compute_error(
                     "billing.webhook.signature_required",
@@ -5143,6 +5162,18 @@ class ComputeMarketService:
                 source_event_id=event_id,
             )
             self._audit("billing.credit.added", payload, request_id=request_id, result="credited")
+        refund_debit_record: Mapping[str, Any] = {}
+        if verified and account_id and credit_amount > 0 and posts_refund:
+            refund_debit_record = _apply_external_refund_debit(
+                self.store,
+                account_id,
+                amount=credit_amount,
+                currency=credit_currency,
+                request_id=request_id,
+                source_event_id=event_id,
+                checkout_payment_event_id=checkout_reference_id,
+            )
+            self._audit("billing.credit.refund_debited", payload, request_id=request_id, result="debited")
         checkout_update: Mapping[str, Any] = {}
         invoice_update: Mapping[str, Any] = {}
         if verified and checkout_reference_id:
@@ -5184,6 +5215,7 @@ class ComputeMarketService:
             "ok": verified,
             "payment_event": record,
             "credit_transaction": credit_record,
+            "refund_debit": refund_debit_record,
             "checkout_update": checkout_update,
             "invoice_update": invoice_update,
         }
@@ -10512,6 +10544,66 @@ def _apply_credit(
         "request_id": request_id,
     }
     store.put_record("credit_transaction", transaction_id, transaction, tenant_id=account_id, status="posted", request_id=request_id, idempotency_key=transaction_id)
+    _rebuild_credit_balance_from_transactions(
+        store,
+        account_id,
+        currency=currency,
+        request_id=request_id,
+    )
+    return transaction
+
+
+def _apply_external_refund_debit(
+    store: ComputeMarketStoreProtocol,
+    account_id: str,
+    *,
+    amount: float,
+    currency: str,
+    request_id: str,
+    source_event_id: str,
+    checkout_payment_event_id: str,
+) -> Mapping[str, Any]:
+    if not account_id or amount <= 0:
+        return {}
+    transaction_id = deterministic_id(
+        "credit_transaction",
+        {"account_id": account_id, "source_event_id": source_event_id, "type": "stripe_refund_debit"},
+    )
+    existing = store.get_record("credit_transaction", transaction_id)
+    if existing is not None:
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=str(existing.get("currency", currency)),
+            request_id=request_id,
+        )
+        return existing
+    now = utc_now_iso()
+    transaction = {
+        "credit_transaction_id": transaction_id,
+        "account_id": account_id,
+        "transaction_type": "debit",
+        "amount": amount,
+        "currency": currency,
+        "source_event_id": source_event_id,
+        "checkout_payment_event_id": checkout_payment_event_id,
+        "debit_reason": "stripe_refund",
+        "status": "posted",
+        "dry_run_only": True,
+        "funds_moved": False,
+        "external_refund_recorded": True,
+        "created_at": now,
+        "request_id": request_id,
+    }
+    store.put_record(
+        "credit_transaction",
+        transaction_id,
+        transaction,
+        tenant_id=account_id,
+        status="posted",
+        request_id=request_id,
+        idempotency_key=transaction_id,
+    )
     _rebuild_credit_balance_from_transactions(
         store,
         account_id,

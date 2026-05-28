@@ -4661,7 +4661,7 @@ def test_stripe_checkout_failure_webhook_does_not_downgrade_credited_checkout() 
     assert service.store.count_records("credit_transaction") == 1
 
 
-def test_stripe_checkout_refund_webhook_marks_checkout_and_invoice_refunded_without_extra_credit() -> None:
+def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credits() -> None:
     server, base_url = _stripe_checkout_server()
     try:
         service = _stripe_checkout_service(base_url)
@@ -4760,6 +4760,16 @@ def test_stripe_checkout_refund_webhook_marks_checkout_and_invoice_refunded_with
             ).hexdigest(),
         }
     )
+    refund_replay = service.billing_webhook_stripe(
+        {
+            "raw_event": refund_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(refund_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
     stored_checkout = service.store.get_record("payment_event", payment_event_id)
     stored_invoice = service.store.get_record("billing_invoice", invoice_id)
     balance = service.billing_balance({"account_id": "acct_checkout_refunded"})["balance"]
@@ -4771,6 +4781,15 @@ def test_stripe_checkout_refund_webhook_marks_checkout_and_invoice_refunded_with
     assert refunded["ok"] is True
     assert refunded["payment_event"]["status"] == "verified_refund_recorded"
     assert refunded["credit_transaction"] == {}
+    assert refunded["refund_debit"]["transaction_type"] == "debit"
+    assert refunded["refund_debit"]["status"] == "posted"
+    assert refunded["refund_debit"]["debit_reason"] == "stripe_refund"
+    assert refunded["refund_debit"]["amount"] == 12.34
+    assert refunded["refund_debit"]["external_refund_recorded"] is True
+    assert refunded["refund_debit"]["funds_moved"] is False
+    assert refund_replay["ok"] is True
+    assert refund_replay["idempotent_replay"] is True
+    assert refund_replay["refund_debit"]["credit_transaction_id"] == refunded["refund_debit"]["credit_transaction_id"]
     assert refunded["checkout_update"]["status"] == "payment_refunded"
     assert refunded["checkout_update"]["refund_payment_event_id"] == "evt_checkout_refunded_refund"
     assert refunded["checkout_update"]["refunded_amount"] == 12.34
@@ -4780,8 +4799,9 @@ def test_stripe_checkout_refund_webhook_marks_checkout_and_invoice_refunded_with
     assert stored_invoice is not None
     assert stored_checkout["status"] == "payment_refunded"
     assert stored_invoice["status"] == "payment_refunded"
-    assert service.store.count_records("credit_transaction") == 1
-    assert balance["available_credits"] == 12.34
+    assert service.store.count_records("credit_transaction") == 2
+    assert balance["available_credits"] == 0.0
+    assert balance["reserved_credits"] == 0.0
 
 def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_references() -> None:
     server, base_url = _stripe_checkout_server()

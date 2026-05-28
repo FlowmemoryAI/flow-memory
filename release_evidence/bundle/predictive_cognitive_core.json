@@ -55,200 +55,200 @@
     "audit": [
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_6b805e06e3534e6a8c4bb04eb34f550e",
+        "audit_id": "visual_event_04379e2b1d4245a79c2ff127feb1f1ea",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_6b805e06e3534e6a8c4bb04eb34f550e",
+        "source_event_id": "visual_event_04379e2b1d4245a79c2ff127feb1f1ea",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_e19d0f53843746d887a47e7977e4a302",
+        "audit_id": "visual_event_9a11eda3c0bf408580cb15356b0c7076",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_e19d0f53843746d887a47e7977e4a302",
+        "source_event_id": "visual_event_9a11eda3c0bf408580cb15356b0c7076",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_1240eaf4d2084fdc831d7a61b8799f38",
+        "audit_id": "visual_event_fe7a4f4e334444bc8cabac37409e5042",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_1240eaf4d2084fdc831d7a61b8799f38",
+        "source_event_id": "visual_event_fe7a4f4e334444bc8cabac37409e5042",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_0858358b765d40589f8ff330d945f39c",
+        "audit_id": "visual_event_a1a44a3985dc4fa3b0f8bf99600d1de5",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_0858358b765d40589f8ff330d945f39c",
+        "source_event_id": "visual_event_a1a44a3985dc4fa3b0f8bf99600d1de5",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_99d08518546048b9b1b0036805c54ae0",
+        "audit_id": "visual_event_8ef37941f58b4e8da93ca75b202a667a",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_99d08518546048b9b1b0036805c54ae0",
+        "source_event_id": "visual_event_8ef37941f58b4e8da93ca75b202a667a",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_ca0a36f30ba747e3a6b07cb54594e2dd",
+        "audit_id": "visual_event_dacdc96a624f4bf1ae1eaec738ffbfa0",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_ca0a36f30ba747e3a6b07cb54594e2dd",
+        "source_event_id": "visual_event_dacdc96a624f4bf1ae1eaec738ffbfa0",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_c9445749b0484075a14cd9c82eb3e7af",
+        "audit_id": "visual_event_fccebfb3e33d47cd8e712097b0e4a633",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_c9445749b0484075a14cd9c82eb3e7af",
+        "source_event_id": "visual_event_fccebfb3e33d47cd8e712097b0e4a633",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_6611508043684c2b93b174483e512d5a",
+        "audit_id": "visual_event_7785c861ee774548aaffdb18eff6892f",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_6611508043684c2b93b174483e512d5a",
+        "source_event_id": "visual_event_7785c861ee774548aaffdb18eff6892f",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_6b08b3d889f74c3093649c11f3789182",
+        "audit_id": "visual_event_85df28f6825340dbb28fd6856d700784",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_6b08b3d889f74c3093649c11f3789182",
+        "source_event_id": "visual_event_85df28f6825340dbb28fd6856d700784",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_30bebc3f84584c658304c5c93045a2ba",
+        "audit_id": "visual_event_a8776557d5e442d1ad0280f3f11fa7e3",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_30bebc3f84584c658304c5c93045a2ba",
+        "source_event_id": "visual_event_a8776557d5e442d1ad0280f3f11fa7e3",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_693df298fff34a4ca1a6c19e54906a92",
+        "audit_id": "visual_event_a4e3f61a245b491da12dc839a9cf160d",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_693df298fff34a4ca1a6c19e54906a92",
+        "source_event_id": "visual_event_a4e3f61a245b491da12dc839a9cf160d",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_bf548d577fc94a62b32e59165bd3b544",
+        "audit_id": "visual_event_26567debd38649638ecf5ab2937ff5e7",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_bf548d577fc94a62b32e59165bd3b544",
+        "source_event_id": "visual_event_26567debd38649638ecf5ab2937ff5e7",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_feef8779b57845a3bff7a923964a1f1d",
+        "audit_id": "visual_event_7606c6ce98f84eac870c3ed37adf1d29",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_feef8779b57845a3bff7a923964a1f1d",
+        "source_event_id": "visual_event_7606c6ce98f84eac870c3ed37adf1d29",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_d5abc536e9514a30bb024daef6710852",
+        "audit_id": "visual_event_41028628cdf34c42a018a9806d8223aa",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_d5abc536e9514a30bb024daef6710852",
+        "source_event_id": "visual_event_41028628cdf34c42a018a9806d8223aa",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_24a59187763a400aaa0cfe8e5c8a30d9",
+        "audit_id": "visual_event_355d3684730747c3881b12be67e9d1ed",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_24a59187763a400aaa0cfe8e5c8a30d9",
+        "source_event_id": "visual_event_355d3684730747c3881b12be67e9d1ed",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_9f0ea34b9eae4796b220cfb0aa2681ed",
+        "audit_id": "visual_event_d2055c3e45ee47f9bce1f50877dd890f",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_9f0ea34b9eae4796b220cfb0aa2681ed",
+        "source_event_id": "visual_event_d2055c3e45ee47f9bce1f50877dd890f",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_0f8fdc30f2c742baa24f1f4b5a9ee539",
+        "audit_id": "visual_event_da1e7c67b2224ba7bad6a37e908108df",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_0f8fdc30f2c742baa24f1f4b5a9ee539",
+        "source_event_id": "visual_event_da1e7c67b2224ba7bad6a37e908108df",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_0349742e57324de1a4a470cbfcebd300",
+        "audit_id": "visual_event_953d653483fc47999d08b393a6a01f71",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_0349742e57324de1a4a470cbfcebd300",
+        "source_event_id": "visual_event_953d653483fc47999d08b393a6a01f71",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_4cbe3bafeca147069052251cb379080f",
+        "audit_id": "visual_event_d411a0cb625149c5b85cc1ed02867489",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_4cbe3bafeca147069052251cb379080f",
+        "source_event_id": "visual_event_d411a0cb625149c5b85cc1ed02867489",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_aefb8135886447ffbd842c7c5e3ab113",
+        "audit_id": "visual_event_fbafb9704eb84d29bbdc2a1b1a480e98",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_aefb8135886447ffbd842c7c5e3ab113",
+        "source_event_id": "visual_event_fbafb9704eb84d29bbdc2a1b1a480e98",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_1667bdd4b385436baf91c44a28aa0d7a",
+        "audit_id": "visual_event_9195ceff0b104aea96aaaf73e96a3b31",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_1667bdd4b385436baf91c44a28aa0d7a",
+        "source_event_id": "visual_event_9195ceff0b104aea96aaaf73e96a3b31",
         "summary": "cognitive observed"
       },
       {
         "actor_id": "release-cognition-agent",
-        "audit_id": "visual_event_6886cfd4e2534cf4933333247006d9fa",
+        "audit_id": "visual_event_5bf2f683d2e54f89ab7d4ff46799fc31",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_6886cfd4e2534cf4933333247006d9fa",
+        "source_event_id": "visual_event_5bf2f683d2e54f89ab7d4ff46799fc31",
         "summary": "cognitive observed"
       }
     ],
@@ -265,7 +265,7 @@
         "prediction_error": 0.333333,
         "prediction_id": "prediction_record_2657026ffbe2964f3a679976",
         "provenance": "replay",
-        "source_event_id": "visual_event_6886cfd4e2534cf4933333247006d9fa",
+        "source_event_id": "visual_event_5bf2f683d2e54f89ab7d4ff46799fc31",
         "success": true
       }
     ],
@@ -302,7 +302,7 @@
     },
     "confidence_after": 0.717433,
     "confidence_before": 0.6771,
-    "experience_id": "prediction_experience_29e42ab4334248afadee6eaa",
+    "experience_id": "prediction_experience_c158d7f83ae7b09816fc36a8",
     "future_policy": "Prefer this action pattern when the same state, goal, and policy gate recur.",
     "lesson": "Prediction matched reality for respond; preserve this plan pattern.",
     "memory_tags": [
@@ -314,17 +314,17 @@
       "chosen_action": "respond",
       "confidence_after": 0.717433,
       "confidence_before": 0.6771,
-      "experience_id": "prediction_experience_29e42ab4334248afadee6eaa",
+      "experience_id": "prediction_experience_c158d7f83ae7b09816fc36a8",
       "goal": "Launch Mission Control and verify served UI before claiming success",
       "lesson": "Prediction matched reality for respond; preserve this plan pattern.",
       "local_only": true,
       "policy_authority": "policy_engine_and_approval_gate",
       "predicted_success_probability": 0.73225,
       "prediction_error": 0.213925,
-      "prediction_id": "prediction_a863c26cbf4abff530fad833"
+      "prediction_id": "prediction_96329ce452d5888eb79b1c66"
     },
     "prediction": {
-      "agent_id": "agent_01832347869d4b53a984ecc200897780",
+      "agent_id": "agent_9091b616a290447a9ee700204ce9f398",
       "chosen_action": "respond",
       "confidence": 0.6771,
       "counterfactuals": [
@@ -356,11 +356,11 @@
       "policy_authority": "policy_engine_and_approval_gate",
       "predicted_outcome": "Action respond may complete the goal with verification for 'Launch Mission Control and verify served UI before claiming success' under low risk.",
       "predicted_success_probability": 0.73225,
-      "prediction_id": "prediction_a863c26cbf4abff530fad833",
+      "prediction_id": "prediction_96329ce452d5888eb79b1c66",
       "reward_score": 0.5266,
       "risk_score": 0.195,
       "state_before": {
-        "agent_id": "agent_01832347869d4b53a984ecc200897780",
+        "agent_id": "agent_9091b616a290447a9ee700204ce9f398",
         "context_count": 5,
         "economic_intent": false,
         "goal": "Launch Mission Control and verify served UI before claiming success",
@@ -371,10 +371,10 @@
         "plan_actions": [
           "respond"
         ],
-        "plan_id": "agent_plan_c8b1231aa5d947a38b85cbfd445e6ead",
+        "plan_id": "agent_plan_f35045a1cb04434b9a75b3d5fa0ddf6f",
         "prior_lessons": [],
         "risk_level": "low",
-        "state_id": "world_state_f7f80a8ced2825d0da01da11"
+        "state_id": "world_state_3804928d9b63e30ee9dd6e01"
       }
     },
     "prediction_error": 0.213925,
@@ -398,24 +398,24 @@
   },
   "sample_neural_learning": {
     "advisory_only": true,
-    "after_metric": 0.102848,
+    "after_metric": 0.260255,
     "agent_id": "predictive-release-neural",
-    "before_metric": 0.10388717882363034,
+    "before_metric": 0.2628834064535193,
     "learning_signal": "prediction_error",
     "learning_tick_count": 1,
     "local_only": true,
-    "loss": 0.102848,
+    "loss": 0.260255,
     "ok": true,
     "prediction_error": 0.213925,
     "raw_weights_written": false,
     "safety_authority": "policy_engine_and_approval_gate",
-    "sample_id": "neural_sample_c052b77786804222",
-    "session_id": "neural_session_be46046d0a1147918fa734f34f36dfb0",
+    "sample_id": "neural_sample_496fd8fb6ed9fd4a",
+    "session_id": "neural_session_27ad18aece9d4802bc36a11292aab7d1",
     "status": "learned",
     "step_count": 0
   },
   "sample_prediction": {
-    "agent_id": "agent_01832347869d4b53a984ecc200897780",
+    "agent_id": "agent_9091b616a290447a9ee700204ce9f398",
     "chosen_action": "respond",
     "confidence": 0.6771,
     "counterfactuals": [
@@ -447,11 +447,11 @@
     "policy_authority": "policy_engine_and_approval_gate",
     "predicted_outcome": "Action respond may complete the goal with verification for 'Launch Mission Control and verify served UI before claiming success' under low risk.",
     "predicted_success_probability": 0.73225,
-    "prediction_id": "prediction_a863c26cbf4abff530fad833",
+    "prediction_id": "prediction_96329ce452d5888eb79b1c66",
     "reward_score": 0.5266,
     "risk_score": 0.195,
     "state_before": {
-      "agent_id": "agent_01832347869d4b53a984ecc200897780",
+      "agent_id": "agent_9091b616a290447a9ee700204ce9f398",
       "context_count": 5,
       "economic_intent": false,
       "goal": "Launch Mission Control and verify served UI before claiming success",
@@ -462,29 +462,29 @@
       "plan_actions": [
         "respond"
       ],
-      "plan_id": "agent_plan_c8b1231aa5d947a38b85cbfd445e6ead",
+      "plan_id": "agent_plan_f35045a1cb04434b9a75b3d5fa0ddf6f",
       "prior_lessons": [],
       "risk_level": "low",
-      "state_id": "world_state_f7f80a8ced2825d0da01da11"
+      "state_id": "world_state_3804928d9b63e30ee9dd6e01"
     }
   },
   "sample_visual_state": {
     "agents": [],
     "audit": [
       {
-        "actor_id": "agent_01832347869d4b53a984ecc200897780",
-        "audit_id": "visual_event_8710acb39a7347529da3f5e31bba8c96",
+        "actor_id": "agent_9091b616a290447a9ee700204ce9f398",
+        "audit_id": "visual_event_173fcb883fb14a6fb227ac2a05b92340",
         "event_type": "cognitive",
         "ok": true,
         "provenance": "replay",
-        "source_event_id": "visual_event_8710acb39a7347529da3f5e31bba8c96",
+        "source_event_id": "visual_event_173fcb883fb14a6fb227ac2a05b92340",
         "summary": "cognitive observed"
       }
     ],
     "cognitive": [
       {
         "actual_result": "Launch Mission Control and verify served UI before claiming success",
-        "agent_id": "agent_01832347869d4b53a984ecc200897780",
+        "agent_id": "agent_9091b616a290447a9ee700204ce9f398",
         "chosen_action": "respond",
         "confidence": 0.6771,
         "future_policy": "Prefer this action pattern when the same state, goal, and policy gate recur.",
@@ -492,9 +492,9 @@
         "lesson": "Prediction matched reality for respond; preserve this plan pattern.",
         "predicted_outcome": "Action respond may complete the goal with verification for 'Launch Mission Control and verify served UI before claiming success' under low risk.",
         "prediction_error": 0.213925,
-        "prediction_id": "prediction_a863c26cbf4abff530fad833",
+        "prediction_id": "prediction_96329ce452d5888eb79b1c66",
         "provenance": "replay",
-        "source_event_id": "visual_event_8710acb39a7347529da3f5e31bba8c96",
+        "source_event_id": "visual_event_173fcb883fb14a6fb227ac2a05b92340",
         "success": true
       }
     ],
@@ -593,7 +593,7 @@
           "agent_id": "release-cognition-agent",
           "candidate_action_id": "candidate_action_849fc632934c0a9ab0e96892",
           "confidence": 0.56,
-          "created_at": "2026-05-26T20:34:02.116196+00:00",
+          "created_at": "2026-05-28T03:15:04.825625+00:00",
           "expected_cost": {
             "compute": "local",
             "local_only": true,
@@ -624,7 +624,7 @@
           "agent_id": "release-cognition-agent",
           "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
           "confidence": 0.64,
-          "created_at": "2026-05-26T20:34:02.116196+00:00",
+          "created_at": "2026-05-28T03:15:04.825625+00:00",
           "expected_cost": {
             "compute": "local",
             "local_only": true,
@@ -655,7 +655,7 @@
           "agent_id": "release-cognition-agent",
           "candidate_action_id": "candidate_action_a1f02fab77b98c3fe597f510",
           "confidence": 0.5248,
-          "created_at": "2026-05-26T20:34:02.116196+00:00",
+          "created_at": "2026-05-28T03:15:04.825625+00:00",
           "expected_cost": {
             "compute": "local",
             "local_only": true,
@@ -686,7 +686,7 @@
           "agent_id": "release-cognition-agent",
           "candidate_action_id": "candidate_action_4400cb6896375e8c2a178e9f",
           "confidence": 0.64,
-          "created_at": "2026-05-26T20:34:02.116196+00:00",
+          "created_at": "2026-05-28T03:15:04.825625+00:00",
           "expected_cost": {
             "compute": "local",
             "local_only": true,
@@ -798,7 +798,7 @@
       ],
       "confidence_after": 0.442667,
       "confidence_before": 0.64,
-      "created_at": "2026-05-26T20:34:02.116196+00:00",
+      "created_at": "2026-05-28T03:15:04.825625+00:00",
       "experience_id": "experience_52667831625e92eb8974f199",
       "goal": "verify dashboard is serving real Mission Control",
       "learning_update": {
@@ -832,7 +832,7 @@
         "agent_id": "release-cognition-agent",
         "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
         "confidence": 0.64,
-        "created_at": "2026-05-26T20:34:02.116196+00:00",
+        "created_at": "2026-05-28T03:15:04.825625+00:00",
         "expected_cost": {
           "compute": "local",
           "local_only": true,
@@ -867,7 +867,7 @@
         "actual_outcome_id": "actual_outcome_c84349adc517598901f15d7f",
         "confidence_after": 0.442667,
         "confidence_before": 0.64,
-        "created_at": "2026-05-26T20:34:02.116196+00:00",
+        "created_at": "2026-05-28T03:15:04.825625+00:00",
         "error_id": "prediction_error_3eca3318723574be127b11fd",
         "error_type": "partial_match",
         "expected_fields": {
@@ -912,7 +912,7 @@
           "git",
           "release_decision"
         ],
-        "created_at": "2026-05-26T20:34:02.115196+00:00",
+        "created_at": "2026-05-28T03:15:04.825625+00:00",
         "current_phase": "observed",
         "dashboard_state": {},
         "goal": "verify dashboard is serving real Mission Control",
@@ -966,7 +966,7 @@
       "agent_id": "release-cognition-agent",
       "candidate_action_id": "candidate_action_5eb834f661cd286950645c7a",
       "confidence": 0.64,
-      "created_at": "2026-05-26T20:34:02.116196+00:00",
+      "created_at": "2026-05-28T03:15:04.825625+00:00",
       "expected_cost": {
         "compute": "local",
         "local_only": true,
@@ -1001,7 +1001,7 @@
       "actual_outcome_id": "actual_outcome_c84349adc517598901f15d7f",
       "confidence_after": 0.442667,
       "confidence_before": 0.64,
-      "created_at": "2026-05-26T20:34:02.116196+00:00",
+      "created_at": "2026-05-28T03:15:04.825625+00:00",
       "error_id": "prediction_error_3eca3318723574be127b11fd",
       "error_type": "partial_match",
       "expected_fields": {
@@ -1089,7 +1089,7 @@
         "git",
         "release_decision"
       ],
-      "created_at": "2026-05-26T20:34:02.115196+00:00",
+      "created_at": "2026-05-28T03:15:04.825625+00:00",
       "current_phase": "observed",
       "dashboard_state": {},
       "goal": "verify dashboard is serving real Mission Control",

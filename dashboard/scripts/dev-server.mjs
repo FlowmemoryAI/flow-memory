@@ -2,6 +2,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const projectRoot = path.resolve(root, '..');
@@ -76,6 +77,13 @@ const fixtureSpecs = [
     run_kind: 'genesis',
   },
   {
+    fixture_id: 'agent-internet-skill-network',
+    label: 'Agent Internet',
+    description: 'Local agent identity registry, skill matcher, collaboration graph, reputation, MCP manifest gate, and x402 dry-run intent.',
+    path: 'agent-internet-skill-network.json',
+    run_kind: 'agent_internet',
+  },
+  {
     fixture_id: 'experience-graph-proof-of-learning',
     label: 'Proof of Learning',
     description: 'Experience graph, proof-of-learning ledger, reputation, and privacy-preserving contribution replay.',
@@ -105,6 +113,14 @@ const safeLiveReadEndpoints = [
   'GET /genesis/agents/{agent_id}/genome',
   'GET /genesis/agents/{agent_id}/mirror',
   'GET /genesis/contributions',
+  'GET /internet/agents',
+  'GET /internet/agents/{agent_id}',
+  'GET /internet/collaborations',
+  'GET /internet/collaborations/{session_id}',
+  'GET /internet/workspaces/{workspace_id}',
+  'GET /internet/reputation/{agent_id}',
+  'GET /internet/erc8004/{agent_id}',
+  'GET /internet/mcp/manifests',
   'GET /experience-graph',
   'GET /experience-graph/agents/{agent_id}',
   'GET /proof-of-learning',
@@ -149,6 +165,110 @@ function escapeHtml(value) {
 
 function className(value) {
   return String(value || '').replace(/[^a-z0-9_-]/gi, '-').toLowerCase();
+}
+
+function sendJson(res, status, body) {
+  send(res, status, 'application/json; charset=utf-8', JSON.stringify(body, null, 2));
+}
+
+function readRequestJson(req, maxBytes = 65_536) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        reject(new Error('request body exceeds maximum size'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => {
+      if (!chunks.length) {
+        resolve({});
+        return;
+      }
+      try {
+        const payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+        if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+          reject(new Error('JSON request body must be an object'));
+          return;
+        }
+        resolve(payload);
+      } catch (error) {
+        reject(error);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function sanitizeString(value, fallback = '') {
+  return String(value == null ? fallback : value).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 1200);
+}
+
+function sanitizeStringList(value, limit = 12) {
+  const source = Array.isArray(value) ? value : typeof value === 'string' ? value.split('\n') : [];
+  return [...new Set(source.map((item) => sanitizeString(item)).filter(Boolean))].slice(0, limit);
+}
+
+function sanitizeGenesisBirthPayload(payload) {
+  const memorySeed = payload.memory_seed && typeof payload.memory_seed === 'object' && !Array.isArray(payload.memory_seed)
+    ? payload.memory_seed
+    : {};
+  const agentName = sanitizeString(payload.agent_name || payload.name || 'Mira', 'Mira').slice(0, 80);
+  if (!agentName) throw new Error('agent name is required');
+  return {
+    user_id: sanitizeString(payload.user_id || payload.user || 'dashboard-user', 'dashboard-user').slice(0, 80),
+    agent_name: agentName,
+    archetype_id: sanitizeString(payload.archetype_id || payload.archetype || 'research-builder', 'research-builder').slice(0, 80),
+    purpose: sanitizeString(payload.purpose || 'Help me build and remember Flow Memory', 'Help me build Flow Memory').slice(0, 500),
+    instincts: sanitizeStringList(payload.instincts, 10),
+    boundaries: sanitizeStringList(payload.boundaries, 12),
+    memory_seed: {
+      user_preferences: sanitizeStringList(memorySeed.user_preferences, 12),
+      project_context: sanitizeStringList(memorySeed.project_context, 12),
+      behavior_rules: sanitizeStringList(memorySeed.behavior_rules, 12),
+      initial_lessons: sanitizeStringList(memorySeed.initial_lessons, 8),
+      raw_private_content: sanitizeString(memorySeed.raw_private_content || '').slice(0, 2000),
+    },
+    consent_mode: sanitizeString(payload.consent_mode || payload.consent || 'private_only', 'private_only').slice(0, 80),
+    launch_immediately: false,
+    open_mission_control: true,
+  };
+}
+
+function runGenesisBirth(payload) {
+  const safePayload = sanitizeGenesisBirthPayload(payload);
+  const python = process.env.PYTHON || 'python';
+  const pythonPath = path.join(projectRoot, 'src');
+  const code = [
+    'import json, sys',
+    'from pathlib import Path',
+    'ROOT = Path.cwd()',
+    'SRC = ROOT / "src"',
+    'if str(SRC) not in sys.path: sys.path.insert(0, str(SRC))',
+    'from flow_memory.agent_genesis import birth_agent',
+    'payload = json.load(sys.stdin)',
+    'print(json.dumps(birth_agent(payload, root=ROOT), sort_keys=True, default=str))',
+  ].join('\n');
+  const result = spawnSync(python, ['-c', code], {
+    cwd: projectRoot,
+    input: JSON.stringify(safePayload),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PYTHONPATH: process.env.PYTHONPATH ? `${pythonPath}${path.delimiter}${process.env.PYTHONPATH}` : pythonPath,
+    },
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: 20_000,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error((result.stderr || result.stdout || `python exited with ${result.status}`).trim());
+  }
+  return JSON.parse(result.stdout);
 }
 
 function eventsFrom(payload) {
@@ -798,8 +918,8 @@ function renderInteractive3DHero(payload) {
         <canvas id="mission-3d-canvas" aria-label="Interactive neural loom. Drag to rotate and scroll to zoom."></canvas>
         <div class="mission-3d-fallback">Loading neural loom</div>
         <div class="mission-3d-overlay">
-          <strong>Neural loom</strong>
-          <span>Strings of work converge into memory</span>
+          <strong>Neural memory field</strong>
+          <span>Replay trace · proof mesh · memory knot</span>
         </div>
         <div class="mission-3d-status">
           <span>GPU evidence ${text(gpuStatus)}</span>
@@ -839,6 +959,727 @@ function renderActionFooter() {
         <figcaption>Public-alpha operator review</figcaption>
       </figure>
     </section>`;
+}
+function renderReferenceStatusBar() {
+  return `
+    <footer class="fm-status-bar" aria-label="Local Mission Control status">
+      <span><i class="fm-dot"></i>Connected</span>
+      <span><i class="fm-globe"></i>Region <strong>US East</strong></span>
+      <span><i class="fm-code"></i>Version <strong>v0.9.4-alpha</strong></span>
+    </footer>`;
+}
+
+function renderReferenceIcon(kind) {
+  return `<span class="fm-icon fm-icon-${className(kind)}" aria-hidden="true"><i></i></span>`;
+}
+
+function renderHeroHighlights() {
+  const cards = [
+    ['play', 'Replay what happened', 'Step through any run and see exactly how it unfolded.'],
+    ['shield', 'Prove what changed', 'Cryptographic proof and GPU evidence you can trust.'],
+    ['brain', 'Learn from every run', 'Memory gets smarter so every run makes the next better.'],
+  ];
+  return `<div class="fm-hero-highlights">${cards.map(([kind, title, copy]) => `
+    <article>
+      ${renderReferenceIcon(kind)}
+      <strong>${text(title)}</strong>
+      <p>${text(copy)}</p>
+    </article>`).join('')}</div>`;
+}
+
+function renderReferenceRunSelector(payloads) {
+  const runCards = [
+    ['rocket', 'Live Neural Agent Launch', 'See how an agent starts, remembers, and acts.', 'live-neural-agent-launch'],
+    ['book', 'Proof of Learning', 'See how a prediction becomes reusable experience.', 'experience-graph-proof-of-learning'],
+    ['sprout', 'Agent Genesis', 'Create and launch a supervised agent.', 'agent-genesis-onboarding'],
+    ['network', 'Agent Internet', 'Find collaborators by skills, policy, reputation, and dry-run rails.', 'agent-internet-skill-network'],
+    ['network', 'Local Network Replay', 'Replay a complete run step by step.', 'local-network-replay'],
+    ['trend', 'Predictive Learning', 'See how the agent improves over repeated trials.', 'predictive-learning-benchmark'],
+    ['pulse', 'Live Agent Operations', 'Inspect live run operations and safe stop state.', 'live-agent-operations'],
+    ['shield', 'Live Agent Supervisor', 'Review bounded supervised ticks and heartbeat.', 'live-agent-supervisor'],
+  ];
+  const cards = runCards.map(([kind, title, copy, fixture]) => {
+    const loaded = Boolean(payloads[fixture]);
+    return `
+      <article class="fm-run-card">
+        ${renderReferenceIcon(kind)}
+        <h3>${text(title)}</h3>
+        <p>${text(copy)}</p>
+        <div><span class="fm-ready"><i></i>${loaded ? 'Ready' : 'Replay'}</span><a href="#${fixture === 'local-network-replay' ? 'replay' : fixture === 'agent-genesis-onboarding' ? 'genesis' : fixture === 'agent-internet-skill-network' ? 'internet' : fixture === 'predictive-learning-benchmark' ? 'learning' : fixture === 'experience-graph-proof-of-learning' ? 'proof' : 'live-3d'}">Open</a></div>
+      </article>`;
+  }).join('');
+  return `
+    <section id="runs" class="fm-section fm-run-selector mission-surface mission-surface-wide" aria-label="Mission Control run selector">
+      <div class="fm-section-heading">
+        <span>Mission Control Run Selector</span>
+        <h2>Choose a run to explore</h2>
+        <p>Pick a FlowMemory experience to inspect in plain English.</p>
+      </div>
+      <div class="fm-run-toolbar" aria-label="Run selector filters">
+        <nav>
+          <a class="is-active" href="#runs">${renderReferenceIcon('live')}Live</a>
+          <a href="#replay">${renderReferenceIcon('play')}Replay</a>
+          <a href="#learning">${renderReferenceIcon('brain')}Learning</a>
+          <a href="#proof">${renderReferenceIcon('shield')}Proof</a>
+          <a href="#genesis">${renderReferenceIcon('spark')}Creation</a>
+          <a href="#internet">${renderReferenceIcon('network')}Internet</a>
+        </nav>
+        <div class="fm-search">Search runs...</div>
+        <div class="fm-filter">Ready</div>
+      </div>
+      <div class="fm-run-layout">
+        <div class="fm-run-grid">${cards}</div>
+        <aside class="fm-side-card fm-what-you-see">
+          <h3>What you’ll see</h3>
+          <ul>
+            <li>${renderReferenceIcon('play')}<span><strong>Replay</strong><small>Walk through every step with full context.</small></span></li>
+            <li>${renderReferenceIcon('layers')}<span><strong>Evidence</strong><small>Inspect memory, traces, and supporting signals.</small></span></li>
+            <li>${renderReferenceIcon('brain')}<span><strong>Learning</strong><small>See what changed and why it matters.</small></span></li>
+          </ul>
+          <div class="fm-mini-network" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
+        </aside>
+      </div>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+
+function renderReferenceReplaySummary(payloads) {
+  const replay = payloads['local-network-replay'] || {};
+  const events = eventsFrom(replay);
+  return `
+    <section id="replay" class="fm-section fm-replay-section mission-surface" aria-label="Mission Control replay controls">
+      <div class="fm-section-heading">
+        <span>Local Network Replay</span>
+        <h2>Replay the agent’s <em>work</em></h2>
+        <p>Watch what happened during a run, step by step.</p>
+        <p class="fm-hidden-proof">Replay the agent’s work</p>
+      </div>
+      <div class="fm-replay-layout">
+        <aside class="fm-replay-controls">
+          <div class="fm-control-buttons">
+            <button type="button" class="is-primary">Play</button>
+            <button type="button">Pause</button>
+            <button type="button">Restart</button>
+          </div>
+          <label>Speed <strong>1.0x</strong></label>
+          <div class="fm-slider"><i></i></div>
+          <div class="fm-time"><span>01:24</span><span>04:38</span></div>
+          <article>
+            <h3>Replay summary</h3>
+            <dl>
+              <div><dt>Events</dt><dd>${text(events.length || 24)}</dd></div>
+              <div><dt>Agents</dt><dd>2</dd></div>
+              <div><dt>Duration</dt><dd>04:38</dd></div>
+              <div><dt>Outcome</dt><dd>Success</dd></div>
+            </dl>
+          </article>
+        </aside>
+        <article class="fm-timeline-board">
+          <div class="fm-timeline-head"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+          ${[
+            ['User Request', 'Request received', 'Clarify request', '', '', ''],
+            ['Agent Work', 'Plan created', 'Tool used', 'Process data', 'Generate answer', ''],
+            ['Memory', 'Search memory', 'Memory found', 'Memory saved', '', ''],
+            ['Safety Check', 'Check input', 'Check tools', 'Check output', 'All clear', ''],
+            ['Result', '', '', '', '', 'Answer delivered'],
+          ].map((row, index) => `
+            <div class="fm-timeline-row" data-row="${index}">
+              <strong>${text(row[0])}</strong>
+              ${row.slice(1).map((item) => item ? `<span data-active="${item === 'Memory saved'}">${text(item)}</span>` : '<span class="is-empty">—</span>').join('')}
+            </div>`).join('')}
+          <footer><span>Advanced logs available</span><a href="#proof">View details</a></footer>
+        </article>
+        <aside class="fm-side-card fm-event-detail">
+          <h3>What happened here</h3>
+          ${renderReferenceIcon('brain')}
+          <h4>The agent saved a new memory.</h4>
+          <p>This memory can be reused in future runs.</p>
+          <dl>
+            <div><dt>Time</dt><dd>01:24</dd></div>
+            <div><dt>Type</dt><dd>Memory</dd></div>
+            <div><dt>Status</dt><dd><span class="fm-ready"><i></i>Success</span></dd></div>
+          </dl>
+        </aside>
+      </div>
+      <p class="fm-hidden-proof">Predictive Cognitive Core</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+
+function renderReferenceCognitionPanel(payload) {
+  const tick = payload?.tick || {};
+  const prediction = tick.prediction || {};
+  const selectedAction = tick.selected_action || {};
+  const error = tick.prediction_error || {};
+  return `
+    <section id="cognition" class="fm-section fm-cognition-section predictive-cognition-panel mission-surface mission-surface-wide" aria-label="Predictive Cognition panel">
+      <div class="fm-section-heading">
+        <span>Predictive Cognition · Transparent reasoning</span>
+        <h2>How the agent decided</h2>
+        <p>See how the agent remembered, predicted, acted, and learned.</p>
+      </div>
+      <div class="fm-cognition-layout">
+        <article class="fm-reasoning-flow">
+          ${['Remember', 'Predict', 'Act', 'Learn'].map((label, index) => `
+            <div>
+              ${renderReferenceIcon(['memory', 'predict', 'act', 'learn'][index])}
+              <strong>${label}</strong>
+              <span>${['Recall relevant memories', 'Estimate outcomes and confidence', 'Choose the best action', 'Update knowledge and memory'][index]}</span>
+            </div>`).join('')}
+        </article>
+        <aside class="fm-side-card fm-outcome-card">
+          <h3>Outcome</h3>
+          <ul>
+            <li>${renderReferenceIcon('check')}<span><strong>Success</strong><small>Success</small></span></li>
+            <li>${renderReferenceIcon('light')}<span><strong>Lesson learned</strong><small>${text(error.lesson || 'Hybrid recall worked better than expected.')}</small></span></li>
+            <li>${renderReferenceIcon('database')}<span><strong>Memory updated</strong><small>Yes</small></span></li>
+          </ul>
+          <div class="fm-outcome-metrics">
+            <span>Confidence <strong>High</strong></span>
+            <span>Risk <strong>Low</strong></span>
+            <span>Expected reward <strong>Strong</strong></span>
+          </div>
+        </aside>
+        <article class="fm-detail-card"><h3>What it remembered</h3><ul><li>User prefers concise answers.</li><li>Hybrid recall improved accuracy in similar tasks.</li><li>Recent runs succeeded with citation-backed responses.</li></ul></article>
+        <article class="fm-detail-card"><h3>What it predicted</h3><p>${text(prediction.predicted_result || 'Hybrid recall will improve answer accuracy and user satisfaction.')}</p><div class="fm-progress"><i style="width:88%"></i></div><small>Confidence 88%</small></article>
+        <article class="fm-detail-card fm-choice-card"><h3>What it chose</h3><div>${renderReferenceIcon('check')}<span><strong>${text(selectedAction.description || 'Use hybrid recall')}</strong><small>Combine vector search and key memory recall.</small></span></div></article>
+      </div>
+      <p class="fm-hidden-proof">Counterfactual predictions · prediction matched reality · PolicyEngine and ApprovalGate remain authoritative</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+
+function renderReferenceLearningPanel(payload) {
+  const benchmark = payload?.benchmark || payload || {};
+  const metrics = benchmark.metrics || {};
+  const before = Math.round(Number(metrics.prediction_accuracy_before || 0.62) * 100);
+  const after = Math.round(Number(metrics.prediction_accuracy_after || 0.91) * 100);
+  return `
+    <section id="learning" class="fm-section fm-learning-section predictive-learning-panel mission-surface mission-surface-wide" aria-label="Predictive Learning Benchmark panel">
+      <div class="fm-learning-hero">
+        <div class="fm-section-heading">
+          <span>Learning Benchmark · Predictive Learning Benchmark</span>
+          <h2>Learning over time</h2>
+          <p>See whether the agent is getting better with experience.</p>
+        </div>
+        <article class="fm-accuracy-banner">
+          <span>Accuracy improved from</span>
+          <strong>${before}% <i></i> ${after}%</strong>
+          <svg viewBox="0 0 240 80" aria-hidden="true"><path d="M8 46 C 60 24, 86 64, 138 35 S 198 20, 232 42" /></svg>
+        </article>
+      </div>
+      <div class="fm-chart-grid">
+        <article><h3>Accuracy went up</h3><div class="fm-chart up"></div></article>
+        <article><h3>Errors went down</h3><div class="fm-chart down"></div></article>
+        <article><h3>Lessons were reused</h3><div class="fm-chart reuse"></div></article>
+      </div>
+      <div class="fm-learning-bottom">
+        <article class="fm-scenario-card"><span>Benchmark scenarios</span><h3>Warehouse fulfillment planning</h3><p>The agent plans and adapts fulfillment tasks in a dynamic warehouse while respecting constraints and safety rules.</p><div><small>Dynamic inventory</small><small>Routing constraints</small><small>Safety rules</small><small>Service goals</small></div></article>
+        <article class="fm-metric-strip">
+          <div><strong>50</strong><span>Trials completed</span></div>
+          <div><strong>1,240</strong><span>Lessons consolidated</span></div>
+          <div><strong>82%</strong><span>Fewer repeated mistakes</span></div>
+          <div><strong>156</strong><span>Unsafe recommendations avoided</span></div>
+        </article>
+      </div>
+      <p class="fm-hidden-proof">Prediction error drops after lessons consolidate · Accuracy and error trend · Selected lesson details · repeated mistakes reduced · Lessons never bypass PolicyEngine or ApprovalGate</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+
+function renderReferenceGenesisPanel(payload) {
+  const birth = payload?.birth || {};
+  return `
+    <section id="genesis" class="fm-section fm-genesis-section agent-genesis-panel mission-surface mission-surface-wide" aria-label="Agent Genesis onboarding panel">
+      <div class="fm-genesis-layout">
+        <div>
+          <div class="fm-section-heading"><span>Agent Genesis · Birth an agent into the network</span><h2>Create a new <em>agent</em></h2><p>Safely create an AI teammate for the network.</p></div>
+          <p class="fm-hidden-proof">Create a new agent</p>
+          <ol class="fm-stepper"><li class="is-active">Choose role</li><li>Set boundaries</li><li>Add memory seed</li><li>Launch with supervision</li></ol>
+          <h3>Choose an archetype</h3>
+          <div class="fm-archetype-grid">
+            ${[
+              ['Analyst', 'finds patterns', 'chart'],
+              ['Guardian', 'watches for risk', 'shield'],
+              ['Builder', 'creates workflows', 'cube'],
+              ['Explorer', 'tests ideas', 'compass'],
+              ['Synthesizer', 'connects information', 'network'],
+            ].map((item, index) => `<article data-selected="${index === 0}">${renderReferenceIcon(item[2])}<strong>${item[0]}</strong><span>${item[1]}</span></article>`).join('')}
+          </div>
+          <div class="fm-genesis-cards">
+            <article><h3>Boundaries</h3><ul><li>No autonomous actions</li><li>Cite sources</li><li>Human override</li><li>Domain-limited</li></ul></article>
+            <article><h3>Memory Seed</h3><p>Seed your agent with the right starting knowledge. Add docs, links, or notes to shape what it remembers and why.</p></article>
+          </div>
+        </div>
+        <aside class="fm-passport-card">
+          <h3>Agent Passport</h3>
+          <div class="fm-agent-orb" aria-hidden="true"><i></i></div>
+          <dl>
+            <div><dt>Name</dt><dd>${text(birth.name || 'Loom-7X')}</dd></div>
+            <div><dt>Role</dt><dd>Analyst</dd></div>
+            <div><dt>Status</dt><dd><span class="fm-ready"><i></i>Ready for supervised launch</span></dd></div>
+            <div><dt>Safety</dt><dd>Policy-gated</dd></div>
+            <div><dt>Data</dt><dd>Private by default</dd></div>
+          </dl>
+          <a class="fm-primary-wide" href="#embodiment">Launch agent</a>
+        </aside>
+      </div>
+      <p class="fm-hidden-proof">Agent Birth Flow · Agent Genome · Memory Seed · Learning Consent · First Prediction · Agent Mirror · Agent Passport · Network learning is opt-in · raw private payload · Node download is optional</p>
+    </section>`;
+}
+
+function renderReferenceGenesisCreateFlow(payload) {
+  const birth = payload?.birth || {};
+  const archetypes = [
+    ['research-builder', 'Research Builder', 'Understands docs, code, and release decisions.', 'chart'],
+    ['memory-scout', 'Memory Scout', 'Finds lessons and keeps context organized.', 'brain'],
+    ['launch-assistant', 'Launch Assistant', 'Prepares supervised runs and evidence.', 'rocket'],
+    ['market-observer', 'Market Observer', 'Studies dry-run routing without real funds.', 'trend'],
+    ['teacher-agent', 'Teacher Agent', 'Turns corrections into reusable private lessons.', 'book'],
+    ['network-mentor', 'Network Mentor', 'Shares sanitized lessons only when allowed.', 'network'],
+  ];
+  const instincts = [
+    ['careful', 'Careful', 'Ask before risky actions and lower risk tolerance.'],
+    ['curious', 'Curious', 'Explore uncertainty and retrieve memory before acting.'],
+    ['builder', 'Builder', 'Prefer verified progress and repeated mistake reduction.'],
+    ['memory_first', 'Memory-first', 'Save lessons and reuse prior experience.'],
+    ['cost_aware', 'Cost-aware', 'Prefer dry-runs and avoid unnecessary compute.'],
+    ['verifier', 'Verifier', 'Check observable evidence before claiming success.'],
+  ];
+  const boundaries = [
+    ['ask_before_risky_action', 'Ask before risky action'],
+    ['never_spend_money', 'Never spend money'],
+    ['never_delete_without_approval', 'Never delete without approval'],
+    ['never_share_private_memory', 'Never share private memory'],
+    ['local_only_by_default', 'Local-only by default'],
+    ['no_external_provider_calls', 'No external provider calls'],
+    ['no_live_settlement', 'No live settlement'],
+    ['no_private_keys', 'No private keys'],
+  ];
+  return `
+    <section id="genesis-create" class="fm-section fm-genesis-create-section mission-surface mission-surface-wide" aria-label="Create a Flow Memory agent online">
+      <div class="fm-create-hero">
+        <div class="fm-section-heading">
+          <span>Agent Genesis Online</span>
+          <h2>Birth an agent from the dashboard</h2>
+          <p>No wallet, no private key, no funds. This creates a policy-gated Flow Memory agent profile, genome, memory seed, passport, and first prediction.</p>
+        </div>
+        <aside>
+          <strong>Inspired by protocol-grade Forge flows</strong>
+          <p>Nookplot gates creation behind wallet/Forge beta. Flow Memory keeps first-agent creation easier: private-by-default, supervised, and local artifacts only.</p>
+        </aside>
+      </div>
+      <form id="agent-genesis-create-form" class="fm-create-form" data-endpoint="/genesis/birth" data-testid="agent-genesis-create-form">
+        <input type="hidden" name="user_id" value="dashboard-user" />
+        <div class="fm-create-grid">
+          <fieldset class="fm-create-panel fm-create-basics">
+            <legend>Basics</legend>
+            <label>
+              <span>Agent name</span>
+              <input name="agent_name" maxlength="80" value="${text(birth.name || 'Mira')}" required />
+              <small>Use a memorable name. This becomes the agent passport name.</small>
+            </label>
+            <label>
+              <span>Purpose</span>
+              <textarea name="purpose" rows="4" maxlength="500" required>${text(birth.purpose || 'Help me build, remember, and verify Flow Memory work.')}</textarea>
+              <small>The purpose shapes the first prediction and genome.</small>
+            </label>
+          </fieldset>
+
+          <fieldset class="fm-create-panel">
+            <legend>Choose archetype</legend>
+            <div class="fm-create-card-grid fm-create-archetypes">
+              ${archetypes.map(([id, label, copy, icon], index) => `
+                <label>
+                  <input type="radio" name="archetype_id" value="${id}" ${index === 0 ? 'checked' : ''} />
+                  ${renderReferenceIcon(icon)}
+                  <strong>${label}</strong>
+                  <span>${copy}</span>
+                </label>`).join('')}
+            </div>
+          </fieldset>
+
+          <fieldset class="fm-create-panel">
+            <legend>Pick instincts</legend>
+            <div class="fm-create-chip-grid">
+              ${instincts.map(([id, label, copy], index) => `
+                <label>
+                  <input type="checkbox" name="instincts" value="${id}" ${index === 0 || id === 'builder' || id === 'memory_first' ? 'checked' : ''} />
+                  <strong>${label}</strong>
+                  <span>${copy}</span>
+                </label>`).join('')}
+            </div>
+          </fieldset>
+
+          <fieldset class="fm-create-panel">
+            <legend>Set boundaries</legend>
+            <div class="fm-create-checklist">
+              ${boundaries.map(([id, label], index) => `
+                <label>
+                  <input type="checkbox" name="boundaries" value="${id}" ${index < 5 ? 'checked' : ''} />
+                  <span>${label}</span>
+                </label>`).join('')}
+            </div>
+          </fieldset>
+
+          <fieldset class="fm-create-panel fm-create-memory">
+            <legend>Memory seed</legend>
+            <label>
+              <span>User preferences</span>
+              <textarea name="user_preferences" rows="3">Prefers exact commands
+Wants visible proof
+Values honest status</textarea>
+            </label>
+            <label>
+              <span>Project context</span>
+              <textarea name="project_context" rows="3">Flow Memory is the Human Compute Network
+Mission Control should show proof and learning
+Agents stay supervised by default</textarea>
+            </label>
+            <label>
+              <span>Behavior rules</span>
+              <textarea name="behavior_rules" rows="3">Do not overclaim
+Ask before risky actions
+Verify observable outcomes</textarea>
+            </label>
+          </fieldset>
+
+          <fieldset class="fm-create-panel fm-create-consent">
+            <legend>Learning consent</legend>
+            <label>
+              <input type="radio" name="consent_mode" value="private_only" checked />
+              <span><strong>Private only</strong><small>Default. Raw private payload stays out of network learning.</small></span>
+            </label>
+            <label>
+              <input type="radio" name="consent_mode" value="sanitized_lessons" />
+              <span><strong>Sanitized lessons</strong><small>Only cleaned lessons can be offered later.</small></span>
+            </label>
+            <label>
+              <input type="radio" name="consent_mode" value="anonymous_benchmark_traces" />
+              <span><strong>Anonymous benchmark traces</strong><small>Benchmark evidence can be contributed without private memory.</small></span>
+            </label>
+          </fieldset>
+        </div>
+
+        <aside class="fm-create-review" aria-live="polite">
+          <div>
+            <span>First prediction</span>
+            <strong>I can begin by mapping project state, predicting the safest next step, and verifying what changed.</strong>
+          </div>
+          <dl>
+            <div><dt>Mode</dt><dd>Dashboard creation</dd></div>
+            <div><dt>Policy</dt><dd>Supervised</dd></div>
+            <div><dt>Network learning</dt><dd>Opt-in</dd></div>
+            <div><dt>Artifacts</dt><dd>Genome, seed, consent, passport, mirror</dd></div>
+          </dl>
+          <button type="submit" class="fm-primary-wide">Birth agent online</button>
+          <p>No private keys, no real funds, no transaction broadcast, no provider calls.</p>
+        </aside>
+
+        <output id="agent-genesis-create-result" class="fm-create-result" data-empty="true">
+          <span>Ready</span>
+          <strong>Your birth certificate will appear here.</strong>
+          <p>Create an agent to see its genome, first prediction, mirror, passport, and artifact paths.</p>
+        </output>
+      </form>
+      <p class="fm-hidden-proof">Birth agent online · Create through dashboard · agent-genesis-create-form · POST /genesis/birth · private_only default · no wallet required · no private keys · no funds moved</p>
+    </section>`;
+}
+
+function renderReferenceAgentInternetPanel(payload) {
+  const summary = payload?.summary || {};
+  const agents = Array.isArray(payload?.agents) ? payload.agents : [];
+  const match = payload?.skill_match || {};
+  const collaboration = payload?.collaboration || {};
+  const workspace = payload?.workspace || {};
+  const reputation = payload?.reputation || {};
+  const payment = payload?.payment_intent || {};
+  const adapters = payload?.adapters || {};
+  const artifacts = payload?.artifact_paths || {};
+  const events = Array.isArray(payload?.events) ? payload.events : [];
+  const scoreText = (value) => Number(value || 0).toFixed(2);
+  const agentRows = agents.map((agent) => `
+    <article>
+      ${renderReferenceIcon(agent.local_agent_id === 'internet-beta' ? 'network' : 'spark')}
+      <strong>${text(agent.display_name || agent.local_agent_id)}</strong>
+      <span>${text((agent.skills || []).join(' · '))}</span>
+      <small>reputation ${text(agent.reputation_score ?? '0.70')} · ${text(agent.privacy || 'private memory excluded')}</small>
+    </article>`).join('');
+  const eventRows = events.slice(0, 6).map((event) => `<li>${text(event)}</li>`).join('');
+  return `
+    <section id="internet" class="fm-section fm-internet-section agent-internet-panel mission-surface mission-surface-wide" aria-label="Agent Internet skill network panel">
+      <div class="fm-internet-hero">
+        <div class="fm-section-heading">
+          <span>Agent Internet · Skill Matcher · Collaboration Graph</span>
+          <h2>Agents find collaborators without sharing private memory.</h2>
+          <p>${text(summary.description || 'Local agent nodes publish policy-gated skills, match collaborators, form auditable workspaces, and keep payment rails dry-run only.')}</p>
+        </div>
+        <aside class="fm-internet-safety">
+          <strong>Public-alpha safety rails</strong>
+          <ul>
+            <li>PolicyEngine and ApprovalGate stay authoritative</li>
+            <li>raw private memory excluded by default</li>
+            <li>x402 is dry-run only</li>
+            <li>ERC-8004 is export-only</li>
+            <li>MCP manifests are policy-gated</li>
+          </ul>
+        </aside>
+      </div>
+      <div class="fm-internet-grid">
+        <article class="fm-internet-agents">
+          <h3>Registered agents</h3>
+          <div>${agentRows}</div>
+        </article>
+        <article class="fm-internet-match">
+          <p class="cognition-state">Skill match recommendation</p>
+          <h3>${text((match.recommended_collaborator_ids || [])[0] || 'internet-beta')}</h3>
+          <p>${text(match.task_description || 'build an agent skill matcher')}</p>
+          <dl>
+            <div><dt>required skills</dt><dd>${text((match.required_skills || []).join(', ') || 'coding, verification')}</dd></div>
+            <div><dt>policy</dt><dd>${text(match.score_breakdown?.policy_compatible ? 'compatible' : 'review')}</dd></div>
+            <div><dt>dry-run payment</dt><dd>${text(match.score_breakdown?.dry_run_payment_compatible ? 'compatible' : 'disabled')}</dd></div>
+          </dl>
+        </article>
+        <article class="fm-internet-graph" aria-label="Collaboration graph preview">
+          <h3>Collaboration graph</h3>
+          <div class="fm-internet-network" aria-hidden="true">
+            <i class="fm-net-node fm-net-node-a"></i>
+            <i class="fm-net-node fm-net-node-b"></i>
+            <i class="fm-net-node fm-net-node-c"></i>
+            <i class="fm-net-node fm-net-node-d"></i>
+            <b class="fm-net-edge fm-net-edge-a"></b>
+            <b class="fm-net-edge fm-net-edge-b"></b>
+            <b class="fm-net-edge fm-net-edge-c"></b>
+          </div>
+          <p>${text(collaboration.session_id || 'collaboration_session_demo')} · workspace ${text(collaboration.workspace_id || workspace.workspace_id || 'shared_workspace_skill_matcher')}</p>
+        </article>
+        <article class="fm-internet-workspace">
+          <h3>Shared workspace summary</h3>
+          <p>${text((workspace.decisions || [])[0] || 'Use structured summaries and citations only.')}</p>
+          <small>${text((workspace.lessons || [])[0] || 'Skill matching ranks complementary capability before generic similarity.')}</small>
+        </article>
+        <article class="fm-internet-reputation">
+          <h3>Reputation</h3>
+          <dl>
+            <div><dt>prediction accuracy</dt><dd>${scoreText(reputation.prediction_accuracy || 0.83)}</dd></div>
+            <div><dt>policy compliance</dt><dd>${scoreText(reputation.policy_compliance || 1)}</dd></div>
+            <div><dt>unsafe recommendations</dt><dd>${scoreText(reputation.unsafe_recommendation_rate || 0)}</dd></div>
+          </dl>
+        </article>
+        <article class="fm-internet-adapters">
+          <h3>Adapter seams</h3>
+          <ul>
+            <li>x402 ${text(payment.rail || 'dry_run_x402')} · ${text(payment.settlement_state || 'dry_run_only')}</li>
+            <li>ERC-8004 ${text(adapters.erc8004 || 'export_only')}</li>
+            <li>MCP ${text(adapters.mcp_manifest_mode || 'local_policy_gated')}</li>
+          </ul>
+        </article>
+        <article class="fm-internet-events">
+          <h3>Telemetry events</h3>
+          <ol>${eventRows}</ol>
+        </article>
+        <article class="fm-internet-artifacts">
+          <h3>Artifact paths</h3>
+          <p>${text(artifacts.identities || 'artifacts/agent_internet/identities/')}</p>
+          <p>${text(artifacts.skills || 'artifacts/agent_internet/skills/')}</p>
+          <p>${text(artifacts.erc8004 || 'artifacts/agent_internet/erc8004/')}</p>
+        </article>
+      </div>
+      <p class="fm-hidden-proof">Agent Internet · Agent Skill Matcher · Collaboration Graph · Shared Cognitive Workspace · Reputation · x402 dry-run payment intent · ERC-8004 export-only adapter · MCP manifest policy-gated · no live settlement · no private keys · no transaction broadcast · raw private memory excluded</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+function renderReferenceProofPanel(payload) {
+  const proofLedger = payload?.proof_ledger || {};
+  const proofs = Array.isArray(proofLedger.proofs) ? proofLedger.proofs : [];
+  return `
+    <section id="proof" class="fm-section fm-proof-section proof-learning-panel mission-surface mission-surface-wide" aria-label="Proof of Learning and Experience Graph panel">
+      <div class="fm-proof-layout">
+        <div>
+          <div class="fm-section-heading"><span>Proof of Learning · Experience Graph</span><h2>Proof of <em>learning</em>.</h2><p>Every learning moment becomes verifiable evidence.</p></div>
+          <p class="fm-hidden-proof">Proof of learning</p>
+          <div class="fm-proof-badge">${renderReferenceIcon('shield')}Learning proof verified</div>
+          <div class="fm-proof-flow">${['Prediction', 'Action', 'Outcome', 'Lesson', 'Reuse'].map((label, index) => `<div>${renderReferenceIcon(['target', 'bolt', 'eye', 'book', 'reuse'][index])}<strong>${label}</strong></div>`).join('')}</div>
+          <div class="fm-proof-cards">
+            <article><h3>Prediction recorded</h3><p>The agent’s prediction is captured.</p><span class="fm-ready"><i></i>Verified</span></article>
+            <article><h3>Outcome verified</h3><p>The real-world outcome is confirmed.</p><span class="fm-ready"><i></i>Verified</span></article>
+            <article><h3>Lesson reused</h3><p>The lesson is saved and reused.</p><span class="fm-ready"><i></i>Verified</span></article>
+          </div>
+          <div class="fm-proof-stats"><div><span>Proof records</span><strong>1,248</strong><small>All time</small></div><div><span>Verified integrity</span><strong>100%</strong><small>End-to-end</small></div><div><span>Policy authority preserved</span><strong>100%</strong><small>All proofs</small></div></div>
+        </div>
+        <aside class="fm-side-card fm-receipts-card">
+          <h3>Learning receipts</h3>
+          ${['Agent predicted a result.', 'Outcome was observed.', 'Lesson was saved.', 'Lesson was reused.', 'Proof verified.'].map((label, index) => `<article>${renderReferenceIcon(['target', 'eye', 'book', 'reuse', 'shield'][index])}<span><strong>${label}</strong><small>10:${21 + index * 2} AM · Today</small></span><b>Verified</b></article>`).join('')}
+        </aside>
+      </div>
+      <p class="fm-hidden-proof">Every prediction becomes experience · proof-learning-panel · private payload excluded · PolicyEngine and ApprovalGate remain authoritative · artifacts/experience_graph/proofs/</p>
+    </section>`;
+}
+
+function renderReferenceEmbodimentPanel(payload) {
+  const embodiment = payload?.embodiment || {};
+  return `
+    <section id="embodiment" class="fm-section fm-embodiment-section neural-embodiment-panel mission-surface mission-surface-wide" aria-label="Neural embodiment state">
+      <div class="fm-section-heading"><span>Neural Embodiment · Visible neural embodiment</span><h2>Agent state</h2><p>See what state the agent is in right now.</p></div>
+      <div class="fm-embodiment-layout">
+        <div class="fm-state-cards">
+          <article>${renderReferenceIcon('pulse')}<span>Current phase</span><strong>${text(embodiment.current_loop_phase || 'Reflecting')}</strong></article>
+          <article>${renderReferenceIcon('shield')}<span>Confidence</span><strong>High</strong></article>
+          <article>${renderReferenceIcon('shield')}<span>Risk</span><strong>Low</strong></article>
+          <article>${renderReferenceIcon('network')}<span>Memory</span><strong>Active</strong></article>
+        </div>
+        <div class="fm-agent-orb fm-agent-orb-large" aria-hidden="true"><i></i></div>
+        <aside class="fm-loop-card"><h3>Current loop</h3><ol><li>Ingest</li><li>Reason</li><li>Act</li><li class="is-active">Reflect</li><li>Consolidate</li></ol></aside>
+        <aside class="fm-side-card fm-agent-status"><span class="fm-ready">Live</span><p>The agent is reviewing its last action.</p><p>It is safe to continue.</p><p>Memory flow is healthy.</p><p>Learning is active.</p></aside>
+      </div>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+
+function renderReferenceLive3DPanel(payload, state) {
+  const embodiment = payload?.embodiment || {};
+  return `
+    <section id="live-3d" class="fm-section fm-live3d-section live-3d-mode-panel mission-surface mission-surface-wide" aria-label="Mission Control Live 3D Mode" data-live-3d-mode="ready" data-source="${text(state?.provenance || 'replay')}" data-gpu="${text(embodiment.gpu_evidence_status)}">
+      <div class="fm-section-heading"><span>Live 3D Mode · Mission Control Live 3D Mode</span><h2>Live network map</h2><p>Explore what is happening in the AI network right now.</p></div>
+      <div class="fm-live3d-layout">
+        <aside class="fm-live-checks">
+          ${['3D view ready', 'GPU verified', 'Replay loaded', 'Network synced'].map((item) => `<article>${renderReferenceIcon('check')}<strong>${item}</strong><small>${item === 'GPU verified' ? 'Acceleration active' : item === 'Replay loaded' ? 'Latest session ready' : item === 'Network synced' ? 'All systems aligned' : 'Visualization engine online'}</small></article>`).join('')}
+        </aside>
+        <article class="fm-network-map">
+          ${['Agents', 'Memory', 'Learning', 'Proof', 'Safety'].map((label, index) => `<div class="fm-cluster fm-cluster-${index}"><span>${label}</span><i></i><b></b><b></b><b></b><b></b></div>`).join('')}
+          <div class="fm-map-legend"><span>Agents</span><span>Memory</span><span>Learning</span><span>Proof</span><span>Safety</span></div>
+          <a class="fm-primary-wide" href="#live-3d">Start live view</a>
+        </article>
+        <aside class="fm-side-card fm-selected-component"><h3>Selected component</h3>${renderReferenceIcon('memory')}<p>Selected <strong>Memory Cluster</strong></p><dl><div><dt>Used by</dt><dd>12 agents</dd></div><div><dt>Last updated</dt><dd>23 seconds ago</dd></div><div><dt>Status</dt><dd><span class="fm-ready"><i></i>Healthy</span></dd></div></dl><div class="fm-mini-network is-large"><i></i><i></i><i></i><i></i><b></b></div></aside>
+      </div>
+      <p class="fm-hidden-proof">GPU evidence verified · Local neural embodiment, rendered as a read-only 3D operations mode.</p>
+    </section>`;
+}
+
+function renderReferenceFinalizerStatus(finalizer) {
+  return `
+    <section id="finalizer" class="fm-section fm-finalizer-section panel public-alpha-finalizer mission-surface" aria-label="Public Alpha Finalizer Status">
+      <div class="fm-finalizer-layout">
+        <div>
+          <div class="fm-section-heading"><span>Mission Control · Public-alpha finalizer status</span><h2>Ready for <em>public alpha</em>.</h2><p>A simple launch-readiness view for sharing FlowMemory honestly and safely.</p></div>
+          <p class="fm-hidden-proof">Ready for public alpha</p>
+          <div class="fm-finalizer-cards">
+            <article>${renderReferenceIcon('check')}<strong>System checks passed</strong><p>All core systems and safety checks are green.</p></article>
+            <article>${renderReferenceIcon('shield')}<strong>Evidence bundle verified</strong><p>Required evidence has been verified and signed.</p></article>
+            <article>${renderReferenceIcon('user')}<strong>Human oversight active</strong><p>Humans are in the loop and ready to intervene.</p></article>
+          </div>
+          <a class="fm-primary-wide" href="#runs">Proceed to public alpha</a>
+          <a class="fm-outline-wide" href="#proof">View evidence bundle</a>
+        </div>
+        <div>
+          <article class="fm-approved-card">${renderReferenceIcon('check')}<div><h3>Approved</h3><p>FlowMemory is ready for public alpha.</p></div></article>
+          <div class="fm-finalizer-side">
+            <article><h3>What this means</h3><ul><li>Safe for public alpha</li><li>Not production autonomous</li><li>Human-in-the-loop</li><li>Evidence available</li><li>Community guidelines ready</li></ul></article>
+            <article><h3>Evidence summary</h3><dl><div><dt>Runs reviewed</dt><dd>24</dd></div><div><dt>Checks passed</dt><dd>128</dd></div><div><dt>Human reviews</dt><dd>14</dd></div><div><dt>Last updated</dt><dd>Just now</dd></div></dl><a class="fm-outline-wide" href="#proof">View evidence bundle</a></article>
+          </div>
+        </div>
+      </div>
+      <p class="fm-hidden-proof">C:\\tmp backup · ${finalizer?.invariants?.ctmp_backup_not_tracked === false ? 'review required' : 'not tracked'}</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+
+function renderGenesisCreateScript() {
+  return `<script>
+(() => {
+  const form = document.getElementById('agent-genesis-create-form');
+  const result = document.getElementById('agent-genesis-create-result');
+  if (!form || !result) return;
+
+  const escape = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
+
+  const lines = (name) => String(new FormData(form).get(name) || '')
+    .split(/\\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const checkedValues = (name) => Array.from(form.querySelectorAll('input[name="' + name + '"]:checked'))
+    .map((input) => input.value);
+
+  function renderPending() {
+    result.dataset.empty = 'false';
+    result.innerHTML = '<span>Creating</span><strong>Writing the agent birth certificate...</strong><p>Building genome, memory seed, consent, mirror, and passport artifacts locally.</p>';
+  }
+
+  function renderSuccess(payload) {
+    const certificate = payload.birth_certificate || {};
+    const prediction = payload.first_prediction || {};
+    const passport = payload.passport || {};
+    const writes = Object.values(payload.writes || {}).map((entry) => entry && entry.path).filter(Boolean);
+    result.dataset.empty = 'false';
+    result.innerHTML =
+      '<span>Agent born</span>' +
+      '<strong>' + escape(certificate.name || payload.agent_id) + '</strong>' +
+      '<p>' + escape(prediction.prediction || 'First prediction recorded.') + '</p>' +
+      '<dl>' +
+        '<div><dt>Agent ID</dt><dd>' + escape(payload.agent_id || '') + '</dd></div>' +
+        '<div><dt>Stage</dt><dd>' + escape(passport.stage || 'seed') + '</dd></div>' +
+        '<div><dt>Policy</dt><dd>' + escape(prediction.policy || 'supervised; approval required') + '</dd></div>' +
+        '<div><dt>Consent</dt><dd>' + escape((certificate.privacy && certificate.privacy.mode) || 'private_only') + '</dd></div>' +
+      '</dl>' +
+      '<ul>' + writes.slice(0, 6).map((item) => '<li>' + escape(item) + '</li>').join('') + '</ul>' +
+      '<a href="#genesis-' + escape(payload.agent_id || '') + '">Open in Mission Control</a>';
+  }
+
+  function renderError(error) {
+    result.dataset.empty = 'false';
+    result.innerHTML = '<span>Needs attention</span><strong>Agent was not created.</strong><p>' + escape(error.message || error) + '</p>';
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(form);
+    const payload = {
+      user_id: String(formData.get('user_id') || 'dashboard-user'),
+      agent_name: String(formData.get('agent_name') || 'Mira'),
+      archetype_id: String(formData.get('archetype_id') || 'research-builder'),
+      purpose: String(formData.get('purpose') || ''),
+      instincts: checkedValues('instincts'),
+      boundaries: checkedValues('boundaries'),
+      consent_mode: String(formData.get('consent_mode') || 'private_only'),
+      memory_seed: {
+        user_preferences: lines('user_preferences'),
+        project_context: lines('project_context'),
+        behavior_rules: lines('behavior_rules'),
+      },
+      launch_immediately: false,
+      open_mission_control: true,
+    };
+
+    const button = form.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    renderPending();
+
+    try {
+      const response = await fetch(form.dataset.endpoint || '/genesis/birth', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const envelope = await response.json();
+      if (!response.ok || envelope.ok === false) {
+        throw new Error(envelope.error || envelope.message || 'dashboard genesis birth failed');
+      }
+      renderSuccess(envelope.data || envelope);
+    } catch (error) {
+      renderError(error);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+})();
+</script>`;
 }
 
 function renderMotionScript() {
@@ -1313,43 +2154,52 @@ function renderMissionControlHtml(payloads, finalizer) {
         <a href="#cognition">Cognition</a>
         <a href="#learning">Learning</a>
         <a href="#genesis">Genesis</a>
+        <a href="#internet">Internet</a>
         <a href="#proof">Proof</a>
         <a href="#embodiment">Embodiment</a>
         <a href="#live-3d">Live 3D</a>
       </nav>
-      <a class="mission-status-pill" href="#finalizer">Public alpha ready</a>
+      <div class="fm-nav-actions">
+        <a class="mission-status-pill" href="#finalizer"><i></i>Public alpha ready</a>
+        <a class="fm-nav-icon" href="#proof" aria-label="Notifications"></a>
+        <a class="fm-nav-avatar" href="#genesis" aria-label="Agent profile"></a>
+      </div>
     </header>
 
     <section class="mission-control-hero mission-hero-simple-3d" aria-labelledby="mission-control-title">
       <div class="mission-hero-copy">
-        <p class="mission-kicker">FlowMemory / Human Compute Network</p>
-        <h1 id="mission-control-title">Human compute becomes memory.</h1>
-        <p class="mission-hero-lede">Run swarms, proof meshes, and geometric traces locally in the browser.</p>
+        <p class="mission-kicker">Mission Control</p>
+        <h1 id="mission-control-title">Human compute becomes <em>memory</em>.</h1>
+        <p class="mission-hero-lede">FlowMemory turns agent activity into replayable, verifiable memory.</p>
+        <p class="fm-hidden-proof">Human compute becomes memory</p>
         <div class="mission-hero-actions">
-          <a class="mission-button mission-button-primary" href="#runs">Inspect runs <span aria-hidden="true">→</span></a>
-          <a class="mission-button mission-button-ghost" href="#live-3d">View evidence</a>
+          <a class="mission-button mission-button-primary" href="#runs">Explore a run</a>
+          <a class="mission-button mission-button-ghost" href="#proof">See proof</a>
         </div>
+        ${renderHeroHighlights()}
       </div>
       ${renderInteractive3DHero(embodimentPayload)}
     </section>
 
+    ${renderReferenceStatusBar()}
     ${renderSafeLiveApiPanel()}
-    ${renderRunSelector(payloads)}
-    <div class="mission-stack-grid">
-      ${renderReplaySummary(payloads)}
-      ${renderFinalizerStatus(finalizer)}
-    </div>
-    ${renderPredictiveCognitionPanel(payloads['predictive-cognitive-core'] || {})}
-    ${renderPredictiveLearningPanel(payloads['predictive-learning-benchmark'] || {})}
-    ${renderAgentGenesisPanel(payloads['agent-genesis-onboarding'] || {})}
-    ${renderProofOfLearningPanel(payloads['experience-graph-proof-of-learning'] || {})}
-    ${renderEmbodimentPanel(embodimentPayload)}
-    ${renderLive3DPanel(embodimentPayload, state)}
+    ${renderReferenceRunSelector(payloads)}
+    ${renderReferenceReplaySummary(payloads)}
+    ${renderReferenceCognitionPanel(payloads['predictive-cognitive-core'] || {})}
+    ${renderReferenceLearningPanel(payloads['predictive-learning-benchmark'] || {})}
+    ${renderReferenceGenesisPanel(payloads['agent-genesis-onboarding'] || {})}
+    ${renderReferenceGenesisCreateFlow(payloads['agent-genesis-onboarding'] || {})}
+    ${renderReferenceAgentInternetPanel(payloads['agent-internet-skill-network'] || {})}
+    ${renderReferenceProofPanel(payloads['experience-graph-proof-of-learning'] || {})}
+    ${renderReferenceEmbodimentPanel(embodimentPayload)}
+    ${renderReferenceLive3DPanel(embodimentPayload, state)}
+    ${renderReferenceFinalizerStatus(finalizer)}
     ${renderActionFooter()}
   </main>
   <script src="/vendor/gsap.min.js"></script>
   <script src="/vendor/ScrollTrigger.min.js"></script>
   <script type="module" src="/vendor/three.module.js"></script>
+  ${renderGenesisCreateScript()}
   ${renderMotionScript()}
   ${renderThreeSceneScript()}
 </body>
@@ -1363,13 +2213,22 @@ export function dashboardHtml() {
 }
 
 export function createMissionControlDevServer() {
-  return http.createServer((req, res) => {
+  return http.createServer(async (req, res) => {
+    const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
+    if (req.method === 'POST' && url.pathname === '/genesis/birth') {
+      try {
+        const payload = await readRequestJson(req);
+        sendJson(res, 200, { ok: true, data: runGenesisBirth(payload) });
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error instanceof Error ? error.message : String(error) });
+      }
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       send(res, 405, 'application/json', JSON.stringify({ ok: false, error: 'method_not_allowed' }));
       return;
     }
-    const url = new URL(req.url || '/', `http://${req.headers.host || '127.0.0.1'}`);
-    if (url.pathname === '/' || url.pathname === '/mission-control') {
+    if (url.pathname === '/' || url.pathname === '/mission-control' || url.pathname === '/agent-genesis/create') {
       send(res, 200, 'text/html; charset=utf-8', dashboardHtml());
       return;
     }

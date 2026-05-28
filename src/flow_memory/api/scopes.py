@@ -39,6 +39,12 @@ GENESIS_READ_SCOPE = "genesis:read"
 GENESIS_CREATE_SCOPE = "genesis:create"
 GENESIS_TEACH_SCOPE = "genesis:teach"
 GENESIS_EXPORT_SCOPE = "genesis:export"
+INTERNET_READ_SCOPE = "internet:read"
+INTERNET_WRITE_SCOPE = "internet:write"
+INTERNET_MATCH_SCOPE = "internet:match"
+INTERNET_COLLABORATE_SCOPE = "internet:collaborate"
+INTERNET_EXPORT_SCOPE = "internet:export"
+INTERNET_SIMULATE_SCOPE = "internet:simulate"
 EXPERIENCE_GRAPH_READ_SCOPE = "experience-graph:read"
 EXPERIENCE_GRAPH_WRITE_SCOPE = "experience-graph:write"
 
@@ -73,6 +79,12 @@ KNOWN_SCOPES = frozenset({
     GENESIS_CREATE_SCOPE,
     GENESIS_TEACH_SCOPE,
     GENESIS_EXPORT_SCOPE,
+    INTERNET_READ_SCOPE,
+    INTERNET_WRITE_SCOPE,
+    INTERNET_MATCH_SCOPE,
+    INTERNET_COLLABORATE_SCOPE,
+    INTERNET_EXPORT_SCOPE,
+    INTERNET_SIMULATE_SCOPE,
     EXPERIENCE_GRAPH_READ_SCOPE,
     EXPERIENCE_GRAPH_WRITE_SCOPE,
 
@@ -200,6 +212,18 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         if path_key == "/genesis/contributions/export":
             return (GENESIS_EXPORT_SCOPE,)
         return (GENESIS_CREATE_SCOPE,)
+    if path_key.startswith("/internet/"):
+        if path_key.startswith("/internet/erc8004/"):
+            return (INTERNET_EXPORT_SCOPE,)
+        if normalized_method in READ_METHODS:
+            return (INTERNET_READ_SCOPE,)
+        if path_key == "/internet/skills/match":
+            return (INTERNET_MATCH_SCOPE,)
+        if path_key == "/internet/collaborations/propose":
+            return (INTERNET_COLLABORATE_SCOPE,)
+        if path_key == "/internet/payment-intents/simulate":
+            return (INTERNET_SIMULATE_SCOPE,)
+        return (INTERNET_WRITE_SCOPE,)
     if path_key.startswith("/experience-graph"):
         if normalized_method in READ_METHODS:
             return (EXPERIENCE_GRAPH_READ_SCOPE,)

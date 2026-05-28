@@ -30,5 +30,11 @@ def agent_profile_from_ir(agent: AgentSpec) -> AgentProfile:
         cognition_config=dict(agent.metadata.get("cognition", {})),
         autonomy_mode=autonomy_mode,
         risk_budget=RiskBudget(max_spend=max_spend, max_escrow_exposure=max_spend, max_slashing_exposure=max_spend),
-        metadata={"flowir": agent.as_manifest(), "genesis": dict(agent.metadata.get("genesis", {})), "memory_seed": dict(agent.metadata.get("memory_seed", {})), "experience_graph": dict(agent.metadata.get("experience_graph", {}))},
+        metadata={
+            "flowir": agent.as_manifest(),
+            "genesis": dict(agent.metadata.get("genesis", {})),
+            "memory_seed": dict(agent.metadata.get("memory_seed", {})),
+            "experience_graph": dict(agent.metadata.get("experience_graph", {})),
+            "network": dict(agent.metadata.get("network", {})),
+        },
     )

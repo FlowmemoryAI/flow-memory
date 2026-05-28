@@ -71,3 +71,13 @@ dashboard/src/mock-data/agent-genesis-onboarding.json
 - Network learning is opt-in.
 - Raw private payloads are excluded by default.
 - No real funds, private keys, transaction broadcast, live settlement, or live provider calls are used.
+## Agent Internet handoff
+
+A born agent can be registered into the local Agent Internet after the user keeps or changes the default private-only consent. Registration publishes identity and skill metadata only; private memory seed content remains excluded.
+
+```bash
+python -m flow_memory internet agents register --agent <agent_id> --json
+python -m flow_memory internet skills publish --agent <agent_id> --skill research --skill memory --skill verification --json
+```
+
+Agent Internet discovery never overrides the agent's boundaries, PolicyEngine decisions, ApprovalGate requirements, or private-memory consent.

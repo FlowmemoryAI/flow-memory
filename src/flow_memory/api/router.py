@@ -102,6 +102,21 @@ from flow_memory.api.compute_endpoints import (
     compute_routes,
     compute_simulate_settlement,
 )
+from flow_memory.api.internet_endpoints import (
+    internet_agent,
+    internet_agents,
+    internet_agents_register,
+    internet_collaboration,
+    internet_collaborations,
+    internet_collaborations_propose,
+    internet_erc8004,
+    internet_mcp_manifests,
+    internet_payment_intent_simulate,
+    internet_reputation,
+    internet_skills_match,
+    internet_skills_publish,
+    internet_workspace,
+)
 
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
@@ -693,6 +708,45 @@ class LocalApiRouter:
     def _genesis_passport(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return genesis_passport(params["agent_id"])
 
+
+    def _internet_agents(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_agents()
+
+    def _internet_agents_register(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_agents_register(payload)
+
+    def _internet_agent(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_agent(params["agent_id"])
+
+    def _internet_skills_publish(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_skills_publish(payload)
+
+    def _internet_skills_match(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_skills_match(payload)
+
+    def _internet_collaborations_propose(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_collaborations_propose(payload)
+
+    def _internet_collaborations(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_collaborations()
+
+    def _internet_collaboration(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_collaboration(params["session_id"])
+
+    def _internet_workspace(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_workspace(params["workspace_id"])
+
+    def _internet_reputation(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_reputation(params["agent_id"])
+
+    def _internet_payment_intent_simulate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_payment_intent_simulate(payload)
+
+    def _internet_erc8004(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_erc8004(params["agent_id"])
+
+    def _internet_mcp_manifests(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return internet_mcp_manifests()
     def _genesis_genome(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return genesis_genome(params["agent_id"])
 
@@ -806,6 +860,19 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/genesis/agents/{agent_id}/teaching", router._genesis_teaching, "genesis_teaching")
     router.register("GET", "/genesis/contributions", router._genesis_contributions, "genesis_contributions")
     router.register("POST", "/genesis/contributions/export", router._genesis_contributions_export, "genesis_contributions_export")
+    router.register("GET", "/internet/agents", router._internet_agents, "internet_agents")
+    router.register("POST", "/internet/agents/register", router._internet_agents_register, "internet_agents_register")
+    router.register("GET", "/internet/agents/{agent_id}", router._internet_agent, "internet_agent")
+    router.register("POST", "/internet/skills/publish", router._internet_skills_publish, "internet_skills_publish")
+    router.register("POST", "/internet/skills/match", router._internet_skills_match, "internet_skills_match")
+    router.register("POST", "/internet/collaborations/propose", router._internet_collaborations_propose, "internet_collaborations_propose")
+    router.register("GET", "/internet/collaborations", router._internet_collaborations, "internet_collaborations")
+    router.register("GET", "/internet/collaborations/{session_id}", router._internet_collaboration, "internet_collaboration")
+    router.register("GET", "/internet/workspaces/{workspace_id}", router._internet_workspace, "internet_workspace")
+    router.register("GET", "/internet/reputation/{agent_id}", router._internet_reputation, "internet_reputation")
+    router.register("POST", "/internet/payment-intents/simulate", router._internet_payment_intent_simulate, "internet_payment_intents_simulate")
+    router.register("GET", "/internet/erc8004/{agent_id}", router._internet_erc8004, "internet_erc8004")
+    router.register("GET", "/internet/mcp/manifests", router._internet_mcp_manifests, "internet_mcp_manifests")
     router.register("POST", "/experience-graph/build", router._experience_graph_build, "experience_graph_build")
     router.register("GET", "/experience-graph", router._experience_graph_latest, "experience_graph_latest")
     router.register("GET", "/experience-graph/{graph_id}", router._experience_graph_get, "experience_graph_get")

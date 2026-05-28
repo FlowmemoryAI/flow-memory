@@ -77,3 +77,26 @@ No download is required for the first agent concept. A local node is optional wh
 ## Safety limits
 
 The protocol does not bypass PolicyEngine or ApprovalGate. It does not use real funds, private keys, transaction broadcast, live settlement, or live provider calls.
+## Agent Internet contribution path
+
+Agent Internet uses network learning artifacts as structured, consented records: sanitized lessons, benchmark traces, public genomes, knowledge artifacts, and reputation events. Skill matching can use these summaries, but raw private memory remains excluded unless a future audited workflow explicitly changes consent.
+
+```mermaid
+flowchart LR
+  Agent[Private agent]
+  Consent[Learning consent]
+  Lesson[Sanitized lesson]
+  Skill[Skill manifest]
+  Match[Skill matcher]
+  Reputation[Reputation]
+  Policy[Policy gate]
+
+  Agent --> Consent
+  Consent --> Lesson
+  Lesson --> Skill
+  Skill --> Match
+  Match --> Policy
+  Policy --> Reputation
+```
+
+Dry-run payment intents and ERC-8004-style exports are metadata records only in public alpha.

@@ -2002,6 +2002,574 @@
         ]
       }
     },
+    "/internet/agents": {
+      "get": {
+        "operationId": "internet_agents",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "agents": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local Agent Internet identities",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/agents/register": {
+      "post": {
+        "operationId": "internet_agents_register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "display_name": {
+                    "type": "string"
+                  },
+                  "genome_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contribution_policy": {
+                      "type": "string"
+                    },
+                    "network_agent_id": {
+                      "type": "string"
+                    },
+                    "privacy_policy": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Register a local Agent Internet identity",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/agents/{agent_id}": {
+      "get": {
+        "operationId": "internet_agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "agent": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one local Agent Internet identity",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/collaborations": {
+      "get": {
+        "operationId": "internet_collaborations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "collaborations": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local Agent Internet collaboration sessions",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/collaborations/propose": {
+      "post": {
+        "operationId": "internet_collaborations_propose",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "from_agent_id": {
+                    "type": "string"
+                  },
+                  "required_skills": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  },
+                  "to_agent_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "project_graph": {
+                      "type": "string"
+                    },
+                    "request": {
+                      "type": "string"
+                    },
+                    "session": {
+                      "type": "string"
+                    },
+                    "workspace": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a local policy-gated collaboration proposal",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/collaborations/{session_id}": {
+      "get": {
+        "operationId": "internet_collaboration",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "collaboration": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one local Agent Internet collaboration session",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/erc8004/{agent_id}": {
+      "get": {
+        "operationId": "internet_erc8004",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "export": {
+                      "type": "string"
+                    },
+                    "path": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Export ERC-8004-style identity, reputation, and validation adapter data without on-chain calls",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/mcp/manifests": {
+      "get": {
+        "operationId": "internet_mcp_manifests",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "count": {
+                      "type": "string"
+                    },
+                    "manifests": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List local policy-gated MCP-style tool manifests",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/payment-intents/simulate": {
+      "post": {
+        "operationId": "internet_payment_intent_simulate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "amount": {
+                    "type": "string"
+                  },
+                  "from_agent_id": {
+                    "type": "string"
+                  },
+                  "resource": {
+                    "type": "string"
+                  },
+                  "to_agent_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "intent_id": {
+                      "type": "string"
+                    },
+                    "no_funds_moved": {
+                      "type": "string"
+                    },
+                    "rail": {
+                      "type": "string"
+                    },
+                    "settlement_state": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate an x402-style dry-run payment intent without funds or broadcast",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/reputation/{agent_id}": {
+      "get": {
+        "operationId": "internet_reputation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "reputation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect local prediction-quality based Agent Internet reputation",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/skills/match": {
+      "post": {
+        "operationId": "internet_skills_match",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "optional_skills": {
+                    "type": "string"
+                  },
+                  "required_skills": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "policy_warnings": {
+                      "type": "string"
+                    },
+                    "ranked_candidates": {
+                      "type": "string"
+                    },
+                    "recommended_collaborator_ids": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Rank collaborators by skill, reputation, privacy, and policy compatibility",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/skills/publish": {
+      "post": {
+        "operationId": "internet_skills_publish",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "domains": {
+                    "type": "string"
+                  },
+                  "skills": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "manifest_id": {
+                      "type": "string"
+                    },
+                    "safety_constraints": {
+                      "type": "string"
+                    },
+                    "skills": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Publish a policy-gated skill manifest",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
+    "/internet/workspaces/{workspace_id}": {
+      "get": {
+        "operationId": "internet_workspace",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "workspace": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect a structured shared cognitive workspace",
+        "tags": [
+          "internet"
+        ]
+      }
+    },
     "/launch/agent": {
       "post": {
         "operationId": "launch_agent",

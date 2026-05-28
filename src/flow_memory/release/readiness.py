@@ -62,6 +62,7 @@ PUBLIC_ALPHA_LAUNCH_FINALIZER_EVIDENCE = tuple(dict.fromkeys(PUBLIC_ALPHA_LOCAL_
 )))
 AGENT_GENESIS_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("agent_genesis_network_learning",)))
 PROOF_OF_LEARNING_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("experience_graph_proof_of_learning",)))
+AGENT_INTERNET_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("agent_internet_skill_network",)))
 
 
 @dataclass(frozen=True)
@@ -135,6 +136,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_genesis_blockers(root_path, gates.ok)
         classification = "public_alpha_genesis_candidate" if not blockers else "blocked_public_alpha_genesis"
         evidence = AGENT_GENESIS_EVIDENCE
+    elif target == "public-alpha-agent-internet":
+        blockers = _public_alpha_agent_internet_blockers(root_path, gates.ok)
+        classification = "public_alpha_agent_internet_candidate" if not blockers else "blocked_public_alpha_agent_internet"
+        evidence = AGENT_INTERNET_EVIDENCE
     elif target == "public-alpha-proof-of-learning":
         blockers = _public_alpha_proof_of_learning_blockers(root_path, gates.ok)
         classification = "public_alpha_proof_of_learning_candidate" if not blockers else "blocked_public_alpha_proof_of_learning"
@@ -439,6 +444,21 @@ def _public_alpha_genesis_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]
             blockers.extend(f"agent_genesis_{blocker}" for blocker in decision.get("blockers", ()))
     except Exception:
         blockers.append("agent_genesis_network_learning_evidence_missing_or_invalid")
+    return tuple(dict.fromkeys(blockers))
+
+def _public_alpha_agent_internet_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_local_public_alpha_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.agent_internet_evidence import (
+            agent_internet_skill_network_evidence,
+            verify_agent_internet_skill_network_evidence,
+        )
+
+        decision = verify_agent_internet_skill_network_evidence(agent_internet_skill_network_evidence(root))
+        if not decision.get("ok"):
+            blockers.extend(f"agent_internet_{blocker}" for blocker in decision.get("blockers", ()))
+    except Exception:
+        blockers.append("agent_internet_skill_network_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_proof_of_learning_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

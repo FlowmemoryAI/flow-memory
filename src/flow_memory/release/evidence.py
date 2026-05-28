@@ -30,6 +30,7 @@ from flow_memory.release.launch_supervisor_evidence import live_agent_supervisor
 from flow_memory.release.run_console_evidence import mission_control_run_console_evidence
 from flow_memory.release.neural_embodiment_evidence import neural_embodiment_evidence
 from flow_memory.release.live_3d_evidence import mission_control_live_3d_evidence
+from flow_memory.release.agent_internet_evidence import agent_internet_skill_network_evidence
 
 BUNDLE_FORMAT = "flow-memory-release-evidence-v1"
 
@@ -71,6 +72,7 @@ def build_evidence_documents(root: str | Path = ".") -> Mapping[str, Mapping[str
     documents["mission_control_run_console.json"] = mission_control_run_console_evidence(root_path)
     documents["neural_embodiment.json"] = neural_embodiment_evidence(root_path)
     documents["mission_control_live_3d.json"] = mission_control_live_3d_evidence(root_path)
+    documents["agent_internet_skill_network.json"] = agent_internet_skill_network_evidence(root_path)
     clean_clone = root_path / "release_evidence" / "clean_clone_validation.json"
     documents["clean_clone_validation.json"] = _json_file_or_missing(clean_clone)
     return documents

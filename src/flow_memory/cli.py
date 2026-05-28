@@ -59,6 +59,19 @@ from flow_memory.experience_graph import (
     list_proofs,
     list_reputations,
 )
+from flow_memory.agent_internet import (
+    erc8004_export,
+    get_workspace,
+    list_agent_identities,
+    list_collaborations,
+    list_mcp_manifests,
+    match_skills,
+    propose_collaboration,
+    publish_skill_manifest,
+    register_agent_identity,
+    reputation_summary,
+    simulate_payment_intent,
+)
 
 
 def _json_default(value: Any) -> str:
@@ -614,6 +627,118 @@ def _genesis(argv: list[str]) -> int:
         return _print_launch_payload({"ok": True, "contributions": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} contribution(s)")
     raise AssertionError("unhandled genesis command")
 
+def _internet(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory internet", description="Inspect the local Agent Internet")
+    sub = parser.add_subparsers(dest="resource", required=True)
+
+    agents = sub.add_parser("agents")
+    agents_sub = agents.add_subparsers(dest="agents_command", required=True)
+    agents_list = agents_sub.add_parser("list")
+    agents_list.add_argument("--json", action="store_true")
+    agents_register = agents_sub.add_parser("register")
+    agents_register.add_argument("--agent", dest="agent_id", required=True)
+    agents_register.add_argument("--name", dest="display_name", default="")
+    agents_register.add_argument("--description", default="")
+    agents_register.add_argument("--genome-id", default="")
+    agents_register.add_argument("--json", action="store_true")
+
+    skills = sub.add_parser("skills")
+    skills_sub = skills.add_subparsers(dest="skills_command", required=True)
+    skills_publish = skills_sub.add_parser("publish")
+    skills_publish.add_argument("--agent", dest="agent_id", required=True)
+    skills_publish.add_argument("--skill", action="append", default=[])
+    skills_publish.add_argument("--json", action="store_true")
+    skills_match = skills_sub.add_parser("match")
+    skills_match.add_argument("--agent", dest="agent_id", required=True)
+    skills_match.add_argument("--task", required=True)
+    skills_match.add_argument("--required-skill", action="append", default=[])
+    skills_match.add_argument("--optional-skill", action="append", default=[])
+    skills_match.add_argument("--missing-skill", action="append", default=[])
+    skills_match.add_argument("--json", action="store_true")
+
+    collaborations = sub.add_parser("collaborations")
+    collab_sub = collaborations.add_subparsers(dest="collaboration_command", required=True)
+    collab_propose = collab_sub.add_parser("propose")
+    collab_propose.add_argument("--from", dest="from_agent_id", required=True)
+    collab_propose.add_argument("--to", dest="to_agent_id", required=True)
+    collab_propose.add_argument("--task", required=True)
+    collab_propose.add_argument("--required-skill", action="append", default=[])
+    collab_propose.add_argument("--json", action="store_true")
+    collab_list = collab_sub.add_parser("list")
+    collab_list.add_argument("--json", action="store_true")
+
+    workspace = sub.add_parser("workspace")
+    workspace_sub = workspace.add_subparsers(dest="workspace_command", required=True)
+    workspace_show = workspace_sub.add_parser("show")
+    workspace_show.add_argument("workspace_id")
+    workspace_show.add_argument("--json", action="store_true")
+
+    reputation = sub.add_parser("reputation")
+    reputation_sub = reputation.add_subparsers(dest="reputation_command", required=True)
+    reputation_show = reputation_sub.add_parser("show")
+    reputation_show.add_argument("agent_id")
+    reputation_show.add_argument("--json", action="store_true")
+
+    payment = sub.add_parser("payment-intent")
+    payment_sub = payment.add_subparsers(dest="payment_command", required=True)
+    payment_sim = payment_sub.add_parser("simulate")
+    payment_sim.add_argument("--from", dest="from_agent_id", required=True)
+    payment_sim.add_argument("--to", dest="to_agent_id", required=True)
+    payment_sim.add_argument("--resource", dest="payment_resource", required=True)
+    payment_sim.add_argument("--amount", type=float, default=0.0)
+    payment_sim.add_argument("--currency", default="LOCAL")
+    payment_sim.add_argument("--json", action="store_true")
+
+    erc = sub.add_parser("erc8004")
+    erc_sub = erc.add_subparsers(dest="erc_command", required=True)
+    erc_export = erc_sub.add_parser("export")
+    erc_export.add_argument("--agent", dest="agent_id", required=True)
+    erc_export.add_argument("--out", required=True)
+    erc_export.add_argument("--json", action="store_true")
+
+    mcp = sub.add_parser("mcp")
+    mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
+    manifests = mcp_sub.add_parser("manifests")
+    manifests_sub = manifests.add_subparsers(dest="manifests_command", required=True)
+    manifests_list = manifests_sub.add_parser("list")
+    manifests_list.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.resource == "agents":
+        if args.agents_command == "register":
+            payload = register_agent_identity(args.agent_id, display_name=args.display_name, description=args.description, genome_id=args.genome_id)
+            return _print_launch_payload(payload, json_output=args.json, human=f"registered {payload['local_agent_id']}")
+        records = list_agent_identities()
+        return _print_launch_payload({"ok": True, "agents": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} internet agent(s)")
+    if args.resource == "skills":
+        if args.skills_command == "publish":
+            payload = publish_skill_manifest(args.agent_id, tuple(args.skill))
+            return _print_launch_payload(payload, json_output=args.json, human=f"published {len(payload['skills'])} skill(s)")
+        payload = match_skills(args.agent_id, args.task, required_skills=tuple(args.required_skill), optional_skills=tuple(args.optional_skill), missing_skills=tuple(args.missing_skill))
+        return _print_launch_payload(payload, json_output=args.json, human=f"matched {len(payload['ranked_candidates'])} candidate(s)")
+    if args.resource == "collaborations":
+        if args.collaboration_command == "propose":
+            payload = propose_collaboration(args.from_agent_id, args.to_agent_id, args.task, required_skills=tuple(args.required_skill))
+            return _print_launch_payload(payload, json_output=args.json, human=f"collaboration {payload['session']['session_id']}")
+        records = list_collaborations()
+        return _print_launch_payload({"ok": True, "collaborations": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} collaboration(s)")
+    if args.resource == "workspace":
+        payload = {"ok": True, "workspace": get_workspace(args.workspace_id)}
+        return _print_launch_payload(payload, json_output=args.json, human=f"workspace {args.workspace_id}")
+    if args.resource == "reputation":
+        payload = {"ok": True, "reputation": reputation_summary(args.agent_id)}
+        return _print_launch_payload(payload, json_output=args.json, human=f"reputation {args.agent_id}")
+    if args.resource == "payment-intent":
+        payload = simulate_payment_intent(args.from_agent_id, args.to_agent_id, args.payment_resource, args.amount, currency=args.currency)
+        return _print_launch_payload(payload, json_output=args.json, human=f"payment intent {payload['intent_id']}")
+    if args.resource == "erc8004":
+        payload = erc8004_export(args.agent_id, out=args.out)
+        return _print_launch_payload(payload, json_output=args.json, human=f"erc8004 export {payload['path']}")
+    if args.resource == "mcp":
+        records = list_mcp_manifests()
+        return _print_launch_payload({"ok": True, "manifests": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} mcp manifest(s)")
+    raise AssertionError("unhandled internet command")
+
 
 def _graph(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory graph", description="Inspect Experience Graph and Proof of Learning artifacts")
@@ -818,6 +943,8 @@ def main(argv: list[str] | None = None) -> int:
         return _compute(argv[1:])
     if argv and argv[0] == "neural":
         return _neural(argv[1:])
+    if argv and argv[0] == "internet":
+        return _internet(argv[1:])
     if argv and argv[0] == "run":
         argv = argv[1:]
 

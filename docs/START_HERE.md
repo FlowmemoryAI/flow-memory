@@ -124,6 +124,19 @@ python scripts/release_decision.py --target public-alpha-proof-of-learning
 ```
 
 Artifacts are stored under `artifacts/experience_graph/graphs/`, `artifacts/experience_graph/proofs/`, and `artifacts/experience_graph/reputation/`.
+## Agent Internet skill network
+
+Agent Internet publishes local policy-gated agent identities and skill manifests, ranks collaborators, opens structured shared workspaces, records project graph edges, and keeps MCP/x402/ERC-8004 integrations as local adapter seams.
+
+```bash
+python -m flow_memory internet agents register --agent mira --json
+python -m flow_memory internet skills publish --agent mira --skill research --skill memory --json
+python -m flow_memory internet skills match --agent mira --task "build an agent skill matcher" --required-skill coding --required-skill verification --json
+python -m flow_memory internet payment-intent simulate --from mira --to helper-agent --resource skill_match --amount 0.01 --json
+python scripts/release_decision.py --target public-alpha-agent-internet
+```
+
+Artifacts are stored under `artifacts/agent_internet/`. Dry-run payment intents do not move funds, ERC-8004 export files do not call chains, and raw private memory is excluded by default.
 
 
 

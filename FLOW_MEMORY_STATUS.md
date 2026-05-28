@@ -354,3 +354,22 @@ Predictive cognition is not a production autonomy claim. It is a bounded local l
 | Release evidence | implemented | `predictive_learning_benchmark.json` validates scenarios, metrics, lesson reuse, policy authority, CLI/API/FlowLang/dashboard coverage, and public-alpha limits. |
 
 Predictive learning remains bounded to observable local Flow Memory scenarios. It does not make lessons executable authority; PolicyEngine and ApprovalGate remain authoritative.
+
+## Agent Internet status
+
+Agent Internet + Skill Matcher + Collaboration Graph is implemented as a local public-alpha layer.
+
+Available now:
+- local agent network identity registry
+- policy-gated skill manifests
+- deterministic skill matcher
+- collaboration requests and sessions
+- shared cognitive workspace summaries
+- project graph records
+- local reputation events
+- MCP manifest policy/quarantine checks
+- x402 dry-run payment intent records
+- ERC-8004 export-only adapter files
+- Mission Control `agent-internet-skill-network` fixture
+
+Not enabled: live settlement, private key handling, transaction broadcast, raw private memory sharing by default, or unbounded autonomy.

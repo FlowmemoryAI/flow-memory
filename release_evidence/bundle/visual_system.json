@@ -50,16 +50,16 @@
       "sha256": "afea25aefdbfe5c4d5b214410889477d361971d43230441b038355e28d9a9711"
     },
     {
-      "bytes": 52458,
+      "bytes": 52454,
       "exists": true,
       "path": "dashboard/src/mock-data/local-network-replay.json",
-      "sha256": "478434a34c917753abe5d3dff26f5fd75f74ba27cc3e497e937b63c3ce2184c6"
+      "sha256": "b8719f5d7924dd7ee76e85f5358ca53e5445fb5616dbc0a43cc3be925477967a"
     },
     {
-      "bytes": 14297,
+      "bytes": 15103,
       "exists": true,
       "path": "docs/MISSION_CONTROL_QUICKSTART.md",
-      "sha256": "bc3c08bfda5865409e91f3dd338b929d400bf4d4a4b6a6c6ace7ea34102dcb6c"
+      "sha256": "d1de4f2008b852e3c6d8829bc86c134086f364f6dcb32ab1edd68d01d7599ad1"
     },
     {
       "bytes": 1185,
@@ -72,11 +72,11 @@
   "replay": {
     "agent_count": 4,
     "blocker": "",
-    "bytes": 52458,
+    "bytes": 52454,
     "event_count": 41,
     "ok": true,
     "path": "dashboard\\src\\mock-data\\local-network-replay.json",
-    "sha256": "478434a34c917753abe5d3dff26f5fd75f74ba27cc3e497e937b63c3ce2184c6",
+    "sha256": "b8719f5d7924dd7ee76e85f5358ca53e5445fb5616dbc0a43cc3be925477967a",
     "task_count": 2
   },
   "schema_version": "visual.telemetry.v1"

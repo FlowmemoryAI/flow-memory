@@ -287,3 +287,14 @@ python -m flow_memory launch finalize public-alpha --out release_evidence/public
 python scripts/verify_public_alpha_launch_finalizer.py
 python scripts/release_decision.py --target public-alpha-launch-finalizer
 ```
+## Agent Internet panel
+
+Mission Control also includes the `agent-internet-skill-network` fixture. It shows registered agent nodes, skill manifests, a skill-match recommendation, collaboration graph, shared workspace summary, reputation, MCP manifest status, x402 dry-run payment intent, and ERC-8004 export-only status.
+
+```bash
+python -m flow_memory internet agents register --agent mira --json
+python -m flow_memory internet skills publish --agent mira --skill research --skill memory --json
+python -m flow_memory internet skills match --agent mira --task "build an agent skill matcher" --required-skill coding --required-skill verification --json
+```
+
+The panel is read-only. It does not expose real payments, private keys, transaction broadcast, raw private memory sharing, or policy bypass controls.

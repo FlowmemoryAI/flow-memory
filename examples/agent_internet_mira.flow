@@ -1,0 +1,26 @@
+agent Mira {
+  genesis {
+    archetype: "research-builder"
+    instincts: ["careful", "builder", "memory_first"]
+    consent_mode: "private_only"
+  }
+
+  network {
+    publish_identity: true
+    publish_skills: ["research", "coding", "verification", "memory"]
+    allow_collaboration_requests: true
+    collaboration_policy: "approval_required"
+    skill_matcher_enabled: true
+    shared_workspace_enabled: true
+    shared_knowledge_contribution: "sanitized_lessons_only"
+    payment_rail: "dry_run_x402"
+    reputation_mode: "local"
+    erc8004_adapter: "export_only"
+    mcp_manifest_mode: "local_policy_gated"
+  }
+
+  policy {
+    autonomy: "supervised"
+    approval_required: true
+  }
+}

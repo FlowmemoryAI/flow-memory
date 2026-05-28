@@ -57,6 +57,10 @@ python -m flow_memory genesis mirror show <agent_id> --json
 python -m flow_memory graph build --json
 python -m flow_memory graph proofs list --json
 python -m flow_memory graph reputation list --json
+python -m flow_memory internet agents register --agent mira --json
+python -m flow_memory internet skills publish --agent mira --skill research --skill memory --json
+python -m flow_memory internet skills match --agent mira --task "build an agent skill matcher" --required-skill coding --required-skill verification --json
+python -m flow_memory internet payment-intent simulate --from mira --to helper-agent --resource skill_match --amount 0.01 --json
 python scripts/run_local_network.py --scenario all --json-out artifacts/network/local_network_report.json
 python scripts/run_agent_learning_loop.py
 python scripts/test_full_system.py --quick --json-out artifacts/full_system/quick_report.json
@@ -88,6 +92,7 @@ Predictive Cognition is available in CLI/API/replay mode: agents encode current 
 Predictive Learning Benchmark and memory consolidation are available in CLI/API/replay mode: repeated local scenarios write experience records, consolidate reusable lessons under `artifacts/cognition/lessons/`, reuse those lessons before later predictions, and export benchmark records under `artifacts/cognition/benchmarks/`.
 Agent Genesis is available in CLI/API/replay mode: birth a policy-gated agent with purpose, instincts, boundaries, private memory seed, genome, first prediction, mirror, passport, and private-only network learning by default. No download is required for the first agent concept; a local node download is optional for private tools, private compute, or compute contribution.
 Experience Graph + Proof of Learning is available in CLI/API/replay mode: local prediction/action/outcome records become graph edges, learned lessons become proof records under `artifacts/experience_graph/proofs/`, and agent reputation is scored from prediction accuracy, policy compliance, lesson usefulness, and private-payload exclusion.
+Agent Internet + Skill Matcher is available in CLI/API/replay mode: local agent nodes publish policy-gated identities and skill manifests, match collaborators by skills/reputation/privacy/policy fit, open structured shared workspaces, record collaboration graph edges, and expose MCP/x402/ERC-8004 adapter seams as local dry-run/export-only records.
 
 The project now combines:
 
@@ -117,6 +122,7 @@ The project now combines:
 - Predictive Learning Benchmark and memory consolidation for deterministic local scenario replay, before/after prediction-accuracy metrics, consolidated lessons, lesson reuse, repeated-mistake reduction, and policy-authoritative benchmark evidence
 - Agent Genesis and Network Learning Protocol for private-by-default agent birth, Agent Genomes, Memory Seeds, instincts, boundaries, first predictions, Agent Mirrors, Agent Passports, human teaching events, sanitized opt-in contributions, and Mission Control genesis telemetry
 - Experience Graph + Proof of Learning ledger for graphing agents, goals, predictions, actions, outcomes, prediction errors, lessons, policy decisions, contributions, proof records, and learning reputation while excluding private payloads by default
+- Agent Internet + Skill Matcher + Collaboration Graph for local agent identity registry, skill manifests, deterministic collaborator ranking, policy-gated shared workspaces, project graph edges, local reputation, MCP manifest quarantine, x402 dry-run payment intent records, and ERC-8004 export-only adapter files
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.

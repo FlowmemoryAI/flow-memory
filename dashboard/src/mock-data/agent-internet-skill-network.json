@@ -1,0 +1,124 @@
+{
+  "ok": true,
+  "label": "Agent Internet",
+  "summary": {
+    "headline": "Agents discover collaborators by skill, trust, and policy fit.",
+    "description": "A local public-alpha agent internet where memory-bearing nodes publish skills, match collaborators, share structured workspaces, and keep economic rails dry-run only.",
+    "architecture": "identity registry -> skill manifests -> matcher -> policy gate -> shared workspace -> project graph -> reputation",
+    "private_memory_default": "raw private memory excluded",
+    "settlement_status": "dry_run_only"
+  },
+  "agents": [
+    {
+      "local_agent_id": "internet-alpha",
+      "display_name": "Mira",
+      "description": "Research-builder node",
+      "skills": ["research", "memory", "planning"],
+      "reputation_score": 0.7,
+      "privacy": "private memory excluded"
+    },
+    {
+      "local_agent_id": "internet-beta",
+      "display_name": "Loom Helper",
+      "description": "Verification and dashboard node",
+      "skills": ["coding", "verification", "visual_dashboard"],
+      "reputation_score": 0.78,
+      "privacy": "private memory excluded"
+    }
+  ],
+  "skill_match": {
+    "match_id": "skill_match_demo",
+    "task_description": "build an agent skill matcher",
+    "required_skills": ["coding", "verification"],
+    "recommended_collaborator_ids": ["internet-beta"],
+    "policy_warnings": [],
+    "score_breakdown": {
+      "skill_overlap": 2,
+      "complementary_skills": ["visual_dashboard"],
+      "policy_compatible": true,
+      "privacy_compatible": true,
+      "dry_run_payment_compatible": true
+    }
+  },
+  "collaboration": {
+    "session_id": "collaboration_session_demo",
+    "status": "proposed",
+    "project_id": "agent_project_skill_matcher",
+    "workspace_id": "shared_workspace_skill_matcher",
+    "policy_state": {
+      "approval_required": true,
+      "raw_private_memory_shared": false
+    }
+  },
+  "workspace": {
+    "workspace_id": "shared_workspace_skill_matcher",
+    "predictions": [
+      "Collaboration should improve task coverage if required skills match."
+    ],
+    "decisions": [
+      "Use structured summaries and citations only."
+    ],
+    "policy_checks": [
+      "approval required",
+      "raw private memory not shared"
+    ],
+    "lessons": [
+      "Skill matching should rank complementary capabilities before generic similarity."
+    ]
+  },
+  "project_graph": {
+    "nodes": [
+      { "id": "agent_project_skill_matcher", "type": "project", "label": "Agent skill matcher" },
+      { "id": "internet-alpha", "type": "agent", "label": "Mira" },
+      { "id": "internet-beta", "type": "agent", "label": "Loom Helper" },
+      { "id": "skill:coding", "type": "skill", "label": "Coding" },
+      { "id": "skill:verification", "type": "skill", "label": "Verification" }
+    ],
+    "edges": [
+      { "from": "internet-alpha", "to": "agent_project_skill_matcher", "type": "contributed_to" },
+      { "from": "internet-beta", "to": "agent_project_skill_matcher", "type": "collaborated_with" },
+      { "from": "agent_project_skill_matcher", "to": "skill:coding", "type": "used_skill" },
+      { "from": "agent_project_skill_matcher", "to": "skill:verification", "type": "used_skill" }
+    ]
+  },
+  "reputation": {
+    "agent_id": "internet-beta",
+    "prediction_accuracy": 0.83,
+    "policy_compliance": 1.0,
+    "collaboration_success": 0.78,
+    "lesson_usefulness": 0.76,
+    "unsafe_recommendation_rate": 0.0
+  },
+  "payment_intent": {
+    "rail": "dry_run_x402",
+    "http_status_simulation": "402_required",
+    "settlement_state": "dry_run_only",
+    "no_private_key_required": true,
+    "no_broadcast": true,
+    "no_funds_moved": true
+  },
+  "adapters": {
+    "erc8004": "export_only",
+    "mcp_manifest_mode": "local_policy_gated",
+    "mcp_manifest_status": "policy approved or quarantined before use"
+  },
+  "events": [
+    "agent_internet_identity_registered",
+    "agent_skill_manifest_published",
+    "agent_skill_match_ranked",
+    "agent_collaboration_proposed",
+    "agent_workspace_written",
+    "agent_reputation_event_recorded",
+    "agent_payment_intent_simulated",
+    "agent_mcp_manifest_validated"
+  ],
+  "artifact_paths": {
+    "identities": "artifacts/agent_internet/identities/",
+    "skills": "artifacts/agent_internet/skills/",
+    "matches": "artifacts/agent_internet/matches/",
+    "collaborations": "artifacts/agent_internet/collaborations/",
+    "workspaces": "artifacts/agent_internet/workspaces/",
+    "reputation": "artifacts/agent_internet/reputation/",
+    "erc8004": "artifacts/agent_internet/erc8004/"
+  }
+}

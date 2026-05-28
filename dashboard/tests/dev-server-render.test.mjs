@@ -81,6 +81,20 @@ assert.match(html, /Agent Passport/);
 assert.match(html, /Network learning is opt-in/);
 assert.match(html, /raw private payload/);
 assert.match(html, /Node download is optional/);
+assert.match(html, /Birth an agent from the dashboard/);
+assert.match(html, /agent-genesis-create-form/);
+assert.match(html, /Birth agent online/);
+assert.match(html, /POST \/genesis\/birth/);
+assert.match(html, /no wallet required/);
+assert.match(html, /Agent Internet/);
+assert.match(html, /Agent Skill Matcher/);
+assert.match(html, /Collaboration Graph/);
+assert.match(html, /Shared Cognitive Workspace/);
+assert.match(html, /x402 dry-run payment intent/);
+assert.match(html, /ERC-8004 export-only adapter/);
+assert.match(html, /MCP manifest policy-gated/);
+assert.match(html, /raw private memory excluded/);
+assert.match(html, /GET \/internet\/agents/);
 assert.match(html, /Proof of Learning/);
 assert.match(html, /Experience Graph/);
 assert.match(html, /Every prediction becomes experience/);
@@ -148,6 +162,31 @@ try {
   assert.equal(proofResponse.status, 200);
   const proofPayload = await proofResponse.json();
   assert.equal(proofPayload.private_payload_excluded, true);
+  const birthResponse = await fetch(new URL("/genesis/birth", started.url), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      user_id: "dashboard-test",
+      agent_name: "DashboardMira",
+      archetype_id: "research-builder",
+      purpose: "Verify dashboard agent creation",
+      instincts: ["careful", "builder"],
+      boundaries: ["ask_before_risky_action", "never_share_private_memory"],
+      consent_mode: "private_only",
+    }),
+  });
+  assert.equal(birthResponse.status, 200);
+  const birthPayload = await birthResponse.json();
+  assert.equal(birthPayload.ok, true);
+  assert.match(birthPayload.data.agent_id, /^genesis_agent_/);
+  assert.equal(birthPayload.data.birth_certificate.privacy.mode, "private_only");
+  assert.equal(birthPayload.data.birth_certificate.privacy.raw_private_payload_excluded, true);
+  const unsafeLaunchResponse = await fetch(new URL("/launch/agent", started.url), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(unsafeLaunchResponse.status, 405);
 } finally {
   started.server.close();
   occupied.server.close();

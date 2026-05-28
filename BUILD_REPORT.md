@@ -884,3 +884,14 @@ Implemented the deterministic predictive learning benchmark and local lesson con
 - Added release evidence `predictive_learning_benchmark.json` and the `public-alpha-cognition` readiness target.
 
 Safety posture remains unchanged: benchmark outputs and lessons are advisory, local, deterministic, and scoped to observable Flow Memory domains. PolicyEngine and ApprovalGate remain authoritative.
+
+## Agent Internet + Skill Matcher + Collaboration Graph
+
+Added local public-alpha Agent Internet support: agent identity registry, skill manifests, deterministic skill matcher, policy-gated collaboration sessions, shared cognitive workspaces, project graph records, local reputation, MCP manifest quarantine checks, x402 dry-run payment intents, and ERC-8004 export-only adapter records.
+
+Evidence path:
+- `release_evidence/bundle/agent_internet_skill_network.json`
+- `dashboard/src/mock-data/agent-internet-skill-network.json`
+- `artifacts/agent_internet/`
+
+Safety invariants: no live settlement, no private keys, no transaction broadcast, no raw private memory sharing by default, and no policy bypass.

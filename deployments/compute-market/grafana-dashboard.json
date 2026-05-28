@@ -103,7 +103,8 @@
         {"expr": "sum(rate(provider_sla_penalty_total[5m]))", "legendFormat": "SLA penalties", "refId": "E"},
         {"expr": "sum(rate(billing_insufficient_credit_total[5m]))", "legendFormat": "insufficient credit", "refId": "F"},
         {"expr": "sum(rate(billing_ledger_mismatch_total[5m]))", "legendFormat": "ledger mismatches", "refId": "G"},
-        {"expr": "sum(rate(billing_payout_settled_total[5m]))", "legendFormat": "payouts settled", "refId": "H"}
+        {"expr": "sum(rate(billing_payout_settled_total[5m]))", "legendFormat": "payouts settled", "refId": "H"},
+        {"expr": "sum(rate(billing_refund_skipped_no_debit_total[5m]))", "legendFormat": "refund skipped: no debit", "refId": "I"}
       ],
       "title": "Billing and prepaid credits",
       "type": "timeseries"

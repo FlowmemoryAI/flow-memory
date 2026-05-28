@@ -45,6 +45,37 @@ def test_public_buildout_main_blocks_loopback_public_url(tmp_path: Any) -> None:
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted a loopback public URL")
 
+def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any, monkeypatch: Any) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text("FLOW_MEMORY_API_KEY=prod-key\n", encoding="utf-8")
+    captured: dict[str, Any] = {}
+
+    def fake_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        captured["base_url"] = base_url
+        captured["api_key"] = api_key
+        captured["require_immutable_audit"] = require_immutable_audit
+        return {"status": "passed"}
+
+    monkeypatch.setattr(validator, "validate", fake_validate)
+
+    assert (
+        validator.main(
+            [
+                "--api-url",
+                "https://api.flowmemory.ai",
+                "--env-file",
+                str(env_file),
+                "--require-immutable-audit",
+            ]
+        )
+        == 0
+    )
+    assert captured == {
+        "base_url": "https://api.flowmemory.ai",
+        "api_key": "prod-key",
+        "require_immutable_audit": True,
+    }
+
 
 def test_public_url_block_reason_rejects_placeholder_domains() -> None:
     blocked = (

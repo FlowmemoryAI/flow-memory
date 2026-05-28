@@ -437,6 +437,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate Flow Memory Compute Market public production buildout")
     parser.add_argument("--api-url", default="")
     parser.add_argument("--env-file", default=".env.compute-market.live")
+    parser.add_argument("--require-immutable-audit", action="store_true")
     args = parser.parse_args(argv)
 
     env_values = parse_env_file(Path(args.env_file))
@@ -449,7 +450,10 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"FLOW_MEMORY_PUBLIC_API_URL/--api-url is not a public endpoint: {block_reason}")
     if not api_key:
         raise SystemExit("FLOW_MEMORY_API_KEY is required in the env file")
-    require_immutable_audit = _bool_env(env_values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", ""), False)
+    require_immutable_audit = args.require_immutable_audit or _bool_env(
+        env_values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", ""),
+        False,
+    )
     result = validate(api_url, api_key, require_immutable_audit=require_immutable_audit)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0

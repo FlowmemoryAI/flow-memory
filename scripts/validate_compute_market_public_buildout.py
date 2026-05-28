@@ -24,6 +24,13 @@ _PLACEHOLDER_PUBLIC_HOST_SUFFIXES = (
     "yourdomain.com",
     "example.com",
 )
+_PLACEHOLDER_API_KEY_FRAGMENTS = (
+    "<",
+    ">",
+    "changeme",
+    "high-entropy-api-key",
+)
+
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -107,6 +114,13 @@ def public_url_block_reason(url: str) -> str:
     except ValueError:
         return ""
     return "" if address.is_global else "public_url_must_use_global_host"
+def api_key_block_reason(api_key: str) -> str:
+    raw = api_key.strip().lower()
+    if any(fragment in raw for fragment in _PLACEHOLDER_API_KEY_FRAGMENTS):
+        return "api_key_placeholder_not_allowed"
+    return ""
+
+
 
 
 def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
@@ -450,6 +464,9 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"FLOW_MEMORY_PUBLIC_API_URL/--api-url is not a public endpoint: {block_reason}")
     if not api_key:
         raise SystemExit("FLOW_MEMORY_API_KEY is required in the env file")
+    api_key_block = api_key_block_reason(api_key)
+    if api_key_block:
+        raise SystemExit(f"FLOW_MEMORY_API_KEY is not a production secret: {api_key_block}")
     require_immutable_audit = args.require_immutable_audit or _bool_env(
         env_values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", ""),
         False,

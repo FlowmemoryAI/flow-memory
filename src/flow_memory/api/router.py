@@ -866,10 +866,11 @@ class LocalApiRouter:
 
     def _auth_api_keys(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         tenant_id = _payload_tenant_id(_payload)
+        workspace_id = _payload_workspace_id(_payload)
         records = tuple(
             public_api_key_record(record)
             for record in self.api_key_records.values()
-            if _tenant_can_access_auth_record(tenant_id, record)
+            if _tenant_can_access_auth_record(tenant_id, workspace_id, record)
         )
         return {
             "ok": True,
@@ -1222,8 +1223,18 @@ def _payload_tenant_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("tenant_id", "")).strip()
 
 
-def _tenant_can_access_auth_record(tenant_id: str, record: Mapping[str, Any]) -> bool:
-    return not tenant_id or str(record.get("tenant_id", "")).strip() == tenant_id
+def _payload_workspace_id(payload: Mapping[str, Any]) -> str:
+    return str(payload.get("workspace_id", "")).strip()
+
+
+def _tenant_can_access_auth_record(tenant_id: str, workspace_id: str, record: Mapping[str, Any]) -> bool:
+    if tenant_id and str(record.get("tenant_id", "")).strip() != tenant_id:
+        return False
+    if workspace_id:
+        record_workspace_id = str(record.get("workspace_id", "")).strip()
+        if record_workspace_id and record_workspace_id != workspace_id:
+            return False
+    return True
 
 
 def _assert_auth_record_tenant_access(payload: Mapping[str, Any], record: Mapping[str, Any], action: str) -> None:
@@ -1233,6 +1244,13 @@ def _assert_auth_record_tenant_access(payload: Mapping[str, Any], record: Mappin
         raise forbidden_error(
             f"Tenant-scoped admin cannot {action} another tenant's API key",
             details={"tenant_id": tenant_id, "requested_tenant_id": record_tenant_id},
+        )
+    workspace_id = _payload_workspace_id(payload)
+    record_workspace_id = str(record.get("workspace_id", "")).strip()
+    if workspace_id and record_workspace_id and record_workspace_id != workspace_id:
+        raise forbidden_error(
+            f"Workspace-scoped admin cannot {action} another workspace's API key",
+            details={"workspace_id": workspace_id, "requested_workspace_id": record_workspace_id},
         )
 
 def _normalize_path(path: str) -> str:

@@ -95,6 +95,7 @@ class RedisNonceReplayStore:
 class ApiKeyIdentity:
     key_id: str = ""
     tenant_id: str = ""
+    workspace_id: str = ""
     principal: str = ""
     scopes: tuple[str, ...] = ()
     key_prefix: str = ""
@@ -186,6 +187,7 @@ class ApiAuthDecision:
     ok: bool
     reasons: tuple[str, ...] = ()
     tenant_id: str = ""
+    workspace_id: str = ""
     principal: str = ""
     scopes: tuple[str, ...] = ()
     key_id: str = ""
@@ -219,6 +221,7 @@ def _resolve_api_key_with_reasons(
                 key_id="legacy",
                 principal=_header(headers, "x-flow-memory-principal") or "api-key",
                 tenant_id=_header(headers, "x-flow-memory-tenant"),
+                workspace_id=_header(headers, "x-flow-memory-workspace"),
                 scopes=scopes,
             ),
             (),
@@ -243,6 +246,7 @@ def _resolve_api_key_with_reasons(
                 ApiKeyIdentity(
                     key_id=str(record.get("key_id", "")),
                     tenant_id=str(record.get("tenant_id", "")),
+                    workspace_id=str(record.get("workspace_id", "")),
                     principal=str(record.get("principal", record.get("created_by", "api-key"))),
                     scopes=scopes,
                     key_prefix=prefix,
@@ -521,6 +525,7 @@ def authorize_request(
         ok=not reasons,
         reasons=tuple(reasons),
         tenant_id=identity.tenant_id if identity else "",
+        workspace_id=identity.workspace_id if identity else "",
         principal=identity.principal if identity else "",
         scopes=identity.scopes if identity else (),
         key_id=identity.key_id if identity else "",
@@ -557,6 +562,7 @@ def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tup
     if not subject:
         return None, ("jwt sub required",)
     tenant_id = str(claims.get("tenant_id", claims.get("org_id", "")))
+    workspace_id = str(claims.get("workspace_id", claims.get("workspace", "")))
     if config.jwt_require_tenant and not tenant_id:
         return None, ("jwt tenant required",)
     scopes = _jwt_scopes(claims)
@@ -564,6 +570,7 @@ def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tup
         ApiKeyIdentity(
             key_id=str(header.get("kid", "jwt")),
             tenant_id=tenant_id,
+            workspace_id=workspace_id,
             principal=subject,
             scopes=scopes,
             token_id=str(claims.get("jti", "")),

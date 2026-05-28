@@ -923,6 +923,130 @@ def test_http_gateway_job_reads_and_claims_are_tenant_isolated() -> None:
     assert service.get_job(queued_job_id)["job"]["status"] == "queued"
 
 
+def test_http_gateway_workspace_bound_keys_are_workspace_isolated() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    key_a = "fmk_workspace_job_a"
+    key_b = "fmk_workspace_job_b"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "workspace-job-a-key",
+                    "key_prefix": "fmk_workspace_job_a",
+                    "key_hash": api_key_hash(key_a),
+                    "tenant_id": "tenant_workspace",
+                    "workspace_id": "workspace_a",
+                    "principal": "svc-workspace-a",
+                    "scopes": ("api:admin", "compute:execute", "compute:read"),
+                    "enabled": True,
+                },
+                {
+                    "key_id": "workspace-job-b-key",
+                    "key_prefix": "fmk_workspace_job_b",
+                    "key_hash": api_key_hash(key_b),
+                    "tenant_id": "tenant_workspace",
+                    "workspace_id": "workspace_b",
+                    "principal": "svc-workspace-b",
+                    "scopes": ("api:admin", "compute:execute", "compute:read"),
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    gateway.router.api_key_records["workspace-a-existing"] = {
+        "key_id": "workspace-a-existing",
+        "key_prefix": "fmk_workspace_a_existing",
+        "key_hash": api_key_hash("fmk_workspace_a_existing"),
+        "tenant_id": "tenant_workspace",
+        "workspace_id": "workspace_a",
+        "principal": "svc-workspace-a-existing",
+        "scopes": "compute:read",
+        "enabled": True,
+    }
+    gateway.router.api_key_records["workspace-b-existing"] = {
+        "key_id": "workspace-b-existing",
+        "key_prefix": "fmk_workspace_b_existing",
+        "key_hash": api_key_hash("fmk_workspace_b_existing"),
+        "tenant_id": "tenant_workspace",
+        "workspace_id": "workspace_b",
+        "principal": "svc-workspace-b-existing",
+        "scopes": "compute:read",
+        "enabled": True,
+    }
+    job_payload = {
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/workspace-job.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "workspace-job-route",
+        "provider_id": "workspace-job-provider",
+    }
+
+    try:
+        created_a = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps({**job_payload, "job_id": "job_workspace_a"}).encode("utf-8"),
+        )
+        created_b = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_b},
+            json.dumps({**job_payload, "job_id": "job_workspace_b"}).encode("utf-8"),
+        )
+        listed_a = gateway.handle("GET", "/compute/jobs", {"x-flow-memory-api-key": key_a})
+        denied_job_b = gateway.handle("GET", "/compute/jobs/job_workspace_b", {"x-flow-memory-api-key": key_a})
+        mismatched_header = gateway.handle(
+            "GET",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_a, "x-flow-memory-workspace": "workspace_b"},
+        )
+        mismatched_payload = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps({**job_payload, "job_id": "job_workspace_mismatch", "workspace_id": "workspace_b"}).encode(
+                "utf-8"
+            ),
+        )
+        listed_keys = gateway.handle("GET", "/auth/api-keys", {"x-flow-memory-api-key": key_a})
+        rotate_other_workspace = gateway.handle(
+            "POST",
+            "/auth/api-keys/workspace-b-existing/rotate",
+            {"x-flow-memory-api-key": key_a},
+            json.dumps({"key_id": "workspace-b-rotated"}).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert created_a.status == 200
+    assert created_a.body["data"]["job"]["workspace_id"] == "workspace_a"
+    assert created_b.status == 200
+    assert created_b.body["data"]["job"]["workspace_id"] == "workspace_b"
+    assert [job["job_id"] for job in listed_a.body["data"]["jobs"]] == ["job_workspace_a"]
+    assert denied_job_b.status == 404
+    assert mismatched_header.status == 403
+    assert mismatched_header.body["error"]["details"]["workspace_id"] == "workspace_a"
+    assert mismatched_header.body["error"]["details"]["requested_workspace_id"] == "workspace_b"
+    assert mismatched_payload.status == 403
+    assert mismatched_payload.body["error"]["details"]["workspace_id"] == "workspace_a"
+    assert mismatched_payload.body["error"]["details"]["requested_workspace_id"] == "workspace_b"
+    listed_key_ids = {record["key_id"] for record in listed_keys.body["data"]["api_keys"]}
+    assert "workspace-a-existing" in listed_key_ids
+    assert "workspace-b-existing" not in listed_key_ids
+    assert rotate_other_workspace.status == 403
+    assert rotate_other_workspace.body["error"]["details"]["workspace_id"] == "workspace_a"
+    assert rotate_other_workspace.body["error"]["details"]["requested_workspace_id"] == "workspace_b"
+
+
 def test_http_gateway_full_billing_lifecycle_is_tenant_scoped() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),

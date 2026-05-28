@@ -8553,20 +8553,34 @@ def _claim_candidates(
 def _payload_tenant_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("tenant_id", "")).strip()
 
+def _payload_workspace_id(payload: Mapping[str, Any]) -> str:
+    return str(payload.get("workspace_id", "")).strip()
+
 
 def _tenant_can_access_record(payload: Mapping[str, Any], record: Mapping[str, Any]) -> bool:
     tenant_id = _payload_tenant_id(payload)
-    if not tenant_id:
-        return True
-    return str(record.get("tenant_id", "")).strip() == tenant_id
+    if tenant_id and str(record.get("tenant_id", "")).strip() != tenant_id:
+        return False
+    workspace_id = _payload_workspace_id(payload)
+    if workspace_id:
+        record_workspace_id = str(record.get("workspace_id", "")).strip()
+        if record_workspace_id and record_workspace_id != workspace_id:
+            return False
+    return True
 
 
 def _tenant_can_access_catalog_record(payload: Mapping[str, Any], record: Mapping[str, Any]) -> bool:
     tenant_id = _payload_tenant_id(payload)
-    if not tenant_id:
-        return True
-    record_tenant_id = str(record.get("tenant_id", "")).strip()
-    return not record_tenant_id or record_tenant_id == tenant_id
+    if tenant_id:
+        record_tenant_id = str(record.get("tenant_id", "")).strip()
+        if record_tenant_id and record_tenant_id != tenant_id:
+            return False
+    workspace_id = _payload_workspace_id(payload)
+    if workspace_id:
+        record_workspace_id = str(record.get("workspace_id", "")).strip()
+        if record_workspace_id and record_workspace_id != workspace_id:
+            return False
+    return True
 
 
 def _record_matches_filters(record: Mapping[str, Any], filters: Mapping[str, Any]) -> bool:

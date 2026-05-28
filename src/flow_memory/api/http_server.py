@@ -142,6 +142,7 @@ class HttpApiGateway:
             scopes=context.scopes,
             client_id=context.client_id,
             tenant_id=context.tenant_id,
+            workspace_id=context.workspace_id,
         )
         if context.method in {"GET", "HEAD"} and context.path == "/healthz":
             return HttpApiResponse(
@@ -245,6 +246,15 @@ class HttpApiGateway:
                         "requested_tenant_id": context.tenant_id,
                     },
                 )
+            if auth.ok and credential_resolved and auth.workspace_id and context.workspace_id and auth.workspace_id != context.workspace_id:
+                raise forbidden_error(
+                    "API key workspace does not match the requested workspace",
+                    details={
+                        "key_id": auth.key_id,
+                        "workspace_id": auth.workspace_id,
+                        "requested_workspace_id": context.workspace_id,
+                    },
+                )
             requested_scopes = context.scopes
             if auth.ok and credential_resolved and requested_scopes:
                 unauthorized_scopes = tuple(sorted(set(requested_scopes) - set(auth.scopes)))
@@ -258,8 +268,9 @@ class HttpApiGateway:
                             "key_id": auth.key_id,
                         },
                     )
-            if auth.ok and (auth.scopes or auth.tenant_id or auth.principal):
+            if auth.ok and (auth.scopes or auth.tenant_id or auth.workspace_id or auth.principal):
                 resolved_tenant_id = auth.tenant_id or (context.tenant_id if auth.key_id == "legacy" or global_admin_credential else "")
+                resolved_workspace_id = auth.workspace_id or context.workspace_id
                 effective_scopes = requested_scopes if requested_scopes else (() if auth.key_id == "legacy" and self.config.require_scopes else auth.scopes)
                 context = context.__class__(
                     method=context.method,
@@ -269,6 +280,7 @@ class HttpApiGateway:
                     scopes=tuple(sorted(effective_scopes)),
                     client_id=context.client_id,
                     tenant_id=resolved_tenant_id,
+                    workspace_id=resolved_workspace_id,
                 )
             if not auth.ok:
                 raise auth_error("API authorization failed", details={"reasons": auth.reasons})
@@ -413,17 +425,29 @@ def _query_payload(query: str) -> Mapping[str, Any]:
 
 def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     tenant_id = str(context.tenant_id or "").strip()
-    if ("api:admin" in context.scopes or "compute:admin" in context.scopes) and not tenant_id:
+    workspace_id = str(context.workspace_id or "").strip()
+    if ("api:admin" in context.scopes or "compute:admin" in context.scopes) and not tenant_id and not workspace_id:
         return payload
-    if not tenant_id:
+    if not tenant_id and not workspace_id:
         return payload
     explicit_tenant = str(payload.get("tenant_id", "")).strip()
-    if explicit_tenant and explicit_tenant != tenant_id:
+    if tenant_id and explicit_tenant and explicit_tenant != tenant_id:
         raise forbidden_error(
             "Authenticated tenant cannot access another tenant",
             details={"tenant_id": tenant_id, "requested_tenant_id": explicit_tenant},
         )
-    return {**dict(payload), "tenant_id": tenant_id, "_flow_memory_principal": str(context.principal or "")}
+    explicit_workspace = str(payload.get("workspace_id", "")).strip()
+    if workspace_id and explicit_workspace and explicit_workspace != workspace_id:
+        raise forbidden_error(
+            "Authenticated workspace cannot access another workspace",
+            details={"workspace_id": workspace_id, "requested_workspace_id": explicit_workspace},
+        )
+    scoped = {**dict(payload), "_flow_memory_principal": str(context.principal or "")}
+    if tenant_id:
+        scoped["tenant_id"] = tenant_id
+    if workspace_id:
+        scoped["workspace_id"] = workspace_id
+    return scoped
 
 
 _PROVIDER_CALLBACK_IP_PATH_SUFFIXES = ("/receipt", "/complete", "/fail", "/heartbeat")

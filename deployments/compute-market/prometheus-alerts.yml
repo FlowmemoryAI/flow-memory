@@ -51,6 +51,15 @@ groups:
           summary: Provider fraud or quote manipulation signal was recorded.
           description: Review quote replay, provider spoofing, stale quote, signature, and price-manipulation fraud signals before routing provider supply.
 
+      - alert: FlowMemoryComputeMarketProviderReceiptRejected
+        expr: compute_provider_receipt_rejected_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: providers
+        annotations:
+          summary: Provider execution receipt callback was rejected.
+          description: Review receipt signature, replay guard, provider/job mismatch, callback IP allowlist, and compromised-provider indicators before accepting more callbacks.
       - alert: FlowMemoryComputeMarketProviderSlaPenalty
         expr: provider_sla_penalty_total > 0
         for: 5m

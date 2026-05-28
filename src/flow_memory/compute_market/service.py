@@ -3122,17 +3122,18 @@ class ComputeMarketService:
                         },
                         value=float(usage_charge["amount"]),
                     )
-                provider_payout = _accrue_provider_payout(
-                    self.store,
-                    provider_id=str(job.get("provider_id", "")),
-                    job_id=job_id,
-                    account_id=account_id,
-                    route_id=str(job.get("route_id", "")),
-                    amount=float(usage_charge["amount"]),
-                    currency=str(usage_charge["currency"]),
-                    request_id=request_id,
-                    usage_charge_id=str(usage_charge["usage_charge_id"]),
-                )
+                if str(credit_debit.get("status", "")) == "posted":
+                    provider_payout = _accrue_provider_payout(
+                        self.store,
+                        provider_id=str(job.get("provider_id", "")),
+                        job_id=job_id,
+                        account_id=account_id,
+                        route_id=str(job.get("route_id", "")),
+                        amount=float(usage_charge["amount"]),
+                        currency=str(usage_charge["currency"]),
+                        request_id=request_id,
+                        usage_charge_id=str(usage_charge["usage_charge_id"]),
+                    )
                 if credit_debit:
                     self._audit("billing.usage.debited", payload, request_id=request_id, result=str(credit_debit.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
                 if provider_payout:

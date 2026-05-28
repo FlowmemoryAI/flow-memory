@@ -138,8 +138,76 @@ class ApiAuthTests(unittest.TestCase):
         self.assertTrue(first.ok, first.reasons)
         self.assertFalse(replay.ok)
         self.assertIn("replayed request nonce", replay.reasons)
+
         self.assertFalse(stale.ok)
         self.assertIn("stale request timestamp", stale.reasons)
+
+    def test_authorize_request_binds_signature_to_nonce_and_timestamp(self) -> None:
+        key = generate_local_keypair("api-auth-bound-nonce")
+        payload = {"goal": "bound"}
+        timestamp = str(time.time())
+        changed_timestamp_value = str(float(timestamp) + 1.0)
+        nonce = "nonce-auth-bound-1"
+        signature = sign_request(
+            "POST",
+            "/agents/a/run",
+            payload,
+            key,
+            nonce=nonce,
+            timestamp=timestamp,
+        )
+        config = ApiAuthConfig(
+            api_key="test",
+            require_signed_requests=True,
+            enable_nonce_check=True,
+            max_request_age_seconds=30,
+        )
+
+        accepted = authorize_request(
+            {
+                "x-flow-memory-api-key": "test",
+                "x-flow-memory-timestamp": timestamp,
+                "x-flow-memory-nonce": nonce,
+            },
+            config,
+            method="POST",
+            path="/agents/a/run",
+            payload=payload,
+            signature=signature,
+            signature_key=key,
+        )
+        changed_nonce = authorize_request(
+            {
+                "x-flow-memory-api-key": "test",
+                "x-flow-memory-timestamp": timestamp,
+                "x-flow-memory-nonce": "nonce-auth-bound-2",
+            },
+            config,
+            method="POST",
+            path="/agents/a/run",
+            payload=payload,
+            signature=signature,
+            signature_key=key,
+        )
+        changed_timestamp = authorize_request(
+            {
+                "x-flow-memory-api-key": "test",
+                "x-flow-memory-timestamp": changed_timestamp_value,
+                "x-flow-memory-nonce": "nonce-auth-bound-3",
+            },
+            config,
+            method="POST",
+            path="/agents/a/run",
+            payload=payload,
+            signature=signature,
+            signature_key=key,
+        )
+
+        self.assertTrue(accepted.ok, accepted.reasons)
+        self.assertFalse(changed_nonce.ok)
+        self.assertIn("invalid request signature", changed_nonce.reasons)
+        self.assertFalse(changed_timestamp.ok)
+        self.assertIn("invalid request signature", changed_timestamp.reasons)
 
     def test_authorize_request_uses_distributed_nonce_store(self) -> None:
         class FakeRedis:

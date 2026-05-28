@@ -458,6 +458,10 @@ def authorize_request(
     api_identity = resolve_api_key(headers, config)
     jwt_identity, jwt_reasons = resolve_bearer_jwt(headers, config)
     identity = api_identity or jwt_identity
+    signature_nonce = ""
+    signature_timestamp = ""
+    if config.enable_nonce_check and identity is not None:
+        signature_nonce, signature_timestamp = _request_nonce_timestamp(headers, identity)
     auth_configured = bool(config.api_key or config.api_key_records or config.jwt_hs256_secret)
     if auth_configured and identity is None:
         if jwt_reasons:
@@ -471,7 +475,7 @@ def authorize_request(
     if config.require_signed_requests:
         if signature is None or signature_key is None:
             reasons.append("signed request required")
-        elif not verify_request(method, path, payload or {}, signature, signature_key):
+        elif not verify_request(method, path, payload or {}, signature, signature_key, nonce=signature_nonce, timestamp=signature_timestamp):
             reasons.append("invalid request signature")
     if config.enable_nonce_check and identity is not None:
         reasons.extend(
@@ -698,12 +702,7 @@ def _nonce_replay_reasons(
     replay_store: NonceReplayStore | None = None,
 ) -> tuple[str, ...]:
     reasons: list[str] = []
-    nonce = _header(headers, "x-flow-memory-nonce").strip()
-    timestamp = _header(headers, "x-flow-memory-timestamp").strip()
-    if not nonce and identity.key_prefix == "bearer" and identity.token_id:
-        nonce = f"jwt:{identity.token_id}"
-    if not timestamp and identity.key_prefix == "bearer" and identity.issued_at_epoch:
-        timestamp = str(identity.issued_at_epoch)
+    nonce, timestamp = _request_nonce_timestamp(headers, identity)
     if not nonce:
         reasons.append("missing request nonce")
     if not timestamp:
@@ -737,6 +736,16 @@ def _nonce_replay_reasons(
     if not claimed:
         return ("replayed request nonce",)
     return ()
+
+
+def _request_nonce_timestamp(headers: Mapping[str, str], identity: ApiKeyIdentity) -> tuple[str, str]:
+    nonce = _header(headers, "x-flow-memory-nonce").strip()
+    timestamp = _header(headers, "x-flow-memory-timestamp").strip()
+    if not nonce and identity.key_prefix == "bearer" and identity.token_id:
+        nonce = f"jwt:{identity.token_id}"
+    if not timestamp and identity.key_prefix == "bearer" and identity.issued_at_epoch:
+        timestamp = str(identity.issued_at_epoch)
+    return nonce, timestamp
 
 
 def _purge_nonce_cache(*, now: float, max_age_seconds: int) -> None:

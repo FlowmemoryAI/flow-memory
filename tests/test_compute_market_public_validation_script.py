@@ -99,6 +99,8 @@ def test_public_url_block_reason_rejects_placeholder_domains() -> None:
         "https://example.com",
         "https://compute.<your-domain>",
         "https://changeme.flowmemory.invalid",
+        "https://api.example.test",
+        "https://flowmemory.invalid",
     )
 
     for url in blocked:

@@ -588,6 +588,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '"audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash"))' in render_script
     assert "Get-PublicUrlBlockReason" in smoke_script
     assert "public_url_placeholder_not_allowed" in smoke_script
+    assert "example\\.test" in smoke_script
+    assert "example\\.invalid" in smoke_script
     assert "public_url_must_use_global_host" in smoke_script
     assert "RequireImmutableAudit" in smoke_script
     assert "s3_object_lock" in smoke_script

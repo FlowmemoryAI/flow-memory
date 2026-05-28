@@ -45,7 +45,7 @@ function Get-PublicUrlBlockReason {
     if ($hostName -in @('localhost', 'ip6-localhost', 'ip6-loopback') -or $hostName.EndsWith('.local')) {
         return 'public_url_must_not_use_localhost'
     }
-    if ($hostName -match '(^|\.)(yourdomain\.com|example\.com)$' -or $hostName -match '<your-domain>|changeme') {
+    if ($hostName -match '(^|\.)(yourdomain\.com|example\.com|example\.test|example\.invalid|test|invalid)$' -or $hostName -match '<your-domain>|changeme') {
         return 'public_url_placeholder_not_allowed'
     }
 

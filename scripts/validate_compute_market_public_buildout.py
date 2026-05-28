@@ -23,6 +23,10 @@ _PLACEHOLDER_PUBLIC_URL_FRAGMENTS = (
 _PLACEHOLDER_PUBLIC_HOST_SUFFIXES = (
     "yourdomain.com",
     "example.com",
+    "example.test",
+    "example.invalid",
+    "test",
+    "invalid",
 )
 _PLACEHOLDER_API_KEY_FRAGMENTS = (
     "<",

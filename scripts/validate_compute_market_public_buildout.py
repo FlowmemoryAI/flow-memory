@@ -14,6 +14,16 @@ from typing import Any, Mapping
 
 
 PUBLIC_TASK = "Flow Memory Compute Market public production buildout validation"
+_PLACEHOLDER_PUBLIC_URL_FRAGMENTS = (
+    "<",
+    ">",
+    "changeme",
+    "your-domain",
+)
+_PLACEHOLDER_PUBLIC_HOST_SUFFIXES = (
+    "yourdomain.com",
+    "example.com",
+)
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -79,12 +89,19 @@ def data(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def public_url_block_reason(url: str) -> str:
+    raw = url.strip().lower()
+    if any(fragment in raw for fragment in _PLACEHOLDER_PUBLIC_URL_FRAGMENTS):
+        return "public_url_placeholder_not_allowed"
     parsed = urllib.parse.urlparse(url)
     host = (parsed.hostname or "").strip().strip("[]").lower().rstrip(".")
     if not host:
         return "public_url_missing_host"
     if host in {"localhost", "ip6-localhost", "ip6-loopback"} or host.endswith(".local"):
         return "public_url_must_not_use_localhost"
+    if host in _PLACEHOLDER_PUBLIC_HOST_SUFFIXES or any(
+        host.endswith(f".{suffix}") for suffix in _PLACEHOLDER_PUBLIC_HOST_SUFFIXES
+    ):
+        return "public_url_placeholder_not_allowed"
     try:
         address = ipaddress.ip_address(host)
     except ValueError:

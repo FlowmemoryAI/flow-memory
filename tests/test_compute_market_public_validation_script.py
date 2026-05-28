@@ -46,6 +46,33 @@ def test_public_buildout_main_blocks_loopback_public_url(tmp_path: Any) -> None:
         raise AssertionError("public buildout validator accepted a loopback public URL")
 
 
+def test_public_url_block_reason_rejects_placeholder_domains() -> None:
+    blocked = (
+        "https://api.yourdomain.com",
+        "https://example.com",
+        "https://compute.<your-domain>",
+        "https://changeme.flowmemory.invalid",
+    )
+
+    for url in blocked:
+        assert validator.public_url_block_reason(url) == "public_url_placeholder_not_allowed"
+
+    assert validator.public_url_block_reason("https://api.flowmemory.ai") == ""
+
+
+def test_public_url_block_reason_rejects_private_networks() -> None:
+    blocked = (
+        "https://10.0.0.12",
+        "https://172.16.4.20",
+        "https://192.168.1.30",
+        "https://169.254.1.5",
+        "https://[fd00::1]",
+    )
+
+    for url in blocked:
+        assert validator.public_url_block_reason(url) == "public_url_must_use_global_host"
+
+
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0

@@ -142,6 +142,8 @@ class ComputeMarketConfig:
         if self.compute_market_mode == "production_planning" and self.external_provider_quotes_enabled and not self.provider_callback_ip_allowlist:
             errors.append("production_planning external_provider_quotes_enabled requires provider_callback_ip_allowlist")
         errors.extend(_provider_callback_ip_allowlist_errors(self.provider_callback_ip_allowlist))
+        if self.compute_market_mode == "production_planning" and self.live_settlement_enabled:
+            errors.append("production_planning requires live_settlement_enabled=false")
         if self.live_settlement_enabled and not self.settlement_environment:
             errors.append("live_settlement_enabled requires settlement_environment")
         if self.live_settlement_enabled and not self.settlement_security_review_id:

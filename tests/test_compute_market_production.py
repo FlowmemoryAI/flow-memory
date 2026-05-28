@@ -131,7 +131,16 @@ def test_live_settlement_config_gates_fail_closed() -> None:
 
     assert "live_settlement_enabled requires settlement_environment" in errors
     assert "live_settlement_enabled requires settlement_security_review_id" in errors
+    reviewed_errors = ComputeMarketConfig(
+        database_url=":memory:",
+        compute_market_mode="production_planning",
+        live_settlement_enabled=True,
+        settlement_environment="testnet",
+        settlement_security_review_id="sec-review-001",
+    ).validate()
+
     assert ComputeMarketConfig(database_url=":memory:").private_key_inputs_allowed is False
+    assert "production_planning requires live_settlement_enabled=false" in reviewed_errors
 
 
 def test_production_redis_config_requires_fail_closed_backends() -> None:

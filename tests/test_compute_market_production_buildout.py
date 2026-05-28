@@ -2822,6 +2822,70 @@ def test_compute_job_expire_leases_requeues_claims_and_expires_running_jobs() ->
         raise AssertionError("expired running job accepted completion")
 
 
+def test_running_lease_expiry_releases_credit_and_capacity_reservations() -> None:
+    service = _service()
+    account_id = "acct_lease_release"
+    _credit_account(service, account_id, 1.0, event_id="evt_lease_release_credit")
+    reservation_id = str(
+        _confirmed_capacity_reservation(
+            service,
+            reservation_id="reservation_lease_release",
+            capacity_units=2,
+        )["reservation_id"]
+    )
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_lease_release",
+                "account_id": account_id,
+                "capacity_reservation_id": reservation_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"worker_id": "worker_lease_release"})
+    credit_reservation_id = str(dispatched["job"]["credit_reservation_id"])
+    expired_at = "2000-01-01T00:00:00Z"
+    running = dict(service.store.get_record("compute_job", job_id) or {})
+    running["lease_expires_at"] = expired_at
+    running["claimed_by"] = "worker_lease_release"
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        running,
+        provider_id=str(running.get("provider_id", "")),
+        route_id=str(running.get("route_id", "")),
+        task_type=str(running.get("task_type", "")),
+        status="running",
+        expires_at=expired_at,
+        actor_id="worker_lease_release",
+    )
+
+    expired = service.expire_job_leases({"job_id": job_id})
+    job = service.get_job(job_id)["job"]
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    credit_reservation = service.store.get_record("credit_transaction", credit_reservation_id)
+    capacity_reservation = service.store.get_record("compute_reservation", reservation_id)
+    lease_event = next(event for event in service.job_events(job_id)["events"] if event["event_type"] == "job.lease_expired")
+
+    assert expired["expired_count"] == 1
+    assert job["status"] == "expired"
+    assert job["credit_release"]["transaction_type"] == "reserve_release"
+    assert job["credit_release"]["reason"] == "job_lease_expired"
+    assert job["capacity_release"]["status"] == "released"
+    assert job["capacity_release"]["release_reason"] == "job_lease_expired"
+    assert credit_reservation is not None
+    assert credit_reservation["status"] == "released"
+    assert capacity_reservation is not None
+    assert capacity_reservation["status"] == "released"
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+    assert lease_event["details"]["credit_release"]["reservation_transaction_id"] == credit_reservation_id
+    assert lease_event["details"]["capacity_release"]["reservation_id"] == reservation_id
+
+
 def test_compute_job_expires_after_max_dispatch_attempts() -> None:
     service = _service()
     job_id = str(

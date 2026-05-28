@@ -2546,7 +2546,7 @@ class ComputeMarketService:
                 "lifecycle": _append_lifecycle(job, "expired"),
             }
         )
-        self.store.put_record_if_state(
+        transitioned_to_expired = self.store.put_record_if_state(
             "compute_job",
             job_id,
             (previous_status,),
@@ -2561,6 +2561,40 @@ class ComputeMarketService:
             tenant_id=str(updated_job.get("tenant_id", "")),
             workspace_id=str(updated_job.get("workspace_id", "")),
         )
+        credit_release: Mapping[str, Any] = {}
+        capacity_release: Mapping[str, Any] = {}
+        if transitioned_to_expired:
+            credit_release = _release_credit_reservation(
+                self.store,
+                updated_job,
+                request_id=request_id,
+                reason="max_dispatch_attempts_exceeded",
+            )
+            capacity_release = self._release_job_capacity_reservation(
+                updated_job,
+                payload,
+                request_id=request_id,
+                reason="max_dispatch_attempts_exceeded",
+            )
+            if credit_release:
+                updated_job["credit_release"] = credit_release
+            if capacity_release:
+                updated_job["capacity_release"] = capacity_release
+            if credit_release or capacity_release:
+                self.store.put_record_if_state(
+                    "compute_job",
+                    job_id,
+                    ("expired",),
+                    updated_job,
+                    provider_id=str(updated_job.get("provider_id", "")),
+                    route_id=str(updated_job.get("route_id", "")),
+                    task_type=str(updated_job.get("task_type", "")),
+                    status="expired",
+                    expires_at="",
+                    request_id=request_id,
+                    tenant_id=str(updated_job.get("tenant_id", "")),
+                    workspace_id=str(updated_job.get("workspace_id", "")),
+                )
         event = _job_event(
             job_id,
             "job.dispatch_attempts_exhausted",
@@ -2570,6 +2604,8 @@ class ComputeMarketService:
                 "dispatch_attempts": dispatch_attempts,
                 "max_dispatch_attempts": max_dispatch_attempts,
                 "dry_run_only": True,
+                "credit_release": credit_release,
+                "capacity_release": capacity_release,
             },
         )
         self.store.put_record(
@@ -2702,12 +2738,51 @@ class ComputeMarketService:
             )
             if not updated:
                 continue
+            credit_release: Mapping[str, Any] = {}
+            capacity_release: Mapping[str, Any] = {}
+            if next_status == "expired":
+                credit_release = _release_credit_reservation(
+                    self.store,
+                    job,
+                    request_id=request_id,
+                    reason="job_lease_expired",
+                )
+                capacity_release = self._release_job_capacity_reservation(
+                    job,
+                    payload,
+                    request_id=request_id,
+                    reason="job_lease_expired",
+                )
+                if credit_release:
+                    job["credit_release"] = credit_release
+                if capacity_release:
+                    job["capacity_release"] = capacity_release
+                if credit_release or capacity_release:
+                    self.store.put_record_if_state(
+                        "compute_job",
+                        job_id,
+                        ("expired",),
+                        job,
+                        provider_id=str(job.get("provider_id", "")),
+                        route_id=str(job.get("route_id", "")),
+                        task_type=str(job.get("task_type", "")),
+                        status="expired",
+                        expires_at="",
+                        request_id=request_id,
+                        tenant_id=str(job.get("tenant_id", "")),
+                        workspace_id=str(job.get("workspace_id", "")),
+                    )
             event = _job_event(
                 job_id,
                 event_type,
                 status=next_status,
                 request_id=request_id,
-                details={"expired_lease": previous_claim, "dry_run_only": True},
+                details={
+                    "expired_lease": previous_claim,
+                    "dry_run_only": True,
+                    "credit_release": credit_release,
+                    "capacity_release": capacity_release,
+                },
             )
             self.store.put_record(
                 "compute_job_event",

@@ -415,6 +415,26 @@ def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only()
     assert service.store.count_records("provider_secret_ref") == 1
 
 
+def test_direct_provider_disable_cascades_routes_out_of_planning_pool() -> None:
+    service = _service()
+    active_routes = service.list_routes({"provider_id": "direct-request-provider", "status": "enabled"})["routes"]
+
+    disabled = service.disable_provider("direct-request-provider", {"request_id": "disable-direct-provider"})
+    stored_routes = service.store.list_records(
+        "compute_route",
+        filters={"provider_id": "direct-request-provider"},
+        limit=10,
+    ).records
+
+    assert active_routes
+    assert disabled["provider"]["status"] == "disabled"
+    assert disabled["routes"]
+    assert {route["route_id"] for route in disabled["routes"]} == {route["route_id"] for route in active_routes}
+    assert all(route["enabled"] is False and route["status"] == "disabled" for route in disabled["routes"])
+    assert all(route["enabled"] is False and route["status"] == "disabled" for route in stored_routes)
+    assert service.list_routes({"provider_id": "direct-request-provider", "status": "enabled"})["routes"] == ()
+
+
 def test_provider_admin_status_cannot_bypass_onboarding_in_production_mode() -> None:
     service = ComputeMarketService(
         store=ComputeMarketStore(":memory:"),

@@ -546,12 +546,40 @@ class ComputeMarketService:
         if limited is not None:
             return limited
         current = dict(self.get_provider(provider_id, payload)["provider"])
+        disabled_at = utc_now_iso()
         current["status"] = "disabled"
-        current["disabled_at"] = utc_now_iso()
+        current["disabled_at"] = disabled_at
+        current["updated_at"] = disabled_at
         self.store.put_record("compute_provider", provider_id, current, provider_id=provider_id, status="disabled", request_id=request_id)
+        disabled_routes: list[Mapping[str, Any]] = []
+        for route in self.store.list_records("compute_route", filters={"provider_id": provider_id}, limit=500).records:
+            disabled_route = {
+                **dict(route),
+                "enabled": False,
+                "status": "disabled",
+                "disabled_at": disabled_at,
+                "updated_at": disabled_at,
+            }
+            self.store.put_record(
+                "compute_route",
+                str(disabled_route["route_id"]),
+                disabled_route,
+                tenant_id=str(disabled_route.get("tenant_id", "")),
+                workspace_id=str(disabled_route.get("workspace_id", "")),
+                provider_id=provider_id,
+                route_id=str(disabled_route["route_id"]),
+                status="disabled",
+                request_id=request_id,
+            )
+            disabled_routes.append(disabled_route)
         invalidated_cache = self._invalidate_quote_cache_entries({"provider_id": provider_id, "reason": "provider_disabled"}, request_id=request_id)
         self._audit("compute.provider.disabled", payload, request_id=request_id, result="disabled", provider_id=provider_id)
-        return {"ok": True, "provider": current, "invalidated_quote_cache_entries": invalidated_cache}
+        return {
+            "ok": True,
+            "provider": current,
+            "routes": tuple(disabled_routes),
+            "invalidated_quote_cache_entries": invalidated_cache,
+        }
 
     def provider_health(self, provider_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}

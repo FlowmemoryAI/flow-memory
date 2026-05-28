@@ -3697,7 +3697,8 @@ class ComputeMarketService:
                 route_id=str(job.get("route_id", "")),
             )
             return {"ok": False, "job": job, "event": event, "error": error.as_record()}
-        credit_release = _release_credit_reservation(self.store, job, request_id=request_id, reason="job_retried")
+        original_job_for_release = dict(job)
+        credit_release: Mapping[str, Any] = {}
         retry_at = utc_now_iso()
         attempts = current_attempts + 1
         job.update(
@@ -3713,11 +3714,65 @@ class ComputeMarketService:
         )
         job.pop("credit_reservation_id", None)
         job.pop("credit_reserved_amount", None)
-        if credit_release:
-            job["credit_release"] = credit_release
-        self.store.put_record(
+        retry_expected_status = str(original_job_for_release.get("status", ""))
+        transitioned_to_retry = self.store.put_record_if_state(
             "compute_job",
             job_id,
+            (retry_expected_status,) if retry_expected_status else ("queued", "dispatched", "running", "failed", "cancelled"),
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status="queued",
+            expires_at="",
+            request_id=request_id,
+            tenant_id=str(job.get("tenant_id", "")),
+            workspace_id=str(job.get("workspace_id", "")),
+        )
+        if not transitioned_to_retry:
+            current = self.store.get_record("compute_job", job_id) or {}
+            error = compute_error(
+                "job.status_changed",
+                "Compute job status changed before retry could be queued.",
+                details={
+                    "job_id": job_id,
+                    "expected_statuses": (retry_expected_status,) if retry_expected_status else (),
+                    "actual_status": str(current.get("status", "")),
+                    "funds_moved": False,
+                },
+                request_id=request_id,
+            )
+            event = _job_event(
+                job_id,
+                "job.retry_status_changed",
+                status=str(current.get("status", original_job_for_release.get("status", ""))),
+                request_id=request_id,
+                details={"error": error.as_record(), "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(current.get("status", original_job_for_release.get("status", ""))),
+                request_id=request_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
+            return {"ok": False, "job": current or original_job_for_release, "event": event, "error": error.as_record()}
+        credit_release = _release_credit_reservation(
+            self.store,
+            original_job_for_release,
+            request_id=request_id,
+            reason="job_retried",
+        )
+        if credit_release:
+            job["credit_release"] = credit_release
+        self.store.put_record_if_state(
+            "compute_job",
+            job_id,
+            ("queued",),
             job,
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),

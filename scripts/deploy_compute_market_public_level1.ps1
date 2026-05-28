@@ -151,6 +151,14 @@ if ([string]::IsNullOrWhiteSpace($renderApiKey)) {
         }
     }
 }
+if (-not [string]::IsNullOrWhiteSpace($renderApiKey) -and $renderApiKey -match $placeholderPattern) {
+    Write-Status -Status 'blocked_missing_render_auth' -Fields @{
+        public_url = ''
+        missing_values = @('RENDER_API_KEY')
+    }
+    exit 20
+}
+
 $renderOwnerId = [Environment]::GetEnvironmentVariable('RENDER_OWNER_ID', 'Process')
 if (
     $Mode -eq 'auto' -and
@@ -174,6 +182,25 @@ foreach ($key in $requiredKeys) {
         $placeholders.Add($key)
     }
 }
+if ($envValues.Contains('RENDER_KEYVALUE_IP_ALLOWLIST') -and [string]$envValues['RENDER_KEYVALUE_IP_ALLOWLIST'] -match $placeholderPattern) {
+    $placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')
+}
+if ([string]::IsNullOrWhiteSpace($PublicApiUrl) -and $envValues.Contains('FLOW_MEMORY_PUBLIC_API_URL')) {
+    $PublicApiUrl = [string]$envValues['FLOW_MEMORY_PUBLIC_API_URL']
+}
+if (-not [string]::IsNullOrWhiteSpace($PublicApiUrl)) {
+    if ($PublicApiUrl -match $placeholderPattern) {
+        $placeholders.Add('FLOW_MEMORY_PUBLIC_API_URL')
+    }
+    elseif (-not $PublicApiUrl.StartsWith('https://')) {
+        Write-Status -Status 'blocked_invalid_public_url' -Fields @{
+            public_url = $PublicApiUrl
+            required_action = 'FLOW_MEMORY_PUBLIC_API_URL/ PublicApiUrl must be an https:// URL.'
+        }
+        exit 14
+    }
+}
+
 
 $renderManagedPrerequisites = New-Object System.Collections.Generic.List[string]
 $renderManagedPrerequisites.Add('RENDER_API_KEY')
@@ -261,6 +288,8 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED = 'false'
+    FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'
+    FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'
     FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'
 }

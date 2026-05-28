@@ -545,6 +545,17 @@ def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:
     assert "exit $LASTEXITCODE" in wrapper
 
 
+def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> None:
+    deploy_script = (ROOT / "scripts" / "deploy_compute_market_public_level1.ps1").read_text(encoding="utf-8")
+
+    assert "$renderApiKey -match $placeholderPattern" in deploy_script
+    assert "$placeholders.Add('FLOW_MEMORY_PUBLIC_API_URL')" in deploy_script
+    assert "$placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')" in deploy_script
+    assert "blocked_invalid_public_url" in deploy_script
+    assert "FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'" in deploy_script
+    assert "FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'" in deploy_script
+
+
 def test_public_buildout_validator_requires_observability_endpoints() -> None:
     validator_script = (ROOT / "scripts" / "validate_compute_market_public_buildout.py").read_text(encoding="utf-8")
 

@@ -2016,6 +2016,61 @@ def test_provider_reputation_tracks_sla_latency_breaches() -> None:
     assert _metric_total(service, "provider_sla_penalty_total", {"provider_id": "provider_live_gpu_1"}) == 0.18
 
 
+def test_reconciliation_applies_provider_sla_credit_and_payout_adjustment_without_custody() -> None:
+    service = _service()
+    service.apply_market_provider(_provider_application())
+    service.verify_market_provider("provider_live_gpu_1", {})
+    raw_event = {
+        "id": "evt_sla_credit",
+        "type": "checkout.session.completed",
+        "amount": 1.0,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_sla"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+    service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_sla_reconciled"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": "acct_sla",
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 1500,
+            "currency": "USD",
+        },
+    )
+    payout_id = str(completed["provider_payout"]["provider_payout_id"])
+    reconciliation = service.reconciliation({})["reconciliation"]
+    penalty = service.store.get_record(
+        "provider_sla_penalty",
+        str(completed["provider_sla_penalty"]["sla_penalty_id"]),
+    )
+    payout = service.store.get_record("provider_payout", payout_id)
+    balance = service.billing_balance({"account_id": "acct_sla"})["balance"]
+
+    assert reconciliation["provider_sla_penalty_reconciled_this_run"] == 1
+    assert reconciliation["provider_sla_penalty_reconciled_count"] == 1
+    assert reconciliation["ledger_balanced"] is True
+    assert penalty is not None
+    assert penalty["status"] == "reconciled_dry_run"
+    assert penalty["refund_id"]
+    assert penalty["credit_transaction_id"]
+    assert penalty["provider_payout_adjustment"]["adjusted"] is True
+    assert penalty["provider_payout_adjustment"]["remaining_payout_amount"] == 0.0
+    assert payout is not None
+    assert payout["status"] == "adjusted_no_payout_due"
+    assert payout["amount"] == 0.0
+    assert payout["sla_penalty_adjustment_amount"] == 0.18
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+    assert penalty["funds_moved"] is False
+    assert payout["funds_moved"] is False
+
+
 def test_provider_reputation_uses_capacity_fulfillment_from_confirmed_reservations() -> None:
     service = _service()
     service.list_capacity(

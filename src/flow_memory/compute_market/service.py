@@ -3962,9 +3962,139 @@ class ComputeMarketService:
         )
         return {"ok": True, "refund": refund, "credit_transaction": credit_transaction, "idempotent_replay": False}
 
+    def _reconcile_provider_sla_penalties(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> tuple[Mapping[str, Any], ...]:
+        reconciled: list[Mapping[str, Any]] = []
+        pending = self._all_records("provider_sla_penalty", filters={"status": "pending_reconciliation"})
+        for penalty in pending:
+            penalty_id = str(penalty.get("sla_penalty_id", ""))
+            account_id = str(penalty.get("account_id", "")).strip()
+            usage_charge_id = str(penalty.get("usage_charge_id", "")).strip()
+            amount = _safe_non_negative_float(penalty.get("recommended_credit_amount", 0.0))
+            if not penalty_id or not account_id or not usage_charge_id or amount <= 0.0:
+                continue
+            refund_result = self.billing_refund(
+                {
+                    "usage_charge_id": usage_charge_id,
+                    "account_id": account_id,
+                    "amount": amount,
+                    "currency": str(penalty.get("currency", "USD")),
+                    "reason": f"provider_sla_{penalty.get('sla_breach_type', 'breach')}",
+                    "source_event_id": penalty_id,
+                    "idempotency_key": deterministic_id("sla_penalty_refund", {"sla_penalty_id": penalty_id}),
+                    "request_id": request_id,
+                }
+            )
+            payout_adjustment = self._adjust_provider_payout_for_sla_penalty(penalty, request_id=request_id)
+            refund = refund_result.get("refund", {}) if isinstance(refund_result, Mapping) else {}
+            credit_transaction = (
+                refund_result.get("credit_transaction", {})
+                if isinstance(refund_result, Mapping)
+                else {}
+            )
+            reconciled_at = utc_now_iso()
+            updated = {
+                **dict(penalty),
+                "status": "reconciled_dry_run",
+                "reconciled_at": reconciled_at,
+                "updated_at": reconciled_at,
+                "refund_id": str(refund.get("refund_id", "")) if isinstance(refund, Mapping) else "",
+                "credit_transaction_id": (
+                    str(credit_transaction.get("credit_transaction_id", ""))
+                    if isinstance(credit_transaction, Mapping)
+                    else ""
+                ),
+                "provider_payout_adjustment": payout_adjustment,
+                "funds_moved": False,
+            }
+            self.store.put_record(
+                "provider_sla_penalty",
+                penalty_id,
+                updated,
+                tenant_id=account_id,
+                provider_id=str(updated.get("provider_id", "")),
+                route_id=str(updated.get("route_id", "")),
+                status=str(updated["status"]),
+                request_id=request_id,
+                idempotency_key=penalty_id,
+            )
+            self._audit(
+                "billing.provider_sla_penalty.reconciled",
+                {**dict(payload), "provider_sla_penalty_id": penalty_id},
+                request_id=request_id,
+                result=str(updated["status"]),
+                provider_id=str(updated.get("provider_id", "")),
+                route_id=str(updated.get("route_id", "")),
+            )
+            reconciled.append(updated)
+        return tuple(reconciled)
+
+    def _adjust_provider_payout_for_sla_penalty(
+        self,
+        penalty: Mapping[str, Any],
+        *,
+        request_id: str,
+    ) -> Mapping[str, Any]:
+        provider_id = str(penalty.get("provider_id", "")).strip()
+        job_id = str(penalty.get("job_id", "")).strip()
+        usage_charge_id = str(penalty.get("usage_charge_id", "")).strip()
+        adjustment_amount = _safe_non_negative_float(penalty.get("provider_payout_adjustment_amount", 0.0))
+        if not provider_id or not job_id or not usage_charge_id or adjustment_amount <= 0.0:
+            return {}
+        payout_id = deterministic_id(
+            "provider_payout",
+            {"provider_id": provider_id, "job_id": job_id, "usage_charge_id": usage_charge_id},
+        )
+        payout = self.store.get_record("provider_payout", payout_id)
+        if payout is None:
+            return {"provider_payout_id": payout_id, "adjusted": False, "reason": "provider_payout_not_found"}
+        status = str(payout.get("status", ""))
+        if status != "accrued":
+            return {"provider_payout_id": payout_id, "adjusted": False, "status": status}
+        current_amount = _safe_non_negative_float(payout.get("amount", 0.0))
+        applied_adjustment = min(current_amount, adjustment_amount)
+        adjusted_amount = round(max(0.0, current_amount - applied_adjustment), 6)
+        prior_adjustment = _safe_non_negative_float(payout.get("sla_penalty_adjustment_amount", 0.0))
+        penalty_ids = tuple(str(item) for item in payout.get("sla_penalty_ids", ()) if str(item))
+        penalty_id = str(penalty.get("sla_penalty_id", ""))
+        updated_at = utc_now_iso()
+        adjusted = {
+            **dict(payout),
+            "amount": adjusted_amount,
+            "status": "adjusted_no_payout_due" if adjusted_amount <= 0.0 else "accrued",
+            "sla_penalty_adjustment_amount": round(prior_adjustment + applied_adjustment, 6),
+            "sla_penalty_ids": tuple(dict.fromkeys((*penalty_ids, penalty_id))),
+            "updated_at": updated_at,
+            "funds_moved": False,
+        }
+        self.store.put_record(
+            "provider_payout",
+            payout_id,
+            adjusted,
+            tenant_id=str(adjusted.get("account_id", "")),
+            provider_id=provider_id,
+            route_id=str(adjusted.get("route_id", "")),
+            status=str(adjusted["status"]),
+            request_id=request_id,
+            idempotency_key=payout_id,
+        )
+        return {
+            "provider_payout_id": payout_id,
+            "adjusted": True,
+            "applied_adjustment_amount": applied_adjustment,
+            "remaining_payout_amount": adjusted_amount,
+            "status": str(adjusted["status"]),
+        }
+
 
     def reconciliation(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         payload = payload or {}
+        request_id = _request_id(payload)
+        reconciled_sla_penalties = self._reconcile_provider_sla_penalties(payload, request_id=request_id)
         usage_charges = self._all_records("usage_charge")
         payment_events = self._all_records("payment_event")
         provider_payouts = self._all_records("provider_payout")
@@ -3992,6 +4122,10 @@ class ComputeMarketService:
             "provider_payout_count": len(provider_payouts),
             "refund_count": len(refunds),
             "provider_sla_penalty_count": len(provider_sla_penalties),
+            "provider_sla_penalty_reconciled_count": sum(
+                1 for penalty in provider_sla_penalties if str(penalty.get("status", "")) == "reconciled_dry_run"
+            ),
+            "provider_sla_penalty_reconciled_this_run": len(reconciled_sla_penalties),
             "billing_invoice_count": len(billing_invoices),
             "credit_balance_count": len(credit_balances),
             "credit_transaction_count": len(credit_transactions),

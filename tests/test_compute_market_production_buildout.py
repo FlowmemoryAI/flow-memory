@@ -5269,6 +5269,18 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
         payout_id,
         {"external_payout_reference": "stripe_transfer_test_2", "settled_by": "ops"},
     )
+    actor_conflicting_settle = service.settle_provider_payout(
+        payout_id,
+        {"external_payout_reference": "stripe_transfer_test_1", "settled_by": "different-ops"},
+    )
+    idempotency_conflicting_settle = service.settle_provider_payout(
+        payout_id,
+        {
+            "external_payout_reference": "stripe_transfer_test_1",
+            "settled_by": "ops",
+            "idempotency_key": "different-payout-idempotency",
+        },
+    )
 
     assert replayed_settle["ok"] is True
     assert replayed_settle["idempotent_replay"] is True
@@ -5276,6 +5288,16 @@ def test_provider_payout_lifecycle_lists_settles_and_reconciles_without_custody(
     assert conflicting_settle["ok"] is False
     assert conflicting_settle["error"]["error_code"] == "billing.provider_payout.settlement_conflict"
     assert conflicting_settle["error"]["details"]["conflicts"]
+    assert actor_conflicting_settle["ok"] is False
+    assert actor_conflicting_settle["error"]["error_code"] == "billing.provider_payout.settlement_conflict"
+    assert {conflict["field"] for conflict in actor_conflicting_settle["error"]["details"]["conflicts"]} == {
+        "settled_by"
+    }
+    assert idempotency_conflicting_settle["ok"] is False
+    assert idempotency_conflicting_settle["error"]["error_code"] == "billing.provider_payout.settlement_conflict"
+    assert {conflict["field"] for conflict in idempotency_conflicting_settle["error"]["details"]["conflicts"]} == {
+        "idempotency_key"
+    }
 
     settled = service.billing_provider_payouts({"account_id": "acct_payout", "provider_id": "provider_live_gpu_1", "status": "settled"})
     after_reconciliation = service.reconciliation({})["reconciliation"]

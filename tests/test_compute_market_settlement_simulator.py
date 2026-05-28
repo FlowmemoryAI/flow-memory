@@ -5,7 +5,13 @@ from flow_memory.compute_market.payment import build_payment_plan, simulate_sett
 from flow_memory.compute_market.settlement_simulator import LocalTestnetSettlementSimulator, simulate_testnet_settlement
 
 
-def _quote(mode: str, *, network: str, asset: str) -> ComputeQuote:
+def _quote(
+    mode: str,
+    *,
+    network: str,
+    asset: str,
+    settlement_options: tuple[str, ...] | None = None,
+) -> ComputeQuote:
     return ComputeQuote(
         quote_id=f"quote-{mode}",
         provider_id="provider-testnet",
@@ -20,7 +26,7 @@ def _quote(mode: str, *, network: str, asset: str) -> ComputeQuote:
         estimated_units=2,
         estimated_total_cost=0.18,
         settlement_mode=mode,
-        settlement_options=(mode,),
+        settlement_options=(mode,) if settlement_options is None else settlement_options,
     )
 
 
@@ -72,3 +78,27 @@ def test_payment_plan_and_settlement_intent_include_testnet_simulation_artifact(
     assert settlement.funds_moved is False
     assert settlement.broadcast_allowed is False
     assert simulation["payload"]["simulated_blockhash"] == payment_payload["simulated_blockhash"]
+
+
+def test_generic_settlement_fallback_preserves_no_custody_invariants() -> None:
+    quote = _quote("provider_custom_dry_run", network="offchain", asset="CREDITS", settlement_options=())
+
+    plan = build_payment_plan(quote)
+    settlement = simulate_settlement(quote, plan)
+    simulation = settlement.transaction_intent["testnet_simulation"]
+    payload = simulation["payload"]
+
+    assert plan.selected_rail == "generic"
+    assert settlement.settlement_mode == "provider_custom_dry_run"
+    assert settlement.dry_run_only is True
+    assert settlement.funds_moved is False
+    assert settlement.broadcast_allowed is False
+    assert settlement.private_key_required is False
+    assert simulation["dry_run_only"] is True
+    assert simulation["funds_moved"] is False
+    assert simulation["broadcast_allowed"] is False
+    assert simulation["private_key_required"] is False
+    assert payload["harness"] == "local_generic_dry_run"
+    assert payload["provider_id"] == "provider-testnet"
+    assert payload["route_id"] == "route-provider_custom_dry_run"
+    assert plan.payment_intents[0].payload["generic_payment_intent"] is True

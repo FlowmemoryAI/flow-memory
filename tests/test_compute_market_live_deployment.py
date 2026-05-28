@@ -166,8 +166,45 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "Assert-Status -Response $jwtWrongAudience -Expected 401",
         "jwt_health = $jwtHealthStatus",
         "jwt_wrong_audience = $jwtWrongAudienceStatus",
+        "Gateway JWT secret must be a real high-entropy secret",
     ):
         assert expected in script
+
+def test_public_smoke_rejects_placeholder_gateway_jwt_secret_before_network() -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for public smoke JWT preflight validation")
+    assert powershell is not None
+
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "smoke_compute_market_public.ps1"),
+            "-ApiUrl",
+            "https://api.flowmemory.ai",
+            "-ApiKey",
+            "fmk_live_smoke_secret",
+            "-GatewayJwtHs256Secret",
+            "CHANGEME-gateway-jwt-secret-with-at-least-32-characters",
+            "-GatewayJwtIssuer",
+            "https://issuer.example",
+            "-GatewayJwtAudience",
+            "flow-memory-api",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "Gateway JWT secret must be a real high-entropy secret" in result.stderr
 
 
 

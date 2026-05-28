@@ -293,6 +293,12 @@ function Get-DataField {
     if ($null -eq $Json -or $null -eq $Json.data) { return $null }
     return $Json.data.$Name
 }
+if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
+    if ($GatewayJwtHs256Secret -match 'CHANGEME|<[^>]*>|high-entropy') {
+        throw 'Gateway JWT secret must be a real high-entropy secret when JWT smoke is configured.'
+    }
+    [void](New-GatewayJwt -Secret $GatewayJwtHs256Secret -Issuer $GatewayJwtIssuer -Audience $GatewayJwtAudience -Scopes 'compute:read' -TtlSeconds $GatewayJwtTtlSeconds)
+}
 $root = Invoke-WebRequest -Uri "$baseUrl/" -Method GET -TimeoutSec 90
 $rootJson = $root.Content | ConvertFrom-Json
 Assert-True ([int]$root.StatusCode -eq 200) 'root did not return HTTP 200.'

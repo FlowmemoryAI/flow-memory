@@ -337,13 +337,17 @@ class S3WormAuditExporter:
         return AuditExportResult(True, export_uri, checkpoint, manifest_hash, len(events))
 
     def write_checkpoint(self, checkpoint: AuditCheckpoint) -> Mapping[str, Any]:
-        retention_until = _retention_until(self.retention_days)
+        retention_until = _parse_iso_datetime(checkpoint.retention_until)
+        retention_until_iso = checkpoint.retention_until
+        if retention_until is None:
+            retention_until = _retention_until(self.retention_days)
+            retention_until_iso = _iso_timestamp(retention_until)
         key = self._key(f"checkpoints/{checkpoint.checkpoint_id}.json")
         checkpoint_record = {
             **checkpoint.as_record(),
             "storage_uri": f"s3://{self.bucket}/{key}",
             "object_lock_mode": self.object_lock_mode,
-            "retention_until": checkpoint.retention_until or _iso_timestamp(retention_until),
+            "retention_until": retention_until_iso,
         }
         signing_key = self._manifest_signing_key()
         if signing_key is not None:
@@ -364,6 +368,7 @@ class S3WormAuditExporter:
             ObjectLockRetainUntilDate=retention_until,
         )
         self._assert_object_lock_readback(client, key, expected_metadata=metadata, expected_retention_until=retention_until)
+        self._assert_checkpoint_body_readback(client, key, expected_record=checkpoint_record, signing_key=signing_key)
         return {"ok": True, "path": f"s3://{self.bucket}/{key}", "checkpoint": checkpoint.as_record(), "checkpoint_record": checkpoint_record, "object_lock_mode": self.object_lock_mode}
 
     def verify_export(self) -> AuditExportVerification:
@@ -517,6 +522,38 @@ class S3WormAuditExporter:
             expected = _retention_compare_value(expected_retention_until)
             if expected is None or actual_retention_until != expected:
                 raise RuntimeError("S3 audit exporter readback retention timestamp mismatch")
+
+    def _assert_checkpoint_body_readback(
+        self,
+        client: Any,
+        key: str,
+        *,
+        expected_record: Mapping[str, Any],
+        signing_key: LocalKeyPair | None,
+    ) -> None:
+        if not hasattr(client, "get_object"):
+            raise RuntimeError("S3 audit exporter requires get_object checkpoint readback")
+        response = client.get_object(Bucket=self.bucket, Key=key)
+        if not isinstance(response, Mapping):
+            raise RuntimeError("S3 audit exporter checkpoint readback returned an invalid response")
+        try:
+            checkpoint_record = json.loads(_object_body_text(response.get("Body")))
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("S3 audit exporter checkpoint readback returned invalid JSON") from exc
+        if not isinstance(checkpoint_record, Mapping):
+            raise RuntimeError("S3 audit exporter checkpoint readback returned a non-object JSON body")
+        if _canonical_json(checkpoint_record) != _canonical_json(expected_record):
+            raise RuntimeError("S3 audit exporter checkpoint body readback mismatch")
+        if signing_key is not None:
+            signature_error = _verify_signed_record(
+                checkpoint_record,
+                "checkpoint_signature",
+                signing_key,
+                missing_code="missing_checkpoint_signature",
+                mismatch_code="checkpoint_signature_mismatch",
+            )
+            if signature_error:
+                raise RuntimeError(signature_error[1])
 
     def _client(self) -> Any:
         if not self.bucket:

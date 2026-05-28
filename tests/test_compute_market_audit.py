@@ -288,6 +288,12 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     assert manifest["object_lock_mode"] == "COMPLIANCE"
     assert manifest["storage_uri"] == exported["path"]
     assert manifest["retention_until"]
+    checkpoint_put = next(put for put in client.puts if put["ContentType"] == "application/json")
+    checkpoint_bucket = str(checkpoint_put["Bucket"])
+    checkpoint_key = str(checkpoint_put["Key"])
+    checkpoint_record = json.loads(client.objects[(checkpoint_bucket, checkpoint_key)].decode("utf-8"))
+    assert checkpoint_record["retention_until"] == exported["checkpoint"]["retention_until"]
+    assert checkpoint_put["ObjectLockRetainUntilDate"].replace(microsecond=0).isoformat().replace("+00:00", "Z") == exported["checkpoint"]["retention_until"]
     lines = export_body.decode("utf-8").splitlines()
     manifest["created_at"] = "2099-01-01T00:00:00Z"
     lines[0] = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
@@ -316,6 +322,27 @@ def test_s3_object_lock_readback_rejects_wrong_retention_date() -> None:
         assert "retention timestamp mismatch" in str(exc)
     else:
         raise AssertionError("S3 Object Lock exporter accepted a truncated retention timestamp")
+
+
+def test_s3_object_lock_checkpoint_readback_rejects_corrupt_body() -> None:
+    class CorruptCheckpointBodyClient(FakeS3Client):
+        def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+            if "/checkpoints/" in Key:
+                return {"Body": b'{"checkpoint_id":"corrupt"}'}
+            return super().get_object(Bucket=Bucket, Key=Key)
+
+    client = CorruptCheckpointBodyClient()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = _service()
+    service.plan({"task": "corrupt checkpoint body", "request_id": "s3-corrupt-checkpoint-body"})
+    exported = exporter.export_events(service.store, chain_id="all")
+
+    try:
+        exporter.write_checkpoint(exported.checkpoint)
+    except RuntimeError as exc:
+        assert "checkpoint body readback mismatch" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("S3 exporter accepted a corrupted checkpoint body readback")
 
 
 def test_s3_object_lock_verify_export_detects_retention_truncation() -> None:

@@ -2662,6 +2662,7 @@ def test_compute_worker_dispatch_calls_provider_execution_adapter() -> None:
             rate_limits_enabled=False,
             external_provider_allowlist=("127.0.0.1",),
             external_provider_execution_enabled=True,
+            provider_callback_ip_allowlist=("127.0.0.1",),
             external_provider_execution_timeout_ms=1_000,
         ),
     )
@@ -2719,6 +2720,7 @@ def test_provider_execution_fails_closed_when_configured_without_endpoint() -> N
             rate_limits_enabled=False,
             external_provider_allowlist=("127.0.0.1",),
             external_provider_execution_enabled=True,
+            provider_callback_ip_allowlist=("127.0.0.1",),
         ),
     )
     service.store.put_record(

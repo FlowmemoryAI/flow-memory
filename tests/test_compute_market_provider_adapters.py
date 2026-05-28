@@ -801,6 +801,7 @@ def test_provider_sandbox_execution_adapter_dispatches_without_settlement() -> N
         rate_limits_enabled=False,
         external_provider_allowlist=("127.0.0.1",),
         external_provider_execution_enabled=True,
+        provider_callback_ip_allowlist=("127.0.0.1",),
         external_provider_execution_timeout_ms=1_000,
     )
     provider_record = {

@@ -1,6 +1,7 @@
 """Typed production-planning configuration for Flow Memory Compute Market."""
 from __future__ import annotations
 
+import ipaddress
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -136,6 +137,11 @@ class ComputeMarketConfig:
             errors.append("external_provider_execution_timeout_ms must be at least 1000")
         if self.external_provider_execution_enabled and not self.external_provider_allowlist:
             errors.append("external_provider_execution_enabled requires external_provider_allowlist")
+        if self.external_provider_execution_enabled and not self.provider_callback_ip_allowlist:
+            errors.append("external_provider_execution_enabled requires provider_callback_ip_allowlist")
+        if self.compute_market_mode == "production_planning" and self.external_provider_quotes_enabled and not self.provider_callback_ip_allowlist:
+            errors.append("production_planning external_provider_quotes_enabled requires provider_callback_ip_allowlist")
+        errors.extend(_provider_callback_ip_allowlist_errors(self.provider_callback_ip_allowlist))
         if self.live_settlement_enabled and not self.settlement_environment:
             errors.append("live_settlement_enabled requires settlement_environment")
         if self.live_settlement_enabled and not self.settlement_security_review_id:
@@ -316,6 +322,27 @@ class ComputeMarketConfig:
             "otlp_headers_configured": bool(self.otlp_headers),
             "otlp_timeout_ms": self.otlp_timeout_ms,
         }
+
+
+def _provider_callback_ip_allowlist_errors(allowlist: tuple[str, ...]) -> list[str]:
+    errors: list[str] = []
+    for item in allowlist:
+        allowed = item.strip()
+        if not allowed:
+            errors.append("provider_callback_ip_allowlist entries must be non-empty")
+            continue
+        try:
+            if "/" in allowed:
+                network = ipaddress.ip_network(allowed, strict=False)
+                if network.prefixlen == 0:
+                    errors.append("provider_callback_ip_allowlist must not include world-open CIDR ranges")
+            else:
+                address = ipaddress.ip_address(allowed)
+                if address.is_unspecified:
+                    errors.append("provider_callback_ip_allowlist must not include unspecified IP addresses")
+        except ValueError:
+            errors.append(f"provider_callback_ip_allowlist entry must be an IP address or CIDR: {allowed}")
+    return errors
 
 
 def config_from_env(env: Mapping[str, str] | None = None) -> ComputeMarketConfig:

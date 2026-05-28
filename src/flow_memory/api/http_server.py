@@ -84,9 +84,13 @@ class HttpApiConfig:
                 continue
             try:
                 if "/" in allowed:
-                    ipaddress.ip_network(allowed, strict=False)
+                    network = ipaddress.ip_network(allowed, strict=False)
+                    if network.prefixlen == 0:
+                        errors.append("provider_callback_ip_allowlist must not include world-open CIDR ranges")
                 else:
-                    ipaddress.ip_address(allowed)
+                    address = ipaddress.ip_address(allowed)
+                    if address.is_unspecified:
+                        errors.append("provider_callback_ip_allowlist must not include unspecified IP addresses")
             except ValueError:
                 errors.append(f"provider_callback_ip_allowlist entry must be an IP address or CIDR: {allowed}")
         return tuple(errors)

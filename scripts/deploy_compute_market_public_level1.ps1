@@ -138,7 +138,7 @@ $requiredKeys = @(
     'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION'
 )
 
-$placeholderPattern = 'CHANGEME|<required>|<your-domain>|yourdomain\.com|api\.yourdomain\.com|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host'
+$placeholderPattern = 'CHANGEME|<[^>]*>|<required>|<your-domain>|yourdomain\.com|api\.yourdomain\.com|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host|high-entropy-api-key'
 $envValues = Read-EnvFile -Path $envPath
 $renderApiKey = [Environment]::GetEnvironmentVariable('RENDER_API_KEY', 'Process')
 if ([string]::IsNullOrWhiteSpace($renderApiKey)) {

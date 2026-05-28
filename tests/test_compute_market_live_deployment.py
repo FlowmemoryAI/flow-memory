@@ -672,10 +672,19 @@ def test_named_render_powershell_wrapper_blocks_missing_env_file(tmp_path: Path)
     assert payload["missing_values"] == [str(missing_env_file)]
 
 
+def test_render_placeholder_detection_rejects_generic_secret_placeholders() -> None:
+    assert render_deploy.has_placeholder("<production-secret>") is True
+    assert render_deploy.has_placeholder("CHANGEME-high-entropy-api-key") is True
+    assert render_deploy.has_placeholder("managed-postgres-host") is True
+    assert render_deploy.has_placeholder("fmk_live_realistic_secret_value") is False
+
+
 def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> None:
     deploy_script = (ROOT / "scripts" / "deploy_compute_market_public_level1.ps1").read_text(encoding="utf-8")
 
     assert "$renderApiKey -match $placeholderPattern" in deploy_script
+    assert "<[^>]*>" in deploy_script
+    assert "high-entropy-api-key" in deploy_script
     assert "$placeholders.Add('FLOW_MEMORY_PUBLIC_API_URL')" in deploy_script
     assert "$placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')" in deploy_script
     assert "blocked_invalid_public_url" in deploy_script

@@ -101,12 +101,15 @@ PLACEHOLDERS = (
     "CHANGEME",
     "<required>",
     "<your-domain>",
+    "<",
+    ">",
     "yourdomain.com",
     "<managed_postgres_url>",
     "<managed_redis_url>",
     "<audit_export_uri>",
     "managed-postgres-host",
     "managed-redis-host",
+    "high-entropy-api-key",
 )
 RESERVED_PUBLIC_HOST_SUFFIXES = (
     "example.com",

@@ -296,6 +296,13 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                         "require_managed_redis_in_production": True,
                         "require_managed_sql_in_production": True,
                         "redis_url_scheme": "rediss",
+                        "dry_run_required": True,
+                        "live_settlement_enabled": False,
+                        "broadcast_enabled": False,
+                        "private_key_inputs_allowed": False,
+                        "audit_required": True,
+                        "audit_export_required": True,
+                        "stripe_checkout_enabled": False,
                     },
                 },
             }
@@ -378,6 +385,13 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["ok"] is True
     assert result["statuses"]["jwt_health"] == 200
     assert result["statuses"]["jwt_wrong_audience"] == 401
+    assert result["dry_run_required"] is True
+    assert result["live_settlement_enabled"] is False
+    assert result["broadcast_enabled_readiness"] is False
+    assert result["private_key_inputs_allowed"] is False
+    assert result["audit_required"] is True
+    assert result["audit_export_required"] is True
+    assert result["stripe_checkout_enabled"] is False
     assert len(jwt_headers) == 2
     assert jwt_headers[0]["x-flow-memory-scopes"] == "compute:read"
     authenticated_headers = [
@@ -441,6 +455,13 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                         "require_managed_redis_in_production": True,
                         "require_managed_sql_in_production": False,
                         "redis_url_scheme": "rediss",
+                        "dry_run_required": True,
+                        "live_settlement_enabled": False,
+                        "broadcast_enabled": False,
+                        "private_key_inputs_allowed": False,
+                        "audit_required": True,
+                        "audit_export_required": True,
+                        "stripe_checkout_enabled": False,
                     },
                 },
             }
@@ -570,6 +591,18 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "x-flow-memory-nonce" in smoke_script
     assert "require_managed_sql_in_production" in smoke_script
     assert "require_managed_sql_in_production" in render_script
+    for expected in (
+        "production_safety_defaults.stripe_checkout_enabled -eq $false",
+        "production_safety_defaults.audit_required -eq $true",
+        "production_safety_defaults.audit_export_required -eq $true",
+    ):
+        assert expected in smoke_script
+    for expected in (
+        '"stripe_checkout_enabled": safety.get("stripe_checkout_enabled")',
+        '"audit_required": safety.get("audit_required")',
+        '"audit_export_required": safety.get("audit_export_required")',
+    ):
+        assert expected in render_script
 
 
 def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:

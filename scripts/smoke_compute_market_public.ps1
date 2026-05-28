@@ -308,6 +308,9 @@ Assert-True ($rateLimitBackend -eq 'redis') "readiness rate limit backend was '$
 Assert-True ($circuitBreakerBackend -eq 'redis') "readiness circuit breaker backend was '$circuitBreakerBackend', expected redis."
 Assert-True ($readinessData.production_safety_defaults.require_managed_redis_in_production -eq $true) 'readiness did not require managed Redis in production.'
 Assert-True ($readinessData.production_safety_defaults.require_managed_sql_in_production -eq $true) 'readiness did not require managed SQL in production.'
+Assert-True ($readinessData.production_safety_defaults.stripe_checkout_enabled -eq $false) 'readiness did not report stripe_checkout_enabled=false.'
+Assert-True ($readinessData.production_safety_defaults.audit_required -eq $true) 'readiness did not report audit_required=true.'
+Assert-True ($readinessData.production_safety_defaults.audit_export_required -eq $true) 'readiness did not report audit_export_required=true.'
 $redisUrlScheme = $readinessData.production_safety_defaults.redis_url_scheme
 $allowInternalRedis = $readinessData.production_safety_defaults.allow_internal_redis_in_production
 $redisSchemeAllowed = ($redisUrlScheme -eq 'rediss') -or (($redisUrlScheme -eq 'redis') -and ($allowInternalRedis -eq $true))

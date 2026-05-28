@@ -56,6 +56,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     memory_seed_data: dict[str, Any] = {}
     experience_graph_data: dict[str, Any] = {}
     network_data: dict[str, Any] = {}
+    capability_upgrade_data: dict[str, Any] = {}
     policies: list[PolicySpec] = []
     skills: list[SkillSpec] = []
     plans: list[PlanSpec] = []
@@ -66,7 +67,7 @@ def parse_flowlang(source: str) -> AgentSpec:
     inside_agent_block = False
 
     def flush_current() -> None:
-        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data, compute_data, cognition_data, genesis_data, memory_seed_data, experience_graph_data, network_data
+        nonlocal current_kind, current_name, current_data, memory_data, economy_data, neural_data, rl_data, compute_data, cognition_data, genesis_data, memory_seed_data, experience_graph_data, network_data, capability_upgrade_data
         if not current_kind:
             return
         if current_kind == "memory":
@@ -89,6 +90,8 @@ def parse_flowlang(source: str) -> AgentSpec:
             experience_graph_data.update(current_data)
         elif current_kind == "network":
             network_data.update(current_data)
+        elif current_kind == "capabilities":
+            capability_upgrade_data.update(current_data)
         elif current_kind == "policy":
             policies.append(_policy_from_data(current_name, current_data))
         elif current_kind == "skill":
@@ -127,7 +130,7 @@ def parse_flowlang(source: str) -> AgentSpec:
                 agent_name = str(_parse_value(parts[1].strip()))
                 inside_agent_block = True
                 continue
-            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed", "experience_graph", "network"} and len(parts) == 1:
+            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed", "experience_graph", "network", "capabilities"} and len(parts) == 1:
                 current_kind = kind
                 current_name = kind
                 current_data = {}
@@ -150,7 +153,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             header = stripped[:-1].strip()
             parts = header.split(maxsplit=1)
             kind = parts[0]
-            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed", "experience_graph", "network"} and len(parts) == 1:
+            if kind in {"memory", "economy", "neural", "rl", "compute", "cognition", "genesis", "memory_seed", "experience_graph", "network", "capabilities"} and len(parts) == 1:
                 current_kind = kind
                 current_name = kind
                 current_data = {}
@@ -211,6 +214,7 @@ def parse_flowlang(source: str) -> AgentSpec:
             "memory_seed": _memory_seed_config_from_data(memory_seed_data),
             "experience_graph": _experience_graph_config_from_data(experience_graph_data),
             "network": _network_config_from_data(network_data),
+            "capability_upgrades": _capability_upgrade_config_from_data(capability_upgrade_data),
         },
     )
 
@@ -433,6 +437,33 @@ def _network_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
         "reputation_mode",
         "erc8004_adapter",
         "mcp_manifest_mode",
+    }
+    record = {key: data[key] for key in data if key in known}
+    extras = _metadata(data, known)
+    if extras:
+        record["metadata"] = extras
+    return record
+
+def _capability_upgrade_config_from_data(data: dict[str, Any]) -> dict[str, Any]:
+    if not data:
+        return {}
+    known = {
+        "byok_enabled",
+        "allowed_providers",
+        "require_user_supplied_key",
+        "store_raw_key",
+        "budget_cap_usd",
+        "revoke_supported",
+        "wallet_enabled",
+        "network",
+        "mainnet_writes_enabled",
+        "require_external_signature",
+        "no_private_keys",
+        "onchain_upgrade_enabled",
+        "mode",
+        "prepare_sign_relay_separation",
+        "relay_enabled",
+        "allowed_actions",
     }
     record = {key: data[key] for key in data if key in known}
     extras = _metadata(data, known)

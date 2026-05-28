@@ -117,6 +117,26 @@ from flow_memory.api.internet_endpoints import (
     internet_skills_publish,
     internet_workspace,
 )
+from flow_memory.api.capability_upgrade_endpoints import (
+    byok_credential,
+    byok_credential_revoke,
+    byok_credentials,
+    byok_credentials_create,
+    byok_intent_simulate,
+    byok_providers,
+    emergency_stop_agent,
+    emergency_stop_create,
+    onchain_upgrade_approve,
+    onchain_upgrade_prepare,
+    onchain_upgrade_relay,
+    onchain_upgrade_sign_request,
+    onchain_upgrade_simulate,
+    wallet_binding,
+    wallet_bindings,
+    wallet_bindings_create,
+    x402_route_prepare,
+    x402_status,
+)
 
 
 Handler = Callable[[Mapping[str, str], Mapping[str, Any]], Mapping[str, Any]]
@@ -747,6 +767,59 @@ class LocalApiRouter:
 
     def _internet_mcp_manifests(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return internet_mcp_manifests()
+    def _byok_providers(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return byok_providers()
+
+    def _byok_credentials_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return byok_credentials_create(payload)
+
+    def _byok_credentials(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return byok_credentials(payload)
+
+    def _byok_credential(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return byok_credential(params["credential_id"])
+
+    def _byok_credential_revoke(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return byok_credential_revoke(params["credential_id"])
+
+    def _byok_intent_simulate(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return byok_intent_simulate(payload)
+
+    def _wallet_bindings_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return wallet_bindings_create(payload)
+
+    def _wallet_bindings(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return wallet_bindings(payload)
+
+    def _wallet_binding(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return wallet_binding(params["wallet_binding_id"])
+
+    def _onchain_upgrade_prepare(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return onchain_upgrade_prepare(payload)
+
+    def _onchain_upgrade_simulate(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return onchain_upgrade_simulate(params["intent_id"])
+
+    def _onchain_upgrade_approve(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return onchain_upgrade_approve(params["intent_id"])
+
+    def _onchain_upgrade_sign_request(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return onchain_upgrade_sign_request(params["intent_id"])
+
+    def _onchain_upgrade_relay(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return onchain_upgrade_relay(params["intent_id"])
+
+    def _emergency_stop_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return emergency_stop_create(payload)
+
+    def _emergency_stop_agent(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return emergency_stop_agent(params["agent_id"])
+
+    def _x402_status(self, _params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return x402_status()
+
+    def _x402_route_prepare(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return x402_route_prepare(payload)
     def _genesis_genome(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return genesis_genome(params["agent_id"])
 
@@ -873,6 +946,24 @@ def create_default_router() -> LocalApiRouter:
     router.register("POST", "/internet/payment-intents/simulate", router._internet_payment_intent_simulate, "internet_payment_intents_simulate")
     router.register("GET", "/internet/erc8004/{agent_id}", router._internet_erc8004, "internet_erc8004")
     router.register("GET", "/internet/mcp/manifests", router._internet_mcp_manifests, "internet_mcp_manifests")
+    router.register("GET", "/byok/providers", router._byok_providers, "byok_providers")
+    router.register("POST", "/byok/credentials", router._byok_credentials_create, "byok_credentials_create")
+    router.register("GET", "/byok/credentials", router._byok_credentials, "byok_credentials")
+    router.register("GET", "/byok/credentials/{credential_id}", router._byok_credential, "byok_credential")
+    router.register("POST", "/byok/credentials/{credential_id}/revoke", router._byok_credential_revoke, "byok_credential_revoke")
+    router.register("POST", "/byok/intents/simulate", router._byok_intent_simulate, "byok_intent_simulate")
+    router.register("POST", "/wallet/bindings", router._wallet_bindings_create, "wallet_bindings_create")
+    router.register("GET", "/wallet/bindings", router._wallet_bindings, "wallet_bindings")
+    router.register("GET", "/wallet/bindings/{wallet_binding_id}", router._wallet_binding, "wallet_binding")
+    router.register("POST", "/onchain/upgrades/prepare", router._onchain_upgrade_prepare, "onchain_upgrade_prepare")
+    router.register("POST", "/onchain/upgrades/{intent_id}/simulate", router._onchain_upgrade_simulate, "onchain_upgrade_simulate")
+    router.register("POST", "/onchain/upgrades/{intent_id}/approve", router._onchain_upgrade_approve, "onchain_upgrade_approve")
+    router.register("POST", "/onchain/upgrades/{intent_id}/sign-request", router._onchain_upgrade_sign_request, "onchain_upgrade_sign_request")
+    router.register("POST", "/onchain/upgrades/{intent_id}/relay", router._onchain_upgrade_relay, "onchain_upgrade_relay")
+    router.register("POST", "/emergency-stop", router._emergency_stop_create, "emergency_stop_create")
+    router.register("GET", "/emergency-stop/{agent_id}", router._emergency_stop_agent, "emergency_stop_agent")
+    router.register("GET", "/x402/status", router._x402_status, "x402_status")
+    router.register("POST", "/x402/routes/prepare", router._x402_route_prepare, "x402_route_prepare")
     router.register("POST", "/experience-graph/build", router._experience_graph_build, "experience_graph_build")
     router.register("GET", "/experience-graph", router._experience_graph_latest, "experience_graph_latest")
     router.register("GET", "/experience-graph/{graph_id}", router._experience_graph_get, "experience_graph_get")

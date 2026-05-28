@@ -373,3 +373,13 @@ Available now:
 - Mission Control `agent-internet-skill-network` fixture
 
 Not enabled: live settlement, private key handling, transaction broadcast, raw private memory sharing by default, or unbounded autonomy.
+
+## Current capability-upgrade status
+
+- First-agent creation remains no wallet, no API key, no funds, no private key, and supervised by default.
+- BYOK provider support is available as metadata-only credential bindings with fingerprints and revocation.
+- x402 is wired as a Coinbase-compatible, testnet-ready route preparation seam. Install support is `python -m pip install "x402[fastapi,httpx,evm]>=2.11.0"`.
+- x402 facilitators tracked: `https://x402.org/facilitator` for Base Sepolia testnet readiness and `https://api.cdp.coinbase.com/platform/v2/x402` for Coinbase CDP metadata.
+- On-chain agent upgrades remain prepare/simulate/approve/sign-request/relay-separated, with relay disabled by default.
+- Base Sepolia is the default testnet target; Base mainnet writes are disabled.
+- Emergency stop disables BYOK, wallet, on-chain, provider, relay, signing request, and future execution modes.

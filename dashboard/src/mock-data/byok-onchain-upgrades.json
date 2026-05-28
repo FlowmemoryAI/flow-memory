@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "label": "BYOK + On-chain Upgrades",
+  "summary": {
+    "description": "Optional post-Genesis capability upgrades for BYOK model keys, wallet identity, x402 testnet-ready payment routes, on-chain dry-run intents, and emergency stop.",
+    "first_agent_path": "no wallet/API key/funds required for first agent",
+    "default_mode": "dry_run_only",
+    "live_path": "x402 routes can be prepared for Base Sepolia with relay disabled until explicit future approval"
+  },
+  "byok": {
+    "providers": ["openai", "openrouter", "anthropic", "local_runtime", "nookplot_gateway_stub", "custom_https_stub"],
+    "credential_status": "metadata_only_bound",
+    "secret_fingerprint": "secret_fp_demo_7a9c21e4",
+    "redacted_display": "env:OPENAI_API_KEY#secret_fp_demo_7a9c21e4",
+    "raw_api_key_persisted": false,
+    "budget_cap_usd": 5,
+    "intent_status": "simulated",
+    "no_external_call_performed": true
+  },
+  "wallet": {
+    "network": "base_sepolia",
+    "chain_id": 84532,
+    "wallet_address": "0x0000000000000000000000000000000000000000",
+    "proof_type": "address_only_stub",
+    "mainnet_writes_enabled": false,
+    "private_key_required": false,
+    "seed_phrase_required": false
+  },
+  "onchain_upgrade": {
+    "action": "register_agent",
+    "mode": "dry_run",
+    "prepare_available": true,
+    "simulation_available": true,
+    "approval_required": true,
+    "external_signature_only": true,
+    "relay_status": "disabled",
+    "no_broadcast": true,
+    "no_funds_moved": true,
+    "allowed_actions": ["register_agent", "publish_agent_genome_hash", "publish_skill_manifest_hash"]
+  },
+  "x402": {
+    "sdk_package": "x402[fastapi,httpx,evm]>=2.11.0",
+    "python_install": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
+    "node_install": "npm install @x402/express @x402/evm @x402/core",
+    "testnet_facilitator": "https://x402.org/facilitator",
+    "coinbase_cdp_facilitator": "https://api.cdp.coinbase.com/platform/v2/x402",
+    "base_sepolia_network": "eip155:84532",
+    "base_mainnet_network": "eip155:8453",
+    "testnet_live_ready": true,
+    "settlement_enabled": false,
+    "relay_disabled_by_default": true,
+    "no_funds_moved": true,
+    "no_broadcast": true
+  },
+  "emergency_stop": {
+    "status": "clear",
+    "available": true,
+    "disabled_capabilities": ["byok", "wallet", "onchain", "provider", "future_execution"]
+  },
+  "agent_internet_projection": {
+    "byok_capability_status": "bound",
+    "wallet_binding_status": "bound",
+    "onchain_upgrade_status": "prepared",
+    "payment_capability": "dry_run_x402"
+  },
+  "artifact_paths": {
+    "credentials": "artifacts/capability_upgrades/credentials/",
+    "wallet_bindings": "artifacts/capability_upgrades/wallet_bindings/",
+    "onchain_intents": "artifacts/capability_upgrades/onchain_intents/",
+    "emergency_stops": "artifacts/capability_upgrades/emergency_stops/",
+    "x402_routes": "artifacts/capability_upgrades/x402_routes/"
+  },
+  "invariants": {
+    "first_agent_requires_wallet_or_key": false,
+    "raw_api_key_not_persisted": true,
+    "private_keys_excluded": true,
+    "seed_phrases_excluded": true,
+    "funds_moved": false,
+    "transaction_broadcast": false,
+    "mainnet_writes_enabled": false,
+    "relay_disabled_by_default": true
+  }
+}

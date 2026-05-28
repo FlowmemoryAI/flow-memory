@@ -895,3 +895,28 @@ Evidence path:
 - `artifacts/agent_internet/`
 
 Safety invariants: no live settlement, no private keys, no transaction broadcast, no raw private memory sharing by default, and no policy bypass.
+
+## BYOK + x402 + on-chain upgrade readiness
+
+Flow Memory now models optional post-Genesis capability upgrades. The default Agent Genesis path remains no wallet/API key/funds required for first agent. BYOK credentials are represented as secret references and stable fingerprints only. x402 payment routes can be prepared for Base Sepolia using the x402.org testnet facilitator or Coinbase CDP facilitator metadata, while relay, settlement, transaction broadcast, and mainnet writes remain disabled by default.
+
+```mermaid
+flowchart LR
+  Agent[Born agent] --> Upgrade[Optional capability panel]
+  Upgrade --> BYOK[BYOK secret reference]
+  Upgrade --> X402[x402 route metadata]
+  Upgrade --> Wallet[Wallet address binding]
+  Upgrade --> Onchain[On-chain dry-run intent]
+  X402 --> Sepolia[Base Sepolia eip155:84532]
+  Onchain --> Sim[Policy simulation]
+  Sim --> Block[Relay disabled by default]
+```
+
+Relevant commands:
+
+```bash
+python -m flow_memory byok providers list --json
+python -m flow_memory x402 status --json
+python -m flow_memory x402 route prepare --agent genesis_agent_11b7e7b435abc729711373b0 --resource "skill_match" --price 0.001 --pay-to 0x0000000000000000000000000000000000000000 --testnet-live --json
+python -m flow_memory onchain upgrade prepare --agent genesis_agent_11b7e7b435abc729711373b0 --network base_sepolia --action register_agent --json
+```

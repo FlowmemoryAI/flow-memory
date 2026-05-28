@@ -328,6 +328,257 @@
         ]
       }
     },
+    "/byok/credentials": {
+      "get": {
+        "operationId": "byok_credentials",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "count": {
+                      "type": "string"
+                    },
+                    "credentials": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List redacted credential bindings",
+        "tags": [
+          "byok"
+        ]
+      },
+      "post": {
+        "operationId": "byok_credentials_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "secret_ref": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "credential_id": {
+                      "type": "string"
+                    },
+                    "raw_secret_persisted": {
+                      "type": "string"
+                    },
+                    "secret_fingerprint": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Bind a redacted provider credential reference to an existing agent",
+        "tags": [
+          "byok"
+        ]
+      }
+    },
+    "/byok/credentials/{credential_id}": {
+      "get": {
+        "operationId": "byok_credential",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "credential": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one redacted credential binding",
+        "tags": [
+          "byok"
+        ]
+      }
+    },
+    "/byok/credentials/{credential_id}/revoke": {
+      "post": {
+        "operationId": "byok_credential_revoke",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "credential_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "credential_id": {
+                      "type": "string"
+                    },
+                    "revoked_at": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Revoke a credential reference",
+        "tags": [
+          "byok"
+        ]
+      }
+    },
+    "/byok/intents/simulate": {
+      "post": {
+        "operationId": "byok_intent_simulate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "provider": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "intent_id": {
+                      "type": "string"
+                    },
+                    "no_external_call_performed": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate a BYOK inference intent without provider calls",
+        "tags": [
+          "byok"
+        ]
+      }
+    },
+    "/byok/providers": {
+      "get": {
+        "operationId": "byok_providers",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "count": {
+                      "type": "string"
+                    },
+                    "providers": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List optional BYOK provider metadata without external calls",
+        "tags": [
+          "byok"
+        ]
+      }
+    },
     "/cognition/benchmarks": {
       "get": {
         "operationId": "cognition_benchmarks",
@@ -1274,6 +1525,98 @@
         "summary": "Return local dashboard mock snapshot metadata",
         "tags": [
           "dashboard"
+        ]
+      }
+    },
+    "/emergency-stop": {
+      "post": {
+        "operationId": "emergency_stop_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "disabled_capabilities": {
+                      "type": "string"
+                    },
+                    "emergency_stop": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Activate an emergency stop for optional upgrades",
+        "tags": [
+          "emergency-stop"
+        ]
+      }
+    },
+    "/emergency-stop/{agent_id}": {
+      "get": {
+        "operationId": "emergency_stop_agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "active": {
+                      "type": "string"
+                    },
+                    "stops": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect emergency stop status for an agent",
+        "tags": [
+          "emergency-stop"
         ]
       }
     },
@@ -4303,6 +4646,224 @@
         ]
       }
     },
+    "/onchain/upgrades/prepare": {
+      "post": {
+        "operationId": "onchain_upgrade_prepare",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "action": {
+                    "type": "string"
+                  },
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "network": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "approval_record_id": {
+                      "type": "string"
+                    },
+                    "eip712_typed_data": {
+                      "type": "string"
+                    },
+                    "intent_id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Prepare an on-chain dry-run upgrade intent and typed-data metadata",
+        "tags": [
+          "onchain"
+        ]
+      }
+    },
+    "/onchain/upgrades/{intent_id}/approve": {
+      "post": {
+        "operationId": "onchain_upgrade_approve",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "approval": {
+                      "type": "string"
+                    },
+                    "intent": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Record human approval metadata for a dry-run upgrade",
+        "tags": [
+          "onchain"
+        ]
+      }
+    },
+    "/onchain/upgrades/{intent_id}/relay": {
+      "post": {
+        "operationId": "onchain_upgrade_relay",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "blocked": {
+                      "type": "string"
+                    },
+                    "no_broadcast": {
+                      "type": "string"
+                    },
+                    "relay_status": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return relay blocked/dry-run-only status by default",
+        "tags": [
+          "onchain"
+        ]
+      }
+    },
+    "/onchain/upgrades/{intent_id}/sign-request": {
+      "post": {
+        "operationId": "onchain_upgrade_sign_request",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "no_private_key_required": {
+                      "type": "string"
+                    },
+                    "typed_data": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return external signing instructions without signing",
+        "tags": [
+          "onchain"
+        ]
+      }
+    },
+    "/onchain/upgrades/{intent_id}/simulate": {
+      "post": {
+        "operationId": "onchain_upgrade_simulate",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "intent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "no_broadcast": {
+                      "type": "string"
+                    },
+                    "simulation_result": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate an on-chain upgrade intent without broadcast",
+        "tags": [
+          "onchain"
+        ]
+      }
+    },
     "/proof-of-learning": {
       "get": {
         "operationId": "proof_of_learning_records",
@@ -5048,6 +5609,217 @@
         "summary": "Return current Mission Control visual state",
         "tags": [
           "visual"
+        ]
+      }
+    },
+    "/wallet/bindings": {
+      "get": {
+        "operationId": "wallet_bindings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "count": {
+                      "type": "string"
+                    },
+                    "wallet_bindings": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List wallet identity bindings",
+        "tags": [
+          "wallet"
+        ]
+      },
+      "post": {
+        "operationId": "wallet_bindings_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "address": {
+                    "type": "string"
+                  },
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "network": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "network_name": {
+                      "type": "string"
+                    },
+                    "no_private_key_required": {
+                      "type": "string"
+                    },
+                    "wallet_binding_id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Bind an address-only wallet identity stub to an existing agent",
+        "tags": [
+          "wallet"
+        ]
+      }
+    },
+    "/wallet/bindings/{wallet_binding_id}": {
+      "get": {
+        "operationId": "wallet_binding",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wallet_binding_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "wallet_binding": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect one wallet identity binding",
+        "tags": [
+          "wallet"
+        ]
+      }
+    },
+    "/x402/routes/prepare": {
+      "post": {
+        "operationId": "x402_route_prepare",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "pay_to": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "string"
+                  },
+                  "resource": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "payment_requirements_preview": {
+                      "type": "string"
+                    },
+                    "route_id": {
+                      "type": "string"
+                    },
+                    "settlement_enabled": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Prepare a testnet-ready x402 payment route without relay or broadcast by default",
+        "tags": [
+          "x402"
+        ]
+      }
+    },
+    "/x402/status": {
+      "get": {
+        "operationId": "x402_status",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "coinbase_facilitator_url": {
+                      "type": "string"
+                    },
+                    "installed": {
+                      "type": "string"
+                    },
+                    "recommended_install": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Inspect installed x402 SDK readiness and Coinbase facilitator metadata",
+        "tags": [
+          "x402"
         ]
       }
     }

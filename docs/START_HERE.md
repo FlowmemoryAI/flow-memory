@@ -164,3 +164,17 @@ python -m flow_memory launch supervisor heartbeat <run_id> --json
 
 Supervisor runs are local-only, finite, and policy-gated.
 The Mission Control run selector can load `live-neural-agent-launch`, `live-agent-operations`, `live-agent-supervisor`, `predictive-cognitive-core`, `predictive-learning-benchmark`, `agent-genesis-onboarding`, `experience-graph-proof-of-learning`, and `local-network-replay` fixtures. The public-alpha demo bundle records GPU evidence status honestly and keeps neural/predictive/genesis/proof outputs advisory.
+
+## Optional BYOK, x402, and on-chain upgrades
+
+The first agent path remains no wallet, no API key, no funds, and no private keys. After Agent Genesis, optional upgrades can bind BYOK provider references, prepare x402 Base Sepolia payment-route metadata, bind a wallet address, and prepare on-chain dry-run upgrade intents.
+
+x402 readiness uses the Coinbase-compatible SDK seam without settlement by default:
+
+```bash
+python -m pip install "x402[fastapi,httpx,evm]>=2.11.0"
+python -m flow_memory x402 status --json
+python -m flow_memory x402 route prepare --agent genesis_agent_11b7e7b435abc729711373b0 --resource "skill_match" --price 0.001 --pay-to 0x0000000000000000000000000000000000000000 --testnet-live --json
+```
+
+Base Sepolia (`eip155:84532`) is the testnet-ready target. Base mainnet remains disabled for writes, relay is disabled by default, and Flow Memory never asks for seed phrases or raw private keys.

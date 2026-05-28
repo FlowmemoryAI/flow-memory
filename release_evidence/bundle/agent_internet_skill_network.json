@@ -24,17 +24,26 @@
     "agents": [
       {
         "active": true,
+        "byok_capability_status": "not_bound",
+        "capability_status": {
+          "byok": "not_bound",
+          "emergency_stop": "clear",
+          "onchain": "not_prepared",
+          "wallet": "not_bound"
+        },
         "contribution_policy": {
           "mode": "private_only",
           "raw_private_memory_shared": false
         },
-        "created_at": "2026-05-28T03:15:06.130655+00:00",
+        "created_at": "2026-05-28T05:36:07.106146+00:00",
         "description": "Research-builder node",
         "display_name": "Mira",
+        "emergency_stop_status": "clear",
         "genome_id": "",
         "local_agent_id": "internet-alpha",
         "mcp_endpoint_refs": [],
         "network_agent_id": "network_agent_3507ae32be43fd75f282b419",
+        "onchain_upgrade_status": "not_prepared",
         "owner_scope": "local",
         "payment_capability": "none",
         "privacy_policy": {
@@ -48,21 +57,31 @@
           "local",
           "policy_only"
         ],
-        "updated_at": "2026-05-28T03:15:06.130655+00:00"
+        "updated_at": "2026-05-28T05:36:07.106146+00:00",
+        "wallet_binding_status": "not_bound"
       },
       {
         "active": true,
+        "byok_capability_status": "not_bound",
+        "capability_status": {
+          "byok": "not_bound",
+          "emergency_stop": "clear",
+          "onchain": "not_prepared",
+          "wallet": "not_bound"
+        },
         "contribution_policy": {
           "mode": "private_only",
           "raw_private_memory_shared": false
         },
-        "created_at": "2026-05-28T03:15:06.131656+00:00",
+        "created_at": "2026-05-28T05:36:07.107146+00:00",
         "description": "Verification and dashboard node",
         "display_name": "Loom Helper",
+        "emergency_stop_status": "clear",
         "genome_id": "",
         "local_agent_id": "internet-beta",
         "mcp_endpoint_refs": [],
         "network_agent_id": "network_agent_3f66f8e88c0194500d9600c9",
+        "onchain_upgrade_status": "not_prepared",
         "owner_scope": "local",
         "payment_capability": "none",
         "privacy_policy": {
@@ -76,13 +95,14 @@
           "local",
           "policy_only"
         ],
-        "updated_at": "2026-05-28T03:15:06.131656+00:00"
+        "updated_at": "2026-05-28T05:36:07.107146+00:00",
+        "wallet_binding_status": "not_bound"
       }
     ],
     "collaboration": {
       "ok": true,
       "project_graph": {
-        "created_at": "2026-05-28T03:15:06.179656+00:00",
+        "created_at": "2026-05-28T05:36:07.167961+00:00",
         "edges": [
           {
             "from": "internet-alpha",
@@ -137,7 +157,7 @@
       },
       "request": {
         "candidate_agent_id": "internet-beta",
-        "created_at": "2026-05-28T03:15:06.177655+00:00",
+        "created_at": "2026-05-28T05:36:07.164963+00:00",
         "payment_intent_ref": "",
         "policy_requirements": [
           "approval_required",
@@ -161,7 +181,7 @@
         ],
         "artifacts": [],
         "completed_at": "",
-        "created_at": "2026-05-28T03:15:06.178657+00:00",
+        "created_at": "2026-05-28T05:36:07.165961+00:00",
         "experience_refs": [],
         "messages_summary": [
           "Collaboration proposed through policy-gated Agent Internet."
@@ -191,7 +211,7 @@
           }
         ],
         "citations": [],
-        "created_at": "2026-05-28T03:15:06.178657+00:00",
+        "created_at": "2026-05-28T05:36:07.165961+00:00",
         "decisions": [],
         "lessons": [],
         "open_questions": [],
@@ -218,29 +238,38 @@
         "project_id": "agent_project_604d0d875ce9c73f84751f45",
         "resolved_questions": [],
         "task_context": "build an agent skill matcher",
-        "updated_at": "2026-05-28T03:15:06.178657+00:00",
+        "updated_at": "2026-05-28T05:36:07.165961+00:00",
         "workspace_id": "shared_workspace_1a1c3e49548d682a4d0437d9"
       }
     },
     "erc8004_export": {
       "export": {
         "agent_id": "internet-beta",
-        "created_at": "2026-05-28T03:15:06.184655+00:00",
+        "created_at": "2026-05-28T05:36:07.172963+00:00",
         "format": "flow-memory-erc8004-export-v0",
         "identity_registry_adapter": {
           "identity": {
             "active": true,
+            "byok_capability_status": "not_bound",
+            "capability_status": {
+              "byok": "not_bound",
+              "emergency_stop": "clear",
+              "onchain": "not_prepared",
+              "wallet": "not_bound"
+            },
             "contribution_policy": {
               "mode": "private_only",
               "raw_private_memory_shared": false
             },
-            "created_at": "2026-05-28T03:15:06.131656+00:00",
+            "created_at": "2026-05-28T05:36:07.107146+00:00",
             "description": "Verification and dashboard node",
             "display_name": "Loom Helper",
+            "emergency_stop_status": "clear",
             "genome_id": "",
             "local_agent_id": "internet-beta",
             "mcp_endpoint_refs": [],
             "network_agent_id": "network_agent_3f66f8e88c0194500d9600c9",
+            "onchain_upgrade_status": "not_prepared",
             "owner_scope": "local",
             "payment_capability": "none",
             "privacy_policy": {
@@ -254,7 +283,8 @@
               "local",
               "policy_only"
             ],
-            "updated_at": "2026-05-28T03:15:06.131656+00:00"
+            "updated_at": "2026-05-28T05:36:07.107146+00:00",
+            "wallet_binding_status": "not_bound"
           },
           "mode": "export_only"
         },
@@ -273,7 +303,7 @@
             "events": [
               {
                 "agent_id": "internet-beta",
-                "created_at": "2026-05-28T03:15:06.133656+00:00",
+                "created_at": "2026-05-28T05:36:07.110147+00:00",
                 "event_id": "reputation_event_c417cac5975c6559668b2446",
                 "event_type": "validation_success",
                 "evidence_refs": [],
@@ -306,7 +336,7 @@
       "citations": [
         "dashboard/src/mock-data/agent-internet-skill-network.json"
       ],
-      "created_at": "2026-05-28T03:15:06.185657+00:00",
+      "created_at": "2026-05-28T05:36:07.173962+00:00",
       "ok": true,
       "path": "artifacts\\agent_internet\\knowledge\\knowledge_artifact_902dd1e84d155b7a59108796.json",
       "privacy_mode": "private_only",
@@ -316,7 +346,7 @@
       "title": "Skill matcher validation"
     },
     "match": {
-      "created_at": "2026-05-28T03:15:06.176656+00:00",
+      "created_at": "2026-05-28T05:36:07.162961+00:00",
       "explanation": "Ranked by skill overlap, complementary skills, reputation, policy compatibility, privacy compatibility, and dry-run payment compatibility.",
       "match_id": "skill_match_22d4e6f9c456a0cd7e14c59d",
       "policy_warnings": [],
@@ -394,7 +424,7 @@
     "ok": true,
     "payment_intent": {
       "amount": 0.01,
-      "created_at": "2026-05-28T03:15:06.181655+00:00",
+      "created_at": "2026-05-28T05:36:07.168961+00:00",
       "currency": "LOCAL",
       "http_status_simulation": "402_required",
       "intent_id": "payment_intent_5ff7d1bb6f279a7859772c75",
@@ -495,7 +525,7 @@
         ],
         "tools": [],
         "unavailable_tasks": [],
-        "updated_at": "2026-05-28T03:15:06.132656+00:00"
+        "updated_at": "2026-05-28T05:36:07.108144+00:00"
       },
       {
         "agent_id": "internet-beta",
@@ -580,7 +610,7 @@
         ],
         "tools": [],
         "unavailable_tasks": [],
-        "updated_at": "2026-05-28T03:15:06.133656+00:00"
+        "updated_at": "2026-05-28T05:36:07.109146+00:00"
       }
     ]
   },

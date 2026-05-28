@@ -63,6 +63,7 @@ PUBLIC_ALPHA_LAUNCH_FINALIZER_EVIDENCE = tuple(dict.fromkeys(PUBLIC_ALPHA_LOCAL_
 AGENT_GENESIS_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("agent_genesis_network_learning",)))
 PROOF_OF_LEARNING_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("experience_graph_proof_of_learning",)))
 AGENT_INTERNET_EVIDENCE = tuple(dict.fromkeys(LOCAL_PUBLIC_ALPHA_EVIDENCE + ("agent_internet_skill_network",)))
+AGENT_UPGRADES_EVIDENCE = tuple(dict.fromkeys(AGENT_INTERNET_EVIDENCE + ("byok_onchain_upgrade",)))
 
 
 @dataclass(frozen=True)
@@ -140,6 +141,10 @@ def decide_release_readiness(root: str | Path = ".", *, target: str = "local") -
         blockers = _public_alpha_agent_internet_blockers(root_path, gates.ok)
         classification = "public_alpha_agent_internet_candidate" if not blockers else "blocked_public_alpha_agent_internet"
         evidence = AGENT_INTERNET_EVIDENCE
+    elif target == "public-alpha-agent-upgrades":
+        blockers = _public_alpha_agent_upgrades_blockers(root_path, gates.ok)
+        classification = "public_alpha_agent_upgrades_candidate" if not blockers else "blocked_public_alpha_agent_upgrades"
+        evidence = AGENT_UPGRADES_EVIDENCE
     elif target == "public-alpha-proof-of-learning":
         blockers = _public_alpha_proof_of_learning_blockers(root_path, gates.ok)
         classification = "public_alpha_proof_of_learning_candidate" if not blockers else "blocked_public_alpha_proof_of_learning"
@@ -459,6 +464,21 @@ def _public_alpha_agent_internet_blockers(root: Path, gate_ok: bool) -> tuple[st
             blockers.extend(f"agent_internet_{blocker}" for blocker in decision.get("blockers", ()))
     except Exception:
         blockers.append("agent_internet_skill_network_evidence_missing_or_invalid")
+    return tuple(dict.fromkeys(blockers))
+
+def _public_alpha_agent_upgrades_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:
+    blockers = list(_public_alpha_agent_internet_blockers(root, gate_ok))
+    try:
+        from flow_memory.release.byok_onchain_evidence import (
+            byok_onchain_upgrade_evidence,
+            verify_byok_onchain_upgrade_evidence,
+        )
+
+        decision = verify_byok_onchain_upgrade_evidence(byok_onchain_upgrade_evidence(root))
+        if not decision.get("ok"):
+            blockers.extend(f"agent_upgrades_{blocker}" for blocker in decision.get("blockers", ()))
+    except Exception:
+        blockers.append("byok_onchain_upgrade_evidence_missing_or_invalid")
     return tuple(dict.fromkeys(blockers))
 
 def _public_alpha_proof_of_learning_blockers(root: Path, gate_ok: bool) -> tuple[str, ...]:

@@ -100,3 +100,7 @@ flowchart LR
 ```
 
 Dry-run payment intents and ERC-8004-style exports are metadata records only in public alpha.
+
+## Capability-upgrade privacy
+
+Network learning does not require BYOK, wallet identity, or on-chain upgrade setup. The first agent does not require wallet/API key/funds. If optional upgrades exist, shared lessons and contribution bundles reference capability status only; raw credential material and private wallet signing data are excluded.

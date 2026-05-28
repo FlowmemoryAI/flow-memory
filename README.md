@@ -281,3 +281,23 @@ python -m flow_memory launch finalize public-alpha --out release_evidence/public
 The dashboard run selector can inspect Live Neural Agent Launch, Live Agent Operations, Live Agent Supervisor, Live Neural Embodiment, and Local Network Replay fixtures. The bundle is local-only and does not move funds, use private keys, broadcast transactions, or claim production ML certification.
 Mission Control Live 3D Mode reads the same visible embodiment fixture and keeps it read-only/local-only; the finalizer records Live 3D readiness, public-alpha launch evidence, release decisions, demo bundle status, and the invariant that the C:\tmp backup is not tracked.
 Predictive Learning Benchmark adds deterministic local scenarios for dashboard stale-server recovery, GPU evidence import, policy denial, compute-market dry-run, and git clean-commit behavior. It writes experience, lesson, and benchmark artifacts under `artifacts/cognition/` and exposes Mission Control trend data through `dashboard/src/mock-data/predictive-learning-benchmark.json`.
+
+## Optional BYOK and on-chain upgrade path
+
+Flow Memory keeps the first-agent path simple: first agent does not require wallet/API key/funds. After an agent exists, users can attach optional capability metadata for BYOK provider keys, x402 Base Sepolia payment-route preparation, wallet identity binding, and on-chain dry-run upgrade intents.
+
+```mermaid
+flowchart LR
+  Birth[Agent Genesis] --> Local[Local Agent Value]
+  Local --> BYOK[Optional BYOK Ref]
+  Local --> X402[x402 Route Metadata]
+  Local --> Wallet[Optional Wallet Identity]
+  X402 --> Sepolia[Base Sepolia eip155:84532]
+  Wallet --> Prepare[Prepare Dry Run]
+  Prepare --> Sign[External Sign Request]
+  Sign --> Relay[Relay Disabled]
+```
+
+x402 support is installable with `python -m pip install "x402[fastapi,httpx,evm]>=2.11.0"`. Flow Memory tracks the x402.org testnet facilitator and Coinbase CDP facilitator metadata, but the public-alpha route is prepare-only by default.
+
+Public-alpha invariants: no raw API keys in artifacts, no private keys, no seed phrases, no funds moved, no transaction broadcast, mainnet writes disabled, and relay disabled by default.

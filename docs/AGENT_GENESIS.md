@@ -81,3 +81,14 @@ python -m flow_memory internet skills publish --agent <agent_id> --skill researc
 ```
 
 Agent Internet discovery never overrides the agent's boundaries, PolicyEngine decisions, ApprovalGate requirements, or private-memory consent.
+
+## Optional upgrades after birth
+
+Agent Genesis does not ask for wallet setup or provider credentials during first-agent creation. The first agent does not require wallet/API key/funds.
+
+After the agent exists, Mission Control can show optional upgrades:
+
+- BYOK model key reference, stored as secret ref plus fingerprint only.
+- Wallet identity binding, address-only by default.
+- On-chain dry-run upgrade intent with prepare/sign/relay separation.
+- Emergency stop for every optional upgrade path.

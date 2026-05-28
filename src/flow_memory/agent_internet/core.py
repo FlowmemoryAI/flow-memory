@@ -41,6 +41,11 @@ class AgentNetworkIdentity:
     contribution_policy: Mapping[str, Any] = field(default_factory=lambda: {"mode": "private_only", "raw_private_memory_shared": False})
     privacy_policy: Mapping[str, Any] = field(default_factory=lambda: {"private_memory_excluded": True, "network_learning_opt_in": False})
     payment_capability: str = "none"
+    capability_status: Mapping[str, Any] = field(default_factory=lambda: {"byok": "not_bound", "wallet": "not_bound", "onchain": "not_prepared", "emergency_stop": "clear"})
+    byok_capability_status: str = "not_bound"
+    wallet_binding_status: str = "not_bound"
+    onchain_upgrade_status: str = "not_prepared"
+    emergency_stop_status: str = "clear"
     trust_modes: tuple[str, ...] = ("local", "policy_only")
     created_at: str = field(default_factory=utc_now)
     updated_at: str = field(default_factory=utc_now)
@@ -61,6 +66,11 @@ class AgentNetworkIdentity:
             "contribution_policy": dict(self.contribution_policy),
             "privacy_policy": dict(self.privacy_policy),
             "payment_capability": self.payment_capability,
+            "capability_status": dict(self.capability_status),
+            "byok_capability_status": self.byok_capability_status,
+            "wallet_binding_status": self.wallet_binding_status,
+            "onchain_upgrade_status": self.onchain_upgrade_status,
+            "emergency_stop_status": self.emergency_stop_status,
             "trust_modes": self.trust_modes,
             "created_at": self.created_at,
             "updated_at": self.updated_at,

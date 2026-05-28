@@ -298,3 +298,7 @@ python -m flow_memory internet skills match --agent mira --task "build an agent 
 ```
 
 The panel is read-only. It does not expose real payments, private keys, transaction broadcast, raw private memory sharing, or policy bypass controls.
+
+## BYOK and on-chain upgrade panel
+
+Mission Control includes an optional upgrade panel for agents that already exist. It shows BYOK provider status, secret fingerprints, wallet identity binding, Base Sepolia dry-run preparation, relay-disabled status, and emergency stop. The first agent does not require wallet/API key/funds.

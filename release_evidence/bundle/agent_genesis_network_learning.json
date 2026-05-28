@@ -87,7 +87,7 @@
       "network_learning": "private_only",
       "raw_private_payload_excluded": true
     },
-    "created_at": "2026-05-28T03:15:05.625645+00:00",
+    "created_at": "2026-05-28T05:36:06.285757+00:00",
     "drive_profile": {
       "approval_threshold": 0.74,
       "drive_weights": {
@@ -160,7 +160,7 @@
       "mode": "private_only",
       "raw_private_payload_excluded": true
     },
-    "created_at": "2026-05-28T03:15:05.625645+00:00",
+    "created_at": "2026-05-28T05:36:06.285757+00:00",
     "lesson": "Check observable state before reporting success, then store the verified lesson.",
     "memory_written": true,
     "mirror_id": "agent_mirror_cbbd9953ed90933d2b856d3c",
@@ -197,7 +197,7 @@
     "prediction_accuracy": 0.0,
     "predictions_made": 0,
     "stage": "seed",
-    "updated_at": "2026-05-28T03:15:05.625645+00:00",
+    "updated_at": "2026-05-28T05:36:06.285757+00:00",
     "visible_limitations": [
       "local public-alpha agent profile, not production autonomy",
       "neural and cognition outputs are advisory",
@@ -214,7 +214,7 @@
     "consent_id": "network_learning_consent_fb7e6f80e7eb8052f4dd4072",
     "contribution_id": "network_contribution_28975bf960fa4af851a14aac",
     "contribution_type": "consolidated_lesson",
-    "created_at": "2026-05-28T03:15:05.630644+00:00",
+    "created_at": "2026-05-28T05:36:06.292758+00:00",
     "privacy_mode": "sanitized_lessons",
     "raw_payload_excluded": true,
     "sanitized_payload": {
@@ -243,7 +243,7 @@
     "content": "That was a stale dashboard process, not broken code.",
     "contribution_allowed": false,
     "correction_type": "correction",
-    "created_at": "2026-05-28T03:15:05.630644+00:00",
+    "created_at": "2026-05-28T05:36:06.292758+00:00",
     "lesson": "Check port 4173 before assuming Mission Control is broken.",
     "privacy_mode": "private_only",
     "teaching_event_id": "teaching_event_1bf6b7da644f3de74fcac6f7",

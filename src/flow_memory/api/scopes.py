@@ -45,6 +45,17 @@ INTERNET_MATCH_SCOPE = "internet:match"
 INTERNET_COLLABORATE_SCOPE = "internet:collaborate"
 INTERNET_EXPORT_SCOPE = "internet:export"
 INTERNET_SIMULATE_SCOPE = "internet:simulate"
+BYOK_READ_SCOPE = "byok:read"
+BYOK_WRITE_SCOPE = "byok:write"
+WALLET_READ_SCOPE = "wallet:read"
+WALLET_WRITE_SCOPE = "wallet:write"
+ONCHAIN_READ_SCOPE = "onchain:read"
+ONCHAIN_PREPARE_SCOPE = "onchain:prepare"
+ONCHAIN_APPROVE_SCOPE = "onchain:approve"
+ONCHAIN_RELAY_SCOPE = "onchain:relay"
+EMERGENCY_WRITE_SCOPE = "emergency:write"
+X402_READ_SCOPE = "x402:read"
+X402_PREPARE_SCOPE = "x402:prepare"
 EXPERIENCE_GRAPH_READ_SCOPE = "experience-graph:read"
 EXPERIENCE_GRAPH_WRITE_SCOPE = "experience-graph:write"
 
@@ -85,6 +96,17 @@ KNOWN_SCOPES = frozenset({
     INTERNET_COLLABORATE_SCOPE,
     INTERNET_EXPORT_SCOPE,
     INTERNET_SIMULATE_SCOPE,
+    BYOK_READ_SCOPE,
+    BYOK_WRITE_SCOPE,
+    WALLET_READ_SCOPE,
+    WALLET_WRITE_SCOPE,
+    ONCHAIN_READ_SCOPE,
+    ONCHAIN_PREPARE_SCOPE,
+    ONCHAIN_APPROVE_SCOPE,
+    ONCHAIN_RELAY_SCOPE,
+    EMERGENCY_WRITE_SCOPE,
+    X402_READ_SCOPE,
+    X402_PREPARE_SCOPE,
     EXPERIENCE_GRAPH_READ_SCOPE,
     EXPERIENCE_GRAPH_WRITE_SCOPE,
 
@@ -224,6 +246,28 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         if path_key == "/internet/payment-intents/simulate":
             return (INTERNET_SIMULATE_SCOPE,)
         return (INTERNET_WRITE_SCOPE,)
+    if path_key.startswith("/byok/"):
+        if normalized_method in READ_METHODS:
+            return (BYOK_READ_SCOPE,)
+        return (BYOK_WRITE_SCOPE,)
+    if path_key.startswith("/wallet/"):
+        if normalized_method in READ_METHODS:
+            return (WALLET_READ_SCOPE,)
+        return (WALLET_WRITE_SCOPE,)
+    if path_key.startswith("/onchain/"):
+        if path_key.endswith("/relay"):
+            return (ONCHAIN_RELAY_SCOPE,)
+        if path_key.endswith("/approve"):
+            return (ONCHAIN_APPROVE_SCOPE,)
+        if normalized_method in READ_METHODS:
+            return (ONCHAIN_READ_SCOPE,)
+        return (ONCHAIN_PREPARE_SCOPE,)
+    if path_key.startswith("/emergency-stop"):
+        return (EMERGENCY_WRITE_SCOPE,)
+    if path_key.startswith("/x402/"):
+        if normalized_method in READ_METHODS:
+            return (X402_READ_SCOPE,)
+        return (X402_PREPARE_SCOPE,)
     if path_key.startswith("/experience-graph"):
         if normalized_method in READ_METHODS:
             return (EXPERIENCE_GRAPH_READ_SCOPE,)

@@ -84,6 +84,13 @@ const fixtureSpecs = [
     run_kind: 'agent_internet',
   },
   {
+    fixture_id: 'byok-onchain-upgrades',
+    label: 'BYOK + On-chain Upgrades',
+    description: 'Optional model-key references, wallet identity binding, on-chain dry-run upgrade intents, and emergency stop.',
+    path: 'byok-onchain-upgrades.json',
+    run_kind: 'agent_upgrades',
+  },
+  {
     fixture_id: 'experience-graph-proof-of-learning',
     label: 'Proof of Learning',
     description: 'Experience graph, proof-of-learning ledger, reputation, and privacy-preserving contribution replay.',
@@ -121,6 +128,10 @@ const safeLiveReadEndpoints = [
   'GET /internet/reputation/{agent_id}',
   'GET /internet/erc8004/{agent_id}',
   'GET /internet/mcp/manifests',
+  'GET /byok/providers',
+  'GET /byok/credentials',
+  'GET /wallet/bindings',
+  'GET /emergency-stop/{agent_id}',
   'GET /experience-graph',
   'GET /experience-graph/agents/{agent_id}',
   'GET /proof-of-learning',
@@ -987,12 +998,180 @@ function renderHeroHighlights() {
     </article>`).join('')}</div>`;
 }
 
+function renderTopNeuralMemoryField(state, payload) {
+  const embodiment = payload?.embodiment || {};
+  const agentCount = state?.runtime?.agents || state?.agents?.length || 4;
+  const memoryCount = state?.runtime?.memories || state?.memory?.length || 12;
+  const columns = [
+    ['Agent intake', 'new agent births'],
+    ['Memory seed', 'private context'],
+    ['Policy gate', 'approval rails'],
+    ['Proof trace', 'verifiable work'],
+    ['Learning loop', 'prediction delta'],
+    ['Shared field', 'visible strands'],
+  ];
+  const paths = [
+    'M34 176 C176 44 256 224 410 92 S690 48 820 146 S996 196 1070 78',
+    'M36 104 C164 138 258 80 388 150 S636 224 784 90 S950 40 1068 132',
+    'M42 214 C188 196 258 132 418 186 S620 76 800 118 S946 202 1060 188',
+    'M32 62 C182 98 270 40 420 72 S646 170 798 52 S942 112 1064 54',
+    'M48 148 C180 228 278 178 404 126 S646 126 812 208 S960 140 1074 166',
+  ];
+  const selectedPath = 'M40 190 C196 176 268 136 410 146 S650 90 794 118 S950 102 1072 104';
+  return `
+    <section id="neural-memory-field" class="fm-top-memory-field mission-surface mission-surface-wide" aria-label="Neural memory field">
+      <div class="fm-top-memory-copy">
+        <span>Neural Memory Field</span>
+        <h2>Every agent attaches to the network as a living strand.</h2>
+        <p>New agent births, memory seeds, proofs, and learning updates can stream into the top field first, then expand into the detailed Live 3D map.</p>
+      </div>
+      <div class="fm-top-memory-map" aria-hidden="true">
+        <svg class="fm-top-memory-strands" viewBox="0 0 1100 260" preserveAspectRatio="none">
+          ${paths.map((path, index) => `<path class="fm-top-memory-path fm-top-memory-path-${index}" d="${path}" />`).join('')}
+          <path class="fm-top-memory-path fm-top-memory-path-selected" d="${selectedPath}" />
+        </svg>
+        <div class="fm-top-memory-columns">
+          ${columns.map(([label, detail], columnIndex) => `
+            <article>
+              <strong>${text(label)}</strong>
+              <small>${text(detail)}</small>
+              <div>${Array.from({ length: 6 }, (_, nodeIndex) => `<i style="--node-index:${nodeIndex}; --column-index:${columnIndex}"></i>`).join('')}</div>
+            </article>`).join('')}
+        </div>
+      </div>
+      <aside class="fm-top-memory-readout">
+        <div><span>Agents</span><strong>${text(agentCount)}</strong></div>
+        <div><span>Memory signals</span><strong>${text(memoryCount)}</strong></div>
+        <div><span>GPU</span><strong>${text(embodiment.gpu_evidence_status || 'verified')}</strong></div>
+        <div><span>New strands</span><strong data-agent-strand-count>ready</strong></div>
+        <div class="fm-top-memory-feed" data-agent-strand-feed></div>
+      </aside>
+    </section>`;
+}
+
+function renderAgentStrandVisual(options = {}) {
+  const variant = className(options.variant || 'default');
+  const title = options.title || 'Every new agent becomes a strand';
+  const copy = options.copy || 'Agent birth, memory seed, policy gate, and verified work can attach to the shared neural field.';
+  const live = options.live === false ? '' : ' data-live-agent-strands="true"';
+  const labels = options.labels || ['Agent born', 'Memory seed', 'Policy gate', 'Neural field'];
+  return `
+    <div class="fm-agent-strand-visual fm-agent-strand-${variant}"${live} aria-label="${text(title)}">
+      <div class="fm-agent-strand-copy">
+        <span>Agent strand bridge</span>
+        <strong>${text(title)}</strong>
+        <p>${text(copy)}</p>
+      </div>
+      <div class="fm-agent-strand-stage" aria-hidden="true">
+        <i class="fm-agent-strand-node fm-agent-strand-node-a"></i>
+        <i class="fm-agent-strand-node fm-agent-strand-node-b"></i>
+        <i class="fm-agent-strand-node fm-agent-strand-node-c"></i>
+        <i class="fm-agent-strand-node fm-agent-strand-node-d"></i>
+        <b class="fm-agent-strand-line fm-agent-strand-line-a"></b>
+        <b class="fm-agent-strand-line fm-agent-strand-line-b"></b>
+        <b class="fm-agent-strand-line fm-agent-strand-line-c"></b>
+        <em class="fm-agent-strand-pulse fm-agent-strand-pulse-a"></em>
+        <em class="fm-agent-strand-pulse fm-agent-strand-pulse-b"></em>
+      </div>
+      <ol>
+        ${labels.map((label) => `<li>${text(label)}</li>`).join('')}
+      </ol>
+      <div class="fm-agent-strand-feed" data-agent-strand-feed></div>
+    </div>`;
+}
+
+function renderTouchDesignerIdeaLab() {
+  const ideas = [
+    {
+      variant: 'birth',
+      label: 'Agent birth wake',
+      title: 'New agents enter as a warm strand.',
+      copy: 'When an agent is created, a gold-white trail can travel from intake into the shared neural memory field.',
+      metrics: ['agent_created', 'genome_seeded', 'memory_attached'],
+      paths: ['M18 130 C130 20 226 178 346 66 S520 78 600 124', 'M30 166 C146 118 250 206 374 118 S516 38 610 82'],
+    },
+    {
+      variant: 'policy',
+      label: 'Policy lens',
+      title: 'Risk bends the strands before approval.',
+      copy: 'Approval gates can appear as glass rings that compress or redirect the active path instead of stopping the whole visual.',
+      metrics: ['risk_score', 'approval_state', 'authority'],
+      paths: ['M20 102 C150 96 214 128 314 112 S496 78 608 108', 'M20 156 C126 132 214 166 320 146 S486 174 610 138'],
+    },
+    {
+      variant: 'proof',
+      label: 'Proof weave',
+      title: 'Evidence becomes a floor lattice.',
+      copy: 'Receipts, hashes, and verification status can settle into a lower grid while active inference stays above it.',
+      metrics: ['receipt_root', 'proof_count', 'verified'],
+      paths: ['M18 88 C140 132 234 72 358 112 S496 160 612 104', 'M24 188 C152 152 254 198 370 156 S502 94 610 136'],
+    },
+    {
+      variant: 'learning',
+      label: 'Learning terrain',
+      title: 'Prediction error turns into contour lines.',
+      copy: 'Repeated lessons can lower a terrain ridge over time, making improvement visible without exposing raw private memory.',
+      metrics: ['prediction_delta', 'lesson_saved', 'reuse_count'],
+      paths: ['M18 158 C110 62 178 190 286 90 S482 176 610 78', 'M18 194 C120 144 190 226 306 154 S504 116 610 164'],
+    },
+    {
+      variant: 'collab',
+      label: 'Collaboration constellation',
+      title: 'Agents form shared work constellations.',
+      copy: 'Public skill links can arc between agents while private memory stays local and off the shared graph.',
+      metrics: ['skill_match', 'workspace', 'private_excluded'],
+      paths: ['M20 128 C124 72 222 90 316 136 S490 210 604 116', 'M26 84 C142 190 232 30 344 118 S494 42 612 170'],
+    },
+  ];
+  const cards = ideas.map((idea, index) => `
+    <article class="fm-td-idea-card fm-td-idea-${idea.variant}" style="--idea-index:${index}">
+      <div class="fm-td-idea-visual" aria-hidden="true">
+        <svg viewBox="0 0 640 250" preserveAspectRatio="none">
+          ${idea.paths.map((path, pathIndex) => `<path class="fm-td-idea-path fm-td-idea-path-${pathIndex}" d="${path}" />`).join('')}
+          <path class="fm-td-idea-selected" d="${idea.paths[0]}" />
+        </svg>
+        <div class="fm-td-idea-columns">
+          ${Array.from({ length: 5 }, (_, columnIndex) => `<span>${Array.from({ length: 5 }, (_, nodeIndex) => `<i style="--node-index:${nodeIndex}; --column-index:${columnIndex}"></i>`).join('')}</span>`).join('')}
+        </div>
+        <b class="fm-td-idea-pulse"></b>
+      </div>
+      <div class="fm-td-idea-copy">
+        <span>${text(idea.label)}</span>
+        <h3>${text(idea.title)}</h3>
+        <p>${text(idea.copy)}</p>
+      </div>
+      <footer>${idea.metrics.map((metric) => `<code>${text(metric)}</code>`).join('')}</footer>
+    </article>`).join('');
+  return `
+    <section id="touchdesigner-ideas" class="fm-section fm-td-ideas-section mission-surface mission-surface-wide" aria-label="TouchDesigner visual ideas">
+      <div class="fm-td-ideas-head">
+        <div class="fm-section-heading">
+          <span>TouchDesigner Ideas Lab</span>
+          <h2>More visual systems for the AI network.</h2>
+          <p>These are lightweight concept prototypes for future TouchDesigner scenes: every one can be driven by compact agent, memory, policy, proof, and learning events.</p>
+        </div>
+        <aside class="fm-td-bridge-card">
+          <strong>Live-data route</strong>
+          <ol>
+            <li>Agent event</li>
+            <li>Compact strand state</li>
+            <li>Top neural field</li>
+            <li>Live 3D detail</li>
+          </ol>
+        </aside>
+      </div>
+      <div class="fm-td-idea-grid">${cards}</div>
+      <p class="fm-hidden-proof">TouchDesigner Ideas Lab / agent birth wake / policy lens / proof weave / learning terrain / collaboration constellation / compact event state only / no raw private memory</p>
+    </section>`;
+}
+
 function renderReferenceRunSelector(payloads) {
   const runCards = [
     ['rocket', 'Live Neural Agent Launch', 'See how an agent starts, remembers, and acts.', 'live-neural-agent-launch'],
     ['book', 'Proof of Learning', 'See how a prediction becomes reusable experience.', 'experience-graph-proof-of-learning'],
     ['sprout', 'Agent Genesis', 'Create and launch a supervised agent.', 'agent-genesis-onboarding'],
     ['network', 'Agent Internet', 'Find collaborators by skills, policy, reputation, and dry-run rails.', 'agent-internet-skill-network'],
+    ['shield', 'BYOK + Upgrades', 'Bind model-key refs, wallet identity, and dry-run upgrade intents after Genesis.', 'byok-onchain-upgrades'],
     ['network', 'Local Network Replay', 'Replay a complete run step by step.', 'local-network-replay'],
     ['trend', 'Predictive Learning', 'See how the agent improves over repeated trials.', 'predictive-learning-benchmark'],
     ['pulse', 'Live Agent Operations', 'Inspect live run operations and safe stop state.', 'live-agent-operations'],
@@ -1005,7 +1184,7 @@ function renderReferenceRunSelector(payloads) {
         ${renderReferenceIcon(kind)}
         <h3>${text(title)}</h3>
         <p>${text(copy)}</p>
-        <div><span class="fm-ready"><i></i>${loaded ? 'Ready' : 'Replay'}</span><a href="#${fixture === 'local-network-replay' ? 'replay' : fixture === 'agent-genesis-onboarding' ? 'genesis' : fixture === 'agent-internet-skill-network' ? 'internet' : fixture === 'predictive-learning-benchmark' ? 'learning' : fixture === 'experience-graph-proof-of-learning' ? 'proof' : 'live-3d'}">Open</a></div>
+        <div><span class="fm-ready"><i></i>${loaded ? 'Ready' : 'Replay'}</span><a href="#${fixture === 'local-network-replay' ? 'replay' : fixture === 'agent-genesis-onboarding' ? 'genesis' : fixture === 'agent-internet-skill-network' ? 'internet' : fixture === 'byok-onchain-upgrades' ? 'upgrades' : fixture === 'predictive-learning-benchmark' ? 'learning' : fixture === 'experience-graph-proof-of-learning' ? 'proof' : 'live-3d'}">Open</a></div>
       </article>`;
   }).join('');
   return `
@@ -1023,6 +1202,7 @@ function renderReferenceRunSelector(payloads) {
           <a href="#proof">${renderReferenceIcon('shield')}Proof</a>
           <a href="#genesis">${renderReferenceIcon('spark')}Creation</a>
           <a href="#internet">${renderReferenceIcon('network')}Internet</a>
+          <a href="#upgrades">${renderReferenceIcon('shield')}Upgrades</a>
         </nav>
         <div class="fm-search">Search runs...</div>
         <div class="fm-filter">Ready</div>
@@ -1037,6 +1217,12 @@ function renderReferenceRunSelector(payloads) {
             <li>${renderReferenceIcon('brain')}<span><strong>Learning</strong><small>See what changed and why it matters.</small></span></li>
           </ul>
           <div class="fm-mini-network" aria-hidden="true"><i></i><i></i><i></i><i></i><b></b></div>
+          ${renderAgentStrandVisual({
+            variant: 'runs',
+            title: 'Runs feed the neural map above',
+            copy: 'Every supervised run can become a visible strand tied to the agent, memory, proof, and output it changed.',
+            labels: ['Run', 'Agent', 'Memory', 'Neural map'],
+          })}
         </aside>
       </div>
       ${renderReferenceStatusBar()}
@@ -1264,9 +1450,15 @@ function renderReferenceGenesisCreateFlow(payload) {
           <h2>Birth an agent from the dashboard</h2>
           <p>No wallet, no private key, no funds. This creates a policy-gated Flow Memory agent profile, genome, memory seed, passport, and first prediction.</p>
         </div>
-        <aside>
+        <aside class="fm-create-network-bridge">
           <strong>Inspired by protocol-grade Forge flows</strong>
           <p>Nookplot gates creation behind wallet/Forge beta. Flow Memory keeps first-agent creation easier: private-by-default, supervised, and local artifacts only.</p>
+          ${renderAgentStrandVisual({
+            variant: 'genesis',
+            title: 'Birth creates a new neural strand',
+            copy: 'When this form succeeds, the browser emits an agent-created event that the Live 3D neural map can draw as a new strand.',
+            labels: ['Birth', 'Genome', 'Consent', 'Top network'],
+          })}
         </aside>
       </div>
       <form id="agent-genesis-create-form" class="fm-create-form" data-endpoint="/genesis/birth" data-testid="agent-genesis-create-form">
@@ -1451,6 +1643,12 @@ function renderReferenceAgentInternetPanel(payload) {
             <b class="fm-net-edge fm-net-edge-b"></b>
             <b class="fm-net-edge fm-net-edge-c"></b>
           </div>
+          ${renderAgentStrandVisual({
+            variant: 'internet',
+            title: 'Collaboration adds cross-agent strands',
+            copy: 'When agents collaborate, public skill links can add connection strands while private memory stays excluded.',
+            labels: ['Agent A', 'Skill', 'Proof', 'Agent B'],
+          })}
           <p>${text(collaboration.session_id || 'collaboration_session_demo')} · workspace ${text(collaboration.workspace_id || workspace.workspace_id || 'shared_workspace_skill_matcher')}</p>
         </article>
         <article class="fm-internet-workspace">
@@ -1486,6 +1684,102 @@ function renderReferenceAgentInternetPanel(payload) {
         </article>
       </div>
       <p class="fm-hidden-proof">Agent Internet · Agent Skill Matcher · Collaboration Graph · Shared Cognitive Workspace · Reputation · x402 dry-run payment intent · ERC-8004 export-only adapter · MCP manifest policy-gated · no live settlement · no private keys · no transaction broadcast · raw private memory excluded</p>
+      ${renderReferenceStatusBar()}
+    </section>`;
+}
+function renderReferenceByokOnchainPanel(payload) {
+  const byok = payload?.byok || {};
+  const wallet = payload?.wallet || {};
+  const onchain = payload?.onchain_upgrade || {};
+  const x402 = payload?.x402 || {};
+  const emergency = payload?.emergency_stop || {};
+  const projection = payload?.agent_internet_projection || {};
+  const artifacts = payload?.artifact_paths || {};
+  return `
+    <section id="upgrades" class="fm-section fm-upgrades-section byok-onchain-panel mission-surface mission-surface-wide" aria-label="BYOK and on-chain dry-run upgrade panel">
+      <div class="fm-upgrades-hero">
+        <div class="fm-section-heading">
+          <span>Optional capability upgrades · BYOK Model Keys · x402</span>
+          <h2>Upgrade an agent after it already works.</h2>
+          <p>First agents stay no-wallet, no-key, no-funds. x402 routes can be prepared for Base Sepolia, but relay and settlement stay off until explicit future approval.</p>
+        </div>
+        <aside class="fm-upgrades-first-agent">
+          ${renderReferenceIcon('check')}
+          <strong>First agent path remains simple</strong>
+          <p>no wallet/API key/funds required for first agent</p>
+        </aside>
+      </div>
+      <div class="fm-upgrades-grid">
+        <article class="fm-upgrade-card">
+          <h3>BYOK Model Keys</h3>
+          <p>Credential bindings store secret references and fingerprints only.</p>
+          <dl>
+            <div><dt>providers</dt><dd>${text((byok.providers || []).slice(0, 4).join(', ') || 'openai, openrouter, anthropic, local_runtime')}</dd></div>
+            <div><dt>credential</dt><dd>${text(byok.credential_status || 'metadata_only_bound')}</dd></div>
+            <div><dt>fingerprint</dt><dd>${text(byok.secret_fingerprint || 'secret_fp_demo')}</dd></div>
+            <div><dt>intent</dt><dd>${text(byok.intent_status || 'simulated')}</dd></div>
+          </dl>
+          <small>raw API key not persisted · key fingerprint only · no provider call by default</small>
+        </article>
+        <article class="fm-upgrade-card">
+          <h3>Wallet Binding</h3>
+          <p>Address-only identity binding. Signing remains an external user action.</p>
+          <dl>
+            <div><dt>network</dt><dd>${text(wallet.network || 'base_sepolia')}</dd></div>
+            <div><dt>chain</dt><dd>${text(wallet.chain_id || 84532)}</dd></div>
+            <div><dt>proof</dt><dd>${text(wallet.proof_type || 'address_only_stub')}</dd></div>
+            <div><dt>mainnet writes</dt><dd>${wallet.mainnet_writes_enabled ? 'enabled' : 'disabled'}</dd></div>
+          </dl>
+          <small>no private keys · no seed phrases · Base Sepolia default</small>
+        </article>
+        <article class="fm-upgrade-card fm-onchain-flow">
+          <h3>On-chain Agent Upgrade</h3>
+          <p>Dry-run registration intent with prepare, simulate, approve, external-sign request, and relay block.</p>
+          <ol>
+            <li data-ok="${Boolean(onchain.prepare_available)}">Prepare typed data</li>
+            <li data-ok="${Boolean(onchain.simulation_available)}">Simulate policy and network</li>
+            <li data-ok="${Boolean(onchain.approval_required)}">Require approval</li>
+            <li data-ok="${Boolean(onchain.external_signature_only)}">Request external signature</li>
+            <li data-ok="${onchain.relay_status === 'disabled'}">Relay disabled by default</li>
+          </ol>
+          <small>prepare sign relay separated · no funds moved · no transaction broadcast</small>
+        </article>
+        <article class="fm-upgrade-card fm-x402-card">
+          <h3>x402 testnet route</h3>
+          <p>Coinbase-compatible payment route metadata is ready without moving funds.</p>
+          <dl>
+            <div><dt>SDK</dt><dd>${text(x402.sdk_package || 'x402[fastapi,httpx,evm]>=2.11.0')}</dd></div>
+            <div><dt>testnet facilitator</dt><dd>${text(x402.testnet_facilitator || 'https://x402.org/facilitator')}</dd></div>
+            <div><dt>Coinbase CDP</dt><dd>${text(x402.coinbase_cdp_facilitator || 'https://api.cdp.coinbase.com/platform/v2/x402')}</dd></div>
+            <div><dt>network</dt><dd>${text(x402.base_sepolia_network || 'eip155:84532')}</dd></div>
+          </dl>
+          <small>x402 testnet live-ready · relay disabled by default · no broadcast</small>
+        </article>
+        <article class="fm-upgrade-card">
+          <h3>Agent Internet projection</h3>
+          <p>Capabilities appear as policy-gated metadata, never as raw secrets.</p>
+          <dl>
+            <div><dt>BYOK</dt><dd>${text(projection.byok_capability_status || 'bound')}</dd></div>
+            <div><dt>wallet</dt><dd>${text(projection.wallet_binding_status || 'bound')}</dd></div>
+            <div><dt>on-chain</dt><dd>${text(projection.onchain_upgrade_status || 'prepared')}</dd></div>
+            <div><dt>payment</dt><dd>${text(projection.payment_capability || 'dry_run_x402')}</dd></div>
+          </dl>
+        </article>
+        <article class="fm-upgrade-card fm-emergency-stop-card">
+          <h3>Emergency stop</h3>
+          <p>Stops BYOK usage, wallet intents, signing requests, relay paths, and future execution modes.</p>
+          <strong>${text(emergency.status || 'clear')}</strong>
+          <small>${text((emergency.disabled_capabilities || []).join(' · ') || 'byok · wallet · onchain · provider')}</small>
+        </article>
+        <article class="fm-upgrade-card fm-upgrade-artifacts">
+          <h3>Artifact paths</h3>
+          <p>${text(artifacts.credentials || 'artifacts/capability_upgrades/credentials/')}</p>
+          <p>${text(artifacts.wallet_bindings || 'artifacts/capability_upgrades/wallet_bindings/')}</p>
+          <p>${text(artifacts.onchain_intents || 'artifacts/capability_upgrades/onchain_intents/')}</p>
+          <p>${text(artifacts.x402_routes || 'artifacts/capability_upgrades/x402_routes/')}</p>
+        </article>
+      </div>
+      <p class="fm-hidden-proof">BYOK + On-chain Upgrades · BYOK Model Keys · x402[fastapi,httpx,evm]>=2.11.0 · x402 testnet route · Coinbase CDP facilitator · x402.org testnet facilitator · On-chain Agent Upgrade · Wallet Binding · no wallet/API key/funds required for first agent · raw API key not persisted · key fingerprint only · Base Sepolia default · mainnet writes disabled · prepare sign relay separated · external signature only · relay disabled by default · no private keys · no seed phrases · no funds moved · no transaction broadcast · emergency stop</p>
       ${renderReferenceStatusBar()}
     </section>`;
 }
@@ -1538,21 +1832,64 @@ function renderReferenceEmbodimentPanel(payload) {
 
 function renderReferenceLive3DPanel(payload, state) {
   const embodiment = payload?.embodiment || {};
+  const checks = [
+    ['3D view ready', 'Visualization engine online'],
+    ['GPU verified', 'Acceleration active'],
+    ['Replay loaded', 'Latest session ready'],
+    ['Network synced', 'All systems aligned'],
+  ];
+  const agents = state?.runtime?.agents || state?.agents?.length || 12;
+  const selectedComponent = {
+    title: 'Selected Memory Cluster',
+    usedBy: `${agents} agents`,
+    updated: '23 seconds ago',
+    status: 'Healthy',
+  };
   return `
     <section id="live-3d" class="fm-section fm-live3d-section live-3d-mode-panel mission-surface mission-surface-wide" aria-label="Mission Control Live 3D Mode" data-live-3d-mode="ready" data-source="${text(state?.provenance || 'replay')}" data-gpu="${text(embodiment.gpu_evidence_status)}">
-      <div class="fm-section-heading"><span>Live 3D Mode · Mission Control Live 3D Mode</span><h2>Live network map</h2><p>Explore what is happening in the AI network right now.</p></div>
-      <div class="fm-live3d-layout">
+      <div class="fm-section-heading"><span>Live 3D Mode / TouchDesigner neural network</span><h2>Live Network Map</h2><p>Explore what is happening in the AI network right now.</p></div>
+      <div class="fm-live3d-layout fm-live3d-layout-upgraded">
         <aside class="fm-live-checks">
-          ${['3D view ready', 'GPU verified', 'Replay loaded', 'Network synced'].map((item) => `<article>${renderReferenceIcon('check')}<strong>${item}</strong><small>${item === 'GPU verified' ? 'Acceleration active' : item === 'Replay loaded' ? 'Latest session ready' : item === 'Network synced' ? 'All systems aligned' : 'Visualization engine online'}</small></article>`).join('')}
+          ${checks.map(([item, detail]) => `<article>${renderReferenceIcon('check')}<strong>${item}</strong><small>${detail}</small></article>`).join('')}
         </aside>
-        <article class="fm-network-map">
-          ${['Agents', 'Memory', 'Learning', 'Proof', 'Safety'].map((label, index) => `<div class="fm-cluster fm-cluster-${index}"><span>${label}</span><i></i><b></b><b></b><b></b><b></b></div>`).join('')}
-          <div class="fm-map-legend"><span>Agents</span><span>Memory</span><span>Learning</span><span>Proof</span><span>Safety</span></div>
-          <a class="fm-primary-wide" href="#live-3d">Start live view</a>
+        <article class="fm-live3d-visual-shell">
+          <div class="fm-live3d-toolbar" aria-label="Live 3D visual controls">
+            <div class="fm-live3d-mode-tabs" role="tablist" aria-label="Live 3D mode">
+              <button type="button" data-fm-live-mode="td" aria-pressed="true">Neural network</button>
+              <button type="button" data-fm-live-mode="map" aria-pressed="false">Live network map</button>
+            </div>
+            <button type="button" class="fm-live3d-panel-toggle" data-fm-live-panel-toggle aria-expanded="true">Controls</button>
+          </div>
+          <div class="fm-live3d-stage" data-fm-live-mode-active="td">
+            <canvas id="fm-live3d-canvas" aria-label="Interactive TouchDesigner-style neural network and live network map. Drag to rotate and wheel to zoom."></canvas>
+            <div class="fm-live3d-layer-labels" aria-hidden="true">
+              <span>Prompt intake</span>
+              <span>Plan field</span>
+              <span>Retrieval field</span>
+              <span>Tool field</span>
+              <span>Verification field</span>
+              <span>Memory field</span>
+              <span>Evidence linked</span>
+            </div>
+            <div class="fm-live3d-readout-overlay" aria-live="polite">
+              <span data-fm-live-readout-kicker>TouchDesigner network</span>
+              <strong data-fm-live-readout-title>Evidence path highlighted</strong>
+              <p data-fm-live-readout-copy>85 nodes, 994 individual connections, and 14 selected evidence edges are rendered as a layered neural map.</p>
+            </div>
+            <div class="fm-live3d-gesture-hint">drag rotate / wheel zoom / switch modes</div>
+          </div>
+          <div class="fm-live3d-controls" data-open="true">
+            <label><span>Edge opacity</span><input type="range" min="0.04" max="0.42" step="0.01" value="0.18" data-fm-live-control="opacity"></label>
+            <label><span>Depth</span><input type="range" min="0.55" max="1.8" step="0.01" value="1.08" data-fm-live-control="depth"></label>
+            <label><span>Pulse speed</span><input type="range" min="0.25" max="2.4" step="0.01" value="1.0" data-fm-live-control="speed"></label>
+            <label><span>Strand reaction</span><input type="range" min="0.1" max="1.9" step="0.01" value="1.0" data-fm-live-control="flow"></label>
+            <label class="fm-live3d-check"><input type="checkbox" checked data-fm-live-control="fan"> <span>Evidence fan</span></label>
+            <label class="fm-live3d-check"><input type="checkbox" checked data-fm-live-control="auto"> <span>Slow camera drift</span></label>
+          </div>
         </article>
-        <aside class="fm-side-card fm-selected-component"><h3>Selected component</h3>${renderReferenceIcon('memory')}<p>Selected <strong>Memory Cluster</strong></p><dl><div><dt>Used by</dt><dd>12 agents</dd></div><div><dt>Last updated</dt><dd>23 seconds ago</dd></div><div><dt>Status</dt><dd><span class="fm-ready"><i></i>Healthy</span></dd></div></dl><div class="fm-mini-network is-large"><i></i><i></i><i></i><i></i><b></b></div></aside>
+        <aside class="fm-side-card fm-selected-component fm-live3d-selected"><h3>Selected component</h3>${renderReferenceIcon('memory')}<p>${text(selectedComponent.title)}</p><dl><div><dt>Used by</dt><dd>${text(selectedComponent.usedBy)}</dd></div><div><dt>Last updated</dt><dd>${text(selectedComponent.updated)}</dd></div><div><dt>Status</dt><dd><span class="fm-ready"><i></i>${text(selectedComponent.status)}</span></dd></div></dl><div class="fm-live3d-stat-grid"><span><strong>85</strong>nodes</span><span><strong>994</strong>edges</span><span><strong>14</strong>evidence</span></div><div class="fm-mini-network is-large"><i></i><i></i><i></i><i></i><b></b></div></aside>
       </div>
-      <p class="fm-hidden-proof">GPU evidence verified · Local neural embodiment, rendered as a read-only 3D operations mode.</p>
+      <p class="fm-hidden-proof">GPU evidence verified / Local neural embodiment, rendered as a read-only 3D operations mode. TouchDesigner neural network / Live Network Map / 85 nodes / 994 edges / Evidence linked.</p>
     </section>`;
 }
 
@@ -1607,6 +1944,59 @@ function renderGenesisCreateScript() {
   const checkedValues = (name) => Array.from(form.querySelectorAll('input[name="' + name + '"]:checked'))
     .map((input) => input.value);
 
+  const storedStrands = () => {
+    try {
+      return JSON.parse(localStorage.getItem('flowmemory:agent-strands') || '[]');
+    } catch {
+      return [];
+    }
+  };
+
+  function addStrandChip(detail) {
+    const label = detail.name || detail.agent_id || 'new agent';
+    for (const feed of document.querySelectorAll('[data-agent-strand-feed]')) {
+      const chip = document.createElement('span');
+      chip.className = 'fm-agent-strand-chip';
+      chip.textContent = label;
+      feed.prepend(chip);
+      while (feed.children.length > 4) feed.removeChild(feed.lastElementChild);
+    }
+    for (const count of document.querySelectorAll('[data-agent-strand-count]')) {
+      const current = Number(count.dataset.count || 0) + 1;
+      count.dataset.count = String(current);
+      count.textContent = String(current);
+    }
+  }
+
+  function emitAgentCreated(payload) {
+    const certificate = payload.birth_certificate || {};
+    const passport = payload.passport || {};
+    const detail = {
+      agent_id: String(payload.agent_id || 'agent_' + Date.now()),
+      name: String(certificate.name || payload.agent_id || 'New agent'),
+      stage: String(passport.stage || 'seed'),
+      created_at: new Date().toISOString(),
+    };
+    const next = [...storedStrands(), detail].slice(-24);
+    try {
+      localStorage.setItem('flowmemory:agent-strands', JSON.stringify(next));
+    } catch {
+      // Local storage can be disabled; the live in-page event still carries the strand.
+    }
+    addStrandChip(detail);
+    try {
+      window.dispatchEvent(new CustomEvent('flowmemory:agent-created', { detail }));
+    } catch {
+      if (typeof document.createEvent === 'function') {
+        const event = document.createEvent('CustomEvent');
+        event.initCustomEvent('flowmemory:agent-created', false, false, detail);
+        window.dispatchEvent(event);
+      }
+    }
+  }
+
+  for (const detail of storedStrands().slice(-3)) addStrandChip(detail);
+
   function renderPending() {
     result.dataset.empty = 'false';
     result.innerHTML = '<span>Creating</span><strong>Writing the agent birth certificate...</strong><p>Building genome, memory seed, consent, mirror, and passport artifacts locally.</p>';
@@ -1629,7 +2019,7 @@ function renderGenesisCreateScript() {
         '<div><dt>Consent</dt><dd>' + escape((certificate.privacy && certificate.privacy.mode) || 'private_only') + '</dd></div>' +
       '</dl>' +
       '<ul>' + writes.slice(0, 6).map((item) => '<li>' + escape(item) + '</li>').join('') + '</ul>' +
-      '<a href="#genesis-' + escape(payload.agent_id || '') + '">Open in Mission Control</a>';
+      '<a href="#live-3d">View neural strand</a>';
   }
 
   function renderError(error) {
@@ -1671,7 +2061,9 @@ function renderGenesisCreateScript() {
       if (!response.ok || envelope.ok === false) {
         throw new Error(envelope.error || envelope.message || 'dashboard genesis birth failed');
       }
-      renderSuccess(envelope.data || envelope);
+      const data = envelope.data || envelope;
+      renderSuccess(data);
+      emitAgentCreated(data);
     } catch (error) {
       renderError(error);
     } finally {
@@ -2129,6 +2521,539 @@ import * as THREE from '/vendor/three.module.js';
 </script>`;
 }
 
+function renderLiveNetworkMapScript() {
+  return `<script type="module">
+import * as THREE from '/vendor/three.module.js';
+
+(() => {
+  const canvas = document.getElementById('fm-live3d-canvas');
+  const stage = canvas ? canvas.closest('.fm-live3d-stage') : null;
+  if (!canvas || !stage) return;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x070c12, 7.5, 18);
+
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 80);
+  camera.position.set(0, 0.18, 10.8);
+
+  const root = new THREE.Group();
+  root.rotation.x = -0.08;
+  scene.add(root);
+
+  const tdGroup = new THREE.Group();
+  const liveGroup = new THREE.Group();
+  tdGroup.position.x = -0.08;
+  tdGroup.scale.set(0.78, 0.92, 1);
+  liveGroup.scale.setScalar(1.24);
+  root.add(tdGroup);
+  root.add(liveGroup);
+
+  scene.add(new THREE.AmbientLight(0xcbd6e2, 0.86));
+  const key = new THREE.DirectionalLight(0xdceaff, 1.55);
+  key.position.set(4.2, 5.2, 5.8);
+  scene.add(key);
+  const limeLight = new THREE.PointLight(0xd7ff43, 1.1, 9);
+  limeLight.position.set(4.9, 0.15, 1.8);
+  scene.add(limeLight);
+
+  const controls = {
+    opacity: 0.18,
+    depth: 1.08,
+    speed: 1,
+    flow: 1,
+    fan: true,
+    auto: true,
+  };
+
+  function seeded(seed) {
+    const value = Math.sin(seed * 12.9898) * 43758.5453;
+    return value - Math.floor(value);
+  }
+
+  function noise(seed) {
+    return seeded(seed) * 2 - 1;
+  }
+
+  function nodeMaterial(color, opacity) {
+    return new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }
+
+  function lineMaterial(color, opacity) {
+    return new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }
+
+  const panelMaterial = new THREE.MeshBasicMaterial({
+    color: 0x88a1b6,
+    transparent: true,
+    opacity: 0.075,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const panelEdgeMaterial = lineMaterial(0xb6cce0, 0.13);
+  const gridMaterial = lineMaterial(0x7891a6, 0.12);
+  const grayEdgeMaterial = lineMaterial(0xc9d9e8, controls.opacity);
+  const limeEdgeMaterial = lineMaterial(0xd8ff3d, 0.78);
+  const liveEdgeMaterial = lineMaterial(0x9fc6e8, 0.36);
+
+  const nodeGeometry = new THREE.SphereGeometry(0.042, 12, 12);
+  const brightNodeGeometry = new THREE.SphereGeometry(0.058, 14, 14);
+  const pulseGeometry = new THREE.SphereGeometry(0.034, 10, 10);
+  const outputRingGeometry = new THREE.TorusGeometry(0.085, 0.012, 8, 28);
+  const arrowGeometry = new THREE.ConeGeometry(0.038, 0.13, 3);
+
+  const layerXs = [-4.55, -2.75, -0.92, 0.92, 2.68, 4.22];
+  const layerNames = ['Prompt intake', 'Plan field', 'Retrieval field', 'Tool field', 'Verification field', 'Memory field'];
+  const layerNodes = [];
+  const selectedFan = new THREE.Group();
+  const strandBuffers = [];
+  const pulses = [];
+  const livePulses = [];
+  const agentStrandPulses = [];
+
+  function addLineSegments(group, points, material) {
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const line = new THREE.LineSegments(geometry, material);
+    group.add(line);
+    return line;
+  }
+
+  function pushLine(points, a, b) {
+    points.push(a.clone(), b.clone());
+  }
+
+  function makePanel(x, height, width, seed) {
+    const panel = new THREE.Mesh(new THREE.PlaneGeometry(width, height), panelMaterial);
+    panel.position.set(x + noise(seed) * 0.08, 0, -0.42 + noise(seed + 1) * 0.2);
+    panel.scale.z = 1;
+    tdGroup.add(panel);
+
+    const edgePoints = [];
+    const left = panel.position.x - width / 2;
+    const right = panel.position.x + width / 2;
+    const top = height / 2;
+    const bottom = -height / 2;
+    pushLine(edgePoints, new THREE.Vector3(left, bottom, panel.position.z + 0.01), new THREE.Vector3(left, top, panel.position.z + 0.01));
+    pushLine(edgePoints, new THREE.Vector3(right, bottom, panel.position.z + 0.01), new THREE.Vector3(right, top, panel.position.z + 0.01));
+    pushLine(edgePoints, new THREE.Vector3(panel.position.x, bottom - 0.28, panel.position.z + 0.02), new THREE.Vector3(panel.position.x, top + 0.28, panel.position.z + 0.02));
+    addLineSegments(tdGroup, edgePoints, panelEdgeMaterial);
+  }
+
+  function buildGrid() {
+    const points = [];
+    for (let i = -6; i <= 6; i += 1) {
+      pushLine(points, new THREE.Vector3(i, -2.75, -2.4), new THREE.Vector3(i, -2.75, 2.4));
+    }
+    for (let i = -5; i <= 5; i += 1) {
+      pushLine(points, new THREE.Vector3(-6, -2.75, i * 0.46), new THREE.Vector3(6, -2.75, i * 0.46));
+    }
+    addLineSegments(tdGroup, points, gridMaterial);
+  }
+
+  function layerY(index) {
+    const t = index / 13;
+    return 2.24 - t * 4.48 + Math.sin(index * 0.76) * 0.045;
+  }
+
+  function addGlowNode(group, position, color, scale) {
+    const core = new THREE.Mesh(nodeGeometry, nodeMaterial(color, 0.92));
+    core.position.copy(position);
+    core.scale.setScalar(scale || 1);
+    group.add(core);
+    const halo = new THREE.Mesh(brightNodeGeometry, nodeMaterial(color, 0.13));
+    halo.position.copy(position);
+    halo.scale.setScalar((scale || 1) * 2.2);
+    group.add(halo);
+    return core;
+  }
+
+  for (let layer = 0; layer < layerXs.length; layer += 1) {
+    makePanel(layerXs[layer], 4.86, 0.82 + (layer % 2) * 0.12, layer + 21);
+    const nodes = [];
+    for (let i = 0; i < 14; i += 1) {
+      const p = new THREE.Vector3(layerXs[layer] + noise(layer * 31 + i) * 0.045, layerY(i), noise(layer * 44 + i) * 0.64);
+      nodes.push(p);
+      addGlowNode(tdGroup, p, 0xddeaf6, 0.9 + (i % 3) * 0.08);
+    }
+    layerNodes.push(nodes);
+  }
+
+  const evidenceOut = new THREE.Vector3(5.62, 0.0, 0.22);
+  const outputGuide = [
+    new THREE.Vector3(5.56, 1.66, -0.08),
+    evidenceOut,
+    new THREE.Vector3(5.56, -1.66, -0.08),
+  ];
+  for (const point of outputGuide) {
+    const ring = new THREE.Mesh(outputRingGeometry, nodeMaterial(0xd8ff3d, 0.96));
+    ring.position.copy(point);
+    ring.rotation.y = Math.PI / 2;
+    selectedFan.add(ring);
+  }
+  addGlowNode(selectedFan, evidenceOut, 0xd8ff3d, 1.45);
+
+  for (let i = 0; i < 9; i += 1) {
+    const arrow = new THREE.Mesh(arrowGeometry, nodeMaterial(0xd8ff3d, 0.62));
+    arrow.position.set(5.28 + (i % 3) * 0.18, -1.45 + i * 0.36, -0.22 + noise(i + 8) * 0.45);
+    arrow.rotation.z = -Math.PI / 2;
+    selectedFan.add(arrow);
+  }
+
+  function curvedPoint(a, b, edgeIndex, step, steps, selected) {
+    const t = step / (steps - 1);
+    const bend = Math.sin(t * Math.PI);
+    const p = new THREE.Vector3().lerpVectors(a, b, t);
+    const phase = edgeIndex * 0.173 + step * 0.37;
+    p.y += bend * noise(edgeIndex + 2.3) * (selected ? 0.16 : 0.24);
+    p.z += bend * (noise(edgeIndex + 9.1) * (selected ? 0.52 : 0.86) + Math.sin(t * Math.PI * 2 + phase) * 0.12);
+    return p;
+  }
+
+  function makeAnimatedSegments(edgePairs, selected) {
+    const steps = selected ? 34 : 22;
+    const positions = [];
+    const bases = [];
+    const waves = [];
+    const amps = [];
+    let edgeIndex = 0;
+
+    for (const pair of edgePairs) {
+      let prev = curvedPoint(pair[0], pair[1], edgeIndex, 0, steps, selected);
+      for (let step = 1; step < steps; step += 1) {
+        const current = curvedPoint(pair[0], pair[1], edgeIndex, step, steps, selected);
+        for (const point of [prev, current]) {
+          positions.push(point.x, point.y, point.z);
+          bases.push(point.x, point.y, point.z);
+          waves.push(edgeIndex * 0.19 + step * 0.29);
+          amps.push((selected ? 0.045 : 0.028) + seeded(edgeIndex + step) * 0.02);
+        }
+        prev = current;
+      }
+      edgeIndex += 1;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    const material = selected ? limeEdgeMaterial : grayEdgeMaterial;
+    const segments = new THREE.LineSegments(geometry, material);
+    segments.userData.base = new Float32Array(bases);
+    segments.userData.wave = new Float32Array(waves);
+    segments.userData.amp = new Float32Array(amps);
+    strandBuffers.push(segments);
+    return segments;
+  }
+
+  const grayPairs = [];
+  for (let layer = 0; layer < layerNodes.length - 1; layer += 1) {
+    for (let a = 0; a < 14; a += 1) {
+      for (let b = 0; b < 14; b += 1) {
+        grayPairs.push([layerNodes[layer][a], layerNodes[layer + 1][b]]);
+      }
+    }
+  }
+  tdGroup.add(makeAnimatedSegments(grayPairs, false));
+
+  const selectedPairs = [];
+  for (let i = 0; i < 14; i += 1) {
+    selectedPairs.push([layerNodes[layerNodes.length - 1][i], evidenceOut]);
+    const pulse = new THREE.Mesh(pulseGeometry, nodeMaterial(0xd8ff3d, 0.88));
+    pulse.userData.from = layerNodes[layerNodes.length - 1][i];
+    pulse.userData.to = evidenceOut;
+    pulse.userData.offset = i / 14;
+    pulses.push(pulse);
+    selectedFan.add(pulse);
+  }
+  selectedFan.add(makeAnimatedSegments(selectedPairs, true));
+  tdGroup.add(selectedFan);
+  buildGrid();
+
+  function buildLiveMap() {
+    const clusters = [
+      { label: 'Agents', color: 0x8ab8ff, angle: -0.35, radius: 2.8 },
+      { label: 'Memory', color: 0xd8ff3d, angle: 0.9, radius: 2.4 },
+      { label: 'Learning', color: 0xf1bd76, angle: 2.15, radius: 2.55 },
+      { label: 'Proof', color: 0xb9d0e6, angle: 3.35, radius: 2.7 },
+      { label: 'Safety', color: 0x8fe0c2, angle: 4.55, radius: 2.35 },
+    ];
+    const core = new THREE.Vector3(0, 0, 0);
+    addGlowNode(liveGroup, core, 0xe9f5ff, 2.25);
+    const connectionPoints = [];
+    for (let i = 0; i < clusters.length; i += 1) {
+      const cluster = clusters[i];
+      const p = new THREE.Vector3(Math.cos(cluster.angle) * cluster.radius, Math.sin(cluster.angle) * 1.46, Math.sin(cluster.angle * 1.4) * 1.35);
+      connectionPoints.push(p);
+      addGlowNode(liveGroup, p, cluster.color, 1.48);
+
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.007, 8, 58), nodeMaterial(cluster.color, 0.25));
+      ring.position.copy(p);
+      ring.rotation.x = 1.25 + i * 0.18;
+      ring.rotation.y = 0.6;
+      liveGroup.add(ring);
+
+      const localPoints = [];
+      for (let n = 0; n < 8; n += 1) {
+        const angle = (n / 8) * Math.PI * 2;
+        const child = new THREE.Vector3(
+          p.x + Math.cos(angle) * (0.64 + seeded(i * 10 + n) * 0.18),
+          p.y + Math.sin(angle) * 0.42,
+          p.z + Math.sin(angle * 1.7 + i) * 0.36,
+        );
+        localPoints.push(child);
+        addGlowNode(liveGroup, child, cluster.color, 0.58);
+      }
+
+      const spokes = [];
+      for (const child of localPoints) pushLine(spokes, p, child);
+      addLineSegments(liveGroup, spokes, lineMaterial(cluster.color, 0.28));
+
+      const pulse = new THREE.Mesh(pulseGeometry, nodeMaterial(cluster.color, 0.86));
+      pulse.userData.from = core;
+      pulse.userData.to = p;
+      pulse.userData.offset = i / clusters.length;
+      livePulses.push(pulse);
+      liveGroup.add(pulse);
+    }
+
+    const edges = [];
+    for (const point of connectionPoints) pushLine(edges, core, point);
+    for (let i = 0; i < connectionPoints.length; i += 1) {
+      pushLine(edges, connectionPoints[i], connectionPoints[(i + 1) % connectionPoints.length]);
+    }
+    liveGroup.add(addLineSegments(new THREE.Group(), edges, liveEdgeMaterial));
+  }
+
+  buildLiveMap();
+  liveGroup.visible = false;
+
+  function addAgentStrand(detail = {}) {
+    const index = agentStrandPulses.length;
+    const source = new THREE.Vector3(-5.38, 2.36 - (index % 8) * 0.46, 0.92 + noise(index + 41) * 0.44);
+    const first = layerNodes[0][(index * 3) % 14];
+    const middle = layerNodes[2][(index * 5 + 2) % 14];
+    const memory = layerNodes[layerNodes.length - 1][(index * 7 + 4) % 14];
+    const target = new THREE.Vector3(evidenceOut.x, evidenceOut.y + noise(index + 9) * 0.18, evidenceOut.z + noise(index + 18) * 0.22);
+    const controlPoints = [
+      source,
+      new THREE.Vector3(first.x - 0.22, first.y + 0.2, first.z + 0.5),
+      middle,
+      new THREE.Vector3(memory.x + 0.24, memory.y, memory.z - 0.28),
+      target,
+    ];
+    const curve = new THREE.CatmullRomCurve3(controlPoints, false, 'centripetal', 0.55);
+    const points = curve.getPoints(130);
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(points),
+      lineMaterial(0xf1bd76, 0.54),
+    );
+    line.userData.agentId = detail.agent_id || 'agent-' + index;
+    tdGroup.add(line);
+    addGlowNode(tdGroup, source, 0xf1bd76, 1.22);
+
+    const pulse = new THREE.Mesh(pulseGeometry, nodeMaterial(0xf1bd76, 0.92));
+    pulse.userData.points = points;
+    pulse.userData.offset = (index * 0.17) % 1;
+    pulse.userData.agentId = line.userData.agentId;
+    agentStrandPulses.push(pulse);
+    tdGroup.add(pulse);
+    stage.dataset.agentStrands = String(agentStrandPulses.length);
+    setMode('td');
+    return line.userData.agentId;
+  }
+
+  function storedAgentStrands() {
+    try {
+      return JSON.parse(localStorage.getItem('flowmemory:agent-strands') || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  const modeButtons = Array.from(document.querySelectorAll('[data-fm-live-mode]'));
+  const toggle = document.querySelector('[data-fm-live-panel-toggle]');
+  const controlPanel = document.querySelector('.fm-live3d-controls');
+  const readoutKicker = document.querySelector('[data-fm-live-readout-kicker]');
+  const readoutTitle = document.querySelector('[data-fm-live-readout-title]');
+  const readoutCopy = document.querySelector('[data-fm-live-readout-copy]');
+  const inputs = Object.fromEntries(Array.from(document.querySelectorAll('[data-fm-live-control]')).map((input) => [input.dataset.fmLiveControl, input]));
+
+  const readouts = {
+    td: ['TouchDesigner network', 'Evidence path highlighted', '85 nodes, 994 individual connections, and 14 selected evidence edges are rendered as a layered neural map.'],
+    map: ['Live Network Map', 'Operational clusters online', 'Agents, memory, learning, proof, and safety are separated into a live 3D topology for real-time telemetry.'],
+  };
+
+  let activeMode = 'td';
+  let targetX = -0.08;
+  let targetY = 0.0;
+  let zoom = 10.8;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+
+  function setMode(mode) {
+    activeMode = mode === 'map' ? 'map' : 'td';
+    tdGroup.visible = activeMode === 'td';
+    liveGroup.visible = activeMode === 'map';
+    stage.dataset.fmLiveModeActive = activeMode;
+    for (const button of modeButtons) {
+      const selected = button.dataset.fmLiveMode === activeMode;
+      button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    }
+    const copy = readouts[activeMode];
+    if (readoutKicker) readoutKicker.textContent = copy[0];
+    if (readoutTitle) readoutTitle.textContent = copy[1];
+    if (readoutCopy) readoutCopy.textContent = copy[2];
+    zoom = activeMode === 'map' ? 7.7 : 10.8;
+    targetX = activeMode === 'map' ? -0.16 : -0.08;
+  }
+
+  function syncControls() {
+    if (inputs.opacity) controls.opacity = Number(inputs.opacity.value || controls.opacity);
+    if (inputs.depth) controls.depth = Number(inputs.depth.value || controls.depth);
+    if (inputs.speed) controls.speed = Number(inputs.speed.value || controls.speed);
+    if (inputs.flow) controls.flow = Number(inputs.flow.value || controls.flow);
+    if (inputs.fan) controls.fan = Boolean(inputs.fan.checked);
+    if (inputs.auto) controls.auto = Boolean(inputs.auto.checked);
+    grayEdgeMaterial.opacity = controls.opacity;
+    limeEdgeMaterial.opacity = controls.fan ? 0.78 : 0;
+    selectedFan.visible = controls.fan;
+    root.scale.z += (controls.depth - root.scale.z) * 0.18;
+  }
+
+  for (const button of modeButtons) {
+    button.addEventListener('click', () => setMode(button.dataset.fmLiveMode));
+  }
+  for (const input of Object.values(inputs)) {
+    input.addEventListener('input', syncControls);
+    input.addEventListener('change', syncControls);
+  }
+  if (toggle && controlPanel) {
+    toggle.addEventListener('click', () => {
+      const next = controlPanel.dataset.open !== 'true';
+      controlPanel.dataset.open = next ? 'true' : 'false';
+      toggle.setAttribute('aria-expanded', next ? 'true' : 'false');
+    });
+  }
+
+  canvas.addEventListener('pointerdown', (event) => {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointerup', () => { dragging = false; });
+  canvas.addEventListener('pointerleave', () => { dragging = false; });
+  canvas.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    targetY += (event.clientX - lastX) * 0.006;
+    targetX += (event.clientY - lastY) * 0.006;
+    targetX = Math.max(-0.9, Math.min(0.9, targetX));
+    lastX = event.clientX;
+    lastY = event.clientY;
+  });
+  canvas.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoom = Math.max(6.8, Math.min(13.8, zoom + event.deltaY * 0.006));
+  }, { passive: false });
+
+  function updateAnimatedSegments(elapsed) {
+    for (const segments of strandBuffers) {
+      const attr = segments.geometry.attributes.position;
+      const positions = attr.array;
+      const base = segments.userData.base;
+      const wave = segments.userData.wave;
+      const amp = segments.userData.amp;
+      for (let i = 0; i < positions.length / 3; i += 1) {
+        const offset = Math.sin(elapsed * 1.72 * controls.flow + wave[i]) * amp[i] * controls.flow;
+        positions[i * 3] = base[i * 3];
+        positions[i * 3 + 1] = base[i * 3 + 1] + offset * 0.72;
+        positions[i * 3 + 2] = base[i * 3 + 2] + Math.cos(elapsed * 1.24 * controls.flow + wave[i]) * amp[i] * 0.92;
+      }
+      attr.needsUpdate = true;
+    }
+  }
+
+  function movePulse(pulse, elapsed, index, live) {
+    const t = (elapsed * (live ? 0.22 : 0.36) * controls.speed + pulse.userData.offset) % 1;
+    const from = pulse.userData.from;
+    const to = pulse.userData.to;
+    pulse.position.lerpVectors(from, to, t);
+    const bend = Math.sin(t * Math.PI);
+    pulse.position.z += bend * (live ? 0.5 : 0.28) * Math.sin(elapsed + index);
+    pulse.scale.setScalar((live ? 1.15 : 0.95) + Math.sin(elapsed * 2 + index) * 0.18);
+  }
+
+  function resize() {
+    const rect = stage.getBoundingClientRect();
+    renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
+    camera.aspect = Math.max(1, rect.width) / Math.max(1, rect.height);
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  syncControls();
+  setMode('td');
+  try {
+    window.flowMemoryAddAgentStrand = addAgentStrand;
+  } catch {
+    // The Codex in-app browser freezes window extensions; the event bridge below remains active.
+  }
+  window.addEventListener('flowmemory:agent-created', (event) => {
+    addAgentStrand(event.detail || {});
+  });
+  for (const detail of storedAgentStrands().slice(-5)) addAgentStrand(detail);
+
+  function animate() {
+    const elapsed = performance.now() / 1000;
+    syncControls();
+    const drift = controls.auto ? elapsed * (activeMode === 'td' ? 0.035 : 0.08) : 0;
+    root.rotation.x += (targetX - root.rotation.x) * 0.055;
+    root.rotation.y += (targetY + drift - root.rotation.y) * 0.05;
+    camera.position.z += (zoom - camera.position.z) * 0.08;
+    tdGroup.rotation.z = Math.sin(elapsed * 0.18) * 0.018;
+    liveGroup.rotation.x = Math.sin(elapsed * 0.27) * 0.12;
+
+    updateAnimatedSegments(elapsed);
+    for (let i = 0; i < pulses.length; i += 1) movePulse(pulses[i], elapsed, i, false);
+    for (let i = 0; i < livePulses.length; i += 1) movePulse(livePulses[i], elapsed, i, true);
+    for (let i = 0; i < agentStrandPulses.length; i += 1) {
+      const pulse = agentStrandPulses[i];
+      const points = pulse.userData.points || [];
+      const travel = (elapsed * 0.42 * controls.speed + pulse.userData.offset) % 1;
+      const pointIndex = Math.min(points.length - 1, Math.floor(travel * points.length));
+      if (points[pointIndex]) pulse.position.copy(points[pointIndex]);
+      pulse.scale.setScalar(1 + Math.sin(elapsed * 2.1 + i) * 0.18);
+    }
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(animate);
+  }
+
+  stage.dataset.ready = 'true';
+  try {
+    window.__flowMemoryLive3DReady = true;
+  } catch {
+    // Dataset readiness is the source of truth when globals cannot be added.
+  }
+  animate();
+})();
+</script>`;
+}
+
 function renderMissionControlHtml(payloads, finalizer) {
   const state = firstState(payloads);
   const embodimentPayload = payloads['live-neural-embodiment'] || {};
@@ -2155,6 +3080,8 @@ function renderMissionControlHtml(payloads, finalizer) {
         <a href="#learning">Learning</a>
         <a href="#genesis">Genesis</a>
         <a href="#internet">Internet</a>
+        <a href="#touchdesigner-ideas">Ideas</a>
+        <a href="#upgrades">Upgrades</a>
         <a href="#proof">Proof</a>
         <a href="#embodiment">Embodiment</a>
         <a href="#live-3d">Live 3D</a>
@@ -2165,6 +3092,8 @@ function renderMissionControlHtml(payloads, finalizer) {
         <a class="fm-nav-avatar" href="#genesis" aria-label="Agent profile"></a>
       </div>
     </header>
+
+    ${renderTopNeuralMemoryField(state, embodimentPayload)}
 
     <section class="mission-control-hero mission-hero-simple-3d" aria-labelledby="mission-control-title">
       <div class="mission-hero-copy">
@@ -2181,6 +3110,7 @@ function renderMissionControlHtml(payloads, finalizer) {
       ${renderInteractive3DHero(embodimentPayload)}
     </section>
 
+    ${renderTouchDesignerIdeaLab()}
     ${renderReferenceStatusBar()}
     ${renderSafeLiveApiPanel()}
     ${renderReferenceRunSelector(payloads)}
@@ -2190,6 +3120,7 @@ function renderMissionControlHtml(payloads, finalizer) {
     ${renderReferenceGenesisPanel(payloads['agent-genesis-onboarding'] || {})}
     ${renderReferenceGenesisCreateFlow(payloads['agent-genesis-onboarding'] || {})}
     ${renderReferenceAgentInternetPanel(payloads['agent-internet-skill-network'] || {})}
+    ${renderReferenceByokOnchainPanel(payloads['byok-onchain-upgrades'] || {})}
     ${renderReferenceProofPanel(payloads['experience-graph-proof-of-learning'] || {})}
     ${renderReferenceEmbodimentPanel(embodimentPayload)}
     ${renderReferenceLive3DPanel(embodimentPayload, state)}
@@ -2202,6 +3133,7 @@ function renderMissionControlHtml(payloads, finalizer) {
   ${renderGenesisCreateScript()}
   ${renderMotionScript()}
   ${renderThreeSceneScript()}
+  ${renderLiveNetworkMapScript()}
 </body>
 </html>`;
 }

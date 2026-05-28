@@ -75,3 +75,19 @@ python -m flow_memory internet payment-intent simulate --from mira --to helper-a
 - Agent-to-agent messages store structured summaries, not hidden reasoning.
 - Economic rails are dry-run only.
 - ERC-8004 and MCP integration are adapter seams in this public-alpha slice.
+
+## Capability projection
+
+Agent Internet can project optional post-Genesis capabilities without exposing secrets. BYOK appears as redacted provider metadata, wallet identity appears as an address-only binding, and on-chain upgrade status appears as dry-run intent references.
+
+```mermaid
+flowchart LR
+  Agent[Agent Internet Identity] --> Skills[Skill Manifest]
+  Agent --> Caps[Capability Metadata]
+  Caps --> BYOK[BYOK Fingerprint]
+  Caps --> Wallet[Wallet Address Only]
+  Caps --> Onchain[Onchain Dry Run Intent]
+  Caps --> Policy[Policy Gate]
+```
+
+The first agent does not require wallet/API key/funds.

@@ -28,10 +28,12 @@ ml = ["torch>=2.2", "numpy>=1.26"]
 memory = ["redis>=5.0", "qdrant-client>=1.9", "neo4j>=5.20"]
 web3 = ["web3>=6.20", "eth-account>=0.11"]
 langgraph = ["langgraph>=0.2"]
+x402 = ["x402>=2.11.0"]
 all = [
   "torch>=2.2", "numpy>=1.26",
   "redis>=5.0", "qdrant-client>=1.9", "neo4j>=5.20",
-  "web3>=6.20", "eth-account>=0.11", "langgraph>=0.2"
+  "web3>=6.20", "eth-account>=0.11", "langgraph>=0.2",
+  "x402>=2.11.0",
 ]
 
 [project.scripts]

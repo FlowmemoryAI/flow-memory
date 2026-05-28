@@ -72,6 +72,24 @@ from flow_memory.agent_internet import (
     reputation_summary,
     simulate_payment_intent,
 )
+from flow_memory.capability_upgrades import (
+    activate_emergency_stop,
+    approve_onchain_upgrade,
+    bind_wallet_identity,
+    create_credential_binding,
+    emergency_stop_status,
+    list_credential_bindings,
+    prepare_onchain_upgrade,
+    prepare_x402_payment_route,
+    provider_registry,
+    relay_onchain_upgrade,
+    request_external_signature,
+    revoke_credential_binding,
+    simulate_byok_inference_intent,
+    simulate_onchain_upgrade,
+    wallet_status,
+    x402_adapter_status,
+)
 
 
 def _json_default(value: Any) -> str:
@@ -739,6 +757,179 @@ def _internet(argv: list[str]) -> int:
         return _print_launch_payload({"ok": True, "manifests": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} mcp manifest(s)")
     raise AssertionError("unhandled internet command")
 
+def _byok(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory byok", description="Manage optional BYOK capability metadata")
+    sub = parser.add_subparsers(dest="resource", required=True)
+
+    providers = sub.add_parser("providers")
+    providers_sub = providers.add_subparsers(dest="providers_command", required=True)
+    providers_list = providers_sub.add_parser("list")
+    providers_list.add_argument("--json", action="store_true")
+
+    credentials = sub.add_parser("credentials")
+    credentials_sub = credentials.add_subparsers(dest="credentials_command", required=True)
+    bind = credentials_sub.add_parser("bind")
+    bind.add_argument("--agent", dest="agent_id", required=True)
+    bind.add_argument("--provider", dest="provider_id", required=True)
+    bind.add_argument("--secret-ref", required=True)
+    bind.add_argument("--user", dest="user_id", default="local-user")
+    bind.add_argument("--budget-cap", type=float, default=0.0)
+    bind.add_argument("--json", action="store_true")
+    credentials_list = credentials_sub.add_parser("list")
+    credentials_list.add_argument("--agent", dest="agent_id", default="")
+    credentials_list.add_argument("--json", action="store_true")
+    revoke = credentials_sub.add_parser("revoke")
+    revoke.add_argument("credential_id")
+    revoke.add_argument("--json", action="store_true")
+
+    intent = sub.add_parser("intent")
+    intent_sub = intent.add_subparsers(dest="intent_command", required=True)
+    simulate = intent_sub.add_parser("simulate")
+    simulate.add_argument("--agent", dest="agent_id", required=True)
+    simulate.add_argument("--provider", dest="provider_id", required=True)
+    simulate.add_argument("--model", dest="model_ref", required=True)
+    simulate.add_argument("--purpose", required=True)
+    simulate.add_argument("--credential-id", default="")
+    simulate.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.resource == "providers":
+        providers_payload = provider_registry()
+        return _print_launch_payload({"ok": True, "providers": providers_payload, "count": len(providers_payload)}, json_output=args.json, human=f"{len(providers_payload)} BYOK provider(s)")
+    if args.resource == "credentials":
+        if args.credentials_command == "bind":
+            payload = create_credential_binding(args.agent_id, args.provider_id, args.secret_ref, user_id=args.user_id, budget_cap=args.budget_cap)
+            return _print_launch_payload(payload, json_output=args.json, human=f"credential {payload['credential_id']} bound")
+        if args.credentials_command == "revoke":
+            payload = revoke_credential_binding(args.credential_id)
+            return _print_launch_payload(payload, json_output=args.json, human=f"credential {payload['credential_id']} revoked")
+        records = list_credential_bindings(args.agent_id)
+        return _print_launch_payload({"ok": True, "credentials": records, "count": len(records)}, json_output=args.json, human=f"{len(records)} credential(s)")
+    payload = simulate_byok_inference_intent(args.agent_id, args.provider_id, args.model_ref, args.purpose, credential_id=args.credential_id)
+    return _print_launch_payload(payload, json_output=args.json, human=f"BYOK intent {payload['intent_id']}")
+
+
+def _wallet(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory wallet", description="Manage optional wallet identity bindings")
+    sub = parser.add_subparsers(dest="command", required=True)
+    bind = sub.add_parser("bind")
+    bind.add_argument("--agent", dest="agent_id", required=True)
+    bind.add_argument("--network", default="base_sepolia")
+    bind.add_argument("--address", required=True)
+    bind.add_argument("--user", dest="user_id", default="local-user")
+    bind.add_argument("--json", action="store_true")
+    status = sub.add_parser("status")
+    status.add_argument("--agent", dest="agent_id", required=True)
+    status.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "bind":
+        payload = bind_wallet_identity(args.agent_id, args.network, args.address, user_id=args.user_id)
+        return _print_launch_payload(payload, json_output=args.json, human=f"wallet {payload['wallet_binding_id']}")
+    payload = wallet_status(args.agent_id)
+    return _print_launch_payload(payload, json_output=args.json, human=f"wallet status {args.agent_id}")
+
+
+def _onchain(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory onchain", description="Prepare and simulate optional on-chain agent upgrades")
+    sub = parser.add_subparsers(dest="resource", required=True)
+    upgrade = sub.add_parser("upgrade")
+    upgrade_sub = upgrade.add_subparsers(dest="upgrade_command", required=True)
+
+    prepare = upgrade_sub.add_parser("prepare")
+    prepare.add_argument("--agent", dest="agent_id", required=True)
+    prepare.add_argument("--network", default="base_sepolia")
+    prepare.add_argument("--action", default="register_agent")
+    prepare.add_argument("--user", dest="user_id", default="local-user")
+    prepare.add_argument("--json", action="store_true")
+
+    simulate = upgrade_sub.add_parser("simulate")
+    simulate.add_argument("--intent", dest="intent_id", required=True)
+    simulate.add_argument("--json", action="store_true")
+
+    approve = upgrade_sub.add_parser("approve")
+    approve.add_argument("--intent", dest="intent_id", required=True)
+    approve.add_argument("--json", action="store_true")
+
+    sign = upgrade_sub.add_parser("sign-request")
+    sign.add_argument("--intent", dest="intent_id", required=True)
+    sign.add_argument("--json", action="store_true")
+
+    relay = upgrade_sub.add_parser("relay")
+    relay.add_argument("--intent", dest="intent_id", required=True)
+    relay.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.resource != "upgrade":
+        raise AssertionError("unhandled onchain resource")
+    if args.upgrade_command == "prepare":
+        payload = prepare_onchain_upgrade(args.agent_id, args.network, args.action, user_id=args.user_id)
+        return _print_launch_payload(payload, json_output=args.json, human=f"on-chain intent {payload['intent_id']} prepared")
+    if args.upgrade_command == "simulate":
+        payload = simulate_onchain_upgrade(args.intent_id)
+        return _print_launch_payload(payload, json_output=args.json, human=f"on-chain intent {args.intent_id} simulated")
+    if args.upgrade_command == "approve":
+        payload = approve_onchain_upgrade(args.intent_id)
+        return _print_launch_payload(payload, json_output=args.json, human=f"on-chain intent {args.intent_id} approved")
+    if args.upgrade_command == "sign-request":
+        payload = request_external_signature(args.intent_id)
+        return _print_launch_payload(payload, json_output=args.json, human=f"external signature requested for {args.intent_id}")
+    payload = relay_onchain_upgrade(args.intent_id)
+    return _print_launch_payload(payload, json_output=args.json, human=f"relay blocked for {args.intent_id}")
+
+
+def _x402(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory x402", description="Inspect x402 SDK readiness and prepare payment routes")
+    sub = parser.add_subparsers(dest="command", required=True)
+    status = sub.add_parser("status")
+    status.add_argument("--json", action="store_true")
+    route = sub.add_parser("route")
+    route_sub = route.add_subparsers(dest="route_command", required=True)
+    prepare = route_sub.add_parser("prepare")
+    prepare.add_argument("--agent", dest="agent_id", required=True)
+    prepare.add_argument("--resource", required=True)
+    prepare.add_argument("--price", default="$0.001")
+    prepare.add_argument("--pay-to", required=True)
+    prepare.add_argument("--facilitator", default="x402_org_testnet", choices=["x402_org_testnet", "coinbase_cdp"])
+    prepare.add_argument("--network", default="eip155:84532")
+    prepare.add_argument("--testnet-live", action="store_true")
+    prepare.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "status":
+        payload = x402_adapter_status()
+        return _print_launch_payload(payload, json_output=args.json, human=f"x402 installed={payload['installed']}")
+    payload = prepare_x402_payment_route(
+        args.agent_id,
+        args.resource,
+        args.price,
+        args.pay_to,
+        facilitator=args.facilitator,
+        network=args.network,
+        live_requested=args.testnet_live,
+    )
+    return _print_launch_payload(payload, json_output=args.json, human=f"x402 route {payload['route_id']} prepared")
+
+def _emergency_stop(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory emergency-stop", description="Activate or inspect optional-upgrade emergency stops")
+    sub = parser.add_subparsers(dest="command", required=True)
+    activate = sub.add_parser("activate")
+    activate.add_argument("--agent", dest="agent_id", required=True)
+    activate.add_argument("--scope", default="all_upgrades")
+    activate.add_argument("--reason", required=True)
+    activate.add_argument("--user", dest="user_id", default="local-user")
+    activate.add_argument("--json", action="store_true")
+    status = sub.add_parser("status")
+    status.add_argument("--agent", dest="agent_id", required=True)
+    status.add_argument("--json", action="store_true")
+
+    args = parser.parse_args(argv)
+    if args.command == "activate":
+        payload = activate_emergency_stop(args.agent_id, args.scope, args.reason, user_id=args.user_id)
+        return _print_launch_payload(payload, json_output=args.json, human=f"emergency stop active for {args.agent_id}")
+    payload = emergency_stop_status(args.agent_id)
+    return _print_launch_payload(payload, json_output=args.json, human=f"emergency stop status {args.agent_id}")
+
 
 def _graph(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="flow-memory graph", description="Inspect Experience Graph and Proof of Learning artifacts")
@@ -945,6 +1136,16 @@ def main(argv: list[str] | None = None) -> int:
         return _neural(argv[1:])
     if argv and argv[0] == "internet":
         return _internet(argv[1:])
+    if argv and argv[0] == "byok":
+        return _byok(argv[1:])
+    if argv and argv[0] == "wallet":
+        return _wallet(argv[1:])
+    if argv and argv[0] == "onchain":
+        return _onchain(argv[1:])
+    if argv and argv[0] == "x402":
+        return _x402(argv[1:])
+    if argv and argv[0] == "emergency-stop":
+        return _emergency_stop(argv[1:])
     if argv and argv[0] == "run":
         argv = argv[1:]
 

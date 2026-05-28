@@ -173,3 +173,7 @@ python scripts/release_decision.py --target public-alpha-launch-finalizer
 ```
 
 The finalizer is evidence-only. It records the local demo bundle, public-alpha launch evidence, `public-alpha-local-launch` and GPU-backed `public-alpha-launch` decisions, Mission Control Live 3D Mode readiness, neural embodiment readiness, and the invariant that the C:\tmp backup is not tracked.
+
+## Agent upgrade readiness
+
+The optional BYOK and on-chain upgrade path is public-alpha ready only as a local, policy-gated, dry-run capability layer. The first agent does not require wallet/API key/funds. Evidence validates redaction, credential revocation, Base Sepolia default metadata, mainnet write disabled state, prepare/sign/relay separation, relay-disabled default behavior, and emergency stop.

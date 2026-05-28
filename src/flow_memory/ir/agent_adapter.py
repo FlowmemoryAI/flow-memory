@@ -36,5 +36,6 @@ def agent_profile_from_ir(agent: AgentSpec) -> AgentProfile:
             "memory_seed": dict(agent.metadata.get("memory_seed", {})),
             "experience_graph": dict(agent.metadata.get("experience_graph", {})),
             "network": dict(agent.metadata.get("network", {})),
+            "capability_upgrades": dict(agent.metadata.get("capability_upgrades", {})),
         },
     )

@@ -1,0 +1,934 @@
+{
+  "agent_internet_capability_projection_available": true,
+  "api_byok_available": true,
+  "api_onchain_upgrade_available": true,
+  "api_routes": [
+    "GET /byok/credentials",
+    "GET /byok/credentials/{credential_id}",
+    "GET /byok/providers",
+    "GET /emergency-stop/{agent_id}",
+    "GET /wallet/bindings",
+    "GET /wallet/bindings/{wallet_binding_id}",
+    "GET /x402/status",
+    "POST /byok/credentials",
+    "POST /byok/credentials/{credential_id}/revoke",
+    "POST /byok/intents/simulate",
+    "POST /emergency-stop",
+    "POST /onchain/upgrades/prepare",
+    "POST /onchain/upgrades/{intent_id}/approve",
+    "POST /onchain/upgrades/{intent_id}/relay",
+    "POST /onchain/upgrades/{intent_id}/sign-request",
+    "POST /onchain/upgrades/{intent_id}/simulate",
+    "POST /wallet/bindings",
+    "POST /x402/routes/prepare"
+  ],
+  "artifact_paths": {
+    "credentials": "artifacts/capability_upgrades/credentials/",
+    "emergency_stops": "artifacts/capability_upgrades/emergency_stops/",
+    "onchain_intents": "artifacts/capability_upgrades/onchain_intents/",
+    "wallet_bindings": "artifacts/capability_upgrades/wallet_bindings/",
+    "x402_routes": "artifacts/capability_upgrades/x402_routes/"
+  },
+  "base_mainnet_write_disabled": true,
+  "base_sepolia_default_available": true,
+  "byok_intent_simulation_available": true,
+  "byok_provider_registry_available": true,
+  "cli_byok_available": true,
+  "cli_onchain_upgrade_available": true,
+  "credential_binding_available": true,
+  "credential_fingerprint_available": true,
+  "credential_revoke_available": true,
+  "dashboard_upgrade_panel_available": true,
+  "demo": {
+    "agent_id": "upgrade-demo-agent",
+    "approved": {
+      "approval": {
+        "action_type": "onchain:register_agent",
+        "agent_id": "upgrade-demo-agent",
+        "approval_id": "approval_38319e55685d47a6367ca10e",
+        "approval_reason": "human-approved dry-run preparation",
+        "created_at": "2026-05-28T05:36:07.208964+00:00",
+        "decided_at": "2026-05-28T05:36:07.245961+00:00",
+        "risk_level": "medium",
+        "status": "approved",
+        "target_ref": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+        "user_id": "local-user"
+      },
+      "intent": {
+        "action": "register_agent",
+        "agent_id": "upgrade-demo-agent",
+        "approval_record_id": "approval_38319e55685d47a6367ca10e",
+        "chain_id": 84532,
+        "created_at": "2026-05-28T05:36:07.208964+00:00",
+        "eip712_typed_data": {
+          "domain": {
+            "chainId": 84532,
+            "name": "FlowMemoryAgentUpgrade",
+            "version": "0"
+          },
+          "message": {
+            "action": "register_agent",
+            "agentId": "upgrade-demo-agent",
+            "dryRunOnly": true,
+            "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+          },
+          "primaryType": "AgentUpgradeIntent",
+          "types": {
+            "AgentUpgradeIntent": [
+              "agentId",
+              "action",
+              "intentId",
+              "dryRunOnly"
+            ]
+          }
+        },
+        "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+        "mode": "dry_run",
+        "network": "base_sepolia",
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5566fee3b249944d5ccfb83b.json",
+        "policy_decision": {
+          "allowed": true,
+          "approval_id": "approval_38319e55685d47a6367ca10e",
+          "approval_required": true,
+          "human_approval_recorded": true,
+          "reason": "dry_run_simulation"
+        },
+        "prepared_payload": {
+          "action": "register_agent",
+          "agent_id": "upgrade-demo-agent",
+          "chain_id": 84532,
+          "dry_run_only": true,
+          "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+          "method_allowlist": [
+            "register_agent",
+            "bind_wallet_identity",
+            "publish_agent_genome_hash",
+            "publish_reputation_ref",
+            "publish_skill_manifest_hash"
+          ],
+          "network": "base_sepolia",
+          "spend_limit": 0
+        },
+        "relay_status": "disabled",
+        "sign_status": "not_requested",
+        "simulation_result": {
+          "emergency_stop_active": false,
+          "gas_estimate": 0,
+          "mainnet_write_blocked": false,
+          "method_allowed": true,
+          "mode": "dry_run",
+          "no_broadcast": true,
+          "no_funds_moved": true,
+          "ok": true,
+          "spend_limit": 0
+        },
+        "user_id": "local-user"
+      },
+      "ok": true
+    },
+    "byok_intent": {
+      "agent_id": "upgrade-demo-agent",
+      "budget_check": {
+        "budget_caps_supported": true,
+        "mode": "simulated",
+        "ok": true
+      },
+      "created_at": "2026-05-28T05:36:07.203962+00:00",
+      "credential_id": "credential_binding_2137e650ff7f5656dcdea020",
+      "estimated_tokens": 0,
+      "intent_id": "byok_intent_5ca650f47643605f52e0bb6c",
+      "model_ref": "gpt-4.1-mini",
+      "no_external_call_performed": true,
+      "ok": true,
+      "path": "artifacts\\capability_upgrades\\byok_intents\\byok_intent_5ca650f47643605f52e0bb6c.json",
+      "policy_decision": {
+        "allowed": true,
+        "approval_required": true,
+        "mode": "simulated",
+        "reason": "simulation_only"
+      },
+      "prompt_summary": "",
+      "provider_id": "openai",
+      "purpose": "research",
+      "raw_prompt_excluded": true,
+      "status": "simulated"
+    },
+    "credential": {
+      "agent_id": "upgrade-demo-agent",
+      "audit_refs": [
+        "raw_secret_excluded",
+        "metadata_only_secret_ref"
+      ],
+      "budget_cap": 5.0,
+      "created_at": "2026-05-28T05:36:07.191963+00:00",
+      "credential_id": "credential_binding_2137e650ff7f5656dcdea020",
+      "credential_kind": "api_key",
+      "encrypted_secret_ref": "metadata_only:secret_fp_2310255c372bcd0d",
+      "ok": true,
+      "path": "artifacts\\capability_upgrades\\credentials\\credential_binding_2137e650ff7f5656dcdea020.json",
+      "provider_id": "openai",
+      "rate_limit": "local_public_alpha",
+      "raw_secret_persisted": false,
+      "redacted_display": "env:OPENAI_API_KEY#secret_fp_2310255c372bcd0d",
+      "revoked_at": "",
+      "scopes": [
+        "inference",
+        "embeddings"
+      ],
+      "secret_fingerprint": "secret_fp_2310255c372bcd0d",
+      "secret_ref": "env:OPENAI_API_KEY",
+      "status": "active",
+      "user_id": "local-user"
+    },
+    "emergency_stop": {
+      "disabled_capabilities": [
+        "byok",
+        "wallet",
+        "onchain",
+        "provider",
+        "future_execution"
+      ],
+      "emergency_stop": {
+        "active": true,
+        "agent_id": "upgrade-demo-agent",
+        "created_at": "2026-05-28T05:36:07.316966+00:00",
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\emergency_stops\\emergency_stop_232ac0e8a85d1f902ef165d3.json",
+        "reason": "demo stop",
+        "scope": "all_upgrades",
+        "stop_id": "emergency_stop_232ac0e8a85d1f902ef165d3",
+        "user_id": "local-user"
+      },
+      "ok": true
+    },
+    "ok": true,
+    "prepared": {
+      "action": "register_agent",
+      "agent_id": "upgrade-demo-agent",
+      "approval_record_id": "approval_38319e55685d47a6367ca10e",
+      "chain_id": 84532,
+      "created_at": "2026-05-28T05:36:07.208964+00:00",
+      "eip712_typed_data": {
+        "domain": {
+          "chainId": 84532,
+          "name": "FlowMemoryAgentUpgrade",
+          "version": "0"
+        },
+        "message": {
+          "action": "register_agent",
+          "agentId": "upgrade-demo-agent",
+          "dryRunOnly": true,
+          "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+        },
+        "primaryType": "AgentUpgradeIntent",
+        "types": {
+          "AgentUpgradeIntent": [
+            "agentId",
+            "action",
+            "intentId",
+            "dryRunOnly"
+          ]
+        }
+      },
+      "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+      "mode": "dry_run",
+      "network": "base_sepolia",
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "ok": true,
+      "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5566fee3b249944d5ccfb83b.json",
+      "policy_decision": {
+        "allowed": false,
+        "approval_required": true,
+        "reason": "simulate_then_external_sign"
+      },
+      "prepared_payload": {
+        "action": "register_agent",
+        "agent_id": "upgrade-demo-agent",
+        "chain_id": 84532,
+        "dry_run_only": true,
+        "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+        "method_allowlist": [
+          "register_agent",
+          "bind_wallet_identity",
+          "publish_agent_genome_hash",
+          "publish_reputation_ref",
+          "publish_skill_manifest_hash"
+        ],
+        "network": "base_sepolia",
+        "spend_limit": 0
+      },
+      "relay_status": "disabled",
+      "sign_status": "not_requested",
+      "simulation_result": {},
+      "user_id": "local-user"
+    },
+    "projection": {
+      "agent_id": "upgrade-demo-agent",
+      "capabilities": {
+        "agent_id": "upgrade-demo-agent",
+        "byok_capability_status": "bound",
+        "credential_count": 1,
+        "emergency_stop_status": "clear",
+        "first_agent_requires_wallet_or_key": false,
+        "mainnet_enabled": false,
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "onchain_intent_count": 1,
+        "onchain_upgrade_status": "prepared",
+        "wallet_binding_count": 1,
+        "wallet_binding_status": "bound",
+        "x402_route_count": 1
+      },
+      "identity": {
+        "active": true,
+        "byok_capability_status": "bound",
+        "capability_status": {
+          "byok": "bound",
+          "emergency_stop": "clear",
+          "onchain": "prepared",
+          "private_key_exposed": false,
+          "raw_api_key_exposed": false,
+          "wallet": "bound"
+        },
+        "contribution_policy": {
+          "mode": "private_only",
+          "raw_private_memory_shared": false
+        },
+        "created_at": "2026-05-28T05:36:07.189963+00:00",
+        "description": "Policy-gated Flow Memory agent node.",
+        "display_name": "Upgrade Demo",
+        "emergency_stop_status": "clear",
+        "genome_id": "",
+        "local_agent_id": "upgrade-demo-agent",
+        "mcp_endpoint_refs": [],
+        "network_agent_id": "network_agent_6e53d0f43a792dd6249815e0",
+        "ok": true,
+        "onchain_upgrade_status": "prepared",
+        "owner_scope": "local",
+        "path": "artifacts\\agent_internet\\identities\\upgrade-demo-agent.json",
+        "payment_capability": "dry_run_x402",
+        "privacy_policy": {
+          "network_learning_opt_in": false,
+          "private_memory_excluded": true
+        },
+        "reputation_ref": "artifacts/agent_internet/reputation/upgrade-demo-agent.json",
+        "service_endpoints": [],
+        "skill_manifest_ref": "artifacts/agent_internet/skills/upgrade-demo-agent.json",
+        "trust_modes": [
+          "local",
+          "policy_only"
+        ],
+        "updated_at": "2026-05-28T05:36:07.315964+00:00",
+        "wallet_binding_status": "bound"
+      },
+      "ok": true,
+      "projected": true
+    },
+    "providers": [
+      {
+        "budget_caps_supported": true,
+        "display_name": "OpenAI",
+        "docs_url": "https://platform.openai.com/docs",
+        "external_calls_default": false,
+        "key_format_hint": "env:OPENAI_API_KEY or secret reference",
+        "provider_id": "openai",
+        "provider_type": "model_provider",
+        "risk_notes": [
+          "external calls disabled by default"
+        ],
+        "scopes_supported": [
+          "inference",
+          "embeddings"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "gpt-4.1-mini",
+          "gpt-4.1"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "OpenRouter",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "env:OPENROUTER_API_KEY or secret reference",
+        "provider_id": "openrouter",
+        "provider_type": "model_provider",
+        "risk_notes": [
+          "external calls disabled by default"
+        ],
+        "scopes_supported": [
+          "inference"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "openrouter/auto"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "Anthropic",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "env:ANTHROPIC_API_KEY or secret reference",
+        "provider_id": "anthropic",
+        "provider_type": "model_provider",
+        "risk_notes": [
+          "external calls disabled by default"
+        ],
+        "scopes_supported": [
+          "inference"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "claude-3-5-sonnet"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": false,
+        "display_name": "Local Runtime",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "no key required",
+        "provider_id": "local_runtime",
+        "provider_type": "local",
+        "risk_notes": [],
+        "scopes_supported": [
+          "local_inference"
+        ],
+        "status": "available",
+        "supported_model_refs": [
+          "tiny_torch",
+          "none"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "Nookplot Gateway Stub",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "session or gateway secret reference",
+        "provider_id": "nookplot_gateway_stub",
+        "provider_type": "gateway_stub",
+        "risk_notes": [
+          "inspiration seam only",
+          "no external calls"
+        ],
+        "scopes_supported": [
+          "inference_proxy"
+        ],
+        "status": "stub",
+        "supported_model_refs": [
+          "gateway-simulated"
+        ],
+        "test_mode_supported": true
+      },
+      {
+        "budget_caps_supported": true,
+        "display_name": "Custom HTTPS Stub",
+        "docs_url": "",
+        "external_calls_default": false,
+        "key_format_hint": "secret://provider/ref",
+        "provider_id": "custom_https_stub",
+        "provider_type": "custom_stub",
+        "risk_notes": [
+          "manifest and policy review required"
+        ],
+        "scopes_supported": [
+          "inference_proxy"
+        ],
+        "status": "stub",
+        "supported_model_refs": [
+          "custom-model-ref"
+        ],
+        "test_mode_supported": true
+      }
+    ],
+    "relay": {
+      "blocked": true,
+      "intent": {
+        "action": "register_agent",
+        "agent_id": "upgrade-demo-agent",
+        "approval_record_id": "approval_38319e55685d47a6367ca10e",
+        "chain_id": 84532,
+        "created_at": "2026-05-28T05:36:07.208964+00:00",
+        "eip712_typed_data": {
+          "domain": {
+            "chainId": 84532,
+            "name": "FlowMemoryAgentUpgrade",
+            "version": "0"
+          },
+          "message": {
+            "action": "register_agent",
+            "agentId": "upgrade-demo-agent",
+            "dryRunOnly": true,
+            "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+          },
+          "primaryType": "AgentUpgradeIntent",
+          "types": {
+            "AgentUpgradeIntent": [
+              "agentId",
+              "action",
+              "intentId",
+              "dryRunOnly"
+            ]
+          }
+        },
+        "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+        "mode": "dry_run",
+        "network": "base_sepolia",
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5566fee3b249944d5ccfb83b.json",
+        "policy_decision": {
+          "allowed": true,
+          "approval_id": "approval_38319e55685d47a6367ca10e",
+          "approval_required": true,
+          "human_approval_recorded": true,
+          "reason": "dry_run_simulation"
+        },
+        "prepared_payload": {
+          "action": "register_agent",
+          "agent_id": "upgrade-demo-agent",
+          "chain_id": 84532,
+          "dry_run_only": true,
+          "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+          "method_allowlist": [
+            "register_agent",
+            "bind_wallet_identity",
+            "publish_agent_genome_hash",
+            "publish_reputation_ref",
+            "publish_skill_manifest_hash"
+          ],
+          "network": "base_sepolia",
+          "spend_limit": 0
+        },
+        "relay_status": "disabled",
+        "sign_status": "external_signature_required",
+        "signature_request": {
+          "instructions": "Review typed data in an external wallet. Flow Memory does not sign or hold private keys.",
+          "no_private_key_required": true,
+          "seed_phrase_requested": false,
+          "typed_data": {
+            "domain": {
+              "chainId": 84532,
+              "name": "FlowMemoryAgentUpgrade",
+              "version": "0"
+            },
+            "message": {
+              "action": "register_agent",
+              "agentId": "upgrade-demo-agent",
+              "dryRunOnly": true,
+              "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+            },
+            "primaryType": "AgentUpgradeIntent",
+            "types": {
+              "AgentUpgradeIntent": [
+                "agentId",
+                "action",
+                "intentId",
+                "dryRunOnly"
+              ]
+            }
+          }
+        },
+        "simulation_result": {
+          "emergency_stop_active": false,
+          "gas_estimate": 0,
+          "mainnet_write_blocked": false,
+          "method_allowed": true,
+          "mode": "dry_run",
+          "no_broadcast": true,
+          "no_funds_moved": true,
+          "ok": true,
+          "spend_limit": 0
+        },
+        "user_id": "local-user"
+      },
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "ok": true,
+      "reason": "relay_disabled_by_default",
+      "relay_status": "disabled"
+    },
+    "sign_request": {
+      "intent": {
+        "action": "register_agent",
+        "agent_id": "upgrade-demo-agent",
+        "approval_record_id": "approval_38319e55685d47a6367ca10e",
+        "chain_id": 84532,
+        "created_at": "2026-05-28T05:36:07.208964+00:00",
+        "eip712_typed_data": {
+          "domain": {
+            "chainId": 84532,
+            "name": "FlowMemoryAgentUpgrade",
+            "version": "0"
+          },
+          "message": {
+            "action": "register_agent",
+            "agentId": "upgrade-demo-agent",
+            "dryRunOnly": true,
+            "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+          },
+          "primaryType": "AgentUpgradeIntent",
+          "types": {
+            "AgentUpgradeIntent": [
+              "agentId",
+              "action",
+              "intentId",
+              "dryRunOnly"
+            ]
+          }
+        },
+        "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+        "mode": "dry_run",
+        "network": "base_sepolia",
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "no_private_key_required": true,
+        "ok": true,
+        "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5566fee3b249944d5ccfb83b.json",
+        "policy_decision": {
+          "allowed": true,
+          "approval_id": "approval_38319e55685d47a6367ca10e",
+          "approval_required": true,
+          "human_approval_recorded": true,
+          "reason": "dry_run_simulation"
+        },
+        "prepared_payload": {
+          "action": "register_agent",
+          "agent_id": "upgrade-demo-agent",
+          "chain_id": 84532,
+          "dry_run_only": true,
+          "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+          "method_allowlist": [
+            "register_agent",
+            "bind_wallet_identity",
+            "publish_agent_genome_hash",
+            "publish_reputation_ref",
+            "publish_skill_manifest_hash"
+          ],
+          "network": "base_sepolia",
+          "spend_limit": 0
+        },
+        "relay_status": "disabled",
+        "sign_status": "external_signature_required",
+        "signature_request": {
+          "instructions": "Review typed data in an external wallet. Flow Memory does not sign or hold private keys.",
+          "no_private_key_required": true,
+          "seed_phrase_requested": false,
+          "typed_data": {
+            "domain": {
+              "chainId": 84532,
+              "name": "FlowMemoryAgentUpgrade",
+              "version": "0"
+            },
+            "message": {
+              "action": "register_agent",
+              "agentId": "upgrade-demo-agent",
+              "dryRunOnly": true,
+              "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+            },
+            "primaryType": "AgentUpgradeIntent",
+            "types": {
+              "AgentUpgradeIntent": [
+                "agentId",
+                "action",
+                "intentId",
+                "dryRunOnly"
+              ]
+            }
+          }
+        },
+        "simulation_result": {
+          "emergency_stop_active": false,
+          "gas_estimate": 0,
+          "mainnet_write_blocked": false,
+          "method_allowed": true,
+          "mode": "dry_run",
+          "no_broadcast": true,
+          "no_funds_moved": true,
+          "ok": true,
+          "spend_limit": 0
+        },
+        "user_id": "local-user"
+      },
+      "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+      "no_private_key_required": true,
+      "ok": true,
+      "seed_phrase_requested": false,
+      "sign_status": "external_signature_required",
+      "typed_data": {
+        "domain": {
+          "chainId": 84532,
+          "name": "FlowMemoryAgentUpgrade",
+          "version": "0"
+        },
+        "message": {
+          "action": "register_agent",
+          "agentId": "upgrade-demo-agent",
+          "dryRunOnly": true,
+          "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+        },
+        "primaryType": "AgentUpgradeIntent",
+        "types": {
+          "AgentUpgradeIntent": [
+            "agentId",
+            "action",
+            "intentId",
+            "dryRunOnly"
+          ]
+        }
+      }
+    },
+    "simulated": {
+      "action": "register_agent",
+      "agent_id": "upgrade-demo-agent",
+      "approval_record_id": "approval_38319e55685d47a6367ca10e",
+      "chain_id": 84532,
+      "created_at": "2026-05-28T05:36:07.208964+00:00",
+      "eip712_typed_data": {
+        "domain": {
+          "chainId": 84532,
+          "name": "FlowMemoryAgentUpgrade",
+          "version": "0"
+        },
+        "message": {
+          "action": "register_agent",
+          "agentId": "upgrade-demo-agent",
+          "dryRunOnly": true,
+          "intentId": "onchain_upgrade_5566fee3b249944d5ccfb83b"
+        },
+        "primaryType": "AgentUpgradeIntent",
+        "types": {
+          "AgentUpgradeIntent": [
+            "agentId",
+            "action",
+            "intentId",
+            "dryRunOnly"
+          ]
+        }
+      },
+      "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+      "mode": "dry_run",
+      "network": "base_sepolia",
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "ok": true,
+      "path": "artifacts\\capability_upgrades\\onchain_intents\\onchain_upgrade_5566fee3b249944d5ccfb83b.json",
+      "policy_decision": {
+        "allowed": true,
+        "approval_required": true,
+        "reason": "dry_run_simulation"
+      },
+      "prepared_payload": {
+        "action": "register_agent",
+        "agent_id": "upgrade-demo-agent",
+        "chain_id": 84532,
+        "dry_run_only": true,
+        "intent_id": "onchain_upgrade_5566fee3b249944d5ccfb83b",
+        "method_allowlist": [
+          "register_agent",
+          "bind_wallet_identity",
+          "publish_agent_genome_hash",
+          "publish_reputation_ref",
+          "publish_skill_manifest_hash"
+        ],
+        "network": "base_sepolia",
+        "spend_limit": 0
+      },
+      "relay_status": "disabled",
+      "sign_status": "not_requested",
+      "simulation_result": {
+        "emergency_stop_active": false,
+        "gas_estimate": 0,
+        "mainnet_write_blocked": false,
+        "method_allowed": true,
+        "mode": "dry_run",
+        "no_broadcast": true,
+        "no_funds_moved": true,
+        "ok": true,
+        "spend_limit": 0
+      },
+      "user_id": "local-user"
+    },
+    "summary": {
+      "agent_id": "upgrade-demo-agent",
+      "byok_capability_status": "bound",
+      "credential_count": 1,
+      "emergency_stop_status": "active",
+      "first_agent_requires_wallet_or_key": false,
+      "mainnet_enabled": false,
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "ok": true,
+      "onchain_intent_count": 1,
+      "onchain_upgrade_status": "prepared",
+      "wallet_binding_count": 1,
+      "wallet_binding_status": "bound",
+      "x402_route_count": 1
+    },
+    "wallet": {
+      "agent_id": "upgrade-demo-agent",
+      "allowed_capabilities": [
+        "dry_run_identity",
+        "external_signature_future"
+      ],
+      "chain_id": 84532,
+      "created_at": "2026-05-28T05:36:07.206964+00:00",
+      "emergency_stopped": false,
+      "gas_limits": {
+        "dry_run_only": true,
+        "max_gas": 0
+      },
+      "mainnet_writes_enabled": false,
+      "method_allowlist": [
+        "register_agent",
+        "bind_wallet_identity",
+        "publish_agent_genome_hash",
+        "publish_reputation_ref",
+        "publish_skill_manifest_hash"
+      ],
+      "network_name": "base_sepolia",
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "no_seed_phrase_required": true,
+      "ok": true,
+      "path": "artifacts\\capability_upgrades\\wallet_bindings\\wallet_binding_b1976b93152913a49022187e.json",
+      "proof_type": "address_only_stub",
+      "revoked": false,
+      "spend_limits": {
+        "native": 0,
+        "token": 0
+      },
+      "token_allowlist": [],
+      "updated_at": "2026-05-28T05:36:07.206964+00:00",
+      "user_id": "local-user",
+      "verification_status": "simulated",
+      "wallet_address": "0x0000000000000000000000000000000000000000",
+      "wallet_binding_id": "wallet_binding_b1976b93152913a49022187e"
+    },
+    "x402_route": {
+      "agent_id": "upgrade-demo-agent",
+      "cdp_api_key_required": false,
+      "created_at": "2026-05-28T05:36:07.271964+00:00",
+      "facilitator_provider": "x402_org_testnet",
+      "facilitator_url": "https://x402.org/facilitator",
+      "install_command": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
+      "mode": "testnet_live_ready_relay_disabled",
+      "network": "eip155:84532",
+      "no_broadcast": true,
+      "no_funds_moved": true,
+      "no_private_key_required": true,
+      "no_seed_phrase_required": true,
+      "ok": true,
+      "package_required": "x402[fastapi,httpx,evm]>=2.11.0",
+      "path": "artifacts\\capability_upgrades\\x402_routes\\x402_route_ce258c80a8e85f2e9d6efe86.json",
+      "pay_to": "0x0000000000000000000000000000000000000000",
+      "payment_requirements_preview": {
+        "description": "Access to agent_skill_match",
+        "mimeType": "application/json",
+        "network": "eip155:84532",
+        "payTo": "0x0000000000000000000000000000000000000000",
+        "price": "0.001",
+        "scheme": "exact"
+      },
+      "policy_state": {
+        "approval_required": true,
+        "flow_memory_execution_default": "prepare_only_no_relay",
+        "live_requested": true,
+        "mainnet_blocked": false,
+        "relay_disabled_by_default": true,
+        "testnet_live_ready": true
+      },
+      "price": "0.001",
+      "resource": "agent_skill_match",
+      "route_id": "x402_route_ce258c80a8e85f2e9d6efe86",
+      "settlement_enabled": false,
+      "status": "prepared",
+      "testnet_live_ready": true,
+      "x402_package_status": {
+        "base_mainnet_network": "eip155:8453",
+        "base_sepolia_network": "eip155:84532",
+        "coinbase_facilitator_url": "https://api.cdp.coinbase.com/platform/v2/x402",
+        "installed": true,
+        "live_default": false,
+        "node_install_express": "npm install @x402/express @x402/evm @x402/core",
+        "ok": true,
+        "package": "x402",
+        "recommended_install": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
+        "settlement_enabled_default": false,
+        "testnet_facilitator_url": "https://x402.org/facilitator"
+      }
+    }
+  },
+  "emergency_stop_available": true,
+  "first_agent_no_wallet_or_key_documented": true,
+  "flowlang_capability_block_available": true,
+  "flowlang_capability_upgrades": {
+    "allowed_actions": [
+      "register_agent",
+      "publish_agent_genome_hash",
+      "publish_skill_manifest_hash"
+    ],
+    "allowed_providers": [
+      "openai",
+      "openrouter",
+      "anthropic",
+      "local_runtime"
+    ],
+    "budget_cap_usd": 5.0,
+    "byok_enabled": false,
+    "mainnet_writes_enabled": false,
+    "mode": "dry_run",
+    "network": "base_sepolia",
+    "no_private_keys": true,
+    "onchain_upgrade_enabled": false,
+    "prepare_sign_relay_separation": true,
+    "relay_enabled": false,
+    "require_external_signature": true,
+    "require_user_supplied_key": true,
+    "revoke_supported": true,
+    "store_raw_key": false,
+    "wallet_enabled": false
+  },
+  "no_funds_moved_invariant": true,
+  "no_overclaim_invariant": true,
+  "no_private_key_invariant": true,
+  "no_seed_phrase_invariant": true,
+  "no_transaction_broadcast_invariant": true,
+  "ok": true,
+  "onchain_approval_required": true,
+  "onchain_prepare_available": true,
+  "onchain_relay_disabled_by_default": true,
+  "onchain_sign_request_external_only": true,
+  "onchain_simulation_available": true,
+  "public_alpha_docs_updated": true,
+  "raw_api_key_not_persisted": true,
+  "raw_api_key_redaction_validated": true,
+  "safety_authority": "PolicyEngine and ApprovalGate",
+  "wallet_binding_available": true,
+  "x402_api_available": true,
+  "x402_cli_available": true,
+  "x402_coinbase_facilitator_config_available": true,
+  "x402_sdk_optional_dependency_available": true,
+  "x402_testnet_live_ready_without_default_broadcast": true,
+  "x402_testnet_route_prepare_available": true
+}

@@ -36,6 +36,26 @@ if (-not (Test-Path -LiteralPath $renderHelper)) {
     exit 10
 }
 
+if (-not (Test-Path -LiteralPath $envPath)) {
+    Write-Status -Status 'failed_deployment' -Fields @{
+        reason = 'env_file_missing'
+        missing_values = @($envPath)
+    }
+    exit 11
+}
+
+$pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+if ($null -eq $pythonCommand) {
+    Write-Status -Status 'failed_deployment' -Fields @{
+        reason = 'python_missing'
+        missing_values = @('python')
+    }
+    exit 12
+}
+$pythonPath = $pythonCommand.Source
+
+
+
 if (-not [string]::IsNullOrWhiteSpace($RenderApiKey)) {
     [Environment]::SetEnvironmentVariable('RENDER_API_KEY', $RenderApiKey, 'Process')
 }
@@ -46,5 +66,5 @@ if ($AllowFreePlans) {
     [Environment]::SetEnvironmentVariable('RENDER_ALLOW_FREE_PLANS', 'true', 'Process')
 }
 
-& python $renderHelper --env-file $envPath
+& $pythonPath $renderHelper --env-file $envPath
 exit $LASTEXITCODE

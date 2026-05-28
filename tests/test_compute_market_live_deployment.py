@@ -580,7 +580,42 @@ def test_named_render_powershell_wrapper_refuses_to_fake_success() -> None:
     assert "RENDER_OWNER_ID" in wrapper
     assert "RENDER_ALLOW_FREE_PLANS" in wrapper
     assert "render_helper_missing" in wrapper
+    assert "env_file_missing" in wrapper
+    assert "python_missing" in wrapper
     assert "exit $LASTEXITCODE" in wrapper
+
+def test_named_render_powershell_wrapper_blocks_missing_env_file(tmp_path: Path) -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for Render wrapper validation")
+
+    missing_env_file = tmp_path / "missing-render.env"
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "deploy_render_compute_market.ps1"),
+            "-EnvFile",
+            str(missing_env_file),
+            "-RenderApiKey",
+            "render_live_test_key",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 11, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "failed_deployment"
+    assert payload["reason"] == "env_file_missing"
+    assert payload["missing_values"] == [str(missing_env_file)]
 
 
 def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> None:

@@ -461,6 +461,45 @@ class ApiAuthTests(unittest.TestCase):
             ),
         )
 
+    def test_authorize_request_rejects_jwt_unknown_scope_or_role(self) -> None:
+        now = time.time()
+        unknown_scope = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-unknown-scope",
+                "tenant_id": "tenant_unknown_scope",
+                "scope": "compute:read compute:super-admin",
+                "aud": "flow-memory-api",
+                "exp": now + 300,
+                "iat": now,
+            },
+        )
+        unknown_role = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-unknown-role",
+                "tenant_id": "tenant_unknown_role",
+                "roles": ["provider-admin", "owner"],
+                "aud": "flow-memory-api",
+                "exp": now + 300,
+                "iat": now,
+            },
+        )
+
+        scope_decision = authorize_request(
+            {"authorization": f"Bearer {unknown_scope}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api"),
+        )
+        role_decision = authorize_request(
+            {"authorization": f"Bearer {unknown_role}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api"),
+        )
+
+        self.assertFalse(scope_decision.ok)
+        self.assertEqual(scope_decision.reasons, ("jwt contains unknown scope: compute:super-admin",))
+        self.assertFalse(role_decision.ok)
+        self.assertEqual(role_decision.reasons, ("jwt role invalid: unknown role: owner",))
+
     def test_authorize_request_accepts_valid_bearer_jwt_and_signature_when_required(self) -> None:
         key = generate_local_keypair("api-auth-jwt-signed")
         payload = {"goal": "local"}

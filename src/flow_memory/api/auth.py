@@ -566,6 +566,9 @@ def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tup
     claim_errors = _jwt_claim_errors(claims, config)
     if claim_errors:
         return None, claim_errors
+    authorization_errors = _jwt_authorization_claim_errors(claims)
+    if authorization_errors:
+        return None, authorization_errors
     subject = str(claims.get("sub", ""))
     if not subject:
         return None, ("jwt sub required",)
@@ -686,6 +689,34 @@ def _jwt_scopes(claims: Mapping[str, Any]) -> tuple[str, ...]:
     role_claim = claims.get("flow_memory_roles", claims.get("roles", claims.get("role", ())))
     role_scopes = _scopes_from_roles(role_claim)
     return tuple(sorted({*explicit, *role_scopes}))
+
+
+def _jwt_authorization_claim_errors(claims: Mapping[str, Any]) -> tuple[str, ...]:
+    errors: list[str] = []
+    explicit_scopes = _parse_scopes(claims.get("scope", claims.get("scp", ())))
+    invalid_scopes = tuple(scope for scope in explicit_scopes if scope not in KNOWN_SCOPES)
+    if invalid_scopes:
+        errors.append(f"jwt contains unknown scope: {', '.join(invalid_scopes)}")
+    role_values = _role_values(claims.get("flow_memory_roles", claims.get("roles", claims.get("role", ()))))
+    invalid_roles: list[str] = []
+    for role in role_values:
+        try:
+            validate_role_name(role)
+        except ValueError as exc:
+            invalid_roles.append(str(exc))
+    if invalid_roles:
+        errors.append(f"jwt role invalid: {', '.join(invalid_roles)}")
+    return tuple(errors)
+
+
+def _role_values(value: object) -> tuple[str, ...]:
+    if isinstance(value, str):
+        parts: Sequence[str] = value.replace(",", " ").split()
+    elif isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
+        parts = tuple(str(item) for item in value)
+    else:
+        parts = ()
+    return tuple(part.strip() for part in parts if part.strip())
 
 
 def _scopes_from_roles(value: object) -> tuple[str, ...]:

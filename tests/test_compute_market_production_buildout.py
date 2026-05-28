@@ -2818,6 +2818,60 @@ def test_compute_job_failure_and_invalid_transitions_are_rejected() -> None:
         raise AssertionError("queued job completed without dispatch")
 
 
+def test_fail_job_status_race_does_not_release_reserved_credit(monkeypatch: Any) -> None:
+    service = _service()
+    account_id = "acct_fail_status_race"
+    _credit_account(service, account_id, 1.0, event_id="evt_fail_status_race")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_fail_status_race",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    reservation_id = str(dispatched["credit_reservation"]["credit_transaction_id"])
+    original_put_record_if_state = service.store.put_record_if_state
+
+    def fail_failure_transition(
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        **kwargs: Any,
+    ) -> bool:
+        if record_type == "compute_job" and record_id == job_id and expected_statuses == (
+            "queued",
+            "dispatched",
+            "running",
+        ):
+            return False
+        return original_put_record_if_state(record_type, record_id, expected_statuses, payload, **kwargs)
+
+    monkeypatch.setattr(service.store, "put_record_if_state", fail_failure_transition)
+
+    failed = service.fail_job(job_id, {"error_code": "provider_timeout", "reason": "late failure"})
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    transactions = service.store.list_records(
+        "credit_transaction",
+        filters={"tenant_id": account_id},
+        limit=10,
+    ).records
+
+    assert failed["ok"] is False
+    assert failed["error"]["error_code"] == "job.status_changed"
+    assert failed["job"]["status"] == "running"
+    assert service.get_job(job_id)["job"]["status"] == "running"
+    assert service.store.get_record("credit_transaction", reservation_id)["status"] == "reserved"
+    assert not any(record["transaction_type"] == "reserve_release" for record in transactions)
+    assert balance["available_credits"] == 0.82
+    assert balance["reserved_credits"] == 0.18
+    assert not any(event["event_type"] == "job.failed" for event in service.job_events(job_id)["events"])
+
 def test_compute_job_retry_and_cancel_remain_dry_run_safe() -> None:
     service = _service()
     tenant_id = "tenant_job_state"

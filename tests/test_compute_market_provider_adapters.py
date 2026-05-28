@@ -839,3 +839,68 @@ def test_provider_sandbox_execution_adapter_dispatches_without_settlement() -> N
     assert result["funds_moved"] is False
     assert result["broadcast_allowed"] is False
     assert result["private_key_required"] is False
+
+def test_provider_sandbox_execution_adapter_signs_dispatch_when_key_configured(monkeypatch: Any) -> None:
+    key = LocalKeyPair("sandbox-provider-exec-signing", "sandbox-provider-exec-shared-secret")
+    server = create_provider_sandbox_server("127.0.0.1", 0, signing_key=key)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/execute"
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_allowlist=("127.0.0.1",),
+        external_provider_execution_enabled=True,
+        provider_callback_ip_allowlist=("127.0.0.1",),
+        external_provider_execution_timeout_ms=1_000,
+    )
+    provider_record = {
+        "provider_id": "sandbox-provider",
+        "provider_name": "Sandbox Provider",
+        "provider_type": "gpu",
+        "status": "active",
+        "supported_unit_types": ("gpu_minute",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("offchain",),
+        "execution_endpoint": endpoint,
+    }
+    signed_provider_record = {
+        **provider_record,
+        "metadata": {
+            "execution_outbound_signing_key_id": key.key_id,
+            "execution_outbound_signing_key_env": "FLOW_MEMORY_SANDBOX_PROVIDER_EXEC_SIGNING_SECRET",
+        },
+    }
+
+    def _execution_plan(job_id: str) -> dict[str, object]:
+        return {
+            "job_id": job_id,
+            "task_type": "inference",
+            "input_ref": "s3://flow-memory-inputs/job.json",
+            "model_or_runtime": "sandbox-runtime",
+            "resource_request": {"gpu_type": "H100"},
+            "budget_policy_id": "policy_default",
+            "route_id": "sandbox-gpu-route",
+            "provider_id": "sandbox-provider",
+        }
+
+    monkeypatch.setenv("FLOW_MEMORY_SANDBOX_PROVIDER_EXEC_SIGNING_SECRET", key.secret)
+    try:
+        unsigned_adapter = build_external_provider_adapter(provider_record, (), config)
+        signed_adapter = build_external_provider_adapter(signed_provider_record, (), config)
+        unsigned_result = unsigned_adapter.execute_plan(_execution_plan("job_unsigned_exec"))
+        signed_result = signed_adapter.execute_plan(_execution_plan("job_signed_exec"))
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert unsigned_result["ok"] is False
+    assert unsigned_result["error_code"] == "provider_execution.provider_error"
+    assert signed_result["ok"] is True
+    assert signed_result["external_provider_called"] is True
+    assert signed_result["job_id"] == "job_signed_exec"
+    assert signed_result["provider_id"] == "sandbox-provider"
+    assert signed_result["status"] == "running"
+    assert signed_result["dry_run_only"] is True
+    assert signed_result["funds_moved"] is False

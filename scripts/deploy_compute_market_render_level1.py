@@ -740,6 +740,8 @@ def url_scheme(value: str) -> str:
 
 
 def public_url_block_reason(url: str) -> str:
+    if has_placeholder(url):
+        return "public_url_placeholder_not_allowed"
     parsed = urllib.parse.urlparse(url)
     host = (parsed.hostname or "").strip().strip("[]").lower().rstrip(".")
     if not host:

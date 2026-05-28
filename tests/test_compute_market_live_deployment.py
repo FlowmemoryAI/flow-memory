@@ -220,6 +220,13 @@ def test_render_deploy_requires_https_public_url_before_smoke() -> None:
     assert local_blocked.value.code == 33
     assert local_smoke["ok"] is False
     assert local_smoke["reason"] == "public_url_must_not_use_localhost"
+    with pytest.raises(SystemExit) as placeholder_blocked:
+        render_deploy.assert_https_public_url("https://api.yourdomain.com")
+    placeholder_smoke = render_deploy.smoke_public("https://api.yourdomain.com", "api-key")
+
+    assert placeholder_blocked.value.code == 33
+    assert placeholder_smoke["ok"] is False
+    assert placeholder_smoke["reason"] == "public_url_placeholder_not_allowed"
 
 
 def test_render_deploy_blocks_unsafe_level1_env_overrides() -> None:

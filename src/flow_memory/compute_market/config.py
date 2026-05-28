@@ -206,8 +206,15 @@ class ComputeMarketConfig:
             errors.append("audit_export_object_lock_mode must be COMPLIANCE or GOVERNANCE")
         if self.audit_export_retention_days < 0:
             errors.append("audit_export_retention_days must be non-negative")
-        if self.audit_export_immutable_required and not self.audit_export_uri.startswith("s3://"):
-            errors.append("audit_export_immutable_required requires an s3:// audit_export_uri")
+        if self.audit_export_immutable_required:
+            if not self.audit_export_uri.startswith("s3://"):
+                errors.append("audit_export_immutable_required requires an s3:// audit_export_uri")
+            if not self.audit_export_object_lock_mode:
+                errors.append("audit_export_immutable_required requires audit_export_object_lock_mode")
+            if self.audit_export_retention_days < 1:
+                errors.append("audit_export_immutable_required requires audit_export_retention_days greater than zero")
+            if not self.audit_export_s3_region:
+                errors.append("audit_export_immutable_required requires audit_export_s3_region")
         if self.audit_checkpoint_interval_seconds < 1:
             errors.append("audit_checkpoint_interval_seconds must be positive")
         if self.alert_webhook_timeout_ms < 1:

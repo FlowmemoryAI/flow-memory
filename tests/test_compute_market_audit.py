@@ -256,6 +256,9 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
             audit_export_required=True,
             audit_export_uri="s3://flow-memory-audit/compute-market",
             audit_export_immutable_required=True,
+            audit_export_object_lock_mode="COMPLIANCE",
+            audit_export_retention_days=30,
+            audit_export_s3_region="us-east-1",
         ),
         audit_exporter=exporter,
     )

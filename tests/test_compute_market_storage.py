@@ -105,6 +105,20 @@ def test_compute_database_config_supports_explicit_storage_settings() -> None:
         audit_export_immutable_required=True,
     ).validate()
     assert "audit_export_immutable_required requires an s3:// audit_export_uri" in errors
+    assert "audit_export_immutable_required requires audit_export_object_lock_mode" in errors
+    assert "audit_export_immutable_required requires audit_export_retention_days greater than zero" in errors
+    assert "audit_export_immutable_required requires audit_export_s3_region" in errors
+
+    complete_immutable = ComputeMarketConfig(
+        database_url=":memory:",
+        audit_export_required=True,
+        audit_export_uri="s3://flow-memory-audit/compute-market",
+        audit_export_immutable_required=True,
+        audit_export_object_lock_mode="COMPLIANCE",
+        audit_export_retention_days=365,
+        audit_export_s3_region="us-east-1",
+    ).validate()
+    assert complete_immutable == ()
 
 
 def test_backend_factory_selects_sqlite_and_postgres_without_connecting() -> None:

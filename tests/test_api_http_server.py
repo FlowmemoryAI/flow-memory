@@ -178,6 +178,40 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header() -> N
     assert gateway.audit_sink.events[-1]["principal"] == "svc-http"
     assert gateway.audit_sink.events[-1]["tenant_id"] == "tenant_http"
 
+def test_http_gateway_rejects_mismatched_tenant_header_for_tenant_key() -> None:
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenant-key",
+                    "key_prefix": "fmk_tenant_",
+                    "key_hash": api_key_hash("fmk_tenant_http"),
+                    "tenant_id": "tenant_http",
+                    "principal": "svc-http",
+                    "scopes": "compute:read",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    response = gateway.handle(
+        "GET",
+        "/compute/health",
+        {
+            "x-flow-memory-api-key": "fmk_tenant_http",
+            "x-flow-memory-tenant": "tenant_other",
+        },
+    )
+
+    assert response.status == 403
+    assert response.body["error"]["code"] == "auth.forbidden"
+    assert response.body["error"]["details"]["key_id"] == "tenant-key"
+    assert response.body["error"]["details"]["tenant_id"] == "tenant_http"
+    assert response.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+
 def test_http_gateway_rejects_scope_header_escalation_for_unscoped_key_record() -> None:
     gateway = HttpApiGateway(
         config=HttpApiConfig(

@@ -224,6 +224,21 @@ class HttpApiGateway:
                     "API key is not bound to the requested tenant",
                     details={"key_id": auth.key_id, "requested_tenant_id": context.tenant_id},
                 )
+            if (
+                auth.ok
+                and credential_resolved
+                and context.tenant_id
+                and auth.tenant_id
+                and context.tenant_id != auth.tenant_id
+            ):
+                raise forbidden_error(
+                    "API key tenant does not match the requested tenant",
+                    details={
+                        "key_id": auth.key_id,
+                        "tenant_id": auth.tenant_id,
+                        "requested_tenant_id": context.tenant_id,
+                    },
+                )
             requested_scopes = context.scopes
             if auth.ok and credential_resolved and requested_scopes:
                 unauthorized_scopes = tuple(sorted(set(requested_scopes) - set(auth.scopes)))

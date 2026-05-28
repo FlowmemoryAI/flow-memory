@@ -90,11 +90,11 @@ from flow_memory.capability_upgrades import (
     wallet_status,
     x402_adapter_status,
 )
-from flow_memory.forge import (
-    birth_agent_from_forge,
-    create_forge_assembly_plan,
-    forge_defaults,
-    simulate_forge_upgrades,
+from flow_memory.agent_builder import (
+    birth_agent_from_builder,
+    create_agent_builder_assembly_plan,
+    agent_builder_defaults,
+    simulate_agent_builder_upgrades,
 )
 
 
@@ -936,8 +936,8 @@ def _emergency_stop(argv: list[str]) -> int:
     payload = emergency_stop_status(args.agent_id)
     return _print_launch_payload(payload, json_output=args.json, human=f"emergency stop status {args.agent_id}")
 
-def _forge(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(prog="flow-memory forge", description="Plan and birth agents through Flow Memory Forge")
+def _agent_builder(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="flow-memory agent-builder", description="Plan and birth agents through Flow Memory Agent Builder")
     sub = parser.add_subparsers(dest="command", required=True)
 
     defaults = sub.add_parser("defaults")
@@ -973,8 +973,8 @@ def _forge(argv: list[str]) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "defaults":
-        payload = forge_defaults()
-        return _print_launch_payload(payload, json_output=args.json, human="Forge defaults loaded")
+        payload = agent_builder_defaults()
+        return _print_launch_payload(payload, json_output=args.json, human="Agent Builder defaults loaded")
     if args.command in {"plan", "birth"}:
         payload = {
             "user_id": args.user_id,
@@ -992,17 +992,17 @@ def _forge(argv: list[str]) -> int:
             "onchain_dry_run_requested": False,
             "x402_dry_run_requested": False,
         }
-        result = create_forge_assembly_plan(payload) if args.command == "plan" else birth_agent_from_forge(payload)
-        human = f"Forge plan {result['forge_id']}" if args.command == "plan" else f"Forge agent {result['agent_id']} born"
+        result = create_agent_builder_assembly_plan(payload) if args.command == "plan" else birth_agent_from_builder(payload)
+        human = f"Agent Builder plan {result['agent_builder_id']}" if args.command == "plan" else f"Agent Builder agent {result['agent_id']} born"
         return _print_launch_payload(result, json_output=args.json, human=human)
-    payload = simulate_forge_upgrades(
+    payload = simulate_agent_builder_upgrades(
         args.agent_id,
         byok=args.byok,
         wallet=args.wallet,
         onchain_dry_run=args.onchain_dry_run,
         x402=args.x402,
     )
-    return _print_launch_payload(payload, json_output=args.json, human=f"Forge upgrades simulated for {args.agent_id}")
+    return _print_launch_payload(payload, json_output=args.json, human=f"Agent Builder upgrades simulated for {args.agent_id}")
 
 
 def _graph(argv: list[str]) -> int:
@@ -1220,8 +1220,8 @@ def main(argv: list[str] | None = None) -> int:
         return _x402(argv[1:])
     if argv and argv[0] == "emergency-stop":
         return _emergency_stop(argv[1:])
-    if argv and argv[0] == "forge":
-        return _forge(argv[1:])
+    if argv and argv[0] == "agent-builder":
+        return _agent_builder(argv[1:])
     if argv and argv[0] == "run":
         argv = argv[1:]
 

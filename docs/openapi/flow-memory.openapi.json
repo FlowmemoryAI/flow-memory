@@ -5,6 +5,210 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/agent-builder/assembly-plan": {
+      "post": {
+        "operationId": "agent_builder_assembly_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "archetype": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "agent_builder_id": {
+                      "type": "string"
+                    },
+                    "plan": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a local Agent Builder agent assembly plan",
+        "tags": [
+          "agent-builder"
+        ]
+      }
+    },
+    "/agent-builder/birth": {
+      "post": {
+        "operationId": "agent_builder_birth",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "archetype": {
+                    "type": "string"
+                  },
+                  "boundaries": {
+                    "type": "string"
+                  },
+                  "instincts": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "purpose": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "birth": {
+                      "type": "string"
+                    },
+                    "mission_control_url": {
+                      "type": "string"
+                    },
+                    "plan": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Birth an agent through Agent Builder and return Mission Control handoff metadata",
+        "tags": [
+          "agent-builder"
+        ]
+      }
+    },
+    "/agent-builder/defaults": {
+      "get": {
+        "operationId": "agent_builder_defaults",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "archetypes": {
+                      "type": "string"
+                    },
+                    "capability_cards": {
+                      "type": "string"
+                    },
+                    "first_agent_requires_wallet": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return Agent Builder browser defaults for first-agent creation and optional capability composition",
+        "tags": [
+          "agent-builder"
+        ]
+      }
+    },
+    "/agent-builder/simulate-upgrades": {
+      "post": {
+        "operationId": "agent_builder_simulate_upgrades",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "byok": {
+                    "type": "string"
+                  },
+                  "onchain_dry_run": {
+                    "type": "string"
+                  },
+                  "wallet": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "capability_summary": {
+                      "type": "string"
+                    },
+                    "no_broadcast": {
+                      "type": "string"
+                    },
+                    "requested": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate optional post-birth Agent Builder capability upgrades without funds or broadcast",
+        "tags": [
+          "agent-builder"
+        ]
+      }
+    },
     "/agents": {
       "get": {
         "operationId": "agents_list",
@@ -1915,210 +2119,6 @@
         "summary": "Validate FlowLang source",
         "tags": [
           "flowlang"
-        ]
-      }
-    },
-    "/forge/assembly-plan": {
-      "post": {
-        "operationId": "forge_assembly_plan",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "archetype": {
-                    "type": "string"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "purpose": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "properties": {
-                    "forge_id": {
-                      "type": "string"
-                    },
-                    "plan": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Create a local Forge agent assembly plan",
-        "tags": [
-          "forge"
-        ]
-      }
-    },
-    "/forge/birth": {
-      "post": {
-        "operationId": "forge_birth",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "archetype": {
-                    "type": "string"
-                  },
-                  "boundaries": {
-                    "type": "string"
-                  },
-                  "instincts": {
-                    "type": "string"
-                  },
-                  "name": {
-                    "type": "string"
-                  },
-                  "purpose": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "properties": {
-                    "birth": {
-                      "type": "string"
-                    },
-                    "mission_control_url": {
-                      "type": "string"
-                    },
-                    "plan": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Birth an agent through Forge and return Mission Control handoff metadata",
-        "tags": [
-          "forge"
-        ]
-      }
-    },
-    "/forge/defaults": {
-      "get": {
-        "operationId": "forge_defaults",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "properties": {
-                    "archetypes": {
-                      "type": "string"
-                    },
-                    "capability_cards": {
-                      "type": "string"
-                    },
-                    "first_agent_requires_wallet": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Return Forge browser defaults for first-agent creation and optional capability composition",
-        "tags": [
-          "forge"
-        ]
-      }
-    },
-    "/forge/simulate-upgrades": {
-      "post": {
-        "operationId": "forge_simulate_upgrades",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "properties": {
-                  "agent_id": {
-                    "type": "string"
-                  },
-                  "byok": {
-                    "type": "string"
-                  },
-                  "onchain_dry_run": {
-                    "type": "string"
-                  },
-                  "wallet": {
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "properties": {
-                    "capability_summary": {
-                      "type": "string"
-                    },
-                    "no_broadcast": {
-                      "type": "string"
-                    },
-                    "requested": {
-                      "type": "string"
-                    }
-                  },
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Local response"
-          }
-        },
-        "summary": "Simulate optional post-birth Forge capability upgrades without funds or broadcast",
-        "tags": [
-          "forge"
         ]
       }
     },

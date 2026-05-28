@@ -16,7 +16,7 @@ It is not a live on-chain system. It does not move funds, store private keys, br
 - ERC-8004-style export-only identity, reputation, and validation adapter data.
 - MCP-style local tool manifests with descriptor integrity and quarantine checks.
 
-Forge can publish Agent Internet identity and skill manifests after birth. From `/forge`, this remains optional: the simple first-agent path stays private by default, while advanced mode can run local skill matching against helper agents without external calls.
+Agent Builder can publish Agent Internet identity and skill manifests after birth. From `/agents/new`, this remains optional: the simple first-agent path stays private by default, while advanced mode can run local skill matching against helper agents without external calls.
 
 ## Architecture
 

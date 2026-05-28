@@ -1,6 +1,6 @@
-"""Flow Memory Forge browser agent-builder domain contract.
+"""Flow Memory Agent Builder browser agent-builder domain contract.
 
-Forge composes existing Agent Genesis, Agent Internet, BYOK, wallet, on-chain
+Agent Builder composes existing Agent Genesis, Agent Internet, BYOK, wallet, on-chain
 simulation, and x402 dry-run seams into one safe browser-facing assembly plan.
 The first-agent path remains no-wallet, no-key, no-funds, private by default,
 and policy-gated.
@@ -157,8 +157,8 @@ CAPABILITY_CARDS: tuple[Mapping[str, Any], ...] = (
 
 
 @dataclass(frozen=True)
-class ForgeAgentAssemblyPlan:
-    forge_id: str
+class AgentBuilderAssemblyPlan:
+    agent_builder_id: str
     user_id: str
     agent_name: str
     archetype_id: str
@@ -183,12 +183,12 @@ class ForgeAgentAssemblyPlan:
     policy_summary: Mapping[str, Any] = field(default_factory=dict)
     privacy_summary: Mapping[str, Any] = field(default_factory=dict)
     expected_birth_result: Mapping[str, Any] = field(default_factory=dict)
-    mission_control_url: str = "/mission-control#forge"
+    mission_control_url: str = "/mission-control#agent-builder"
     created_at: str = field(default_factory=utc_now)
 
     def as_record(self) -> dict[str, Any]:
         return {
-            "forge_id": self.forge_id,
+            "agent_builder_id": self.agent_builder_id,
             "user_id": self.user_id,
             "agent_name": self.agent_name,
             "archetype_id": self.archetype_id,
@@ -218,10 +218,10 @@ class ForgeAgentAssemblyPlan:
         }
 
 
-def forge_defaults() -> Mapping[str, Any]:
+def agent_builder_defaults() -> Mapping[str, Any]:
     return {
         "ok": True,
-        "route": "/forge",
+        "route": "/agents/new",
         "first_agent_mode": True,
         "simple_mode_default": True,
         "first_agent_requires_wallet": False,
@@ -243,7 +243,7 @@ def forge_defaults() -> Mapping[str, Any]:
     }
 
 
-def create_forge_assembly_plan(payload: Mapping[str, Any] | None = None, *, root: str | Path = ".") -> Mapping[str, Any]:
+def create_agent_builder_assembly_plan(payload: Mapping[str, Any] | None = None, *, root: str | Path = ".") -> Mapping[str, Any]:
     data = dict(payload or {})
     user_id = str(data.get("user_id", data.get("user", DEFAULT_USER_ID)) or DEFAULT_USER_ID)
     agent_name = str(data.get("agent_name", data.get("name", DEFAULT_AGENT_NAME)) or DEFAULT_AGENT_NAME)
@@ -262,8 +262,8 @@ def create_forge_assembly_plan(payload: Mapping[str, Any] | None = None, *, root
     agent_internet_enabled = _bool(data.get("agent_internet_enabled", data.get("agent_internet", False))) and not first_agent_mode
     skill_manifest_enabled = _bool(data.get("skill_manifest_enabled", data.get("skill_manifest", False))) and not first_agent_mode
     collaboration_enabled = _bool(data.get("collaboration_enabled", data.get("collaboration", False))) and not first_agent_mode
-    plan = ForgeAgentAssemblyPlan(
-        forge_id=stable_id("forge", user_id, agent_name, archetype_id, purpose, tuple(instincts), tuple(boundaries), consent_mode, selected_model_mode),
+    plan = AgentBuilderAssemblyPlan(
+        agent_builder_id=stable_id("agent-builder", user_id, agent_name, archetype_id, purpose, tuple(instincts), tuple(boundaries), consent_mode, selected_model_mode),
         user_id=user_id,
         agent_name=agent_name,
         archetype_id=archetype_id,
@@ -288,14 +288,14 @@ def create_forge_assembly_plan(payload: Mapping[str, Any] | None = None, *, root
         policy_summary={"autonomy": "supervised", "approval_required": True, "policy_engine_authoritative": True, "approval_gate_authoritative": True},
         privacy_summary={"mode": consent_mode, "private_memory_default": True, "raw_private_memory_shared": False, "network_learning_opt_in": consent_mode != "private_only"},
         expected_birth_result={"genome": True, "memory_seed": True, "consent": True, "passport": True, "mirror": True, "first_prediction": True},
-        mission_control_url=f"/mission-control#forge-{stable_id('forge_agent_ref', user_id, agent_name, purpose)}",
+        mission_control_url=f"/mission-control#agent-builder-{stable_id('agent_builder_agent_ref', user_id, agent_name, purpose)}",
     )
     record = plan.as_record()
-    return {"ok": True, "plan": record, "forge_id": plan.forge_id, "artifact_preview": f"artifacts/forge/plans/{plan.forge_id}.json"}
+    return {"ok": True, "plan": record, "agent_builder_id": plan.agent_builder_id, "artifact_preview": f"artifacts/agents/new/plans/{plan.agent_builder_id}.json"}
 
 
-def birth_agent_from_forge(payload: Mapping[str, Any], *, root: str | Path = ".") -> Mapping[str, Any]:
-    plan_payload = create_forge_assembly_plan(payload, root=root)
+def birth_agent_from_builder(payload: Mapping[str, Any], *, root: str | Path = ".") -> Mapping[str, Any]:
+    plan_payload = create_agent_builder_assembly_plan(payload, root=root)
     plan = dict(plan_payload["plan"])
     birth = birth_agent(
         {
@@ -313,8 +313,8 @@ def birth_agent_from_forge(payload: Mapping[str, Any], *, root: str | Path = "."
         root=root,
     )
     agent_id = str(birth.get("agent_id", ""))
-    internet = publish_forge_agent_identity(agent_id, plan, root=root) if plan.get("agent_internet_enabled") else {"ok": True, "enabled": False}
-    upgrades = simulate_forge_upgrades(
+    internet = publish_agent_builder_identity(agent_id, plan, root=root) if plan.get("agent_internet_enabled") else {"ok": True, "enabled": False}
+    upgrades = simulate_agent_builder_upgrades(
         agent_id,
         byok=bool(plan.get("byok_upgrade_requested")),
         wallet=bool(plan.get("wallet_upgrade_requested")),
@@ -324,11 +324,11 @@ def birth_agent_from_forge(payload: Mapping[str, Any], *, root: str | Path = "."
     )
     return {
         "ok": True,
-        "forge_id": plan["forge_id"],
+        "agent_builder_id": plan["agent_builder_id"],
         "plan": plan,
         "birth": birth,
         "agent_id": agent_id,
-        "mission_control_url": f"/mission-control#forge-{agent_id}",
+        "mission_control_url": f"/mission-control#agent-builder-{agent_id}",
         "internet": internet,
         "upgrades": upgrades,
         "first_agent_requires_wallet": False,
@@ -342,9 +342,9 @@ def birth_agent_from_forge(payload: Mapping[str, Any], *, root: str | Path = "."
     }
 
 
-def publish_forge_agent_identity(agent_id: str, plan: Mapping[str, Any] | None = None, *, root: str | Path = ".") -> Mapping[str, Any]:
+def publish_agent_builder_identity(agent_id: str, plan: Mapping[str, Any] | None = None, *, root: str | Path = ".") -> Mapping[str, Any]:
     plan = dict(plan or {})
-    identity = register_agent_identity(agent_id, display_name=str(plan.get("agent_name", agent_id)), description=str(plan.get("purpose", "Forge-created Flow Memory agent.")), genome_id=str(plan.get("genome_id", "")), root=root)
+    identity = register_agent_identity(agent_id, display_name=str(plan.get("agent_name", agent_id)), description=str(plan.get("purpose", "Agent Builder-created Flow Memory agent.")), genome_id=str(plan.get("genome_id", "")), root=root)
     skills = tuple(plan.get("skills", ()) or ("research", "coding", "memory", "verification"))
     manifest = publish_skill_manifest(agent_id, skills, root=root, domains=("flow_memory", "agent_builder"))
     _ensure_helper_agents(root=root)
@@ -352,7 +352,7 @@ def publish_forge_agent_identity(agent_id: str, plan: Mapping[str, Any] | None =
     return {"ok": True, "enabled": True, "identity": identity, "skill_manifest": manifest, "skill_match": match}
 
 
-def simulate_forge_upgrades(agent_id: str, *, byok: bool = False, wallet: bool = False, onchain_dry_run: bool = False, x402: bool = False, root: str | Path = ".") -> Mapping[str, Any]:
+def simulate_agent_builder_upgrades(agent_id: str, *, byok: bool = False, wallet: bool = False, onchain_dry_run: bool = False, x402: bool = False, root: str | Path = ".") -> Mapping[str, Any]:
     result: dict[str, Any] = {
         "ok": True,
         "agent_id": agent_id,
@@ -368,7 +368,7 @@ def simulate_forge_upgrades(agent_id: str, *, byok: bool = False, wallet: bool =
     credential: Mapping[str, Any] = {}
     if byok:
         credential = create_credential_binding(agent_id, "openai", "env:OPENAI_API_KEY", budget_cap=5.0, root=root)
-        result["byok"] = {"credential": credential, "intent": simulate_byok_inference_intent(agent_id, "openai", "gpt-4.1-mini", "Forge simulated research", credential_id=str(credential.get("credential_id", "")), root=root)}
+        result["byok"] = {"credential": credential, "intent": simulate_byok_inference_intent(agent_id, "openai", "gpt-4.1-mini", "Agent Builder simulated research", credential_id=str(credential.get("credential_id", "")), root=root)}
     if wallet or onchain_dry_run or x402:
         result["wallet"] = bind_wallet_identity(agent_id, "base_sepolia", DEFAULT_WALLET_ADDRESS, root=root)
     else:
@@ -377,23 +377,23 @@ def simulate_forge_upgrades(agent_id: str, *, byok: bool = False, wallet: bool =
         prepared = prepare_onchain_upgrade(agent_id, "base_sepolia", "register_agent", root=root)
         result["onchain"] = {"prepared": prepared, "simulation": simulate_onchain_upgrade(str(prepared["intent_id"]), root=root)}
     if x402:
-        result["x402"] = prepare_x402_payment_route(agent_id, "forge_skill_match", "0.001", DEFAULT_WALLET_ADDRESS, live_requested=True, root=root)
+        result["x402"] = prepare_x402_payment_route(agent_id, "agent_builder_skill_match", "0.001", DEFAULT_WALLET_ADDRESS, live_requested=True, root=root)
     result["capability_summary"] = capability_summary(agent_id, root=root)
     return result
 
 
 def _ensure_helper_agents(*, root: str | Path = ".") -> None:
     helpers = (
-        ("forge-helper-verifier", "Forge Verifier", ("verification", "safety_review", "documentation")),
-        ("forge-helper-visual", "Forge Visual Builder", ("visual_dashboard", "coding", "memory")),
+        ("agent-builder-helper-verifier", "Agent Builder Verifier", ("verification", "safety_review", "documentation")),
+        ("agent-builder-helper-visual", "Agent Builder Visual Builder", ("visual_dashboard", "coding", "memory")),
     )
     for agent_id, name, skills in helpers:
         try:
-            register_agent_identity(agent_id, display_name=name, description="Local Forge helper agent fixture.", root=root)
+            register_agent_identity(agent_id, display_name=name, description="Local Agent Builder helper agent fixture.", root=root)
         except Exception:
             pass
         try:
-            publish_skill_manifest(agent_id, skills, root=root, domains=("forge", "dashboard"))
+            publish_skill_manifest(agent_id, skills, root=root, domains=("agent_builder", "dashboard"))
         except Exception:
             pass
 

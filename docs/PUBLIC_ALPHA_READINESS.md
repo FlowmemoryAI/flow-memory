@@ -18,7 +18,7 @@ python scripts/release_decision.py --target public-alpha-cognition
 python scripts/release_decision.py --target public-alpha-genesis
 python scripts/release_decision.py --target public-alpha-proof-of-learning
 python scripts/release_decision.py --target public-alpha-agent-internet
-python scripts/release_decision.py --target public-alpha-forge
+python scripts/release_decision.py --target public-alpha-agent-builder
 ```
 
 ## Current maturity
@@ -40,7 +40,7 @@ python scripts/release_decision.py --target public-alpha-forge
 | Agent Genesis + Network Learning Protocol | Implemented for no-download first-agent birth, Agent Genome, private Memory Seed, instincts, boundaries, first prediction, Agent Mirror, Agent Passport, private-only default consent, and sanitized opt-in contribution records. |
 | Experience Graph + Proof of Learning | Implemented for local graph construction, proof records, learning reputation, private payload exclusion, CLI/API inspection, and Mission Control proof telemetry. |
 | Agent Internet + Skill Matcher | Implemented for local agent identity registry, skill manifests, deterministic collaborator ranking, shared workspaces, project graph, reputation, MCP manifest policy gating, x402 dry-run payment intents, and ERC-8004 export-only adapter files. |
-| Flow Memory Forge | Implemented for `/forge` browser first-agent birth, `/agents/new` alias, simple no wallet/API key/funds mode, advanced Capability Composer, Agent Internet skill matching, optional BYOK/wallet/on-chain/x402 dry-run paths, and Mission Control handoff. |
+| Flow Memory Agent Builder | Implemented for `/agents/new` browser first-agent birth, `/agents/new` alias, simple no wallet/API key/funds mode, advanced Capability Composer, Agent Internet skill matching, optional BYOK/wallet/on-chain/x402 dry-run paths, and Mission Control handoff. |
 | Mission Control | Local replay/live API scaffold connected to real local state. |
 | Agent economy | Local simulated accounting and lifecycle prototype. |
 | RL Arena | Local prototype environments and tabular training. |
@@ -87,7 +87,7 @@ Local public alpha includes a Mission Control run selector/status card over thes
 - `agent-genesis-onboarding`
 - `experience-graph-proof-of-learning`
 - `agent-internet-skill-network`
-- `flow-memory-forge`
+- `agent-builder`
 
 Generate the local public-alpha demo bundle:
 
@@ -101,7 +101,7 @@ Predictive Learning Benchmark is part of the local evidence path. It writes cons
 Agent Genesis is part of the local evidence path. It writes Agent Genome, Memory Seed, consent, birth certificate, mirror, and passport artifacts under `artifacts/genesis/`; network learning remains private only unless the user opts into sanitized contribution records.
 Experience Graph + Proof of Learning is part of the local evidence path. It writes graph, proof, and reputation artifacts under `artifacts/experience_graph/` and keeps private payloads excluded by default.
 Agent Internet is part of the local evidence path. It writes identity, skill, match, collaboration, workspace, reputation, MCP manifest, dry-run payment-intent, and ERC-8004 export files under `artifacts/agent_internet/`; raw private memory, live settlement, private keys, and transaction broadcast remain excluded.
-Flow Memory Forge is part of the local evidence path. It writes Forge assembly/birth/upgrades evidence through existing Genesis, Agent Internet, BYOK, wallet, on-chain dry-run, x402 dry-run, and Mission Control fixture paths; first-agent creation remains no wallet/API key/funds, private by default, and network learning opt-in.
+Flow Memory Agent Builder is part of the local evidence path. It writes Agent Builder assembly/birth/upgrades evidence through existing Genesis, Agent Internet, BYOK, wallet, on-chain dry-run, x402 dry-run, and Mission Control fixture paths; first-agent creation remains no wallet/API key/funds, private by default, and network learning opt-in.
 
 
 

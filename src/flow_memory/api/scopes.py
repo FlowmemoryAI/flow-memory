@@ -56,9 +56,9 @@ ONCHAIN_RELAY_SCOPE = "onchain:relay"
 EMERGENCY_WRITE_SCOPE = "emergency:write"
 X402_READ_SCOPE = "x402:read"
 X402_PREPARE_SCOPE = "x402:prepare"
-FORGE_READ_SCOPE = "forge:read"
-FORGE_CREATE_SCOPE = "forge:create"
-FORGE_SIMULATE_SCOPE = "forge:simulate"
+AGENT_BUILDER_READ_SCOPE = "agent-builder:read"
+AGENT_BUILDER_CREATE_SCOPE = "agent-builder:create"
+AGENT_BUILDER_SIMULATE_SCOPE = "agent-builder:simulate"
 EXPERIENCE_GRAPH_READ_SCOPE = "experience-graph:read"
 EXPERIENCE_GRAPH_WRITE_SCOPE = "experience-graph:write"
 
@@ -110,9 +110,9 @@ KNOWN_SCOPES = frozenset({
     EMERGENCY_WRITE_SCOPE,
     X402_READ_SCOPE,
     X402_PREPARE_SCOPE,
-    FORGE_READ_SCOPE,
-    FORGE_CREATE_SCOPE,
-    FORGE_SIMULATE_SCOPE,
+    AGENT_BUILDER_READ_SCOPE,
+    AGENT_BUILDER_CREATE_SCOPE,
+    AGENT_BUILDER_SIMULATE_SCOPE,
     EXPERIENCE_GRAPH_READ_SCOPE,
     EXPERIENCE_GRAPH_WRITE_SCOPE,
 
@@ -274,12 +274,12 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
         if normalized_method in READ_METHODS:
             return (X402_READ_SCOPE,)
         return (X402_PREPARE_SCOPE,)
-    if path_key.startswith("/forge/"):
-        if normalized_method in READ_METHODS or path_key == "/forge/defaults":
-            return (FORGE_READ_SCOPE,)
-        if path_key == "/forge/simulate-upgrades":
-            return (FORGE_SIMULATE_SCOPE,)
-        return (FORGE_CREATE_SCOPE,)
+    if path_key.startswith("/agent-builder/"):
+        if normalized_method in READ_METHODS or path_key == "/agent-builder/defaults":
+            return (AGENT_BUILDER_READ_SCOPE,)
+        if path_key == "/agent-builder/simulate-upgrades":
+            return (AGENT_BUILDER_SIMULATE_SCOPE,)
+        return (AGENT_BUILDER_CREATE_SCOPE,)
     if path_key.startswith("/experience-graph"):
         if normalized_method in READ_METHODS:
             return (EXPERIENCE_GRAPH_READ_SCOPE,)

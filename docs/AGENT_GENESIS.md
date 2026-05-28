@@ -22,9 +22,9 @@ The first agent can be represented as a local profile, genome, memory seed, cons
 
 Default mode is `private_only`.
 
-## Forge browser path
+## Agent Builder browser path
 
-Flow Memory Forge wraps Agent Genesis in a browser-first flow at `/forge` and `/agents/new`. The first agent requires no wallet/API key/funds, private memory remains default, and network learning remains opt-in. Optional BYOK, wallet identity, on-chain dry-run, and x402 dry-run route composition are shown after birth in the Capability Composer.
+Flow Memory Agent Builder wraps Agent Genesis in a browser-first flow at `/agents/new`. The first agent requires no wallet/API key/funds, private memory remains default, and network learning remains opt-in. Optional BYOK, wallet identity, on-chain dry-run, and x402 dry-run route composition are shown after birth in the Capability Composer.
 
 ## Commands
 

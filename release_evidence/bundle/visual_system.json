@@ -56,10 +56,10 @@
       "sha256": "9f0a4e0e3e044e28a1757ff362720af024d9d9188ff1ad7deae96dacad6157d1"
     },
     {
-      "bytes": 16169,
+      "bytes": 16266,
       "exists": true,
       "path": "docs/MISSION_CONTROL_QUICKSTART.md",
-      "sha256": "b619322f50b662b3967af476172aa3c744bbefb11a6a02569415a02a9fb0d970"
+      "sha256": "77e0207b506fa7d20c0bde57bb57375613a5049ec4ef1717c01a3208b58df05e"
     },
     {
       "bytes": 1185,

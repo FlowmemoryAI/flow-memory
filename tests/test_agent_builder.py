@@ -6,9 +6,9 @@ from pathlib import Path
 
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.router import create_default_router
-from flow_memory.api.scopes import FORGE_CREATE_SCOPE, FORGE_READ_SCOPE, FORGE_SIMULATE_SCOPE, required_scopes_for
-from flow_memory.forge import birth_agent_from_forge, create_forge_assembly_plan, forge_defaults, simulate_forge_upgrades
-from flow_memory.release.forge_evidence import flow_memory_forge_evidence, verify_flow_memory_forge_evidence
+from flow_memory.api.scopes import AGENT_BUILDER_CREATE_SCOPE, AGENT_BUILDER_READ_SCOPE, AGENT_BUILDER_SIMULATE_SCOPE, required_scopes_for
+from flow_memory.agent_builder import birth_agent_from_builder, create_agent_builder_assembly_plan, agent_builder_defaults, simulate_agent_builder_upgrades
+from flow_memory.release.agent_builder_evidence import agent_builder_evidence, verify_agent_builder_evidence
 from flow_memory.release.readiness import decide_release_readiness
 
 
@@ -22,11 +22,11 @@ def _cli_env() -> dict[str, str]:
     return env
 
 
-def test_forge_defaults_and_plan_are_simple_safe(tmp_path):
-    defaults = forge_defaults()
-    plan = create_forge_assembly_plan({"name": "Mira", "purpose": "Help me build Flow Memory"}, root=tmp_path)["plan"]
+def test_agent_builder_defaults_and_plan_are_simple_safe(tmp_path):
+    defaults = agent_builder_defaults()
+    plan = create_agent_builder_assembly_plan({"name": "Mira", "purpose": "Help me build Flow Memory"}, root=tmp_path)["plan"]
 
-    assert defaults["route"] == "/forge"
+    assert defaults["route"] == "/agents/new"
     assert defaults["simple_mode_default"] is True
     assert defaults["first_agent_requires_wallet"] is False
     assert defaults["first_agent_requires_api_key"] is False
@@ -43,9 +43,9 @@ def test_forge_defaults_and_plan_are_simple_safe(tmp_path):
     assert plan["x402_dry_run_requested"] is False
 
 
-def test_forge_birth_wrapper_and_optional_upgrade_simulation(tmp_path):
-    birth = birth_agent_from_forge({"name": "Mira", "purpose": "Help me build Flow Memory"}, root=tmp_path)
-    upgrades = simulate_forge_upgrades(birth["agent_id"], byok=True, wallet=True, onchain_dry_run=True, x402=True, root=tmp_path)
+def test_agent_builder_birth_wrapper_and_optional_upgrade_simulation(tmp_path):
+    birth = birth_agent_from_builder({"name": "Mira", "purpose": "Help me build Flow Memory"}, root=tmp_path)
+    upgrades = simulate_agent_builder_upgrades(birth["agent_id"], byok=True, wallet=True, onchain_dry_run=True, x402=True, root=tmp_path)
 
     assert birth["ok"] is True
     assert birth["agent_id"].startswith("genesis_agent_")
@@ -62,8 +62,8 @@ def test_forge_birth_wrapper_and_optional_upgrade_simulation(tmp_path):
     assert upgrades["no_funds_moved"] is True
 
 
-def test_forge_agent_internet_publish_and_skill_match(tmp_path):
-    birth = birth_agent_from_forge(
+def test_agent_builder_agent_internet_publish_and_skill_match(tmp_path):
+    birth = birth_agent_from_builder(
         {
             "name": "NetworkMira",
             "purpose": "Find collaborators for a Flow Memory dashboard",
@@ -82,43 +82,43 @@ def test_forge_agent_internet_publish_and_skill_match(tmp_path):
     assert birth["upgrades"]["requested"] == {"byok": False, "wallet": False, "onchain_dry_run": False, "x402": False}
 
 
-def test_forge_api_routes_and_scopes_are_enforced():
+def test_agent_builder_api_routes_and_scopes_are_enforced():
     router = create_default_router()
-    defaults = router.dispatch("GET", "/forge/defaults")
-    plan = router.dispatch("POST", "/forge/assembly-plan", {"name": "ApiMira", "purpose": "Plan Forge"})
-    birth = router.dispatch("POST", "/forge/birth", {"name": "ApiMira", "purpose": "Birth Forge"})
-    upgrades = router.dispatch("POST", "/forge/simulate-upgrades", {"agent_id": birth["agent_id"], "byok": True, "wallet": True, "onchain_dry_run": True})
+    defaults = router.dispatch("GET", "/agent-builder/defaults")
+    plan = router.dispatch("POST", "/agent-builder/assembly-plan", {"name": "ApiMira", "purpose": "Plan Agent Builder"})
+    birth = router.dispatch("POST", "/agent-builder/birth", {"name": "ApiMira", "purpose": "Birth Agent Builder"})
+    upgrades = router.dispatch("POST", "/agent-builder/simulate-upgrades", {"agent_id": birth["agent_id"], "byok": True, "wallet": True, "onchain_dry_run": True})
 
     assert defaults["ok"] is True
     assert plan["plan"]["first_agent_mode"] is True
     assert birth["agent_id"].startswith("genesis_agent_")
     assert upgrades["ok"] is True
-    assert required_scopes_for("GET", "/forge/defaults") == (FORGE_READ_SCOPE,)
-    assert required_scopes_for("POST", "/forge/assembly-plan") == (FORGE_CREATE_SCOPE,)
-    assert required_scopes_for("POST", "/forge/birth") == (FORGE_CREATE_SCOPE,)
-    assert required_scopes_for("POST", "/forge/simulate-upgrades") == (FORGE_SIMULATE_SCOPE,)
+    assert required_scopes_for("GET", "/agent-builder/defaults") == (AGENT_BUILDER_READ_SCOPE,)
+    assert required_scopes_for("POST", "/agent-builder/assembly-plan") == (AGENT_BUILDER_CREATE_SCOPE,)
+    assert required_scopes_for("POST", "/agent-builder/birth") == (AGENT_BUILDER_CREATE_SCOPE,)
+    assert required_scopes_for("POST", "/agent-builder/simulate-upgrades") == (AGENT_BUILDER_SIMULATE_SCOPE,)
 
     gateway = HttpApiGateway(config=HttpApiConfig(require_scopes=True, enable_rate_limit=False))
     denied = gateway.handle(
         "POST",
-        "/forge/birth",
-        {"x-flow-memory-scopes": FORGE_READ_SCOPE},
-        json.dumps({"name": "DeniedForge"}).encode(),
+        "/agent-builder/birth",
+        {"x-flow-memory-scopes": AGENT_BUILDER_READ_SCOPE},
+        json.dumps({"name": "DeniedBuilder"}).encode(),
     )
     allowed = gateway.handle(
         "POST",
-        "/forge/birth",
-        {"x-flow-memory-scopes": FORGE_CREATE_SCOPE},
-        json.dumps({"name": "AllowedForge"}).encode(),
+        "/agent-builder/birth",
+        {"x-flow-memory-scopes": AGENT_BUILDER_CREATE_SCOPE},
+        json.dumps({"name": "AllowedBuilder"}).encode(),
     )
     assert denied.status == 403
     assert allowed.status == 200
 
 
-def test_cli_forge_commands_return_json(tmp_path):
+def test_cli_agent_builder_commands_return_json(tmp_path):
     env = _cli_env()
     defaults = subprocess.run(
-        [sys.executable, "-m", "flow_memory", "forge", "defaults", "--json"],
+        [sys.executable, "-m", "flow_memory", "agent-builder", "defaults", "--json"],
         check=True,
         capture_output=True,
         text=True,
@@ -126,7 +126,7 @@ def test_cli_forge_commands_return_json(tmp_path):
         env=env,
     )
     plan = subprocess.run(
-        [sys.executable, "-m", "flow_memory", "forge", "plan", "--name", "CliMira", "--archetype", "research-builder", "--purpose", "Help me build Flow Memory", "--json"],
+        [sys.executable, "-m", "flow_memory", "agent-builder", "plan", "--name", "CliMira", "--archetype", "research-builder", "--purpose", "Help me build Flow Memory", "--json"],
         check=True,
         capture_output=True,
         text=True,
@@ -134,7 +134,7 @@ def test_cli_forge_commands_return_json(tmp_path):
         env=env,
     )
     birth = subprocess.run(
-        [sys.executable, "-m", "flow_memory", "forge", "birth", "--name", "CliMira", "--archetype", "research-builder", "--purpose", "Help me build Flow Memory", "--json"],
+        [sys.executable, "-m", "flow_memory", "agent-builder", "birth", "--name", "CliMira", "--archetype", "research-builder", "--purpose", "Help me build Flow Memory", "--json"],
         check=True,
         capture_output=True,
         text=True,
@@ -143,7 +143,7 @@ def test_cli_forge_commands_return_json(tmp_path):
     )
     birth_payload = json.loads(birth.stdout)
     upgrades = subprocess.run(
-        [sys.executable, "-m", "flow_memory", "forge", "simulate-upgrades", "--agent", birth_payload["agent_id"], "--byok", "--wallet", "--onchain-dry-run", "--json"],
+        [sys.executable, "-m", "flow_memory", "agent-builder", "simulate-upgrades", "--agent", birth_payload["agent_id"], "--byok", "--wallet", "--onchain-dry-run", "--json"],
         check=True,
         capture_output=True,
         text=True,
@@ -157,12 +157,12 @@ def test_cli_forge_commands_return_json(tmp_path):
     assert json.loads(upgrades.stdout)["no_broadcast"] is True
 
 
-def test_mission_control_forge_fixture_is_valid():
-    with open("dashboard/src/mock-data/flow-memory-forge.json", encoding="utf-8") as handle:
+def test_mission_control_agent_builder_fixture_is_valid():
+    with open("dashboard/src/mock-data/agent-builder.json", encoding="utf-8") as handle:
         payload = json.load(handle)
 
     assert payload["ok"] is True
-    assert payload["summary"]["route"] == "/forge"
+    assert payload["summary"]["route"] == "/agents/new"
     assert payload["summary"]["first_agent_requires_wallet"] is False
     assert payload["summary"]["first_agent_requires_api_key"] is False
     assert payload["summary"]["first_agent_requires_funds"] is False
@@ -173,28 +173,28 @@ def test_mission_control_forge_fixture_is_valid():
     assert payload["invariants"]["transaction_broadcast"] is False
 
 
-def test_forge_release_evidence_and_decision():
-    evidence = flow_memory_forge_evidence(".")
-    decision = verify_flow_memory_forge_evidence(evidence)
-    readiness = decide_release_readiness(".", target="public-alpha-forge")
+def test_agent_builder_release_evidence_and_decision():
+    evidence = agent_builder_evidence(".")
+    decision = verify_agent_builder_evidence(evidence)
+    readiness = decide_release_readiness(".", target="public-alpha-agent-builder")
 
     assert evidence["ok"] is True
-    assert evidence["forge_browser_route_available"] is True
+    assert evidence["agent_builder_browser_route_available"] is True
     assert evidence["no_first_agent_wallet_api_key_requirement"] is True
     assert evidence["no_private_key_invariant"] is True
     assert evidence["no_seed_phrase_invariant"] is True
     assert evidence["no_funds_moved_invariant"] is True
     assert evidence["no_broadcast_invariant"] is True
     assert decision["ok"] is True
-    assert readiness.target == "public-alpha-forge"
-    assert "flow_memory_forge" in readiness.required_evidence
+    assert readiness.target == "public-alpha-agent-builder"
+    assert "agent_builder" in readiness.required_evidence
 
 
-def test_forge_docs_contain_mermaid_and_safe_first_agent_language():
+def test_agent_builder_docs_contain_mermaid_and_safe_first_agent_language():
     docs = "\n".join(
         open(path, encoding="utf-8").read().lower()
         for path in (
-            "docs/FLOW_MEMORY_FORGE.md",
+            "docs/AGENT_BUILDER.md",
             "docs/START_HERE.md",
             "docs/AGENT_GENESIS.md",
             "docs/AGENT_INTERNET.md",
@@ -207,7 +207,7 @@ def test_forge_docs_contain_mermaid_and_safe_first_agent_language():
     )
 
     assert "```mermaid" in docs
-    assert "forge architecture" in docs
+    assert "agent builder architecture" in docs
     assert "first agent requires no wallet/api key/funds" in docs
     assert "byok is optional" in docs
     assert "wallet identity is optional" in docs

@@ -20,9 +20,9 @@ Added Agent Genesis + Network Learning Protocol: private-by-default agent birth,
 
 Added local Experience Graph + Proof of Learning: graph construction over agents, genomes, goals, predictions, actions, outcomes, prediction errors, lessons, policy decisions, teaching events, and sanitized contributions; proof records under `artifacts/experience_graph/proofs/`; learning reputation under `artifacts/experience_graph/reputation/`; graph CLI/API routes; FlowLang `experience_graph` metadata; Mission Control Proof of Learning fixture/panel; and `public-alpha-proof-of-learning` release evidence. Private payloads remain excluded by default and policy gates remain authoritative.
 
-### 2026-05-26 Flow Memory Forge update
+### 2026-05-26 Flow Memory Agent Builder update
 
-Added Flow Memory Forge: `/forge` and `/agents/new` browser first-agent builder, Forge assembly plans, CLI/API wrappers, Capability Composer, Mission Control handoff, Agent Internet skill-match handoff, read-only demo fixture, and `public-alpha-forge` release evidence. The first agent requires no wallet/API key/funds; BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes remain optional after birth with no private keys, no seed phrases, no funds moved, no broadcast, and no mainnet writes.
+Added Flow Memory Agent Builder: `/agents/new` browser first-agent builder, Agent Builder assembly plans, CLI/API wrappers, Capability Composer, Mission Control handoff, Agent Internet skill-match handoff, read-only demo fixture, and `public-alpha-agent-builder` release evidence. The first agent requires no wallet/API key/funds; BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes remain optional after birth with no private keys, no seed phrases, no funds moved, no broadcast, and no mainnet writes.
 
 ## Major systems added
 

@@ -1,9 +1,9 @@
 {
   "ok": true,
-  "fixture_id": "flow-memory-forge",
+  "fixture_id": "agent-builder",
   "summary": {
-    "title": "Flow Memory Forge",
-    "route": "/forge",
+    "title": "Flow Memory Agent Builder",
+    "route": "/agents/new",
     "first_agent_path": "no wallet/API key/funds required for first agent",
     "first_agent_requires_wallet": false,
     "first_agent_requires_api_key": false,
@@ -16,7 +16,7 @@
     "policy": "supervised; approval required"
   },
   "assembly_plan": {
-    "forge_id": "forge_demo_mira",
+    "agent_builder_id": "agent_builder_demo_mira",
     "agent_name": "Mira",
     "archetype_id": "research-builder",
     "purpose": "Help me build, remember, and verify Flow Memory work.",
@@ -30,7 +30,7 @@
     "wallet_upgrade_requested": false,
     "onchain_dry_run_requested": false,
     "x402_dry_run_requested": false,
-    "mission_control_url": "/mission-control#forge-mira"
+    "mission_control_url": "/mission-control#agent-builder-mira"
   },
   "first_prediction": {
     "prediction": "I can begin by mapping project state, predicting the safest next step, and verifying what changed.",
@@ -55,8 +55,8 @@
     "publish_skill_manifest_optional": true,
     "skill_matcher_available": true,
     "sample_recommendations": [
-      {"agent_id": "forge-helper-verifier", "display_name": "Forge Verifier", "score": 0.87, "skills": ["verification", "safety_review"]},
-      {"agent_id": "forge-helper-visual", "display_name": "Forge Visual Builder", "score": 0.82, "skills": ["visual_dashboard", "coding"]}
+      {"agent_id": "agent-builder-helper-verifier", "display_name": "Agent Builder Verifier", "score": 0.87, "skills": ["verification", "safety_review"]},
+      {"agent_id": "agent-builder-helper-visual", "display_name": "Agent Builder Visual Builder", "score": 0.82, "skills": ["visual_dashboard", "coding"]}
     ]
   },
   "optional_upgrades": {
@@ -66,8 +66,8 @@
     "x402": {"visible": true, "route_status": "prepared", "network": "eip155:84532", "settlement_enabled": false, "testnet_live_ready": true}
   },
   "mission_control": {
-    "handoff_url": "/mission-control#forge-mira",
-    "created_from_forge": true,
+    "handoff_url": "/mission-control#agent-builder-mira",
+    "created_from_agent_builder": true,
     "passport_stage": "seed",
     "safety_status": "policy-gated"
   },

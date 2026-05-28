@@ -4,7 +4,7 @@ On-chain upgrade support is an optional dry-run path for agents that already exi
 
 The public-alpha design separates prepare, external sign request, and relay. Flow Memory does not hold private keys, does not ask for seed phrases, does not move funds, and does not broadcast transactions.
 
-Flow Memory Forge exposes on-chain upgrade controls only in Advanced mode after birth. `/forge` keeps the Simple first-agent path local and private by default; the on-chain card prepares and simulates Base Sepolia metadata only.
+Flow Memory Agent Builder exposes on-chain upgrade controls only in Advanced mode after birth. `/agents/new` keeps the Simple first-agent path local and private by default; the on-chain card prepares and simulates Base Sepolia metadata only.
 
 ## Prepare / sign / relay
 

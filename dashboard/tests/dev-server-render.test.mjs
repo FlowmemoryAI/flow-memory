@@ -113,15 +113,14 @@ assert.match(html, /relay disabled by default/);
 assert.match(html, /no seed phrases/);
 assert.match(html, /no transaction broadcast/);
 assert.match(html, /emergency stop/);
-assert.match(html, /Flow Memory Forge/);
+assert.match(html, /Flow Memory Agent Builder/);
 assert.match(html, /Create your first Flow Memory agent/);
-assert.match(html, /flow-memory-forge-form/);
+assert.match(html, /flow-memory-agent-builder-form/);
 assert.match(html, /Capability Composer/);
 assert.match(html, /Simple mode/);
 assert.match(html, /Advanced mode/);
-assert.match(html, /POST \/forge\/birth/);
-assert.match(html, /GET \/forge\/defaults/);
-assert.match(html, /\/forge/);
+assert.match(html, /POST \/agent-builder\/birth/);
+assert.match(html, /GET \/agent-builder\/defaults/);
 assert.match(html, /\/agents\/new/);
 assert.match(html, /Private by default/);
 assert.match(html, /Network learning is opt-in/);
@@ -178,18 +177,18 @@ try {
   const servedHtml = await response.text();
   assert.match(servedHtml, /Human compute becomes memory/);
   assert.match(servedHtml, /mission-3d-canvas/);
-  assert.match(servedHtml, /Flow Memory Forge/);
-  const forgeResponse = await fetch(new URL("/forge", started.url));
-  assert.equal(forgeResponse.status, 200);
-  assert.match(await forgeResponse.text(), /Create your first Flow Memory agent/);
+  assert.match(servedHtml, /Flow Memory Agent Builder/);
+  const agentBuilderResponse = await fetch(new URL("/agents/new", started.url));
+  assert.equal(agentBuilderResponse.status, 200);
+  assert.match(await agentBuilderResponse.text(), /Create your first Flow Memory agent/);
   const agentsNewResponse = await fetch(new URL("/agents/new", started.url));
   assert.equal(agentsNewResponse.status, 200);
   assert.match(await agentsNewResponse.text(), /Capability Composer/);
-  const forgeDefaultsResponse = await fetch(new URL("/forge/defaults", started.url));
-  assert.equal(forgeDefaultsResponse.status, 200);
-  const forgeDefaultsPayload = await forgeDefaultsResponse.json();
-  assert.equal(forgeDefaultsPayload.ok, true);
-  assert.equal(forgeDefaultsPayload.data.summary.first_agent_requires_wallet, false);
+  const agentBuilderDefaultsResponse = await fetch(new URL("/agent-builder/defaults", started.url));
+  assert.equal(agentBuilderDefaultsResponse.status, 200);
+  const agentBuilderDefaultsPayload = await agentBuilderDefaultsResponse.json();
+  assert.equal(agentBuilderDefaultsPayload.ok, true);
+  assert.equal(agentBuilderDefaultsPayload.data.summary.first_agent_requires_wallet, false);
   const gsapResponse = await fetch(new URL("/vendor/gsap.min.js", started.url));
   assert.equal(gsapResponse.status, 200);
   assert.match(await gsapResponse.text(), /GSAP/);
@@ -230,25 +229,25 @@ try {
   assert.match(birthPayload.data.agent_id, /^genesis_agent_/);
   assert.equal(birthPayload.data.birth_certificate.privacy.mode, "private_only");
   assert.equal(birthPayload.data.birth_certificate.privacy.raw_private_payload_excluded, true);
-  const forgeBirthResponse = await fetch(new URL("/forge/birth", started.url), {
+  const agentBuilderBirthResponse = await fetch(new URL("/agent-builder/birth", started.url), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       user_id: "dashboard-test",
-      agent_name: "ForgeMira",
+      agent_name: "BuilderMira",
       archetype_id: "research-builder",
-      purpose: "Verify Forge agent creation",
+      purpose: "Verify Agent Builder agent creation",
       instincts: ["careful", "builder"],
       boundaries: ["ask_before_risky_action", "never_share_private_memory"],
       consent_mode: "private_only",
     }),
   });
-  assert.equal(forgeBirthResponse.status, 200);
-  const forgeBirthPayload = await forgeBirthResponse.json();
-  assert.equal(forgeBirthPayload.ok, true);
-  assert.match(forgeBirthPayload.data.agent_id, /^genesis_agent_/);
-  assert.equal(forgeBirthPayload.data.first_agent_requires_wallet, false);
-  assert.equal(forgeBirthPayload.data.no_broadcast, true);
+  assert.equal(agentBuilderBirthResponse.status, 200);
+  const agentBuilderBirthPayload = await agentBuilderBirthResponse.json();
+  assert.equal(agentBuilderBirthPayload.ok, true);
+  assert.match(agentBuilderBirthPayload.data.agent_id, /^genesis_agent_/);
+  assert.equal(agentBuilderBirthPayload.data.first_agent_requires_wallet, false);
+  assert.equal(agentBuilderBirthPayload.data.no_broadcast, true);
   const unsafeLaunchResponse = await fetch(new URL("/launch/agent", started.url), {
     method: "POST",
     headers: { "content-type": "application/json" },

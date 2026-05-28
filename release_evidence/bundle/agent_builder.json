@@ -1,19 +1,24 @@
 {
+  "agent_builder_advanced_mode_available": true,
+  "agent_builder_available": true,
+  "agent_builder_browser_route_available": true,
+  "agent_builder_first_agent_simple_mode_available": true,
   "agent_internet_publish_optional_visible": true,
-  "api_forge_available": true,
+  "api_agent_builder_available": true,
   "api_routes": [
-    "GET /forge/defaults",
-    "POST /forge/assembly-plan",
-    "POST /forge/birth",
-    "POST /forge/simulate-upgrades"
+    "GET /agent-builder/defaults",
+    "POST /agent-builder/assembly-plan",
+    "POST /agent-builder/birth",
+    "POST /agent-builder/simulate-upgrades"
   ],
   "artifact_paths": {
+    "agent_builder_plans": "artifacts/agents/new/plans/",
     "births": "artifacts/genesis/births/",
     "capability_upgrades": "artifacts/capability_upgrades/",
-    "dashboard_fixture": "dashboard/src/mock-data/flow-memory-forge.json",
-    "forge_plans": "artifacts/forge/plans/"
+    "dashboard_fixture": "dashboard/src/mock-data/agent-builder.json"
   },
   "birth": {
+    "agent_builder_id": "agent-builder_688a94e6b268e7be1c04bc8a",
     "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
     "birth": {
       "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
@@ -49,7 +54,7 @@
           "never_share_private_memory",
           "local_only_by_default"
         ],
-        "created_at": "2026-05-28T12:40:34.983810+00:00",
+        "created_at": "2026-05-28T15:23:16.668775+00:00",
         "description": "Help me build Flow Memory",
         "economy_config": {},
         "goals": [
@@ -90,7 +95,7 @@
               "network_learning": "private_only",
               "raw_private_payload_excluded": true
             },
-            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "created_at": "2026-05-28T15:23:16.668775+00:00",
             "drive_profile": {
               "approval_threshold": 0.74,
               "drive_weights": {
@@ -177,7 +182,7 @@
           "local_only_by_default"
         ],
         "consent_id": "network_learning_consent_122d847ec141b43831d99723",
-        "created_at": "2026-05-28T12:40:34.983810+00:00",
+        "created_at": "2026-05-28T15:23:16.668775+00:00",
         "first_prediction": {
           "agent_name": "Mira",
           "confidence": 0.72,
@@ -238,7 +243,7 @@
           "mode": "private_only",
           "raw_private_payload_excluded": true
         },
-        "created_at": "2026-05-28T12:40:34.983810+00:00",
+        "created_at": "2026-05-28T15:23:16.668775+00:00",
         "lesson": "Check observable state before reporting success, then store the verified lesson.",
         "memory_written": true,
         "mirror_id": "agent_mirror_cbbd9953ed90933d2b856d3c",
@@ -268,7 +273,7 @@
         "prediction_accuracy": 0.0,
         "predictions_made": 0,
         "stage": "seed",
-        "updated_at": "2026-05-28T12:40:34.983810+00:00",
+        "updated_at": "2026-05-28T15:23:16.668775+00:00",
         "visible_limitations": [
           "local public-alpha agent profile, not production autonomy",
           "neural and cognition outputs are advisory",
@@ -293,7 +298,7 @@
               "local_only_by_default"
             ],
             "consent_id": "network_learning_consent_122d847ec141b43831d99723",
-            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "created_at": "2026-05-28T15:23:16.668775+00:00",
             "first_prediction": {
               "agent_name": "Mira",
               "confidence": 0.72,
@@ -326,7 +331,7 @@
           "ok": true,
           "path": "artifacts\\genesis\\consents\\genesis_agent_11b7e7b435abc729711373b0.json",
           "record": {
-            "accepted_at": "2026-05-28T12:40:34.983810+00:00",
+            "accepted_at": "2026-05-28T15:23:16.667775+00:00",
             "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
             "allowed_record_types": [],
             "anonymization_required": false,
@@ -372,7 +377,7 @@
               "network_learning": "private_only",
               "raw_private_payload_excluded": true
             },
-            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "created_at": "2026-05-28T15:23:16.668775+00:00",
             "drive_profile": {
               "approval_threshold": 0.74,
               "drive_weights": {
@@ -440,7 +445,7 @@
               "ask before risky actions",
               "verify outcomes"
             ],
-            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "created_at": "2026-05-28T15:23:16.667775+00:00",
             "initial_lessons": [],
             "privacy_mode": "private_only",
             "project_context": [
@@ -476,7 +481,7 @@
               "mode": "private_only",
               "raw_private_payload_excluded": true
             },
-            "created_at": "2026-05-28T12:40:34.983810+00:00",
+            "created_at": "2026-05-28T15:23:16.668775+00:00",
             "lesson": "Check observable state before reporting success, then store the verified lesson.",
             "memory_written": true,
             "mirror_id": "agent_mirror_cbbd9953ed90933d2b856d3c",
@@ -509,7 +514,7 @@
             "prediction_accuracy": 0.0,
             "predictions_made": 0,
             "stage": "seed",
-            "updated_at": "2026-05-28T12:40:34.983810+00:00",
+            "updated_at": "2026-05-28T15:23:16.668775+00:00",
             "visible_limitations": [
               "local public-alpha agent profile, not production autonomy",
               "neural and cognition outputs are advisory",
@@ -522,18 +527,18 @@
     "first_agent_requires_api_key": false,
     "first_agent_requires_funds": false,
     "first_agent_requires_wallet": false,
-    "forge_id": "forge_688a94e6b268e7be1c04bc8a",
     "internet": {
       "enabled": false,
       "ok": true
     },
-    "mission_control_url": "/mission-control#forge-genesis_agent_11b7e7b435abc729711373b0",
+    "mission_control_url": "/mission-control#agent-builder-genesis_agent_11b7e7b435abc729711373b0",
     "no_broadcast": true,
     "no_funds_moved": true,
     "no_private_key_required": true,
     "no_seed_phrase_required": true,
     "ok": true,
     "plan": {
+      "agent_builder_id": "agent-builder_688a94e6b268e7be1c04bc8a",
       "agent_internet_enabled": false,
       "agent_name": "Mira",
       "archetype_id": "research-builder",
@@ -547,7 +552,7 @@
       "cognition_enabled": true,
       "collaboration_enabled": false,
       "consent_mode": "private_only",
-      "created_at": "2026-05-28T12:40:34.982808+00:00",
+      "created_at": "2026-05-28T15:23:16.667775+00:00",
       "emergency_stop_enabled": true,
       "expected_birth_result": {
         "consent": true,
@@ -558,7 +563,6 @@
         "passport": true
       },
       "first_agent_mode": true,
-      "forge_id": "forge_688a94e6b268e7be1c04bc8a",
       "instincts": [
         "careful",
         "builder",
@@ -582,7 +586,7 @@
           "visible proof"
         ]
       },
-      "mission_control_url": "/mission-control#forge-forge_agent_ref_278beade489f84f205c78b24",
+      "mission_control_url": "/mission-control#agent-builder-agent_builder_agent_ref_278beade489f84f205c78b24",
       "motivation_enabled": true,
       "neural_enabled": true,
       "onchain_dry_run_requested": false,
@@ -653,7 +657,7 @@
   },
   "byok_optional_upgrade_visible": true,
   "capability_composer_available": true,
-  "cli_forge_available": true,
+  "cli_agent_builder_available": true,
   "defaults": {
     "archetypes": [
       {
@@ -1679,7 +1683,7 @@
         "test_mode_supported": true
       }
     ],
-    "route": "/forge",
+    "route": "/agents/new",
     "selected_model_mode_default": "local_runtime",
     "simple_mode_default": true,
     "x402": {
@@ -1696,11 +1700,7 @@
       "testnet_facilitator_url": "https://x402.org/facilitator"
     }
   },
-  "forge_advanced_mode_available": true,
-  "forge_available": true,
-  "forge_browser_route_available": true,
-  "forge_first_agent_simple_mode_available": true,
-  "mermaid_forge_docs_available": true,
+  "mermaid_agent_builder_docs_available": true,
   "mission_control_handoff_available": true,
   "network_learning_opt_in_visible": true,
   "no_api_key_first_agent_visible": true,
@@ -1715,10 +1715,11 @@
   "ok": true,
   "onchain_dry_run_optional_upgrade_visible": true,
   "plan": {
-    "artifact_preview": "artifacts/forge/plans/forge_688a94e6b268e7be1c04bc8a.json",
-    "forge_id": "forge_688a94e6b268e7be1c04bc8a",
+    "agent_builder_id": "agent-builder_688a94e6b268e7be1c04bc8a",
+    "artifact_preview": "artifacts/agents/new/plans/agent-builder_688a94e6b268e7be1c04bc8a.json",
     "ok": true,
     "plan": {
+      "agent_builder_id": "agent-builder_688a94e6b268e7be1c04bc8a",
       "agent_internet_enabled": false,
       "agent_name": "Mira",
       "archetype_id": "research-builder",
@@ -1732,7 +1733,7 @@
       "cognition_enabled": true,
       "collaboration_enabled": false,
       "consent_mode": "private_only",
-      "created_at": "2026-05-28T12:40:34.982808+00:00",
+      "created_at": "2026-05-28T15:23:16.667775+00:00",
       "emergency_stop_enabled": true,
       "expected_birth_result": {
         "consent": true,
@@ -1743,7 +1744,6 @@
         "passport": true
       },
       "first_agent_mode": true,
-      "forge_id": "forge_688a94e6b268e7be1c04bc8a",
       "instincts": [
         "careful",
         "builder",
@@ -1767,7 +1767,7 @@
           "visible proof"
         ]
       },
-      "mission_control_url": "/mission-control#forge-forge_agent_ref_278beade489f84f205c78b24",
+      "mission_control_url": "/mission-control#agent-builder-agent_builder_agent_ref_278beade489f84f205c78b24",
       "motivation_enabled": true,
       "neural_enabled": true,
       "onchain_dry_run_requested": false,
@@ -1794,7 +1794,7 @@
   "private_default_visible": true,
   "public_alpha_docs_updated": true,
   "read_only_demo_mode_available": true,
-  "skill_matcher_from_forge_available": true,
+  "skill_matcher_from_agent_builder_available": true,
   "upgrades": {
     "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
     "byok": {
@@ -1805,7 +1805,7 @@
           "metadata_only_secret_ref"
         ],
         "budget_cap": 5.0,
-        "created_at": "2026-05-28T12:40:34.993808+00:00",
+        "created_at": "2026-05-28T15:23:16.675776+00:00",
         "credential_id": "credential_binding_188178541d40f9036ec2bd54",
         "credential_kind": "api_key",
         "encrypted_secret_ref": "metadata_only:secret_fp_2310255c372bcd0d",
@@ -1832,14 +1832,14 @@
           "mode": "simulated",
           "ok": true
         },
-        "created_at": "2026-05-28T12:40:35.008807+00:00",
+        "created_at": "2026-05-28T15:23:16.688780+00:00",
         "credential_id": "credential_binding_188178541d40f9036ec2bd54",
         "estimated_tokens": 0,
-        "intent_id": "byok_intent_12a06e9937a44642663a9705",
+        "intent_id": "byok_intent_62d38ebb9de1d7eea44f7fb7",
         "model_ref": "gpt-4.1-mini",
         "no_external_call_performed": true,
         "ok": true,
-        "path": "artifacts\\capability_upgrades\\byok_intents\\byok_intent_12a06e9937a44642663a9705.json",
+        "path": "artifacts\\capability_upgrades\\byok_intents\\byok_intent_62d38ebb9de1d7eea44f7fb7.json",
         "policy_decision": {
           "allowed": true,
           "approval_required": true,
@@ -1848,7 +1848,7 @@
         },
         "prompt_summary": "",
         "provider_id": "openai",
-        "purpose": "Forge simulated research",
+        "purpose": "Agent Builder simulated research",
         "raw_prompt_excluded": true,
         "status": "simulated"
       }
@@ -1884,7 +1884,7 @@
         "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
         "approval_record_id": "approval_cc395da4a1f0cc1dfbdd13c7",
         "chain_id": 84532,
-        "created_at": "2026-05-28T12:40:35.012809+00:00",
+        "created_at": "2026-05-28T15:23:16.692783+00:00",
         "eip712_typed_data": {
           "domain": {
             "chainId": 84532,
@@ -1946,7 +1946,7 @@
         "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
         "approval_record_id": "approval_cc395da4a1f0cc1dfbdd13c7",
         "chain_id": 84532,
-        "created_at": "2026-05-28T12:40:35.012809+00:00",
+        "created_at": "2026-05-28T15:23:16.692783+00:00",
         "eip712_typed_data": {
           "domain": {
             "chainId": 84532,
@@ -2027,7 +2027,7 @@
         "external_signature_future"
       ],
       "chain_id": 84532,
-      "created_at": "2026-05-28T12:40:35.010809+00:00",
+      "created_at": "2026-05-28T15:23:16.690782+00:00",
       "emergency_stopped": false,
       "gas_limits": {
         "dry_run_only": true,
@@ -2055,7 +2055,7 @@
         "token": 0
       },
       "token_allowlist": [],
-      "updated_at": "2026-05-28T12:40:35.010809+00:00",
+      "updated_at": "2026-05-28T15:23:16.690782+00:00",
       "user_id": "local-user",
       "verification_status": "simulated",
       "wallet_address": "0x0000000000000000000000000000000000000000",
@@ -2064,7 +2064,7 @@
     "x402": {
       "agent_id": "genesis_agent_11b7e7b435abc729711373b0",
       "cdp_api_key_required": false,
-      "created_at": "2026-05-28T12:40:35.029810+00:00",
+      "created_at": "2026-05-28T15:23:16.706778+00:00",
       "facilitator_provider": "x402_org_testnet",
       "facilitator_url": "https://x402.org/facilitator",
       "install_command": "python -m pip install \"x402[fastapi,httpx,evm]>=2.11.0\"",
@@ -2076,10 +2076,10 @@
       "no_seed_phrase_required": true,
       "ok": true,
       "package_required": "x402[fastapi,httpx,evm]>=2.11.0",
-      "path": "artifacts\\capability_upgrades\\x402_routes\\x402_route_76d1fe0bf984cbc222dea732.json",
+      "path": "artifacts\\capability_upgrades\\x402_routes\\x402_route_de591f1ddd118da1d1d1b242.json",
       "pay_to": "0x0000000000000000000000000000000000000000",
       "payment_requirements_preview": {
-        "description": "Access to forge_skill_match",
+        "description": "Access to agent_builder_skill_match",
         "mimeType": "application/json",
         "network": "eip155:84532",
         "payTo": "0x0000000000000000000000000000000000000000",
@@ -2095,8 +2095,8 @@
         "testnet_live_ready": true
       },
       "price": "0.001",
-      "resource": "forge_skill_match",
-      "route_id": "x402_route_76d1fe0bf984cbc222dea732",
+      "resource": "agent_builder_skill_match",
+      "route_id": "x402_route_de591f1ddd118da1d1d1b242",
       "settlement_enabled": false,
       "status": "prepared",
       "testnet_live_ready": true,

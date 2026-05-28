@@ -68,10 +68,10 @@ python scripts/run_local_network.py --scenario all --emit-visual-events --json-o
 python scripts/export_visual_replay.py artifacts/network/local_network_report.json --out dashboard/src/mock-data/local-network-replay.json
 python scripts/validate_visual_replay.py dashboard/src/mock-data/local-network-replay.json
 python -m flow_memory compute plan --goal "Use budgeted local compute routing with dry-run settlement"
-python -m flow_memory forge defaults --json
-python -m flow_memory forge plan --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --json
-python -m flow_memory forge birth --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --json
-python -m flow_memory forge simulate-upgrades --agent <agent_id> --byok --wallet --onchain-dry-run --json
+python -m flow_memory agent-builder defaults --json
+python -m flow_memory agent-builder plan --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --json
+python -m flow_memory agent-builder birth --name Mira --archetype research-builder --purpose "Help me build Flow Memory" --json
+python -m flow_memory agent-builder simulate-upgrades --agent <agent_id> --byok --wallet --onchain-dry-run --json
 ```
 
 Neural, neural-live, RL, and compute-market signals advise. Policy and approval gates remain authoritative.
@@ -92,7 +92,7 @@ npm test
 Mission Control is connected to local state/replay/API data, with mock fallback clearly labeled.
 Live 3D Mode renders the neural embodiment as read-only local/replay telemetry; it is not an agent launcher, provider connector, settlement console, or policy bypass.
 `cd dashboard && npm run dev` serves the real Mission Control replay UI at `/mission-control` with the run selector, neural embodiment panel, Live 3D Mode, GPU evidence status, and public-alpha finalizer status from local fixtures. It does not expose unsafe write/control endpoints.
-Flow Memory Forge is available at `/forge` and `/agents/new` in the dashboard dev server. It is the browser front door for first-agent birth: the first agent requires no wallet/API key/funds, private memory is default, network learning is opt-in, and BYOK, wallet identity, on-chain dry-run, and x402 dry-run route composition stay optional after birth.
+Flow Memory Agent Builder is available at `/agents/new` in the dashboard dev server. It is the browser front door for first-agent birth: the first agent requires no wallet/API key/funds, private memory is default, network learning is opt-in, and BYOK, wallet identity, on-chain dry-run, and x402 dry-run route composition stay optional after birth.
 Predictive Cognition is available in CLI/API/replay mode: agents encode current state, retrieve similar experience records, predict candidate outcomes, score counterfactuals, observe actual results, compute prediction error, and write lessons under `artifacts/cognition/experiences/`.
 Predictive Learning Benchmark and memory consolidation are available in CLI/API/replay mode: repeated local scenarios write experience records, consolidate reusable lessons under `artifacts/cognition/lessons/`, reuse those lessons before later predictions, and export benchmark records under `artifacts/cognition/benchmarks/`.
 Agent Genesis is available in CLI/API/replay mode: birth a policy-gated agent with purpose, instincts, boundaries, private memory seed, genome, first prediction, mirror, passport, and private-only network learning by default. No download is required for the first agent concept; a local node download is optional for private tools, private compute, or compute contribution.
@@ -128,7 +128,7 @@ The project now combines:
 - Agent Genesis and Network Learning Protocol for private-by-default agent birth, Agent Genomes, Memory Seeds, instincts, boundaries, first predictions, Agent Mirrors, Agent Passports, human teaching events, sanitized opt-in contributions, and Mission Control genesis telemetry
 - Experience Graph + Proof of Learning ledger for graphing agents, goals, predictions, actions, outcomes, prediction errors, lessons, policy decisions, contributions, proof records, and learning reputation while excluding private payloads by default
 - Agent Internet + Skill Matcher + Collaboration Graph for local agent identity registry, skill manifests, deterministic collaborator ranking, policy-gated shared workspaces, project graph edges, local reputation, MCP manifest quarantine, x402 dry-run payment intent records, and ERC-8004 export-only adapter files
-- Flow Memory Forge browser builder for `/forge` and `/agents/new`, first-agent no wallet/API key/funds onboarding, Capability Composer, Agent Internet handoff, optional BYOK/wallet/on-chain/x402 dry-run upgrades, Mission Control handoff, and read-only demo fixtures
+- Flow Memory Agent Builder browser builder for `/agents/new`, first-agent no wallet/API key/funds onboarding, Capability Composer, Agent Internet handoff, optional BYOK/wallet/on-chain/x402 dry-run upgrades, Mission Control handoff, and read-only demo fixtures
 
 
 Public-alpha RC1 preflight adds clean-clone validation, an agent reliability gauntlet, asymmetric/DID signing seams, scoped API/auth/error contracts, typed dashboard mock API client, Base Sepolia dry-run artifacts, expanded contract security tests, optional Docker sandbox backend seam, storage replay scripts, adversarial economy simulation, and hashed release evidence.
@@ -238,7 +238,7 @@ Observed during the public-alpha RC1 preflight build:
 - `docs/MISSION_CONTROL_QUICKSTART.md`
 - `docs/PREDICTIVE_COGNITIVE_CORE.md`
 - `docs/PREDICTIVE_LEARNING_BENCHMARK.md`
-- `docs/FLOW_MEMORY_FORGE.md`
+- `docs/AGENT_BUILDER.md`
 
 ## Honest limitations
 
@@ -252,7 +252,7 @@ Observed during the public-alpha RC1 preflight build:
 - Dashboard is a typed mock API scaffold, not a live operator console.
 - Compute Market integration is local dry-run planning/routing only; it does not move funds, broadcast transactions, call providers, or imply settlement execution.
 - Predictive learning benchmarks are scoped to deterministic local Flow Memory scenarios and do not provide broad external forecasting.
-- Flow Memory Forge creates first agents in the browser without wallet/API key/funds; BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes are optional post-birth simulations unless future audited modes are explicitly added.
+- Flow Memory Agent Builder creates first agents in the browser without wallet/API key/funds; BYOK, wallet identity, on-chain dry-run, and x402 dry-run routes are optional post-birth simulations unless future audited modes are explicitly added.
 
 
 ## Neural Agent Layer v1

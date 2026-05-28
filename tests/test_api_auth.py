@@ -404,6 +404,31 @@ class ApiAuthTests(unittest.TestCase):
         self.assertEqual(decision.scopes, ("compute:plan", "compute:read"))
         self.assertTrue(require_api_key({"authorization": f"Bearer {token}"}, ApiAuthConfig(jwt_hs256_secret="jwt-secret")))
 
+    def test_authorize_request_rejects_tenantless_jwt_when_required(self) -> None:
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-no-tenant",
+                "scope": "compute:read",
+                "aud": "flow-memory-api",
+                "exp": time.time() + 300,
+                "iat": time.time(),
+            },
+        )
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(
+                jwt_hs256_secret="jwt-secret",
+                jwt_audience="flow-memory-api",
+                jwt_require_tenant=True,
+            ),
+        )
+
+        self.assertFalse(decision.ok)
+        self.assertEqual(decision.reasons, ("jwt tenant required",))
+        self.assertEqual(decision.tenant_id, "")
+
     def test_authorize_request_maps_jwt_roles_to_scopes(self) -> None:
         token = _jwt(
             "jwt-secret",

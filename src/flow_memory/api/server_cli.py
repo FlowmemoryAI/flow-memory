@@ -100,6 +100,11 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         default=_int(source.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"), 60),
     )
     parser.add_argument(
+        "--jwt-require-tenant",
+        action="store_true",
+        default=_bool(source.get("FLOW_MEMORY_API_JWT_REQUIRE_TENANT"), False),
+    )
+    parser.add_argument(
         "--allow-unauthenticated-public-bind",
         action="store_true",
         help="Allow a non-local bind without FLOW_MEMORY_API_KEY; only safe behind an authenticated private proxy.",
@@ -125,6 +130,7 @@ def build_http_api_config(argv: Sequence[str] | None = None, env: Mapping[str, s
         jwt_issuer=str(args.jwt_issuer),
         jwt_audience=str(args.jwt_audience),
         jwt_leeway_seconds=int(args.jwt_leeway_seconds),
+        jwt_require_tenant=bool(args.jwt_require_tenant),
         nonce_replay_backend=str(args.nonce_replay_backend),
         nonce_redis_url=str(args.nonce_redis_url),
         nonce_redis_prefix=str(args.nonce_redis_prefix),

@@ -609,6 +609,15 @@ def test_api_server_cli_accepts_public_bind_with_jwt_gateway_secret() -> None:
     assert config.jwt_hs256_secret == "gateway-shared-secret"
     assert config.jwt_issuer == "https://issuer.example"
     assert config.jwt_audience == "flow-memory-api"
+    assert config.jwt_require_tenant is False
+    tenant_required_config = build_http_api_config(
+        ["--host", "0.0.0.0", "--require-scopes"],
+        env={
+            "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-shared-secret",
+            "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": "true",
+        },
+    )
+    assert tenant_required_config.jwt_require_tenant is True
 
 
 def test_api_server_cli_builds_redis_nonce_guard_from_public_env() -> None:

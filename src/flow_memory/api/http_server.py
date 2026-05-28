@@ -43,6 +43,7 @@ class HttpApiConfig:
     jwt_issuer: str = ""
     jwt_audience: str = ""
     jwt_leeway_seconds: int = 60
+    jwt_require_tenant: bool = False
     nonce_replay_backend: str = "memory"
     nonce_redis_url: str = ""
     nonce_redis_prefix: str = "flow-memory:api"
@@ -204,6 +205,7 @@ class HttpApiGateway:
                     jwt_issuer=self.config.jwt_issuer,
                     jwt_audience=self.config.jwt_audience,
                     jwt_leeway_seconds=self.config.jwt_leeway_seconds,
+                    jwt_require_tenant=self.config.jwt_require_tenant,
                     nonce_replay_store=self.nonce_replay_store,
                 ),
                 method=context.method,

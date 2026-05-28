@@ -114,6 +114,7 @@ class ApiAuthConfig:
     jwt_issuer: str = ""
     jwt_audience: str = ""
     jwt_leeway_seconds: int = 60
+    jwt_require_tenant: bool = False
     nonce_replay_store: NonceReplayStore | None = None
 
 KNOWN_AUTH_ROLES = frozenset({
@@ -555,11 +556,14 @@ def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tup
     subject = str(claims.get("sub", ""))
     if not subject:
         return None, ("jwt sub required",)
+    tenant_id = str(claims.get("tenant_id", claims.get("org_id", "")))
+    if config.jwt_require_tenant and not tenant_id:
+        return None, ("jwt tenant required",)
     scopes = _jwt_scopes(claims)
     return (
         ApiKeyIdentity(
             key_id=str(header.get("kid", "jwt")),
-            tenant_id=str(claims.get("tenant_id", claims.get("org_id", ""))),
+            tenant_id=tenant_id,
             principal=subject,
             scopes=scopes,
             token_id=str(claims.get("jti", "")),

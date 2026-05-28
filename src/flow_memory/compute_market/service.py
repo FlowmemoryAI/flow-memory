@@ -20,7 +20,7 @@ from flow_memory.compute_market.adapters import build_external_provider_adapter
 from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, audit_events_from_export_file, build_checkpoint, create_audit_exporter, verify_audit_export, verify_exported_chain
 from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, RedisCircuitBreaker, RedisRateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
-from flow_memory.compute_market.provider_contracts import validate_provider_quote_contract, verify_provider_quote_signature
+from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEXT, validate_provider_quote_contract, verify_provider_quote_signature
 from flow_memory.compute_market.memory import query_economic_memory_typed, query_request_from_payload
 from flow_memory.compute_market.models import (
     AuditEvent,
@@ -814,7 +814,7 @@ class ComputeMarketService:
             allowed_networks=_tuple(payload.get("allowed_networks", ())),
             public_key=public_key,
         )
-        signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
+        signed_quote_valid = verify_provider_quote_signature(quote, public_key, signature_context=QUOTE_SIGNATURE_CONTEXT) if public_key else False
         fraud_signals: tuple[Mapping[str, Any], ...] = ()
         if not validation.ok:
             fraud_signals = _fraud_signals_from_validation(
@@ -1225,7 +1225,7 @@ class ComputeMarketService:
             )
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
             return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": validation_fraud_signals}
-        signed_quote_valid = verify_provider_quote_signature(quote, public_key) if public_key else False
+        signed_quote_valid = verify_provider_quote_signature(quote, public_key, signature_context=QUOTE_SIGNATURE_CONTEXT) if public_key else False
         record = {
             **_normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid),
             "record_id": quote_record_id,

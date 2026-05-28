@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from flow_memory.compute_market.provider_contracts import (
+    QUOTE_SIGNATURE_CONTEXT,
     validate_provider_contract_file,
     validate_provider_quote_contract,
 )
@@ -45,7 +46,7 @@ def test_provider_contract_verifies_signed_quote() -> None:
     signer = LocalTestSigner("provider-local-gpu-key", "provider-local-gpu-seed")
     unsigned = _valid_quote()
     unsigned.pop("verification", None)
-    signed = {**unsigned, "signature": signer.sign(unsigned).as_record()}
+    signed = {**unsigned, "signature": signer.sign({**unsigned, "_signature_context": QUOTE_SIGNATURE_CONTEXT}).as_record()}
 
     result = validate_provider_quote_contract(
         signed,

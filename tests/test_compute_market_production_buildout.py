@@ -12,6 +12,7 @@ from typing import Any, Mapping, cast
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.config import ComputeMarketConfig
+from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEXT
 from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.models import IntelligenceTier, ProviderClass, ReasoningBudget, RunDecision, TaskEconomicProfile
@@ -436,7 +437,7 @@ def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:
     service.verify_market_provider("provider_live_gpu_1", {})
 
     unsigned_quote = _quote()
-    signed_quote = {**unsigned_quote, "signature": signer.sign(unsigned_quote).as_record()}
+    signed_quote = {**unsigned_quote, "signature": signer.sign({**unsigned_quote, "_signature_context": QUOTE_SIGNATURE_CONTEXT}).as_record()}
     conformance = service.provider_conformance(
         "provider_live_gpu_1",
         {

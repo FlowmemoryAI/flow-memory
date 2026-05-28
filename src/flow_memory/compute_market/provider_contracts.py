@@ -11,6 +11,10 @@ from flow_memory.compute_market.storage import utc_now_iso
 from flow_memory.crypto.asymmetric import ED25519_ALGORITHM, LOCAL_TEST_ASYMMETRIC_ALGORITHM, LocalTestVerifier, PublicKeyRecord
 from flow_memory.crypto.ed25519 import Ed25519Verifier
 
+QUOTE_SIGNATURE_CONTEXT = "compute_quote"
+EXECUTION_RESULT_SIGNATURE_CONTEXT = "compute_execution_result"
+_SIGNATURE_CONTEXT_FIELD = "_signature_context"
+
 _REQUIRED_FIELDS = (
     "provider_id",
     "route_id",
@@ -132,7 +136,7 @@ class ProviderQuoteContract:
             errors.append("missing_signature")
         elif not signature_present:
             warnings.append("unsigned_quote")
-        elif self.public_key and not verify_provider_quote_signature(quote, self.public_key):
+        elif self.public_key and not verify_provider_quote_signature(quote, self.public_key, signature_context=QUOTE_SIGNATURE_CONTEXT):
             errors.append("invalid_signature")
         return ProviderContractValidation(ok=not errors, error_codes=tuple(dict.fromkeys(errors)), warnings=tuple(warnings))
 
@@ -166,7 +170,12 @@ def validate_provider_contract_file(path: str | Path, *, provider_id: str = "") 
     return {"ok": result.ok, "validation": result.as_record(), "path": str(path)}
 
 
-def verify_provider_quote_signature(quote: Mapping[str, Any], public_key: str | Mapping[str, Any]) -> bool:
+def verify_provider_quote_signature(
+    quote: Mapping[str, Any],
+    public_key: str | Mapping[str, Any],
+    *,
+    signature_context: str = "",
+) -> bool:
     envelope = quote.get("signature") or quote.get("verification")
     if not isinstance(envelope, Mapping):
         return False
@@ -177,8 +186,12 @@ def verify_provider_quote_signature(quote: Mapping[str, Any], public_key: str | 
     signed_payload = {
         key: value
         for key, value in quote.items()
-        if key not in {"signature", "verification"}
+        if key not in {"signature", "verification", _SIGNATURE_CONTEXT_FIELD}
     }
+    if signature_context:
+        signed_payload[_SIGNATURE_CONTEXT_FIELD] = signature_context
+    elif _SIGNATURE_CONTEXT_FIELD in quote:
+        signed_payload[_SIGNATURE_CONTEXT_FIELD] = quote[_SIGNATURE_CONTEXT_FIELD]
     if public.algorithm == LOCAL_TEST_ASYMMETRIC_ALGORITHM:
         return bool(LocalTestVerifier(public).verify(signed_payload, record).ok)
     if public.algorithm == ED25519_ALGORITHM:

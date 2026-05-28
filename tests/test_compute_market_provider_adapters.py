@@ -9,8 +9,9 @@ from typing import Any, Mapping, cast
 from flow_memory.compute_market.adapters import HTTPQuoteProvider, QuoteCollector, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
-from flow_memory.compute_market.service import ComputeMarketService
+from flow_memory.compute_market.provider_contracts import EXECUTION_RESULT_SIGNATURE_CONTEXT, QUOTE_SIGNATURE_CONTEXT
 from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_execute, sandbox_quote, verify_provider_sandbox_request
+from flow_memory.compute_market.service import ComputeMarketService
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.compute_market.planner import build_task_profile
 from flow_memory.compute_market.registry import default_compute_providers, default_compute_routes
@@ -23,6 +24,10 @@ _REQUEST_COUNTS: dict[str, int] = {}
 _CAPTURED_AUTH: list[str] = []
 _CAPTURED_SIGNATURE_HEADERS: list[dict[str, str]] = []
 _SIGNED_QUOTE_RESPONSE: dict[str, Any] | None = None
+
+def _signed_provider_payload(payload: Mapping[str, Any], signer: LocalTestSigner, signature_context: str) -> dict[str, Any]:
+    signed_payload = {**dict(payload), "_signature_context": signature_context}
+    return {**dict(payload), "signature": signer.sign(signed_payload).as_record()}
 
 
 def _quote(status_extra: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -267,7 +272,7 @@ def test_external_provider_adapter_verifies_signed_quote_responses() -> None:
     global _SIGNED_QUOTE_RESPONSE
     signer = LocalTestSigner("provider-response-key", "provider-response-seed")
     unsigned = _quote()
-    signed = {**unsigned, "signature": signer.sign(unsigned).as_record()}
+    signed = _signed_provider_payload(unsigned, signer, QUOTE_SIGNATURE_CONTEXT)
     provider_public_key: Mapping[str, Any] = signer.public_record().as_record()
     server, base = _server()
     config = ComputeMarketConfig(
@@ -319,7 +324,7 @@ def test_http_provider_verifies_signed_execution_results() -> None:
         "actual_total_cost": 0.18,
         "actual_latency_ms": 450.0,
     }
-    signed = {**unsigned, "signature": signer.sign(unsigned).as_record()}
+    signed = _signed_provider_payload(unsigned, signer, EXECUTION_RESULT_SIGNATURE_CONTEXT)
     adapter = _provider(
         "http://127.0.0.1:9/valid",
         verification_public_key=signer.public_record().as_record(),
@@ -341,6 +346,33 @@ def test_http_provider_verifies_signed_execution_results() -> None:
     assert tampered["error_code"] == "provider_execution.signature_invalid"
     assert unsigned_result["ok"] is False
     assert unsigned_result["error_code"] == "provider_execution.signature_invalid"
+
+
+def test_quote_signature_cannot_be_replayed_as_execution_result() -> None:
+    signer = LocalTestSigner("provider-replay-key", "provider-replay-seed")
+    quote_payload = {
+        **_quote(),
+        "job_id": "job_replayed_quote",
+        "status": "running",
+        "artifact_ref": "s3://flow-memory-results/job_replayed_quote.json",
+    }
+    signed_quote = _signed_provider_payload(quote_payload, signer, QUOTE_SIGNATURE_CONTEXT)
+    adapter = _provider(
+        "http://127.0.0.1:9/valid",
+        verification_public_key=signer.public_record().as_record(),
+    )
+
+    result = adapter.normalize_execution_result(
+        {"execution": signed_quote},
+        {
+            "job_id": "job_replayed_quote",
+            "provider_id": "market-token-provider",
+            "route_id": "market-token-route",
+        },
+    )
+
+    assert result["ok"] is False
+    assert result["error_code"] == "provider_execution.signature_invalid"
 
 
 def test_signed_provider_request_headers_are_payload_bound() -> None:

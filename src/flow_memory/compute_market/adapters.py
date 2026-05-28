@@ -22,7 +22,7 @@ from flow_memory.compute_market.models import (
     TaskEconomicProfile,
 )
 from flow_memory.compute_market.pricing import collect_quote, normalize_quote
-from flow_memory.compute_market.provider_contracts import verify_provider_quote_signature
+from flow_memory.compute_market.provider_contracts import EXECUTION_RESULT_SIGNATURE_CONTEXT, QUOTE_SIGNATURE_CONTEXT, verify_provider_quote_signature
 from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id, utc_now_iso
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.crypto.keys import LocalKeyPair
@@ -300,7 +300,7 @@ class HTTPQuoteProvider:
         raw_signature = raw_quote.get("signature") or raw_quote.get("verification")
         signed_quote_valid = False
         if self.verification_public_key:
-            signed_quote_valid = verify_provider_quote_signature(raw_quote, self.verification_public_key)
+            signed_quote_valid = verify_provider_quote_signature(raw_quote, self.verification_public_key, signature_context=QUOTE_SIGNATURE_CONTEXT)
             if not signed_quote_valid:
                 raise ValueError("provider quote signature is missing or invalid")
         normalized_raw.setdefault("provider_or_route", normalized_raw.get("route_id", self.provider.provider_name))
@@ -431,7 +431,7 @@ class HTTPQuoteProvider:
         raw_signature = result.get("signature") or result.get("verification")
         execution_signature_valid = False
         if self.verification_public_key:
-            execution_signature_valid = verify_provider_quote_signature(result, self.verification_public_key)
+            execution_signature_valid = verify_provider_quote_signature(result, self.verification_public_key, signature_context=EXECUTION_RESULT_SIGNATURE_CONTEXT)
             if not execution_signature_valid:
                 return _execution_error(
                     "provider_execution.signature_invalid",

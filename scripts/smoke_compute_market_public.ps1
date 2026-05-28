@@ -293,9 +293,27 @@ function Get-DataField {
     if ($null -eq $Json -or $null -eq $Json.data) { return $null }
     return $Json.data.$Name
 }
-if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
-    if ($GatewayJwtHs256Secret -match 'CHANGEME|<[^>]*>|high-entropy') {
+$gatewayJwtConfigured = (
+    -not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret) -or
+    -not [string]::IsNullOrWhiteSpace($GatewayJwtIssuer) -or
+    -not [string]::IsNullOrWhiteSpace($GatewayJwtAudience)
+)
+if ($gatewayJwtConfigured) {
+    if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret) -and $GatewayJwtHs256Secret -match 'CHANGEME|<[^>]*>|high-entropy') {
         throw 'Gateway JWT secret must be a real high-entropy secret when JWT smoke is configured.'
+    }
+    $missingGatewayJwtSettings = New-Object System.Collections.Generic.List[string]
+    if ([string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
+        $missingGatewayJwtSettings.Add('FLOW_MEMORY_API_JWT_HS256_SECRET')
+    }
+    if ([string]::IsNullOrWhiteSpace($GatewayJwtIssuer)) {
+        $missingGatewayJwtSettings.Add('FLOW_MEMORY_API_JWT_ISSUER')
+    }
+    if ([string]::IsNullOrWhiteSpace($GatewayJwtAudience)) {
+        $missingGatewayJwtSettings.Add('FLOW_MEMORY_API_JWT_AUDIENCE')
+    }
+    if ($missingGatewayJwtSettings.Count -gt 0) {
+        throw "Gateway JWT secret, issuer, and audience must be configured together when JWT smoke is configured: $($missingGatewayJwtSettings -join ', ')."
     }
     [void](New-GatewayJwt -Secret $GatewayJwtHs256Secret -Issuer $GatewayJwtIssuer -Audience $GatewayJwtAudience -Scopes 'compute:read' -TtlSeconds $GatewayJwtTtlSeconds)
 }

@@ -167,6 +167,7 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "jwt_health = $jwtHealthStatus",
         "jwt_wrong_audience = $jwtWrongAudienceStatus",
         "Gateway JWT secret must be a real high-entropy secret",
+        "must be configured together when JWT smoke is configured",
     ):
         assert expected in script
 
@@ -206,6 +207,41 @@ def test_public_smoke_rejects_placeholder_gateway_jwt_secret_before_network() ->
     assert result.returncode != 0
     assert "Gateway JWT secret must be a real high-entropy secret" in result.stderr
 
+
+def test_public_smoke_rejects_incomplete_gateway_jwt_before_network() -> None:
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        pytest.skip("PowerShell is required for public smoke JWT preflight validation")
+    assert powershell is not None
+
+    result = subprocess.run(
+        [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(ROOT / "scripts" / "smoke_compute_market_public.ps1"),
+            "-ApiUrl",
+            "https://api.flowmemory.ai",
+            "-ApiKey",
+            "fmk_live_smoke_secret",
+            "-GatewayJwtIssuer",
+            "https://issuer.example",
+            "-GatewayJwtAudience",
+            "flow-memory-api",
+        ],
+        cwd=ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "must be configured together when JWT smoke is configured" in result.stderr
+    assert "FLOW_MEMORY_API_JWT_HS256_SECRET" in result.stderr
 
 
 def test_render_blueprint_and_env_builder_match_level1_safety_contract() -> None:

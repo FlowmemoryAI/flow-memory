@@ -179,6 +179,72 @@ def test_http_gateway_tenant_api_key_supplies_scopes_without_scope_header() -> N
     assert gateway.audit_sink.events[-1]["tenant_id"] == "tenant_http"
 
 
+def test_http_gateway_enforces_credential_scopes_without_scope_header() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
+    )
+    reset_default_service(service)
+    read_key = "fmk_read_only_jobs"
+    execute_key = "fmk_execute_jobs"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=False,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "read-only-jobs-key",
+                    "key_prefix": "fmk_read_",
+                    "key_hash": api_key_hash(read_key),
+                    "tenant_id": "tenant_scoped_auth",
+                    "principal": "svc-read-only",
+                    "scopes": "compute:read",
+                    "enabled": True,
+                },
+                {
+                    "key_id": "execute-jobs-key",
+                    "key_prefix": "fmk_execute_",
+                    "key_hash": api_key_hash(execute_key),
+                    "tenant_id": "tenant_scoped_auth",
+                    "principal": "svc-execute",
+                    "scopes": "compute:execute",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+    job_payload = {
+        "task_type": "inference",
+        "input_ref": "s3://flow-memory-inputs/scope-guard.json",
+        "model_or_runtime": "llama-runtime",
+        "resource_request": {"gpu_type": "H100", "gpu_count": 1, "memory_gb": 80, "max_runtime_seconds": 600},
+        "budget_policy_id": "policy_default",
+        "route_id": "route_scope_guard",
+        "provider_id": "provider_scope_guard",
+    }
+
+    try:
+        denied = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": read_key},
+            json.dumps(job_payload).encode("utf-8"),
+        )
+        allowed = gateway.handle(
+            "POST",
+            "/compute/jobs",
+            {"x-flow-memory-api-key": execute_key},
+            json.dumps(job_payload).encode("utf-8"),
+        )
+    finally:
+        reset_default_service(None)
+
+    assert denied.status == 403
+    assert denied.body["error"]["details"]["missing"] == ("compute:execute",)
+    assert allowed.status == 200
+    assert allowed.body["data"]["job"]["tenant_id"] == "tenant_scoped_auth"
+
+
 def test_http_gateway_provider_health_store_audit_keeps_tenant_context() -> None:
     breaker = InMemoryCircuitBreaker(failure_threshold=1, reset_after_seconds=60)
     breaker.record_failure("tenant-provider", adapter_type="health_check", error_class="provider_timeout")

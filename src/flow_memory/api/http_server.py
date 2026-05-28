@@ -229,7 +229,11 @@ class HttpApiGateway:
                 )
             if not auth.ok:
                 raise auth_error("API authorization failed", details={"reasons": auth.reasons})
-            if self.config.require_scopes:
+            if auth.scopes:
+                scope_decision = require_scopes(context)
+                if not scope_decision.ok and scope_decision.error is not None:
+                    raise scope_decision.error
+            elif self.config.require_scopes:
                 scope_decision = require_scopes(context)
                 if not scope_decision.ok and scope_decision.error is not None:
                     raise scope_decision.error

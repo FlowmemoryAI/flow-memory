@@ -7887,15 +7887,25 @@ def _provider_sla_penalty(
 def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
     event_object = _stripe_event_object(raw_event)
     amount_source = event_object.get("amount_total", "")
+    amount_in_minor_units = amount_source not in (None, "")
     if amount_source in (None, ""):
         amount_source = event_object.get("amount_paid", "")
+        amount_in_minor_units = amount_source not in (None, "")
     if amount_source in (None, ""):
         amount_source = event_object.get("amount", "")
+        amount_in_minor_units = event_object is not raw_event and amount_source not in (None, "")
     if amount_source in (None, ""):
-        amount_source = raw_event.get("amount_total", raw_event.get("amount_paid", raw_event.get("amount", 0)))
+        amount_source = raw_event.get("amount_total", "")
+        amount_in_minor_units = amount_source not in (None, "")
+    if amount_source in (None, ""):
+        amount_source = raw_event.get("amount_paid", "")
+        amount_in_minor_units = amount_source not in (None, "")
+    if amount_source in (None, ""):
+        amount_source = raw_event.get("amount", 0)
+        amount_in_minor_units = False
     amount = _non_negative_float(amount_source, "amount")
-    if amount >= 100 and float(int(amount)) == amount:
-        amount = amount / 100.0
+    if amount_in_minor_units:
+        amount = _major_currency_units(amount)
     return {
         "amount": amount,
         "currency": str(event_object.get("currency", raw_event.get("currency", "USD"))).upper(),
@@ -8351,6 +8361,11 @@ def _minor_currency_units(amount: float) -> int:
     if value <= 0:
         raise RuntimeError("stripe checkout amount must be positive")
     return value
+
+
+def _major_currency_units(amount: float) -> float:
+    cents = Decimal(str(amount)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    return float((cents / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _is_https_url(value: str) -> bool:

@@ -2656,6 +2656,27 @@ def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signatur
     assert service.billing_balance({"account_id": "acct_1"})["balance"]["available_credits"] == 100.0
 
 
+def test_billing_webhook_converts_sub_dollar_stripe_minor_units() -> None:
+    service = _service()
+    raw_event = {
+        "id": "evt_sub_dollar_checkout",
+        "type": "checkout.session.completed",
+        "amount_total": 50,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_sub_dollar"},
+    }
+    secret = "whsec_test_secret"
+    signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
+
+    webhook = service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
+    balance = service.billing_balance({"account_id": "acct_sub_dollar"})["balance"]
+
+    assert webhook["ok"] is True
+    assert webhook["payment_event"]["amount"] == 0.5
+    assert webhook["credit_transaction"]["amount"] == 0.5
+    assert balance["available_credits"] == 0.5
+
+
 def test_billing_webhook_duplicate_delivery_is_idempotent() -> None:
     service = _service()
     raw_event = {

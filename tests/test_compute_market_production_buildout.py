@@ -16,6 +16,7 @@ from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEX
 from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
 from flow_memory.compute_market.service import (
     ComputeMarketService,
+    _provider_quote_ingress_callback_signature_payload,
     _provider_state_callback_signature_payload,
     reset_default_service,
 )
@@ -96,6 +97,16 @@ def _signed_state_callback(
         callback_action=callback_action,
     )
     return {**dict(payload), "signature": sign_payload(signature_payload, key).as_record()}
+
+
+def _signed_quote_ingress_callback(
+    provider_id: str,
+    route_id: str,
+    payload: Mapping[str, Any],
+    key: LocalKeyPair,
+) -> dict[str, object]:
+    signature_payload = _provider_quote_ingress_callback_signature_payload(provider_id, route_id, payload)
+    return {**dict(payload), "callback_signature": sign_payload(signature_payload, key).as_record()}
 
 
 def _metric_total(service: ComputeMarketService, name: str, labels: Mapping[str, str] | None = None) -> float:
@@ -514,6 +525,86 @@ def test_quote_ingest_enforces_provider_callback_ip_allowlist() -> None:
     assert allowed["ok"] is True
     assert service.store.count_records("compute_quote") == 1
     assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest"}) == 1.0
+
+
+def test_quote_ingest_verifies_provider_callback_signature_and_replay(monkeypatch: Any) -> None:
+    service = _service()
+    key = LocalKeyPair("provider-quote-callback-key", "provider-quote-callback-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_QUOTE_CALLBACK_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "provider_name": "Live GPU Provider 1",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_QUOTE_CALLBACK_SECRET",
+            },
+        }
+    )
+
+    missing_payload = {
+        "quote": {**_quote(), "quote_id": "quote_callback_missing"},
+        "allowed_assets": ["USDC"],
+        "allowed_networks": ["solana"],
+        "callback_id": "quote-missing",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    missing = service.broker_quote(missing_payload)
+
+    tampered_payload = {
+        "quote": {**_quote(), "quote_id": "quote_callback_tampered"},
+        "allowed_assets": ["USDC"],
+        "allowed_networks": ["solana"],
+        "callback_id": "quote-tampered",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    tampered_signature = sign_payload(
+        _provider_quote_ingress_callback_signature_payload(
+            "provider_live_gpu_1",
+            "route_live_gpu_1",
+            tampered_payload,
+        ),
+        key,
+    ).as_record()
+    tampered = service.broker_quote(
+        {
+            **tampered_payload,
+            "quote": {**cast(Mapping[str, object], tampered_payload["quote"]), "estimated_total_cost": 9.99},
+            "callback_signature": tampered_signature,
+        }
+    )
+
+    valid_payload = {
+        "quote": {**_quote(), "quote_id": "quote_callback_valid"},
+        "allowed_assets": ["USDC"],
+        "allowed_networks": ["solana"],
+        "callback_id": "quote-valid",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    signed_valid = _signed_quote_ingress_callback(
+        "provider_live_gpu_1",
+        "route_live_gpu_1",
+        valid_payload,
+        key,
+    )
+    accepted = service.broker_quote(signed_valid)
+    replayed = service.broker_quote(signed_valid)
+
+    assert missing["ok"] is False
+    assert missing["error"]["error_code"] == "provider_callback.signature_missing"
+    assert tampered["ok"] is False
+    assert tampered["error"]["error_code"] == "provider_callback.signature_invalid"
+    assert accepted["ok"] is True
+    assert accepted["quote"]["quote_id"] == "quote_callback_valid"
+    assert accepted["provider_callback_verification"]["callback_id"] == "quote-valid"
+    assert replayed["ok"] is False
+    assert replayed["error"]["error_code"] == "provider_callback.replay_detected"
+    assert service.store.count_records("compute_quote") == 1
+    assert service.store.count_records("provider_callback_replay_guard") == 1
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest", "reason": "provider_callback.signature_missing"}) == 1.0
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest", "reason": "provider_callback.signature_invalid"}) == 1.0
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest", "reason": "provider_callback.replay_detected"}) == 1.0
 
 
 def test_broker_quote_ignores_payload_public_key_when_stored_key_exists() -> None:

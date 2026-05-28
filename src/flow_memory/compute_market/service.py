@@ -98,6 +98,17 @@ _PROVIDER_STATE_CALLBACK_UNSIGNED_KEYS = frozenset(
         "workspace_id",
     }
 )
+_PROVIDER_QUOTE_INGRESS_CALLBACK_SIGNATURE_CONTEXT = "flowmemory.provider_quote_ingress_callback.v1"
+_PROVIDER_QUOTE_INGRESS_CALLBACK_UNSIGNED_KEYS = frozenset(
+    {
+        "callback_signature",
+        "callback_verification",
+        "_flow_memory_client_ip",
+        "request_id",
+        "tenant_id",
+        "workspace_id",
+    }
+)
 
 
 
@@ -1155,6 +1166,23 @@ class ComputeMarketService:
         )
         if callback_rejection is not None:
             return callback_rejection
+        callback_signature_verification = _verify_provider_quote_ingress_callback(
+            self.store,
+            provider_id,
+            route_id,
+            payload,
+        )
+        if callback_signature_verification.get("ok") is not True:
+            return self._provider_callback_signature_rejection(
+                payload,
+                callback_signature_verification,
+                request_id=request_id,
+                job_id="",
+                provider_id=provider_id,
+                route_id=route_id,
+                callback_action="quote_ingest",
+                audit_action="market.quote.ingest_callback_rejected",
+            )
         limited = self._rate_limit_response(payload, "POST /market/quotes/ingest", request_id=request_id, provider_id=provider_id, route_id=route_id)
         if limited is not None:
             return limited
@@ -1383,6 +1411,7 @@ class ComputeMarketService:
             tenant_id=tenant_id,
             workspace_id=workspace_id
         )
+        self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
         self.telemetry.increment("provider_quote_latency_ms", {"provider_id": provider_id}, value=float(payload.get("latency_ms", 0) or 0))
         self._audit("market.quote.ingested", payload, request_id=request_id, result="accepted", provider_id=provider_id, route_id=route_id)
         if stale_marked:
@@ -1392,7 +1421,14 @@ class ComputeMarketService:
                 value=float(stale_marked),
             )
             self._audit("market.quote.expired_prior_quotes_marked_stale", payload, request_id=request_id, result="completed", reason_codes=("prior_quotes_expired",), provider_id=provider_id, route_id=route_id)
-        return {"ok": True, "quote": record, "validation": validation.as_record(), "drift": drift or {}, "fraud_signals": fraud_signals}
+        return {
+            "ok": True,
+            "quote": record,
+            "validation": validation.as_record(),
+            "drift": drift or {},
+            "fraud_signals": fraud_signals,
+            "provider_callback_verification": callback_signature_verification,
+        }
 
     def invalidate_quote_cache(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
@@ -7124,20 +7160,8 @@ def _verify_provider_receipt(
 def _provider_callback_signing_key(provider: Mapping[str, Any]) -> LocalKeyPair | None:
     metadata = provider.get("metadata", {})
     metadata_map = metadata if isinstance(metadata, Mapping) else {}
-    key_id = str(
-        provider.get("callback_signing_key_id")
-        or metadata_map.get("callback_signing_key_id")
-        or provider.get("outbound_signing_key_id")
-        or metadata_map.get("outbound_signing_key_id")
-        or ""
-    ).strip()
-    env_name = str(
-        provider.get("callback_signing_key_env")
-        or metadata_map.get("callback_signing_key_env")
-        or provider.get("outbound_signing_key_env")
-        or metadata_map.get("outbound_signing_key_env")
-        or ""
-    ).strip()
+    key_id = str(provider.get("callback_signing_key_id") or metadata_map.get("callback_signing_key_id") or "").strip()
+    env_name = str(provider.get("callback_signing_key_env") or metadata_map.get("callback_signing_key_env") or "").strip()
     secret = os.environ.get(env_name, "") if env_name else ""
     if not key_id or not secret:
         return None
@@ -7260,6 +7284,113 @@ def _verify_provider_state_callback(
             "provider_id": provider_id,
             "route_id": route_id,
             "callback_action": callback_action,
+            "timestamp": timestamp,
+            "created_at": utc_now_iso(),
+        },
+    }
+
+
+def _provider_quote_ingress_callback_signature_payload(
+    provider_id: str,
+    route_id: str,
+    payload: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    signed_payload = {
+        str(key): value
+        for key, value in payload.items()
+        if str(key) not in _PROVIDER_QUOTE_INGRESS_CALLBACK_UNSIGNED_KEYS
+    }
+    return {
+        "_signature_context": _PROVIDER_QUOTE_INGRESS_CALLBACK_SIGNATURE_CONTEXT,
+        "callback_action": "quote_ingest",
+        "provider_id": provider_id,
+        "route_id": route_id,
+        "payload": signed_payload,
+    }
+
+
+def _verify_provider_quote_ingress_callback(
+    store: ComputeMarketStoreProtocol,
+    provider_id: str,
+    route_id: str,
+    payload: Mapping[str, Any],
+) -> Mapping[str, Any]:
+    provider = store.get_record("compute_provider", provider_id) or {}
+    if not isinstance(provider, Mapping):
+        provider = {}
+    key = _provider_callback_signing_key(provider)
+    if key is None:
+        return {"ok": True, "required": False}
+    signature = payload.get("callback_signature", payload.get("callback_verification", {}))
+    if not isinstance(signature, Mapping) or not signature:
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.signature_missing",
+                "message": "Provider quote ingress callback signature is required.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": "quote_ingest",
+            },
+        }
+    callback_id = str(payload.get("callback_id") or payload.get("nonce") or "").strip()
+    timestamp = str(payload.get("timestamp") or payload.get("created_at") or "").strip()
+    if not callback_id or not timestamp:
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.replay_fields_missing",
+                "message": "Provider quote ingress callbacks require callback_id or nonce plus timestamp.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": "quote_ingest",
+            },
+        }
+    replay_guard_id = _provider_state_callback_replay_guard_id(provider_id, callback_id)
+    if store.get_record("provider_callback_replay_guard", replay_guard_id) is not None:
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.replay_detected",
+                "message": "Provider quote ingress callback replay detected.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": "quote_ingest",
+                "callback_id": callback_id,
+            },
+        }
+    signature_payload = _provider_quote_ingress_callback_signature_payload(provider_id, route_id, payload)
+    callback_hash = content_hash(signature_payload)
+    if not verify_payload(signature_payload, signature, key):
+        return {
+            "ok": False,
+            "required": True,
+            "error": {
+                "error_code": "provider_callback.signature_invalid",
+                "message": "Provider quote ingress callback signature is invalid.",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "callback_action": "quote_ingest",
+                "callback_id": callback_id,
+            },
+        }
+    return {
+        "ok": True,
+        "required": True,
+        "key_id": key.key_id,
+        "callback_id": callback_id,
+        "callback_hash": callback_hash,
+        "replay_guard": {
+            "replay_guard_id": replay_guard_id,
+            "callback_id": callback_id,
+            "callback_hash": callback_hash,
+            "job_id": "",
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "callback_action": "quote_ingest",
             "timestamp": timestamp,
             "created_at": utc_now_iso(),
         },

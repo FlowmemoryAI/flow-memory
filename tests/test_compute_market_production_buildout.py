@@ -2452,6 +2452,13 @@ def test_provider_execution_fails_closed_when_configured_without_endpoint() -> N
 
     assert result["ok"] is False
     assert result["error"]["error_code"] == "provider_execution.disabled"
+    assert result["event"]["event_type"] == "job.external_execution_failed"
+    assert result["event"]["details"]["error"]["error_code"] == "provider_execution.disabled"
+    assert any(
+        event["event_type"] == "job.external_execution_failed"
+        and event["details"]["error"]["error_code"] == "provider_execution.disabled"
+        for event in service.job_events(job_id)["events"]
+    )
     assert service.get_job(job_id)["job"]["status"] == "dispatched"
 
 

@@ -2620,14 +2620,40 @@ class ComputeMarketService:
                 request_id=request_id,
                 reason="external_execution_failed",
             )
+            error_record = cast(Mapping[str, Any], execution.get("error", {}))
+            event = _job_event(
+                job_id,
+                "job.external_execution_failed",
+                status=str(job.get("status", "dispatched")),
+                request_id=request_id,
+                details={
+                    "execution": execution.get("execution", {}),
+                    "error": error_record,
+                    "credit_release_recorded": bool(credit_release),
+                    "external_provider_called": bool(execution.get("external_provider_called", False)),
+                    "funds_moved": False,
+                },
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(job.get("provider_id", "")),
+                route_id=str(job.get("route_id", "")),
+                status=str(job.get("status", "dispatched")),
+                request_id=request_id,
+                actor_id=worker_id,
+                tenant_id=str(job.get("tenant_id", "")),
+                workspace_id=str(job.get("workspace_id", "")),
+            )
             return {
                 "ok": False,
                 "job": job,
-                "event": {},
+                "event": event,
                 "execution": execution.get("execution", {}),
                 "credit_reservation": credit_reservation,
                 "credit_release": credit_release,
-                "error": execution.get("error", {}),
+                "error": error_record,
             }
         dispatched_at = utc_now_iso()
         details: dict[str, Any] = {

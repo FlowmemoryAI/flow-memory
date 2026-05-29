@@ -1184,12 +1184,13 @@ def smoke_public(
             "public_url": base,
             "reason": api_key_reason,
         }
-    plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "dry_run": True}
+    plan_body = {"task": "public live Level 1 Flow Memory Compute Market smoke test", "idempotency_key": f"render_level1_smoke_plan_{int(time.time())}", "dry_run": True}
     checks: dict[str, Any] = {}
     checks["root"] = call_json("GET", f"{base}/")
     checks["health"] = call_json("GET", f"{base}/compute/health", _smoke_api_headers(api_key_value, "compute:read", "health"))
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", _smoke_api_headers(api_key_value, "compute:read", "readiness"))
     checks["plan"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:plan", "plan"), plan_body)
+    checks["plan_replay"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:plan", "plan-replay"), {**plan_body, "task": "public live Level 1 Flow Memory Compute Market smoke replay"})
     checks["metrics"] = call_text("GET", f"{base}/metrics", _smoke_api_headers(api_key_value, "compute:read", "metrics"))
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", _smoke_api_headers(api_key_value, "compute:read", "alerts"))
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", _smoke_api_headers(api_key_value, "compute:read", "telemetry"))
@@ -1295,6 +1296,7 @@ def smoke_public(
     safety = readiness_payload.get("production_safety_defaults", {})
     storage = readiness_payload.get("storage", {})
     plan_payload = checks["plan"][1].get("data", {}).get("compute_plan", {}) if isinstance(checks["plan"][1], dict) else {}
+    plan_replay_payload = checks["plan_replay"][1].get("data", {}).get("compute_plan", {}) if isinstance(checks["plan_replay"][1], dict) else {}
     audit_ok = checks["audit_verify"][0] == 200 and checks["audit_verify"][1].get("ok") is True
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
@@ -1403,6 +1405,9 @@ def smoke_public(
             plan_payload.get("funds_moved") is False,
             plan_payload.get("broadcast_allowed") is False,
             plan_payload.get("private_key_required") is False,
+            checks["plan_replay"][0] == 200,
+            checks["plan_replay"][1].get("data", {}).get("idempotent_replay") is True,
+            plan_replay_payload.get("decision_id") == plan_payload.get("decision_id"),
             checks["metrics"][0] == 200,
             "compute_plan_requests_total" in str(checks["metrics"][1]),
             checks["alerts"][0] == 200,
@@ -1456,6 +1461,7 @@ def smoke_public(
         "funds_moved": plan_payload.get("funds_moved"),
         "broadcast_allowed": plan_payload.get("broadcast_allowed"),
         "private_key_required": plan_payload.get("private_key_required"),
+        "plan_idempotent_replay": checks["plan_replay"][1].get("data", {}).get("idempotent_replay") if isinstance(checks["plan_replay"][1], dict) else False,
         "audit_export_immutable": audit_export_payload.get("immutable"),
         "audit_exporter": audit_exporter,
         "require_immutable_audit": require_immutable_audit,

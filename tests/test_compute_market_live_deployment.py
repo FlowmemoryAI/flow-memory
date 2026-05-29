@@ -386,6 +386,11 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     ) -> tuple[int, dict[str, object]]:
         request_headers = headers or {}
         calls.append((method, url, headers, body))
+        plan_counter = sum(
+            1
+            for _method, called_url, _headers, _body in calls
+            if called_url.endswith("/compute/plan")
+        )
         scopes = request_headers.get("x-flow-memory-scopes", "")
         if url == "https://api.flowmemory.ai/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
@@ -425,15 +430,18 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         if url.endswith("/compute/plan") and scopes == "compute:read":
             return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/compute/plan"):
+            replay = plan_counter >= 2
             return 200, {
                 "ok": True,
                 "data": {
+                    "idempotent_replay": replay,
                     "compute_plan": {
+                        "decision_id": "decision_render_smoke",
                         "dry_run_only": True,
                         "funds_moved": False,
                         "broadcast_allowed": False,
                         "private_key_required": False,
-                    }
+                    },
                 },
             }
         if url.endswith("/compute/audit/verify"):
@@ -550,6 +558,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_role_health"] == 200
     assert result["postgres_required_table_count"] == 110
     assert result["postgres_required_index_count"] == 1311
+    assert result["plan_idempotent_replay"] is True
     assert result["dry_run_required"] is True
     assert result["live_settlement_enabled"] is False
     assert result["broadcast_enabled_readiness"] is False
@@ -572,7 +581,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 15
+    assert len(authenticated_headers) == 16
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(

@@ -624,7 +624,9 @@ class RedisCircuitBreaker:
                 logical_key = key[len(prefix) :] if key.startswith(prefix) else key
                 keys.append(logical_key)
             return tuple(sorted(keys))
-        except Exception:
+        except Exception as exc:
+            if self.fail_closed:
+                raise RuntimeError("circuit_backend_unavailable") from exc
             return ()
 
     def open_provider_ids(self) -> tuple[str, ...]:

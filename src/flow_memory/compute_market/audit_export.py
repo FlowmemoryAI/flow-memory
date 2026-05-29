@@ -759,6 +759,20 @@ def verify_exported_chain(
     }
 
 
+def _audit_event_export_order_key(item: Mapping[str, Any]) -> tuple[str, int, str]:
+    return (
+        str(item.get("chain_id", "")),
+        int(item.get("sequence_number", 0) or 0),
+        str(item.get("audit_event_id", "")),
+    )
+
+
+def _verify_export_event_order(events: tuple[Mapping[str, Any], ...]) -> tuple[str, str] | None:
+    if events != tuple(sorted(events, key=_audit_event_export_order_key)):
+        return ("audit_event_order_mismatch", "exported audit events are not in canonical chain/sequence order")
+    return None
+
+
 def _select_events(
     store: ComputeMarketStoreProtocol,
     *,
@@ -780,7 +794,7 @@ def _select_events(
         matches_chain = chain_id in {"", "all"} or str(event.get("chain_id", "")) == chain_id
         if matches_chain and sequence >= from_sequence and (to_sequence <= 0 or sequence <= to_sequence):
             selected.append(event)
-    return tuple(sorted(selected, key=lambda item: (str(item.get("chain_id", "")), int(item.get("sequence_number", 0) or 0), str(item.get("audit_event_id", "")))))
+    return tuple(sorted(selected, key=_audit_event_export_order_key))
 
 
 def _checkpoint_hash(events: tuple[Mapping[str, Any], ...], chain_id: str, export_uri: str) -> str:
@@ -844,9 +858,12 @@ def _manifest_immutable_verification(manifest: Mapping[str, Any]) -> tuple[bool,
 
 
 def _verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> tuple[str, str] | None:
+    order_error = _verify_export_event_order(events)
+    if order_error:
+        return order_error
     previous_by_chain: dict[str, str] = {}
     expected_sequence_by_chain: dict[str, int] = {}
-    for event in sorted(events, key=lambda item: (str(item.get("chain_id", "")), int(item.get("sequence_number", 0) or 0))):
+    for event in events:
         chain_id = str(event.get("chain_id", ""))
         expected = expected_sequence_by_chain.get(chain_id, int(event.get("sequence_number", 1) or 1))
         sequence = int(event.get("sequence_number", 0) or 0)

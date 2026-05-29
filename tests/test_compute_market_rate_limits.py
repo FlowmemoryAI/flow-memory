@@ -319,6 +319,28 @@ def test_planning_denies_open_circuit_provider_with_redis_breaker() -> None:
     assert plan["selected_route"] is None
     assert "provider_denied" in plan["fail_closed_errors"]
     assert "compute.provider.circuit_open" in tuple(event["action"] for event in service.audit({})["audit_events"])
+    replay_payload = plan["route_decision"]["replay_payload"]
+    assert replay_payload["circuit_breaker_backend_unavailable"] is False
+
+
+def test_planning_fail_closes_when_redis_circuit_state_is_unavailable() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"),
+        circuit_breaker=RedisCircuitBreaker("redis://localhost", fail_closed=True, client=FakeRedis(fail=True)),
+    )
+
+    result = service.plan({"task": "redis circuit outage must fail closed", "policy": {"marketplace_only": True}})
+
+    plan = result["compute_plan"]
+    replay_payload = plan["route_decision"]["replay_payload"]
+    denied_providers = tuple(replay_payload["policy"]["denied_providers"])
+    assert result["ok"] is False
+    assert plan["selected_route"] is None
+    assert "provider_denied" in plan["fail_closed_errors"]
+    assert replay_payload["circuit_breaker_backend_unavailable"] is True
+    assert "market-token-provider" in denied_providers
+    assert "compute.provider.circuit_open" in tuple(event["action"] for event in service.audit({})["audit_events"])
 
 
 def test_redis_factories_require_tls_when_managed_redis_is_required() -> None:
@@ -383,6 +405,13 @@ def test_redis_circuit_breaker_fail_closed_and_fail_open_modes() -> None:
     assert fail_closed.allow_request("provider").reason_code == "circuit_backend_unavailable"
     assert fail_open.allow_request("provider").ok is True
     assert fail_open.allow_request("provider").reason_code == "circuit_backend_fail_open"
+    try:
+        fail_closed.open_provider_ids()
+    except RuntimeError as exc:
+        assert str(exc) == "circuit_backend_unavailable"
+    else:
+        raise AssertionError("fail-closed Redis circuit provider discovery must reject backend outages")
+    assert fail_open.open_provider_ids() == ()
 
 
 def test_readiness_reports_missing_redis_when_required() -> None:

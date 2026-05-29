@@ -7627,23 +7627,38 @@ class ComputeMarketService:
         return {"ok": False, "error": error.as_record(), "request_id": request_id}
 
     def _payload_with_circuit_denials(self, payload: Mapping[str, Any], *, request_id: str) -> Mapping[str, Any]:
-        open_providers = self._open_circuit_provider_ids()
+        circuit_backend_unavailable = False
+        try:
+            open_providers = self._open_circuit_provider_ids()
+        except RuntimeError as exc:
+            if str(exc) != "circuit_backend_unavailable":
+                raise
+            circuit_backend_unavailable = True
+            open_providers = tuple(
+                dict.fromkeys(provider.provider_id for provider in self._planning_providers(payload) if provider.provider_id)
+            )
         if not open_providers:
             return payload
+        reason_code = "circuit_backend_unavailable" if circuit_backend_unavailable else "circuit_open"
         policy = dict(payload.get("policy", {})) if isinstance(payload.get("policy"), Mapping) else {}
         denied = tuple(dict.fromkeys((*_tuple(policy.get("denied_providers", ())), *open_providers)))
         policy["denied_providers"] = denied
         for provider_id in open_providers:
             self.telemetry.increment("provider_circuit_open_total", {"provider_id": provider_id})
-        self.telemetry.increment("compute_fallback_used_total", {"reason": "circuit_open"})
+        self.telemetry.increment("compute_fallback_used_total", {"reason": reason_code})
         self._audit(
             "compute.provider.circuit_open",
             payload,
             request_id=request_id,
             result="skipped",
-            reason_codes=("circuit_open",),
+            reason_codes=(reason_code,),
         )
-        return {**dict(payload), "policy": policy, "circuit_open_providers": open_providers}
+        return {
+            **dict(payload),
+            "policy": policy,
+            "circuit_open_providers": open_providers,
+            "circuit_breaker_backend_unavailable": circuit_backend_unavailable,
+        }
 
     def _provider_callback_ip_rejection(
         self,

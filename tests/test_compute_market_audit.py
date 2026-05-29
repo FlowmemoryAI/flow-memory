@@ -12,10 +12,12 @@ from flow_memory.compute_market.audit_export import (
     LocalFileAuditExporter,
     NoopAuditExporter,
     S3WormAuditExporter,
+    build_checkpoint,
     audit_events_from_export_file,
     create_audit_exporter,
     verify_exported_chain,
 )
+from flow_memory.crypto.hashes import content_hash
 from flow_memory.cli import main as cli_main
 
 
@@ -208,6 +210,55 @@ def test_audit_verify_export_detects_tampering(capsys: Any, tmp_path: Any) -> No
 
     assert exit_code == 1
     assert verified["ok"] is False
+
+
+def test_audit_verify_export_rejects_reordered_events_even_if_checkpoint_is_rehashed(tmp_path: Any) -> None:
+    service = _service()
+    for index in range(2):
+        service.plan(
+            {
+                "task": f"reordered export {index}",
+                "request_id": f"req-reordered-export-{index}",
+                "idempotency_key": f"reordered-export-{index}",
+            }
+        )
+    out = tmp_path / "reordered_audit_export.ndjson"
+    exported = LocalFileAuditExporter(out).export_events(service.store, chain_id="all")
+    assert exported.ok is True
+
+    parsed = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line.strip()]
+    manifest = dict(parsed[0])
+    event_items = [dict(item) for item in parsed[1:-1]]
+    assert len(event_items) >= 2
+    event_items[0], event_items[1] = event_items[1], event_items[0]
+
+    reordered_events = tuple(item["event"] for item in event_items)
+    checkpoint_map = dict(parsed[-1]["checkpoint"])
+    recomputed = build_checkpoint(
+        reordered_events,
+        chain_id=str(checkpoint_map.get("chain_id", "all")),
+        from_sequence=int(reordered_events[0].get("sequence_number", 1) or 1),
+        to_sequence=int(reordered_events[-1].get("sequence_number", 0) or 0),
+        export_uri=str(checkpoint_map.get("export_uri", "")),
+        exported_to=str(checkpoint_map.get("exported_to", "local_file")),
+    )
+    checkpoint_map["checkpoint_hash"] = recomputed.checkpoint_hash
+    manifest_without_hash = {key: value for key, value in manifest.items() if key != "manifest_hash"}
+    manifest_without_hash["checkpoint_hash"] = recomputed.checkpoint_hash
+    manifest = {**manifest_without_hash, "manifest_hash": content_hash(manifest_without_hash)}
+    out.write_text(
+        "\n".join(
+            json.dumps(item, sort_keys=True, separators=(",", ":"))
+            for item in (manifest, *event_items, {"type": "checkpoint", "checkpoint": checkpoint_map})
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    verified = LocalFileAuditExporter(out).verify_export()
+
+    assert verified.ok is False
+    assert verified.error_code == "audit_event_order_mismatch"
 
 
 def test_audit_verify_export_detects_manifest_tampering(capsys: Any, tmp_path: Any) -> None:

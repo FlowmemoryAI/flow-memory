@@ -43,6 +43,9 @@ DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
 DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
 DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
 DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = os.environ.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300")
+MIN_POSTGRES_SCHEMA_TABLE_COUNT = 110
+MIN_POSTGRES_SCHEMA_INDEX_COUNT = 1311
+
 LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
     "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
@@ -1309,6 +1312,12 @@ def smoke_public(
     storage_diag = checks["admin_storage_diagnostics"][1].get("data", {}) if isinstance(checks["admin_storage_diagnostics"][1], dict) else {}
     schema_verification = storage_diag.get("schema_verification", {}) if isinstance(storage_diag, dict) else {}
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {}) if isinstance(schema_verification, dict) else {}
+    schema_required_table_count = (
+        int(schema_verification.get("required_table_count", 0) or 0) if isinstance(schema_verification, dict) else 0
+    )
+    schema_required_index_count = (
+        int(schema_verification.get("required_index_count", 0) or 0) if isinstance(schema_verification, dict) else 0
+    )
     redis_diag = checks["admin_redis_diagnostics"][1].get("data", {}) if isinstance(checks["admin_redis_diagnostics"][1], dict) else {}
     market_alpha_ok = True
     market_alpha_statuses: dict[str, int] = {}
@@ -1420,6 +1429,8 @@ def smoke_public(
             schema_verification.get("ok") is True,
             not schema_verification.get("missing_tables", ()),
             not schema_verification.get("missing_indexes", ()),
+            schema_required_table_count >= MIN_POSTGRES_SCHEMA_TABLE_COUNT,
+            schema_required_index_count >= MIN_POSTGRES_SCHEMA_INDEX_COUNT,
             isinstance(advisory_lock_probe, dict),
             advisory_lock_probe.get("acquired") is True,
             checks["admin_redis_diagnostics"][0] == 200,
@@ -1454,6 +1465,8 @@ def smoke_public(
         "audit_export_write": checks["audit_export_write"][0],
         "audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash")),
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
+        "postgres_required_table_count": schema_required_table_count,
+        "postgres_required_index_count": schema_required_index_count,
         "admin_redis_diagnostics": checks["admin_redis_diagnostics"][0],
         "redis_url_scheme": safety.get("redis_url_scheme"),
         "require_managed_sql_in_production": safety.get("require_managed_sql_in_production"),

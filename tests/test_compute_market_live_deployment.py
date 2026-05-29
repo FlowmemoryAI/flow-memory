@@ -173,6 +173,12 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "Invoke-GatewayJwtRequest -Token $jwtRoleToken -Path '/inference/market/order-book'",
         "jwt_role_health = $jwtRoleHealthStatus",
         "jwt_role_inference_order_book = $jwtRoleInferenceStatus",
+        "$MinimumPostgresSchemaTableCount = 110",
+        "$MinimumPostgresSchemaIndexCount = 1311",
+        "required_table_count",
+        "required_index_count",
+        "postgres_required_table_count = $requiredSchemaTableCount",
+        "postgres_required_index_count = $requiredSchemaIndexCount",
         "Gateway JWT secret must be a real high-entropy secret",
         "must be configured together when JWT smoke is configured",
         "[switch]$IncludeMarketAlpha",
@@ -447,6 +453,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                         "ok": True,
                         "missing_tables": [],
                         "missing_indexes": [],
+                        "required_table_count": 110,
+                        "required_index_count": 1311,
                         "advisory_lock_probe": {"acquired": True},
                     }
                 },
@@ -540,6 +548,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_health"] == 200
     assert result["statuses"]["jwt_wrong_audience"] == 401
     assert result["statuses"]["jwt_role_health"] == 200
+    assert result["postgres_required_table_count"] == 110
+    assert result["postgres_required_index_count"] == 1311
     assert result["dry_run_required"] is True
     assert result["live_settlement_enabled"] is False
     assert result["broadcast_enabled_readiness"] is False
@@ -674,6 +684,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                         "ok": True,
                         "missing_tables": [],
                         "missing_indexes": [],
+                        "required_table_count": 110,
+                        "required_index_count": 1311,
                         "advisory_lock_probe": {"acquired": True},
                     }
                 },

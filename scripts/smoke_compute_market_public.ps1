@@ -30,6 +30,9 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$MinimumPostgresSchemaTableCount = 110
+$MinimumPostgresSchemaIndexCount = 1311
+
 
 function Get-PublicUrlBlockReason {
     param([Parameter(Mandatory = $true)] [string]$Url)
@@ -503,6 +506,16 @@ $schemaVerification = $storageDiagnostics.Json.data.schema_verification
 Assert-True ($schemaVerification.ok -eq $true) 'Postgres schema verification did not return ok=true.'
 Assert-True (($null -eq $schemaVerification.missing_tables) -or ($schemaVerification.missing_tables.Count -eq 0)) 'Postgres schema verification reported missing tables.'
 Assert-True (($null -eq $schemaVerification.missing_indexes) -or ($schemaVerification.missing_indexes.Count -eq 0)) 'Postgres schema verification reported missing indexes.'
+$requiredSchemaTableCount = 0
+if ($schemaVerification.PSObject.Properties.Name -contains 'required_table_count') {
+    $requiredSchemaTableCount = [int]$schemaVerification.required_table_count
+}
+$requiredSchemaIndexCount = 0
+if ($schemaVerification.PSObject.Properties.Name -contains 'required_index_count') {
+    $requiredSchemaIndexCount = [int]$schemaVerification.required_index_count
+}
+Assert-True ($requiredSchemaTableCount -ge $MinimumPostgresSchemaTableCount) "Postgres schema verification reported $requiredSchemaTableCount required tables, expected at least $MinimumPostgresSchemaTableCount."
+Assert-True ($requiredSchemaIndexCount -ge $MinimumPostgresSchemaIndexCount) "Postgres schema verification reported $requiredSchemaIndexCount required indexes, expected at least $MinimumPostgresSchemaIndexCount."
 Assert-True ($schemaVerification.advisory_lock_probe.acquired -eq $true) 'Postgres advisory migration lock probe did not acquire.'
 
 $redisDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/redis/diagnostics' -Scopes 'compute:admin'
@@ -592,6 +605,8 @@ $result = [ordered]@{
     audit_export_write = $auditExportWrite.StatusCode
     audit_export_write_manifest_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
+    postgres_required_table_count = $requiredSchemaTableCount
+    postgres_required_index_count = $requiredSchemaIndexCount
     admin_redis_diagnostics = $redisDiagnostics.StatusCode
     audit_export_immutable = [bool]$auditExport.Json.data.immutable
     missing_key = $missingKey.StatusCode

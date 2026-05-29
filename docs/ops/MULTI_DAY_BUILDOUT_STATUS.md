@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `932452c Require compliant audit object lock evidence`
+Latest inspected commit: `c973ccd Require tenant-bound public gateway JWTs`
 
 ## Current architecture
 
@@ -2214,7 +2214,7 @@ Tests run:
 - `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
 - `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 466 passed, 2 skipped
 
-Commit: pending.
+Commit: `c973ccd Require tenant-bound public gateway JWTs`.
 
 Implementation:
 

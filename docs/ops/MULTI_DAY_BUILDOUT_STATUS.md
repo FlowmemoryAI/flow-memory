@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `d65fb20 Require Postgres operational evidence`
+Latest inspected commit: `50eaca1 Require Redis shared-state diagnostics`
 
 ## Current architecture
 
@@ -1733,4 +1733,50 @@ flowchart TD
     Backup --> RenderDeploy[Render API deployment]
     Restore --> RenderDeploy
     BlueGreen --> RenderDeploy
+```
+
+## Checkpoint 2026-05-26 Redis shared-state diagnostics gate
+
+Files changed:
+
+- `docs/API_SNAPSHOT.json`
+- `docs/openapi/flow-memory.openapi.json`
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/validate_compute_market_public_buildout.py`
+- `src/flow_memory/api/manifest.py`
+- `src/flow_memory/compute_market/service.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_live_integration.py`
+- `tests/test_compute_market_public_validation_script.py`
+- `tests/test_compute_market_rate_limits.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_rate_limits.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 97 passed
+- `python -m pytest tests/test_compute_market_live_integration.py -q` — 2 skipped
+- `python -m pytest tests/test_api_snapshot.py tests/test_api_openapi_snapshot.py -q` — 5 passed
+- `python -m ruff check src/flow_memory/compute_market/service.py src/flow_memory/api/manifest.py scripts/validate_compute_market_public_buildout.py tests/test_compute_market_rate_limits.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py tests/test_compute_market_live_integration.py` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile("scripts/smoke_compute_market_public.ps1", [ref]$tokens, [ref]$errors)'` — parsed with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 452 passed, 2 skipped
+- `git diff --check` — no whitespace errors
+
+Commit: `50eaca1 Require Redis shared-state diagnostics`.
+
+Implementation:
+
+- Redis diagnostics now instantiate independent limiter and circuit-breaker handles against the same Redis prefix and prove shared state across those handles.
+- Public buildout validation and the public smoke script now fail unless both Redis rate-limit and circuit-breaker probes report `shared_state=true`.
+- API manifest and OpenAPI snapshots now describe the admin Redis diagnostics endpoint as a shared-state production backend probe.
+
+```mermaid
+flowchart TD
+    AdminRedis[/admin/redis/diagnostics] --> LimiterA[Limiter node A]
+    AdminRedis --> LimiterB[Limiter node B]
+    AdminRedis --> CircuitA[Circuit node A]
+    AdminRedis --> CircuitB[Circuit node B]
+    LimiterA --> SharedRedis[(Managed Redis)]
+    LimiterB --> SharedRedis
+    CircuitA --> SharedRedis
+    CircuitB --> SharedRedis
+    SharedRedis --> Gate[Public validation and smoke gate]
 ```

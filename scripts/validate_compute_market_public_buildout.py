@@ -868,6 +868,13 @@ def validate(
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
     checks["audit_export_write"] = call_json("POST", f"{base}/compute/audit/export", headers_audit, {"chain_id": "all"})
     checks["audit_export_verify"] = call_json("POST", f"{base}/compute/audit/verify-export", headers_audit, {})
+    checks["audit_checkpoint_schedule"] = call_json(
+        "POST",
+        f"{base}/compute/audit/checkpoint-schedule",
+        headers_audit,
+        {"chain_id": "all", "min_events": 1, "force": True, "export": True},
+    )
+    checks["audit_chain_monitor"] = call_json("GET", f"{base}/compute/audit/chain/monitor", headers_audit)
 
     root_data = data(checks["root"][1])
     readiness = data(checks["readiness"][1])
@@ -901,6 +908,8 @@ def validate(
     audit_export_status = data(checks["admin_audit_export"][1])
     audit_export_write = data(checks["audit_export_write"][1])
     audit_export_verify = data(checks["audit_export_verify"][1])
+    audit_checkpoint_schedule = data(checks["audit_checkpoint_schedule"][1])
+    audit_chain_monitor = data(checks["audit_chain_monitor"][1])
     audit_exporter_status = audit_export_status.get("audit_exporter_status", {})
     audit_exporter_status_map = audit_exporter_status if isinstance(audit_exporter_status, Mapping) else {}
     audit_exporter_name = str(audit_exporter_status_map.get("exporter", ""))
@@ -1035,6 +1044,22 @@ def validate(
         and int(audit_export_verify.get("event_count", 0) or 0) >= 1,
         "audit export readback verification failed",
     )
+    require(
+        checks["audit_checkpoint_schedule"][0] == 200
+        and audit_checkpoint_schedule.get("ok") is True
+        and audit_checkpoint_schedule.get("due") is True
+        and isinstance(audit_checkpoint_schedule.get("scheduled_result", {}), Mapping)
+        and bool(audit_checkpoint_schedule.get("scheduled_result", {}).get("checkpoint_record", {}).get("checkpoint_id")),
+        "audit checkpoint schedule failed",
+    )
+    require(
+        checks["audit_chain_monitor"][0] == 200
+        and audit_chain_monitor.get("ok") is True
+        and int(audit_chain_monitor.get("checkpoint_count", 0) or 0) >= 1
+        and isinstance(audit_chain_monitor.get("latest_checkpoint", {}), Mapping)
+        and bool(audit_chain_monitor.get("latest_checkpoint", {}).get("checkpoint_id")),
+        "audit chain monitor failed",
+    )
     if require_immutable_audit:
         require(
             audit_export_is_immutable and audit_exporter_name == "s3_object_lock",
@@ -1090,6 +1115,14 @@ def validate(
         "audit_export_write_event_count": audit_export_write.get("event_count"),
         "audit_export_readback_checkpoint_hash_present": bool(audit_export_verify.get("checkpoint_hash")),
         "audit_export_readback_event_count": audit_export_verify.get("event_count"),
+        "audit_checkpoint_schedule_due": audit_checkpoint_schedule.get("due"),
+        "audit_checkpoint_schedule_checkpoint_id": (
+            audit_checkpoint_schedule.get("scheduled_result", {})
+            .get("checkpoint_record", {})
+            .get("checkpoint_id")
+        ),
+        "audit_chain_monitor_ok": audit_chain_monitor.get("ok"),
+        "audit_checkpoint_count": audit_chain_monitor.get("checkpoint_count"),
         "postgres_required_table_count": schema_count_evidence.get("required_table_count"),
         "postgres_minimum_table_count": schema_count_evidence.get("minimum_table_count"),
         "postgres_required_index_count": schema_count_evidence.get("required_index_count"),

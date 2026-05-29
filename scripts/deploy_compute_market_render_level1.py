@@ -1411,6 +1411,17 @@ def smoke_public(
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", _smoke_api_headers(api_key_value, "compute:admin", "audit-export"))
     checks["audit_export_write"] = call_json("POST", f"{base}/compute/audit/export", _smoke_api_headers(api_key_value, "compute:audit", "audit-export-write"), {"chain_id": "all"})
     checks["audit_export_verify"] = call_json("POST", f"{base}/compute/audit/verify-export", _smoke_api_headers(api_key_value, "compute:audit", "audit-export-verify"), {})
+    checks["audit_checkpoint_schedule"] = call_json(
+        "POST",
+        f"{base}/compute/audit/checkpoint-schedule",
+        _smoke_api_headers(api_key_value, "compute:audit", "audit-checkpoint-schedule"),
+        {"chain_id": "all", "min_events": 1, "force": True, "export": True},
+    )
+    checks["audit_chain_monitor"] = call_json(
+        "GET",
+        f"{base}/compute/audit/chain/monitor",
+        _smoke_api_headers(api_key_value, "compute:audit", "audit-chain-monitor"),
+    )
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "storage-diagnostics"))
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "redis-diagnostics"))
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
@@ -1562,6 +1573,16 @@ def smoke_public(
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
     audit_export_write_payload = checks["audit_export_write"][1].get("data", {}) if isinstance(checks["audit_export_write"][1], dict) else {}
     audit_export_verify_payload = checks["audit_export_verify"][1].get("data", {}) if isinstance(checks["audit_export_verify"][1], dict) else {}
+    audit_checkpoint_schedule_payload = (
+        checks["audit_checkpoint_schedule"][1].get("data", {})
+        if isinstance(checks["audit_checkpoint_schedule"][1], dict)
+        else {}
+    )
+    audit_chain_monitor_payload = (
+        checks["audit_chain_monitor"][1].get("data", {})
+        if isinstance(checks["audit_chain_monitor"][1], dict)
+        else {}
+    )
     audit_exporter_status = audit_export_payload.get("audit_exporter_status", {})
     audit_exporter = audit_exporter_status.get("exporter") if isinstance(audit_exporter_status, dict) else ""
     audit_export_is_immutable = audit_export_payload.get("immutable") is True
@@ -1698,6 +1719,18 @@ def smoke_public(
             audit_export_verify_payload.get("ok") is True,
             bool(audit_export_verify_payload.get("checkpoint_hash")),
             int(audit_export_verify_payload.get("event_count", 0) or 0) >= 1,
+            checks["audit_checkpoint_schedule"][0] == 200,
+            audit_checkpoint_schedule_payload.get("ok") is True,
+            audit_checkpoint_schedule_payload.get("due") is True,
+            bool(
+                audit_checkpoint_schedule_payload.get("scheduled_result", {})
+                .get("checkpoint_record", {})
+                .get("checkpoint_id")
+            ),
+            checks["audit_chain_monitor"][0] == 200,
+            audit_chain_monitor_payload.get("ok") is True,
+            int(audit_chain_monitor_payload.get("checkpoint_count", 0) or 0) >= 1,
+            bool(audit_chain_monitor_payload.get("latest_checkpoint", {}).get("checkpoint_id")),
             checks["admin_storage_diagnostics"][0] == 200,
             isinstance(schema_verification, dict),
             schema_verification.get("ok") is True,
@@ -1741,6 +1774,16 @@ def smoke_public(
         "audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash")),
         "audit_export_readback": checks["audit_export_verify"][0],
         "audit_export_readback_checkpoint_hash_present": bool(audit_export_verify_payload.get("checkpoint_hash")),
+        "audit_checkpoint_schedule": checks["audit_checkpoint_schedule"][0],
+        "audit_checkpoint_schedule_due": audit_checkpoint_schedule_payload.get("due"),
+        "audit_checkpoint_schedule_checkpoint_id": (
+            audit_checkpoint_schedule_payload.get("scheduled_result", {})
+            .get("checkpoint_record", {})
+            .get("checkpoint_id")
+        ),
+        "audit_chain_monitor": checks["audit_chain_monitor"][0],
+        "audit_chain_monitor_ok": audit_chain_monitor_payload.get("ok"),
+        "audit_checkpoint_count": audit_chain_monitor_payload.get("checkpoint_count"),
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
         "postgres_required_table_count": schema_required_table_count,
         "postgres_required_index_count": schema_required_index_count,

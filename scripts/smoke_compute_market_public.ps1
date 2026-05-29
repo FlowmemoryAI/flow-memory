@@ -537,6 +537,20 @@ $auditExportReadbackData = $auditExportReadback.Json.data
 Assert-True (($auditExportReadback.Json.ok -eq $true) -and ($auditExportReadbackData.ok -eq $true)) 'audit export readback did not return ok=true.'
 Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditExportReadbackData.checkpoint_hash)) 'audit export readback did not return a checkpoint_hash.'
 Assert-True ([int]$auditExportReadbackData.event_count -ge 1) 'audit export readback did not verify any audit events.'
+$auditCheckpointSchedule = Invoke-ComputeMarketRequest -Method POST -Path '/compute/audit/checkpoint-schedule' -Scopes 'compute:audit' -Body @{ chain_id = 'all'; min_events = 1; force = $true; export = $true }
+Assert-Status -Response $auditCheckpointSchedule -Expected 200 -Name 'audit checkpoint schedule'
+$auditCheckpointScheduleData = $auditCheckpointSchedule.Json.data
+Assert-True (($auditCheckpointSchedule.Json.ok -eq $true) -and ($auditCheckpointScheduleData.ok -eq $true)) 'audit checkpoint schedule did not return ok=true.'
+Assert-True ($auditCheckpointScheduleData.due -eq $true) 'audit checkpoint schedule did not force a due checkpoint.'
+Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditCheckpointScheduleData.scheduled_result.checkpoint_record.checkpoint_id)) 'audit checkpoint schedule did not return a checkpoint_id.'
+
+$auditChainMonitor = Invoke-ComputeMarketRequest -Method GET -Path '/compute/audit/chain/monitor' -Scopes 'compute:audit'
+Assert-Status -Response $auditChainMonitor -Expected 200 -Name 'audit chain monitor'
+$auditChainMonitorData = $auditChainMonitor.Json.data
+Assert-True (($auditChainMonitor.Json.ok -eq $true) -and ($auditChainMonitorData.ok -eq $true)) 'audit chain monitor did not return ok=true.'
+Assert-True ([int]$auditChainMonitorData.checkpoint_count -ge 1) 'audit chain monitor did not report checkpoint coverage.'
+Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditChainMonitorData.latest_checkpoint.checkpoint_id)) 'audit chain monitor did not return a latest checkpoint_id.'
+
 
 $storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
 Assert-Status -Response $storageDiagnostics -Expected 200 -Name 'admin storage diagnostics'
@@ -668,6 +682,14 @@ $result = [ordered]@{
     audit_export = $auditExport.StatusCode
     audit_export_write = $auditExportWrite.StatusCode
     audit_export_write_manifest_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)
+    audit_export_readback = $auditExportReadback.StatusCode
+    audit_export_readback_checkpoint_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportReadbackData.checkpoint_hash)
+    audit_checkpoint_schedule = $auditCheckpointSchedule.StatusCode
+    audit_checkpoint_schedule_due = [bool]$auditCheckpointScheduleData.due
+    audit_checkpoint_schedule_checkpoint_id = [string]$auditCheckpointScheduleData.scheduled_result.checkpoint_record.checkpoint_id
+    audit_chain_monitor = $auditChainMonitor.StatusCode
+    audit_chain_monitor_ok = [bool]$auditChainMonitorData.ok
+    audit_checkpoint_count = [int]$auditChainMonitorData.checkpoint_count
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
     postgres_required_table_count = $requiredSchemaTableCount
     postgres_required_index_count = $requiredSchemaIndexCount

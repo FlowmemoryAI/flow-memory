@@ -961,6 +961,26 @@ def _passing_public_buildout_call_json(
             return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 2}}
         if url.endswith("/compute/audit/verify-export"):
             return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
+        if url.endswith("/compute/audit/checkpoint-schedule"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "due": True,
+                    "pending_event_count": 2,
+                    "scheduled_result": {"checkpoint_record": {"checkpoint_id": "checkpoint-public-schedule"}},
+                },
+            }
+        if url.endswith("/compute/audit/chain/monitor"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_count": 1,
+                    "latest_checkpoint": {"checkpoint_id": "checkpoint-public-schedule"},
+                    "chains": [{"ok": True, "chain_id": "all"}],
+                },
+            }
         if url.endswith("/compute/providers/external/quote"):
             return 200, {"ok": True, "data": {"ok": False}}
         if url.endswith("/market/capacity/reserve"):
@@ -1304,6 +1324,30 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             assert scopes == "compute:audit"
             assert body == {}
             return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
+        if url.endswith("/compute/audit/checkpoint-schedule"):
+            assert method == "POST"
+            assert scopes == "compute:audit"
+            assert body == {"chain_id": "all", "min_events": 1, "force": True, "export": True}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "due": True,
+                    "scheduled_result": {"checkpoint_record": {"checkpoint_id": "checkpoint-public-schedule"}},
+                },
+            }
+        if url.endswith("/compute/audit/chain/monitor"):
+            assert method == "GET"
+            assert scopes == "compute:audit"
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_count": 1,
+                    "latest_checkpoint": {"checkpoint_id": "checkpoint-public-schedule"},
+                    "chains": [{"ok": True, "chain_id": "all"}],
+                },
+            }
         if url.endswith("/market/capacity/reserve"):
             return 200, {"ok": True, "data": {"reservation": {"reservation_id": "res_public"}}}
         if url.endswith("/compute/providers/external/quote"):
@@ -1476,6 +1520,10 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_export_write_event_count"] == 2
     assert result["audit_export_readback_checkpoint_hash_present"] is True
     assert result["audit_export_readback_event_count"] == 2
+    assert result["audit_checkpoint_schedule_due"] is True
+    assert result["audit_checkpoint_schedule_checkpoint_id"] == "checkpoint-public-schedule"
+    assert result["audit_chain_monitor_ok"] is True
+    assert result["audit_checkpoint_count"] == 1
     assert result["plan_idempotent_replay"] is True
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
     assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
@@ -1541,6 +1589,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert len(receipt_calls) == 2
     audit_export_write_calls = [call for call in calls if call[1].endswith("/compute/audit/export")]
     assert len(audit_export_write_calls) == 1
+    assert result["checks"]["audit_checkpoint_schedule"] == 200
+    assert result["checks"]["audit_chain_monitor"] == 200
     assert audit_export_write_calls[0][2] is not None
     assert audit_export_write_calls[0][2]["x-flow-memory-scopes"] == "compute:audit"
     assert audit_export_write_calls[0][3] == {"chain_id": "all"}

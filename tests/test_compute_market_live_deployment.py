@@ -582,6 +582,27 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             assert method == "POST"
             assert body == {}
             return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 3}}
+        if url.endswith("/compute/audit/checkpoint-schedule"):
+            assert method == "POST"
+            assert body == {"chain_id": "all", "min_events": 1, "force": True, "export": True}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "due": True,
+                    "scheduled_result": {"checkpoint_record": {"checkpoint_id": "checkpoint-render-schedule"}},
+                },
+            }
+        if url.endswith("/compute/audit/chain/monitor"):
+            assert method == "GET"
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_count": 1,
+                    "latest_checkpoint": {"checkpoint_id": "checkpoint-render-schedule"},
+                },
+            }
         if url.endswith("/admin/audit/export"):
             exporter_status = {"exporter": audit_exporter} if audit_exporter else {}
             return 200, {"ok": True, "data": {"immutable": True, "audit_exporter_status": exporter_status}}
@@ -717,7 +738,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 19
+    assert len(authenticated_headers) == 21
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
@@ -736,6 +757,11 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     )
     assert strict_s3_result["ok"] is True
     assert strict_s3_result["audit_export_s3_object_lock"] is True
+    assert strict_s3_result["audit_checkpoint_schedule"] == 200
+    assert strict_s3_result["audit_checkpoint_schedule_due"] is True
+    assert strict_s3_result["audit_chain_monitor"] == 200
+    assert strict_s3_result["audit_chain_monitor_ok"] is True
+    assert strict_s3_result["audit_checkpoint_count"] == 1
     market_alpha_result = render_deploy.smoke_public(
         "https://api.flowmemory.ai",
         "fmk_live_smoke_secret",
@@ -825,6 +851,27 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
             assert method == "POST"
             assert body == {}
             return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 1}}
+        if url.endswith("/compute/audit/checkpoint-schedule"):
+            assert method == "POST"
+            assert body == {"chain_id": "all", "min_events": 1, "force": True, "export": True}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "due": True,
+                    "scheduled_result": {"checkpoint_record": {"checkpoint_id": "checkpoint-render-schedule"}},
+                },
+            }
+        if url.endswith("/compute/audit/chain/monitor"):
+            assert method == "GET"
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_count": 1,
+                    "latest_checkpoint": {"checkpoint_id": "checkpoint-render-schedule"},
+                },
+            }
         if url.endswith("/admin/audit/export"):
             return 200, {"ok": True, "data": {"immutable": True}}
         if url.endswith("/admin/storage/diagnostics"):
@@ -925,6 +972,10 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "audit_export_write_manifest_hash_present" in smoke_script
     assert "Path '/compute/audit/verify-export'" in smoke_script
     assert "audit export readback did not return ok=true" in smoke_script
+    assert "Path '/compute/audit/checkpoint-schedule'" in smoke_script
+    assert "audit checkpoint schedule did not return ok=true" in smoke_script
+    assert "Path '/compute/audit/chain/monitor'" in smoke_script
+    assert "audit chain monitor did not return ok=true" in smoke_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "alerts")' in render_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "telemetry")' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
@@ -934,6 +985,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '"audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash"))' in render_script
     assert '"audit_export_readback": checks["audit_export_verify"][0]' in render_script
     assert '"audit_export_readback_checkpoint_hash_present": bool(audit_export_verify_payload.get("checkpoint_hash"))' in render_script
+    assert '"audit_checkpoint_schedule": checks["audit_checkpoint_schedule"][0]' in render_script
+    assert '"audit_chain_monitor": checks["audit_chain_monitor"][0]' in render_script
     assert "Get-PublicUrlBlockReason" in smoke_script
     assert "public_url_placeholder_not_allowed" in smoke_script
     assert "example\\.test" in smoke_script

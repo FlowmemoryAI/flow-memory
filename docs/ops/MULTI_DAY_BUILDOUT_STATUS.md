@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `53c234e Document inference credential reference gate`
+Latest inspected commit: `6b5be7f Gate compute provider credential bindings`
 
 ## Current architecture
 
@@ -2135,7 +2135,7 @@ Tests run:
 - `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 464 passed, 2 skipped
 - `git diff --check -- src/flow_memory/compute_market/service.py tests/test_compute_market_production_buildout.py docs/COMPUTE_MARKET.md docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
 
-Commit: pending.
+Commit: `6b5be7f Gate compute provider credential bindings`.
 
 Implementation:
 

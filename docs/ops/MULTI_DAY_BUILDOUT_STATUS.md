@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `be8c7bb Document Redis operational evidence gate`
+Latest inspected commit: `669d711 Validate provider callback allowlists publicly`
 
 ## Current architecture
 
@@ -2061,7 +2061,7 @@ Tests run:
 - `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 463 passed, 2 skipped
 - `git diff --check -- scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
 
-Commit: pending.
+Commit: `669d711 Validate provider callback allowlists publicly`.
 
 Implementation:
 

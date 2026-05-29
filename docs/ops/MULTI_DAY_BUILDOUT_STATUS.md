@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `fef5048 Document public smoke replay gate`
+Latest inspected commit: `157b078 Alert on insufficient compute credits`
 
 ## Current architecture
 
@@ -1319,4 +1319,37 @@ flowchart TD
     Replay --> Match{Decision ID matches?}
     Match -->|Yes| Evidence[plan_idempotent_replay true]
     Match -->|No| Fail[Fail public smoke]
+```
+
+## Checkpoint 2026-05-26 Insufficient-credit alert API coverage
+
+Files changed:
+
+- `src/flow_memory/compute_market/observability.py`
+- `tests/test_compute_market_observability.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_observability.py::test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics -q` — 1 passed
+- `python -m pytest tests/test_compute_market_observability.py -q` — 26 passed
+- `python -m ruff check src/flow_memory/compute_market/observability.py tests/test_compute_market_observability.py` — OK
+- `python -m mypy src/flow_memory/compute_market/observability.py tests/test_compute_market_observability.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 437 passed, 2 skipped
+- `git diff --check -- src/flow_memory/compute_market/observability.py tests/test_compute_market_observability.py` — clean
+
+Commit: `157b078 Alert on insufficient compute credits`.
+
+Implementation:
+
+- `/compute/alerts` now fires `billing-insufficient-credit` when `billing_insufficient_credit_total` is present.
+- In-code alert evaluation now matches the existing Prometheus `FlowMemoryComputeMarketBillingInsufficientCredit` alert and Grafana panel metric coverage.
+- The observability test now proves insufficient-credit events are visible alongside billing, provider, Redis, Postgres, settlement, and allowlist alert states.
+
+```mermaid
+flowchart TD
+    Usage[Compute usage debit] --> Credit[Credit balance check]
+    Credit -->|Insufficient| Metric[billing_insufficient_credit_total]
+    Metric --> Prometheus[Prometheus alert]
+    Metric --> AdminAlerts[/compute/alerts]
+    AdminAlerts --> Operator[Operator sees insufficient-credit warning]
 ```

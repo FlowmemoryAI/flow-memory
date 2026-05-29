@@ -1921,3 +1921,45 @@ flowchart TD
     Replay[Same idempotency_key replay] --> Decision
     Replay --> AuditCount[audit count unchanged]
 ```
+
+## Checkpoint 2026-05-26 External execution Level 1 gate
+
+Files changed:
+
+- `deployments/compute-market/live.env.example`
+- `docker-compose.compute-market.yml`
+- `render.yaml`
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 82 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'` — parsed public smoke and Level 1 deploy scripts with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 456 passed, 2 skipped
+- `git diff --check` — no whitespace errors; only existing CRLF normalization warnings for runtime evidence and PowerShell files
+
+Commit: `e119640 Require external execution disabled for Level 1`.
+
+Implementation:
+
+- Public Level 1 env validation now requires `FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false` alongside `FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED=false`.
+- Render and PowerShell deployment automation now refuse Level 1 envs or compose output that would enable external provider execution.
+- Public smoke and Render smoke now require runtime readiness to report both external provider quotes and external provider execution disabled before accepting the deployment as Level 1 safe.
+
+```mermaid
+flowchart TD
+    Env[Public Level 1 env] --> ExecGate[external execution enabled=false]
+    Env --> QuoteGate[external quotes enabled=false]
+    ExecGate --> RenderDeploy[Render deploy gate]
+    QuoteGate --> RenderDeploy
+    ExecGate --> PublicSmoke[Public smoke readiness gate]
+    QuoteGate --> PublicSmoke
+    PublicSmoke --> PlannerOnly[planning-only dry-run deployment]
+```

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `46edfc5 Require public observability sinks`
+Latest inspected commit: `e3e2830 Validate public Postgres tuning evidence`
 
 ## Current architecture
 
@@ -1622,4 +1622,39 @@ flowchart TD
     PublicValidation --> RouteAlerts[/compute/alerts/route]
     PublicValidation --> TrackError[/compute/errors/track]
     PublicValidation --> ExportOTLP[/admin/compute/otlp/export]
+```
+
+## Checkpoint 2026-05-26 Public Postgres tuning evidence gate
+
+Files changed:
+
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 20 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 445 passed, 2 skipped
+
+Commit: `e3e2830 Validate public Postgres tuning evidence`.
+
+Implementation:
+
+- Public buildout validation now requires admin storage diagnostics to expose bounded managed-Postgres connection settings: TLS SSL mode, pool size, max overflow, connection timeout, statement timeout, migrations enabled, and migrations auto-run.
+- The validator fails if statement timeout or migration auto-run evidence is missing or unsafe, preventing public smoke from passing with unbounded Postgres behavior.
+- Public validation results now preserve the observed Postgres pool, overflow, timeout, statement timeout, and migration auto-run evidence for release records.
+
+```mermaid
+flowchart TD
+    AdminStorage[/admin/storage/diagnostics] --> StorageStatus[storage_status]
+    StorageStatus --> SSL[postgres_ssl_mode require/verify]
+    StorageStatus --> Pool[pool_size and max_overflow]
+    StorageStatus --> Timeouts[connection and statement timeouts]
+    StorageStatus --> Migrations[migrations enabled and auto-run]
+    SSL --> PublicGate[Public validation gate]
+    Pool --> PublicGate
+    Timeouts --> PublicGate
+    Migrations --> PublicGate
 ```

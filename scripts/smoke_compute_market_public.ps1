@@ -128,7 +128,8 @@ function New-GatewayJwt {
         [Parameter(Mandatory = $true)] [string]$Issuer,
         [Parameter(Mandatory = $true)] [string]$Audience,
         [Parameter(Mandatory = $true)] [string]$Scopes,
-        [Parameter(Mandatory = $true)] [int]$TtlSeconds
+        [Parameter(Mandatory = $true)] [int]$TtlSeconds,
+        [string]$Roles = ''
     )
 
     if ($Secret.Length -lt 32) {
@@ -151,6 +152,9 @@ function New-GatewayJwt {
         iat = $now
         nbf = $now
         exp = $now + $TtlSeconds
+    }
+    if (-not [string]::IsNullOrWhiteSpace($Roles)) {
+        $claims['flow_memory_roles'] = @($Roles -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     }
 
     $encoding = [System.Text.Encoding]::UTF8
@@ -517,6 +521,10 @@ Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 
 $jwtHealth = $null
 $jwtWrongAudience = $null
+$jwtRoleHealth = $null
+$jwtRoleInference = $null
+$jwtRoleHealthStatus = 0
+$jwtRoleInferenceStatus = 0
 if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
     $jwtScopes = 'compute:read compute:plan compute:audit compute:admin'
     $jwtToken = New-GatewayJwt `
@@ -531,6 +539,13 @@ if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
         -Audience "$GatewayJwtAudience-wrong" `
         -Scopes $jwtScopes `
         -TtlSeconds $GatewayJwtTtlSeconds
+    $jwtRoleToken = New-GatewayJwt `
+        -Secret $GatewayJwtHs256Secret `
+        -Issuer $GatewayJwtIssuer `
+        -Audience $GatewayJwtAudience `
+        -Scopes 'compute:read' `
+        -Roles 'inference-admin' `
+        -TtlSeconds $GatewayJwtTtlSeconds
 
     $jwtHealth = Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-health'
     Assert-Status -Response $jwtHealth -Expected 200 -Name 'jwt health'
@@ -538,8 +553,20 @@ if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
 
     $jwtWrongAudience = Invoke-GatewayJwtRequest -Token $badJwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-wrong-audience'
     Assert-Status -Response $jwtWrongAudience -Expected 401 -Name 'jwt wrong-audience health'
+
+    $jwtRoleHealth = Invoke-GatewayJwtRequest -Token $jwtRoleToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-role-health'
+    Assert-Status -Response $jwtRoleHealth -Expected 200 -Name 'jwt role health'
+    Assert-True (($jwtRoleHealth.Json.ok -eq $true) -or ((Get-DataField -Json $jwtRoleHealth.Json -Name 'ok') -eq $true)) 'JWT role health did not return ok=true.'
+    if ($IncludeMarketAlpha) {
+        $jwtRoleInference = Invoke-GatewayJwtRequest -Token $jwtRoleToken -Path '/inference/market/order-book' -Scopes 'inference:read' -Label 'jwt-role-inference-order-book'
+        Assert-Status -Response $jwtRoleInference -Expected 200 -Name 'jwt role inference order-book'
+        Assert-True ((Get-DataField -Json $jwtRoleInference.Json -Name 'ok') -eq $true) 'JWT role inference order-book did not return ok=true.'
+        $jwtRoleInferenceStatus = [int]$jwtRoleInference.StatusCode
+    }
+
     $jwtHealthStatus = [int]$jwtHealth.StatusCode
     $jwtWrongAudienceStatus = [int]$jwtWrongAudience.StatusCode
+    $jwtRoleHealthStatus = [int]$jwtRoleHealth.StatusCode
 }
 else {
     $jwtHealthStatus = 0
@@ -571,6 +598,8 @@ $result = [ordered]@{
     wrong_scope = $wrongScope.StatusCode
     jwt_health = $jwtHealthStatus
     jwt_wrong_audience = $jwtWrongAudienceStatus
+    jwt_role_health = $jwtRoleHealthStatus
+    jwt_role_inference_order_book = $jwtRoleInferenceStatus
     market_alpha = [bool]$IncludeMarketAlpha
     market_alpha_statuses = $marketAlphaStatuses
     dry_run_only = [bool]$computePlan.dry_run_only

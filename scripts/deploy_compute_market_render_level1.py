@@ -1106,7 +1106,13 @@ def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
 
 
-def gateway_jwt_bearer_token(secret: str, issuer: str, audience: str, scopes: str) -> str:
+def gateway_jwt_bearer_token(
+    secret: str,
+    issuer: str,
+    audience: str,
+    scopes: str,
+    roles: str | None = None,
+) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
     claims = {
@@ -1117,6 +1123,8 @@ def gateway_jwt_bearer_token(secret: str, issuer: str, audience: str, scopes: st
         "exp": now + 300,
         "scope": scopes,
     }
+    if roles:
+        claims["flow_memory_roles"] = roles.split()
     signing_input = ".".join(
         (
             _b64url(json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8")),
@@ -1236,10 +1244,20 @@ def smoke_public(
         jwt_scopes = "compute:read compute:plan compute:audit compute:admin"
         jwt_token = gateway_jwt_bearer_token(jwt_secret, jwt_issuer, jwt_audience, jwt_scopes)
         bad_jwt_token = gateway_jwt_bearer_token(jwt_secret, jwt_issuer, f"{jwt_audience}-wrong", jwt_scopes)
+        role_jwt_token = gateway_jwt_bearer_token(
+            jwt_secret,
+            jwt_issuer,
+            jwt_audience,
+            "compute:read",
+            roles="inference-admin",
+        )
         checks["jwt_health"] = call_json(
             "GET",
             f"{base}/compute/health",
-            _smoke_nonce_headers({"authorization": f"Bearer {jwt_token}", "x-flow-memory-scopes": "compute:read"}, "jwt-health"),
+            _smoke_nonce_headers(
+                {"authorization": f"Bearer {jwt_token}", "x-flow-memory-scopes": "compute:read"},
+                "jwt-health",
+            ),
         )
         checks["jwt_wrong_audience"] = call_json(
             "GET",
@@ -1249,6 +1267,26 @@ def smoke_public(
                 "jwt-wrong-audience",
             ),
         )
+        checks["jwt_role_health"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            _smoke_nonce_headers(
+                {"authorization": f"Bearer {role_jwt_token}", "x-flow-memory-scopes": "compute:read"},
+                "jwt-role-health",
+            ),
+        )
+        if include_market_alpha:
+            checks["jwt_role_inference_order_book"] = call_json(
+                "GET",
+                f"{base}/inference/market/order-book",
+                _smoke_nonce_headers(
+                    {
+                        "authorization": f"Bearer {role_jwt_token}",
+                        "x-flow-memory-scopes": "inference:read",
+                    },
+                    "jwt-role-inference-order-book",
+                ),
+            )
     health_ok = checks["health"][0] == 200 and checks["health"][1].get("ok") is True
     readiness_payload = checks["readiness"][1].get("data", {}) if isinstance(checks["readiness"][1], dict) else {}
     safety = readiness_payload.get("production_safety_defaults", {})
@@ -1365,6 +1403,12 @@ def smoke_public(
             (not jwt_secret or checks["jwt_health"][0] == 200),
             (not jwt_secret or checks["jwt_health"][1].get("ok") is True),
             (not jwt_secret or checks["jwt_wrong_audience"][0] == 401),
+            (not jwt_secret or checks["jwt_role_health"][0] == 200),
+            (
+                not jwt_secret
+                or not include_market_alpha
+                or checks["jwt_role_inference_order_book"][0] == 200
+            ),
             audit_ok,
             checks["admin_audit_export"][0] == 200,
             checks["audit_export_write"][0] == 200,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import json
 import os
 import shutil
@@ -7,7 +8,7 @@ import subprocess
 import sys
 from pathlib import Path
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 
 import pytest
@@ -167,6 +168,11 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "Assert-Status -Response $jwtWrongAudience -Expected 401",
         "jwt_health = $jwtHealthStatus",
         "jwt_wrong_audience = $jwtWrongAudienceStatus",
+        "flow_memory_roles",
+        "-Roles 'inference-admin'",
+        "Invoke-GatewayJwtRequest -Token $jwtRoleToken -Path '/inference/market/order-book'",
+        "jwt_role_health = $jwtRoleHealthStatus",
+        "jwt_role_inference_order_book = $jwtRoleInferenceStatus",
         "Gateway JWT secret must be a real high-entropy secret",
         "must be configured together when JWT smoke is configured",
         "[switch]$IncludeMarketAlpha",
@@ -358,8 +364,13 @@ def test_render_deploy_blocks_disabled_level1_control_planes(capsys: Any) -> Non
 
 def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[str, str, dict[str, str] | None, object | None]] = []
-    jwt_health_calls = 0
     audit_exporter = ""
+
+    def _jwt_payload(auth_header: str) -> dict[str, object]:
+        token = auth_header.removeprefix("Bearer ").strip()
+        payload_segment = token.split(".")[1]
+        padding = "=" * (-len(payload_segment) % 4)
+        return cast(dict[str, object], json.loads(base64.urlsafe_b64decode(f"{payload_segment}{padding}").decode("utf-8")))
 
     def fake_call_json(
         method: str,
@@ -367,17 +378,16 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         headers: dict[str, str] | None = None,
         body: object | None = None,
     ) -> tuple[int, dict[str, object]]:
-        nonlocal jwt_health_calls
         request_headers = headers or {}
         calls.append((method, url, headers, body))
         scopes = request_headers.get("x-flow-memory-scopes", "")
         if url == "https://api.flowmemory.ai/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
         if url.endswith("/compute/health") and request_headers.get("authorization"):
-            jwt_health_calls += 1
-            if jwt_health_calls == 1:
-                return 200, {"ok": True, "data": {"ok": True}}
-            return 401, {"ok": False, "error": {"code": "auth.invalid"}}
+            payload = _jwt_payload(request_headers["authorization"])
+            if str(payload.get("aud", "")).endswith("-wrong"):
+                return 401, {"ok": False, "error": {"code": "auth.invalid"}}
+            return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/health") and not request_headers.get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
         if url.endswith("/compute/health"):
@@ -455,6 +465,10 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         if url.endswith("/inference/opportunity-cost"):
             return 200, {"ok": True, "data": {"ok": True, "dry_run_only": True, "funds_moved": False}}
         if url.endswith("/inference/market/order-book"):
+            if request_headers.get("authorization"):
+                payload = _jwt_payload(request_headers["authorization"])
+                assert payload.get("flow_memory_roles") == ["inference-admin"]
+                assert scopes == "inference:read"
             return 200, {"ok": True, "data": {"ok": True, "dry_run_only": True, "funds_moved": False}}
         if url.endswith("/v1/chat/completions"):
             return 200, {
@@ -525,6 +539,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["ok"] is True
     assert result["statuses"]["jwt_health"] == 200
     assert result["statuses"]["jwt_wrong_audience"] == 401
+    assert result["statuses"]["jwt_role_health"] == 200
     assert result["dry_run_required"] is True
     assert result["live_settlement_enabled"] is False
     assert result["broadcast_enabled_readiness"] is False
@@ -532,7 +547,9 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["audit_required"] is True
     assert result["audit_export_required"] is True
     assert result["stripe_checkout_enabled"] is False
-    assert len(jwt_headers) == 2
+    assert len(jwt_headers) == 3
+    role_payloads = [_jwt_payload(headers["authorization"]) for headers in jwt_headers if headers is not None]
+    assert any(payload.get("flow_memory_roles") == ["inference-admin"] for payload in role_payloads)
     assert jwt_headers[0]["x-flow-memory-scopes"] == "compute:read"
     authenticated_headers = [
         headers
@@ -545,7 +562,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 14
+    assert len(authenticated_headers) == 15
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
@@ -567,10 +584,16 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     market_alpha_result = render_deploy.smoke_public(
         "https://api.flowmemory.ai",
         "fmk_live_smoke_secret",
+        {
+            "FLOW_MEMORY_API_JWT_HS256_SECRET": "gateway-jwt-secret-with-at-least-32-characters",
+            "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+            "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+        },
         include_market_alpha=True,
     )
     assert market_alpha_result["ok"] is True
     assert market_alpha_result["include_market_alpha"] is True
+    assert market_alpha_result["statuses"]["jwt_role_inference_order_book"] == 200
     assert market_alpha_result["market_alpha_statuses"] == {
         "inference_opportunity_cost": 200,
         "inference_order_book": 200,

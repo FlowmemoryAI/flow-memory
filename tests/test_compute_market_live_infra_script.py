@@ -118,11 +118,35 @@ def test_live_infra_validator_reports_required_postgres_index_evidence() -> None
     assert missing["groups"]["audit_event_hash"]["ok"] is False
 
 
+def test_live_infra_validator_reports_required_postgres_schema_count_evidence() -> None:
+    passing = validator.required_postgres_schema_count_evidence(
+        {
+            "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT,
+            "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+        }
+    )
+    missing = validator.required_postgres_schema_count_evidence(
+        {
+            "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT - 1,
+            "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT - 1,
+        }
+    )
+
+    assert passing["ok"] is True
+    assert missing["ok"] is False
+    assert missing["minimum_table_count"] == validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
+    assert missing["minimum_index_count"] == validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
+
+
+
 def test_postgres_schema_sql_covers_all_compute_record_types() -> None:
     statement_by_name = {statement.name: statement.sql for statement in PostgresComputeMarketStore.schema_statements()}
     postgres_record_types = frozenset(_POSTGRES_TABLES)
 
     assert postgres_record_types == frozenset(COMPUTE_RECORD_TYPES)
+    assert validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT == len(_POSTGRES_TABLES) + 1
+    assert validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT == len(COMPUTE_RECORD_TYPES) * 12 + 3
+
     assert "compute_migrations" in statement_by_name
     for record_type, table_name in _POSTGRES_TABLES.items():
         assert f"{table_name}_table" in statement_by_name, record_type

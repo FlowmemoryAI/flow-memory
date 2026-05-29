@@ -12,7 +12,7 @@ from typing import Any, Mapping
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.controls import RedisCircuitBreaker, RedisRateLimiter
 from flow_memory.compute_market.service import ComputeMarketService
-from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id
+from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id, migration_plan
 from flow_memory.compute_market.storage_backends import PostgresComputeMarketStore
 
 
@@ -31,6 +31,20 @@ PLACEHOLDER_VALUE_FRAGMENTS = (
     "managed_redis_url",
     "audit_export_uri",
 )
+
+def _postgres_schema_floor() -> tuple[int, int]:
+    plan = migration_plan()
+    steps = plan.get("steps", ())
+    step = steps[0] if steps else {}
+    if not isinstance(step, Mapping):
+        return 0, 0
+    table_count = int(step.get("postgres_table_count", 0) or 0) + 1
+    index_count = int(step.get("postgres_index_count", 0) or 0)
+    return table_count, index_count
+
+
+MIN_POSTGRES_SCHEMA_TABLE_COUNT, MIN_POSTGRES_SCHEMA_INDEX_COUNT = _postgres_schema_floor()
+
 
 
 REQUIRED_POSTGRES_INDEX_GROUPS: Mapping[str, tuple[str, ...]] = {
@@ -81,6 +95,20 @@ def placeholder_value_names(values: Mapping[str, str]) -> Mapping[str, str]:
     return blocked
 
 
+def _int_field(value: object) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            return 0
+    return 0
+
+
+
 def required_postgres_index_evidence(schema: Mapping[str, Any]) -> Mapping[str, Any]:
     missing = frozenset(str(item) for item in schema.get("missing_indexes", ()) if str(item))
     schema_ok = schema.get("ok") is True
@@ -93,6 +121,20 @@ def required_postgres_index_evidence(schema: Mapping[str, Any]) -> Mapping[str, 
             "missing_indexes": missing_for_group,
         }
     return {"ok": all(bool(group["ok"]) for group in groups.values()), "groups": groups}
+
+
+def required_postgres_schema_count_evidence(schema: Mapping[str, Any]) -> Mapping[str, Any]:
+    table_count = _int_field(schema.get("required_table_count"))
+    index_count = _int_field(schema.get("required_index_count"))
+    return {
+        "ok": table_count >= MIN_POSTGRES_SCHEMA_TABLE_COUNT and index_count >= MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+        "required_table_count": table_count,
+        "minimum_table_count": MIN_POSTGRES_SCHEMA_TABLE_COUNT,
+        "required_index_count": index_count,
+        "minimum_index_count": MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+    }
+
+
 
 
 def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mapping[str, Any]:
@@ -132,6 +174,7 @@ def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mappin
         schema = service.store.schema_verification()
         production = service.store.production_readiness_check()
         index_evidence = required_postgres_index_evidence(schema)
+        count_evidence = required_postgres_schema_count_evidence(schema)
         readiness = service.readiness()
         job_id = deterministic_id("live_pg_validator_job", {"run": run_id})
         service.store.put_record(
@@ -168,6 +211,7 @@ def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mappin
                 not schema.get("missing_tables", ()),
                 not schema.get("missing_indexes", ()),
                 index_evidence.get("ok") is True,
+                count_evidence.get("ok") is True,
                 schema.get("advisory_lock_probe", {}).get("acquired") is True,
                 production.get("production_ready") is True,
                 readiness.get("ready") is True,
@@ -182,6 +226,7 @@ def validate_postgres(database_url: str, *, ssl_mode: str = "require") -> Mappin
             "migration_second_applied": migration_second.applied,
             "schema_verification": schema,
             "required_index_evidence": index_evidence,
+            "required_schema_count_evidence": count_evidence,
             "production_readiness": production,
             "readiness_failures": readiness.get("readiness_failures", ()),
             "idempotent_replay": replay.get("idempotent_replay") is True,

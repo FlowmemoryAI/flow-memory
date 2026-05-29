@@ -313,6 +313,194 @@ def test_public_validator_schema_count_evidence_blocks_underreported_schema() ->
     assert evidence["minimum_index_count"] == validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
 
 
+def _passing_public_buildout_call_text(
+    method: str,
+    url: str,
+    headers: Mapping[str, str] | None = None,
+) -> tuple[int, str]:
+    return 200, "# HELP compute_plan_requests_total Total compute plan requests\ncompute_plan_requests_total 1\n"
+
+
+def _passing_public_buildout_call_json(
+    redis_overrides: Mapping[str, Any] | None = None,
+) -> Any:
+    job_counter = 0
+    plan_counter = 0
+
+    def fake_call_json(
+        method: str,
+        url: str,
+        headers: Mapping[str, str] | None = None,
+        body: Mapping[str, Any] | None = None,
+    ) -> tuple[int, Mapping[str, Any]]:
+        nonlocal job_counter, plan_counter
+        scopes = (headers or {}).get("x-flow-memory-scopes", "")
+        if url == "https://api.example.test/":
+            return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
+        if url.endswith("/compute/health") and not (headers or {}).get("x-flow-memory-api-key"):
+            return 401, {"ok": False, "error": {"code": "auth.required"}}
+        if url.endswith("/compute/health"):
+            return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/readiness"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ready": True,
+                    "storage": {"backend": "postgres"},
+                    "rate_limiter_status": {"backend": "redis"},
+                    "circuit_breaker_status": {"backend": "redis"},
+                    "production_safety_defaults": {
+                        "rate_limit_backend": "redis",
+                        "circuit_breaker_backend": "redis",
+                        "require_managed_redis_in_production": True,
+                        "redis_url_scheme": "rediss",
+                        "require_managed_sql_in_production": True,
+                        "dry_run_required": True,
+                        "live_settlement_enabled": False,
+                        "broadcast_enabled": False,
+                        "private_key_inputs_allowed": False,
+                        "audit_required": True,
+                        "audit_export_required": True,
+                        "audit_export_immutable_required": True,
+                        "stripe_checkout_enabled": False,
+                    },
+                },
+            }
+        if url.endswith("/compute/plan") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
+        if url.endswith("/compute/plan"):
+            plan_counter += 1
+            return 200, {
+                "ok": True,
+                "data": {
+                    "idempotent_replay": plan_counter >= 2,
+                    "compute_plan": {
+                        "decision_id": "decision_public_buildout",
+                        "dry_run_only": True,
+                        "funds_moved": False,
+                        "broadcast_allowed": False,
+                        "private_key_required": False,
+                    },
+                },
+            }
+        if url.endswith("/compute/audit/verify"):
+            return 200, {"ok": True, "data": {"ok": True}}
+        if url.endswith("/compute/audit/export"):
+            return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 2}}
+        if url.endswith("/compute/providers/external/quote"):
+            return 200, {"ok": True, "data": {"ok": False}}
+        if url.endswith("/market/capacity/reserve"):
+            return 200, {"ok": True, "data": {"reservation": {"reservation_id": "res_public"}}}
+        if url.endswith("/compute/jobs"):
+            job_counter += 1
+            return 200, {
+                "ok": True,
+                "data": {
+                    "job": {
+                        "job_id": f"job_public_{job_counter}",
+                        "dry_run_only": True,
+                        "funds_moved": False,
+                        "broadcast_allowed": False,
+                        "private_key_required": False,
+                    }
+                },
+            }
+        if url.endswith("/receipt") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
+        if url.endswith("/receipt"):
+            return 200, {"ok": True, "data": {"ok": False}}
+        if url.endswith("/complete"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "job": {"job_id": "job_public_1", "status": "succeeded"},
+                    "provider_payout": {"provider_payout_id": "payout_public", "status": "accrued", "funds_moved": False},
+                },
+            }
+        if "/billing/provider-payouts?" in url:
+            return 200, {
+                "ok": True,
+                "data": {
+                    "provider_payouts": [{"provider_payout_id": "payout_public", "status": "accrued", "funds_moved": False}],
+                    "summary": {"accrued_total": 0.18},
+                },
+            }
+        if url.endswith("/billing/provider-payouts/payout_public/settle"):
+            return 200, {
+                "ok": True,
+                "data": {"provider_payout": {"provider_payout_id": "payout_public", "status": "settled", "funds_moved": False}},
+            }
+        if url.endswith("/billing/checkout"):
+            return 200, {"ok": True, "data": {"checkout": {"funds_moved": False, "status": "requires_external_checkout_provider"}}}
+        if "/billing/balance" in url:
+            return 200, {"ok": True, "data": {"balance": {"account_id": "acct_public_buildout_1234567890"}}}
+        if url.endswith("/billing/refund"):
+            return 200, {
+                "ok": True,
+                "data": {"refund": {"funds_moved": False, "external_refund_created": False, "status": "recorded_no_custody"}},
+            }
+        if url.endswith("/admin/storage/diagnostics"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "production_readiness": {"production_ready": True},
+                    "schema_verification": {
+                        "ok": True,
+                        "missing_tables": [],
+                        "missing_indexes": [],
+                        "advisory_lock_probe": {"acquired": True},
+                        "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT,
+                        "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+                    },
+                },
+            }
+        if url.endswith("/admin/redis/diagnostics"):
+            redis_diag = {
+                "ok": True,
+                "rate_limit_probe": {"ok": True},
+                "circuit_breaker_probe": {"ok": True},
+                "rate_limit_fail_closed": True,
+                "circuit_breaker_fail_closed": True,
+            }
+            redis_diag.update(redis_overrides or {})
+            return 200, {"ok": True, "data": redis_diag}
+        if url.endswith("/admin/audit/export"):
+            return 200, {
+                "ok": True,
+                "data": {"immutable": True, "audit_exporter_status": {"exporter": "s3_object_lock", "immutable": True}},
+            }
+        return 200, {"ok": True, "data": {"ok": True}}
+
+    return fake_call_json
+
+
+def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch: Any) -> None:
+    for redis_overrides in (
+        {"rate_limit_fail_closed": False},
+        {"circuit_breaker_fail_closed": False},
+    ):
+        monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+        monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+        monkeypatch.setattr(
+            validator,
+            "call_json",
+            _passing_public_buildout_call_json(redis_overrides),
+        )
+
+        try:
+            validator.validate(
+                "https://api.example.test",
+                "prod-key",
+                require_immutable_audit=True,
+            )
+        except AssertionError as exc:
+            assert "admin redis diagnostics did not report fail-closed Redis controls" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError("public buildout validator accepted fail-open Redis diagnostics")
+
+
+
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0

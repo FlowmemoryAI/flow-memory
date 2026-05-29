@@ -11,6 +11,7 @@ from flow_memory.compute_market.service import ComputeMarketService, reset_defau
 from flow_memory.compute_market.storage import COMPUTE_RECORD_TYPES, ComputeMarketStore
 from flow_memory.compute_market.storage_backends import PostgresComputeMarketStore, _POSTGRES_TABLES
 from flow_memory.futures_market.service import FuturesMarketService
+from flow_memory.inference_market.models import InferenceCreditListing, ListingStatus
 from flow_memory.inference_market.service import InferenceMarketService
 from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.router import create_default_router
@@ -121,6 +122,66 @@ def test_inference_admin_credit_and_demand_methods_are_stateful_and_safe() -> No
 
     with pytest.raises(ValueError, match="raw inference provider credential"):
         service.create_source({"source_id": "src-unsafe", "api_key": "raw-provider-key"})
+
+
+def test_inference_buy_accounting_decrements_inventory_and_ledger(tmp_path: Path) -> None:
+    store = ComputeMarketStore(f"sqlite:///{tmp_path / 'inference-ledger.sqlite3'}")
+    service = InferenceMarketService.seeded(store=store)
+    listing_id = "lst-discount-gpt4o-mini-token"
+    original_listing = service.listings[listing_id]
+    original_balance = service.balances["bal-seller-gpt4o-mini-token"]
+
+    result = service.buy({"buyer_id": "buyer-ledger", "listing_id": listing_id, "units": 10_000})
+
+    assert result["ok"] is True
+    assert result["listing"]["available_units"] == original_listing.available_units - 10_000
+    assert service.listings[listing_id].available_units == original_listing.available_units - 10_000
+    assert service.balances["bal-seller-gpt4o-mini-token"].available_units == original_balance.available_units - 10_000
+    assert {entry["event_type"] for entry in result["ledger_entries"]} == {"buy_debit", "sell_credit"}
+    ledger_page = store.list_records("inference_credit_ledger_entry", limit=10)
+    assert {entry["event_type"] for entry in ledger_page.records} >= {"buy_debit", "sell_credit"}
+    store.close()
+    reopened = ComputeMarketStore(f"sqlite:///{tmp_path / 'inference-ledger.sqlite3'}")
+    reloaded = InferenceMarketService.seeded(store=reopened)
+    assert reloaded.listings[listing_id].available_units == original_listing.available_units - 10_000
+    assert reloaded.balances["bal-seller-gpt4o-mini-token"].available_units == original_balance.available_units - 10_000
+    assert {entry.event_type for entry in reloaded.ledger_entries.values()} >= {"buy_debit", "sell_credit"}
+
+
+def test_inference_buy_enforces_price_and_inventory_policy() -> None:
+    service = InferenceMarketService.seeded()
+
+    too_expensive = service.buy(
+        {
+            "buyer_id": "buyer",
+            "listing_id": "lst-discount-gpt4o-mini-token",
+            "units": 100,
+            "max_unit_price": 0.0000001,
+        }
+    )
+    assert too_expensive["ok"] is False
+    assert too_expensive["error"]["code"] == "max_unit_price_exceeded"
+
+    service.listings["lst-zero"] = InferenceCreditListing(
+        listing_id="lst-zero",
+        seller_id="seller",
+        account_id="acct-seller",
+        source_id="src-discount-openai-compatible",
+        model="gpt-4o-mini",
+        unit_type="token",
+        available_units=0.0,
+        unit_price=0.00000075,
+        status=ListingStatus.ACTIVE.value,
+    )
+    zero_fill = service.buy({"buyer_id": "buyer", "listing_id": "lst-zero", "units": 1})
+    assert zero_fill["ok"] is False
+    assert zero_fill["error"]["code"] == "zero_fill_rejected"
+
+    listed = service.sell({"agent_id": "seller-fill", "model": "gpt-4o-mini", "units": 5, "unit_price": 0.0000007})
+    filled = service.buy({"buyer_id": "buyer", "listing_id": listed["listing"]["listing_id"], "units": 5})
+    assert filled["ok"] is True
+    assert service.listings[listed["listing"]["listing_id"]].status == ListingStatus.FILLED.value
+    assert service.listings[listed["listing"]["listing_id"]].available_units == 0.0
 
 
 def test_capacity_market_reserve_and_forward_simulation_are_non_binding() -> None:
@@ -334,6 +395,7 @@ def test_new_market_record_families_are_in_sqlite_and_postgres_schema() -> None:
         "opportunity_cost_decision",
         "inference_usage_record",
         "inference_price_snapshot",
+        "inference_credit_ledger_entry",
         "capacity_window",
         "capacity_hold",
         "capacity_reservation",
@@ -435,6 +497,7 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
     index_id = str(index["index_price"]["index_price_id"])
     risk_id = str(risk["risk_check"]["risk_check_id"])
     settlement_id = str(settlement["settlement_simulation"]["settlement_simulation_id"])
+    ledger_entry_ids = tuple(str(entry["ledger_entry_id"]) for entry in bought["ledger_entries"])
 
     store.close()
     reopened = ComputeMarketStore(f"sqlite:///{db_path}")
@@ -454,6 +517,8 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
     assert reopened.get_record("futures_index_price", index_id) is not None
     assert reopened.get_record("futures_risk_check", risk_id) is not None
     assert reopened.get_record("futures_settlement_simulation", settlement_id) is not None
+    for ledger_entry_id in ledger_entry_ids:
+        assert reopened.get_record("inference_credit_ledger_entry", ledger_entry_id) is not None
     chains = set(reopened.audit_chain_ids())
     assert {"inference-market", "capacity-market", "futures-simulator"} <= chains
     assert reopened.verify_audit_chain(chain_id="inference-market").ok is True
@@ -466,6 +531,8 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
 
     assert listing_id in reloaded_inference.listings
     assert order_id in reloaded_inference.orders
+    assert reloaded_inference.listings[listing_id].available_units == 20.0
+    assert {entry.event_type for entry in reloaded_inference.ledger_entries.values()} >= {"buy_debit", "sell_credit"}
     assert reservation_id in reloaded_capacity.reservations
     assert forward_id in reloaded_capacity.forward_contracts
     assert futures_order_id in reloaded_futures.orders

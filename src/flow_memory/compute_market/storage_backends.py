@@ -102,6 +102,7 @@ _POSTGRES_TABLES: dict[str, str] = {
     "inference_usage_record": "inference_usage_records",
     "inference_price_snapshot": "inference_price_snapshots",
     "inference_demand_snapshot": "inference_demand_snapshots",
+    "inference_credit_ledger_entry": "inference_credit_ledger_entries",
     "agent_treasury": "agent_treasuries",
     "agent_treasury_ledger_entry": "agent_treasury_ledger_entries",
     "capacity_inventory": "capacity_inventory",

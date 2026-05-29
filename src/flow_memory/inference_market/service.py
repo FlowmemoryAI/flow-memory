@@ -11,6 +11,7 @@ from .models import (
     CreditUnit,
     InferenceCreditAccount,
     InferenceCreditBalance,
+    InferenceCreditLedgerEntry,
     InferenceCreditFill,
     InferenceCreditListing,
     InferenceCreditOrder,
@@ -81,6 +82,7 @@ class InferenceMarketService:
         self.orders: dict[str, InferenceCreditOrder] = {}
         self.fills: dict[str, InferenceCreditFill] = {}
         self.usage_records: dict[str, InferenceUsageRecord] = {}
+        self.ledger_entries: dict[str, InferenceCreditLedgerEntry] = {}
         self.price_snapshots: dict[str, InferencePriceSnapshot] = {}
         self.audit_events: list[dict[str, Any]] = []
         self.demand_snapshots: dict[str, InferenceDemandSnapshot] = {}
@@ -259,6 +261,8 @@ class InferenceMarketService:
 
     def _persist_seed_records(self) -> None:
         for source in self.sources.values():
+            if self._record_exists("inference_credit_source", source.source_id):
+                continue
             self._persist(
                 "inference_credit_source",
                 source.source_id,
@@ -268,6 +272,8 @@ class InferenceMarketService:
                 status=source.status,
             )
         for account in self.accounts.values():
+            if self._record_exists("inference_credit_account", account.account_id):
+                continue
             self._persist(
                 "inference_credit_account",
                 account.account_id,
@@ -278,6 +284,8 @@ class InferenceMarketService:
                 status=account.status,
             )
         for balance in self.balances.values():
+            if self._record_exists("inference_credit_balance", balance.balance_id):
+                continue
             self._persist(
                 "inference_credit_balance",
                 balance.balance_id,
@@ -288,7 +296,15 @@ class InferenceMarketService:
                 expires_at=balance.expires_at,
             )
         for listing in self.listings.values():
+            if self._record_exists("inference_credit_listing", listing.listing_id):
+                continue
             self._persist_listing(listing)
+
+    def _record_exists(self, record_type: str, record_id: str) -> bool:
+        if self.store is None:
+            return False
+        get_record = getattr(self.store, "get_record", None)
+        return bool(callable(get_record) and get_record(record_type, record_id) is not None)
 
     def _load_persisted_records(self) -> None:
         for source in self._load_records("inference_credit_source", InferenceCreditSource):
@@ -303,6 +319,8 @@ class InferenceMarketService:
             self.orders[order.order_id] = order
         for fill in self._load_records("inference_credit_fill", InferenceCreditFill):
             self.fills[fill.fill_id] = fill
+        for ledger_entry in self._load_records("inference_credit_ledger_entry", InferenceCreditLedgerEntry):
+            self.ledger_entries[ledger_entry.ledger_entry_id] = ledger_entry
         for usage in self._load_records("inference_usage_record", InferenceUsageRecord):
             self.usage_records[usage.usage_id] = usage
         for snapshot in self._load_records("inference_price_snapshot", InferencePriceSnapshot):
@@ -352,6 +370,47 @@ class InferenceMarketService:
             status=listing.status,
             expires_at=listing.expires_at,
         )
+
+    def _persist_ledger_entry(self, ledger_entry: InferenceCreditLedgerEntry) -> None:
+        self.ledger_entries[ledger_entry.ledger_entry_id] = ledger_entry
+        self._persist(
+            "inference_credit_ledger_entry",
+            ledger_entry.ledger_entry_id,
+            ledger_entry.as_record(),
+            provider_id=ledger_entry.source_id,
+            actor_id=ledger_entry.owner_id,
+            status=ledger_entry.event_type,
+            idempotency_key=ledger_entry.ledger_entry_id,
+        )
+
+    def _decrement_seller_balance(self, listing: InferenceCreditListing, units: float) -> float:
+        for balance_id, balance in tuple(self.balances.items()):
+            if (
+                balance.account_id == listing.account_id
+                and balance.source_id == listing.source_id
+                and balance.model == listing.model
+                and balance.unit_type == listing.unit_type
+            ):
+                remaining = max(0.0, round(balance.available_units - units, 8))
+                updated = InferenceCreditBalance(
+                    **{
+                        **balance.as_record(),
+                        "available_units": remaining,
+                        "used_units": round(balance.used_units + units, 8),
+                    }
+                )
+                self.balances[balance_id] = updated
+                self._persist(
+                    "inference_credit_balance",
+                    updated.balance_id,
+                    updated.as_record(),
+                    provider_id=updated.source_id,
+                    actor_id=updated.owner_id,
+                    status="active",
+                    expires_at=updated.expires_at,
+                )
+                return remaining
+        return max(0.0, listing.available_units)
 
     def create_account(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         self._assert_safe_payload(payload)
@@ -729,15 +788,29 @@ class InferenceMarketService:
         listing = self._listing(listing_id)
         if listing.status != ListingStatus.ACTIVE.value:
             return self._policy_denial("listing_inactive", "Listing is not active.", "Choose an active listing.")
+        raw_max_price = payload.get("max_unit_price")
+        max_unit_price = listing.unit_price if raw_max_price is None else _nonnegative_float(raw_max_price, 0.0)
+        if listing.unit_price > max_unit_price:
+            return self._policy_denial(
+                "max_unit_price_exceeded",
+                "Listing unit price exceeds max_unit_price.",
+                "Choose a cheaper listing or raise max_unit_price.",
+            )
         fill_units = min(units, listing.available_units)
+        if fill_units <= 0:
+            return self._policy_denial(
+                "zero_fill_rejected",
+                "Requested units cannot be filled from this listing.",
+                "Choose a listing with available units or request fewer units.",
+            )
         total = round(fill_units * listing.unit_price, 8)
         order = InferenceCreditOrder(
-            order_id=_stable_id("info", buyer_id, listing_id, str(units)),
+            order_id=_stable_id("info", buyer_id, listing_id, str(units), str(listing.available_units)),
             buyer_id=buyer_id,
             model=listing.model,
             unit_type=listing.unit_type,
             requested_units=units,
-            max_unit_price=float(payload.get("max_unit_price", listing.unit_price) or listing.unit_price),
+            max_unit_price=max_unit_price,
             status=OrderStatus.FILLED.value if fill_units == units else OrderStatus.PARTIALLY_FILLED.value,
             selected_listing_id=listing_id,
             filled_units=fill_units,
@@ -753,6 +826,39 @@ class InferenceMarketService:
             units=fill_units,
             unit_price=listing.unit_price,
             total_price=total,
+        )
+        remaining_units = round(listing.available_units - fill_units, 8)
+        updated_listing = InferenceCreditListing(
+            **{
+                **listing.as_record(),
+                "available_units": remaining_units,
+                "status": ListingStatus.FILLED.value if remaining_units <= 0 else listing.status,
+            }
+        )
+        self.listings[listing_id] = updated_listing
+        self._persist_listing(updated_listing)
+        seller_balance_after = self._decrement_seller_balance(updated_listing, fill_units)
+        buyer_ledger = InferenceCreditLedgerEntry(
+            ledger_entry_id=_stable_id("infled", "buyer", order.order_id),
+            account_id=str(payload.get("buyer_account_id") or ""),
+            source_id=listing.source_id,
+            owner_id=buyer_id,
+            event_type="buy_debit",
+            unit_type=listing.unit_type,
+            units=fill_units,
+            balance_after=0.0,
+            related_id=order.order_id,
+        )
+        seller_ledger = InferenceCreditLedgerEntry(
+            ledger_entry_id=_stable_id("infled", "seller", order.order_id),
+            account_id=listing.account_id,
+            source_id=listing.source_id,
+            owner_id=listing.seller_id,
+            event_type="sell_credit",
+            unit_type=listing.unit_type,
+            units=fill_units,
+            balance_after=seller_balance_after,
+            related_id=order.order_id,
         )
         self.orders[order.order_id] = order
         self.fills[fill.fill_id] = fill
@@ -772,11 +878,15 @@ class InferenceMarketService:
             status="simulated",
             idempotency_key=str(payload.get("idempotency_key") or fill.fill_id),
         )
+        self._persist_ledger_entry(buyer_ledger)
+        self._persist_ledger_entry(seller_ledger)
         self._audit("inference.buy.simulated", order_id=order.order_id, fill_id=fill.fill_id, actor_id=order.buyer_id)
         return {
             "ok": True,
             "order": order.as_record(),
             "fill": fill.as_record(),
+            "listing": updated_listing.as_record(),
+            "ledger_entries": (buyer_ledger.as_record(), seller_ledger.as_record()),
             "dry_run_only": True,
             "funds_moved": False,
             "broadcast_allowed": False,

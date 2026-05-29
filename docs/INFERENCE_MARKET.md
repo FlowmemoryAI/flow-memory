@@ -30,6 +30,19 @@ flowchart TD
     History --> PriceForecast[Price forecast]
 ```
 
+## Credit accounting
+
+```mermaid
+flowchart TD
+    Listing[Active credit listing] --> Buy[Dry-run buy request]
+    Buy --> PriceGuard[Max unit price guard]
+    PriceGuard --> Fill[Simulated fill]
+    Fill --> Inventory[Listing inventory decrement]
+    Fill --> Balance[Seller balance decrement]
+    Fill --> Ledger[Buyer and seller ledger entries]
+    Ledger --> Audit[Inference audit chain]
+```
+
 ## Safety
 
 All behavior is simulation-only until real provider, billing, legal, compliance, and security gates are satisfied.
@@ -60,6 +73,7 @@ All behavior is simulation-only until real provider, billing, legal, compliance,
 - `InferenceCreditListing`
 - `InferenceCreditOrder`
 - `InferenceCreditFill`
+- `InferenceCreditLedgerEntry`
 - `InferenceQuote`
 - `InferenceUsageRecord`
 - `OpportunityCostDecision`

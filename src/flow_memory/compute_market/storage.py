@@ -86,6 +86,7 @@ COMPUTE_RECORD_TYPES: tuple[str, ...] = (
     "inference_usage_record",
     "inference_price_snapshot",
     "inference_demand_snapshot",
+    "inference_credit_ledger_entry",
     "agent_treasury",
     "agent_treasury_ledger_entry",
     "capacity_inventory",

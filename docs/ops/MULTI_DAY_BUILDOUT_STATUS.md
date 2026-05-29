@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `b083ce6 Expose live Redis validation evidence`
+Latest inspected commit: `7ce510f Require Redis nonce replay for public validation`
 
 ## Current architecture
 
@@ -1483,4 +1483,38 @@ flowchart TD
     Evidence --> SharedLimiter[rate_limit_shared_state]
     Evidence --> SharedBreaker[circuit_breaker_shared_state]
     Evidence --> FailClosed[fail_closed]
+```
+
+## Checkpoint 2026-05-26 Public Redis nonce replay gate
+
+Files changed:
+
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py::test_public_buildout_main_blocks_non_redis_nonce_replay_backend_before_network -q` — 1 passed
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 17 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 441 passed, 2 skipped
+- `git diff --check -- scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — clean
+
+Commit: `7ce510f Require Redis nonce replay for public validation`.
+
+Implementation:
+
+- Public buildout validation now requires `FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=redis` and a configured `FLOW_MEMORY_API_NONCE_REDIS_PREFIX`.
+- The Level 1 prerequisite gate now also requires `FLOW_MEMORY_API_NONCE_VERIFY_TLS=true` alongside nonce fail-closed and TLS-required settings.
+- A new pre-network test proves non-Redis nonce replay storage cannot pass public production validation.
+
+```mermaid
+flowchart TD
+    Env[Production env file] --> Nonce[Nonce replay config]
+    Nonce --> Backend{backend redis?}
+    Nonce --> TLS{verify TLS?}
+    Backend -->|No| Reject[Fail before network validation]
+    TLS -->|No| Reject
+    Backend -->|Yes| PublicValidation[Run public Level 1 validation]
 ```

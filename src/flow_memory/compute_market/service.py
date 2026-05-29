@@ -8497,7 +8497,6 @@ def _latest_quotes_by_route(
     records: tuple[Mapping[str, Any], ...],
     payload: Mapping[str, Any],
 ) -> dict[str, Mapping[str, Any]]:
-    now = utc_now_iso()
     latest: dict[str, Mapping[str, Any]] = {}
     for record in records:
         if not _tenant_can_access_catalog_record(payload, record):
@@ -8506,7 +8505,7 @@ def _latest_quotes_by_route(
         if not route_id:
             continue
         expires_at = str(record.get("expires_at", ""))
-        if expires_at and expires_at <= now:
+        if _quote_expires_at_due(expires_at):
             continue
         previous = latest.get(route_id)
         if previous is None or _record_updated_at(record) >= _record_updated_at(previous):
@@ -9223,6 +9222,16 @@ def _cross_provider_quote_replay(
 _STALE_QUOTE_REPLAY_STATUSES = frozenset(("stale", "expired", "invalidated", "disabled"))
 
 
+def _quote_expires_at_due(expires_at: str) -> bool:
+    if not expires_at.strip():
+        return False
+    parsed_expires_at = _parse_utc_datetime(expires_at)
+    parsed_now = _parse_utc_datetime(utc_now_iso())
+    if parsed_expires_at is None or parsed_now is None:
+        return True
+    return parsed_expires_at <= parsed_now
+
+
 def _quote_is_stale_or_expired(quote: Mapping[str, Any]) -> bool:
     status = str(quote.get("status", "")).lower()
     expires_at = str(quote.get("expires_at", ""))
@@ -9230,7 +9239,7 @@ def _quote_is_stale_or_expired(quote: Mapping[str, Any]) -> bool:
         status in _STALE_QUOTE_REPLAY_STATUSES
         or quote.get("stale") is True
         or quote.get("expired") is True
-        or bool(expires_at and expires_at <= utc_now_iso())
+        or _quote_expires_at_due(expires_at)
     )
 
 

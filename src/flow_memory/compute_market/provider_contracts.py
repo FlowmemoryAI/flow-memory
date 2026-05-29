@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 from flow_memory.compute_market.models import SUPPORTED_UNIT_TYPES
-from flow_memory.compute_market.storage import utc_now_iso
 from flow_memory.crypto.asymmetric import ED25519_ALGORITHM, LOCAL_TEST_ASYMMETRIC_ALGORITHM, LocalTestVerifier, PublicKeyRecord
 from flow_memory.crypto.ed25519 import Ed25519Verifier
 
@@ -120,9 +120,10 @@ class ProviderQuoteContract:
         if ttl is None or ttl <= 0:
             errors.append("missing_quote_ttl")
         expires_at = str(quote.get("expires_at", ""))
-        if not _looks_like_timestamp(expires_at):
+        parsed_expires_at = parse_quote_timestamp(expires_at)
+        if parsed_expires_at is None:
             errors.append("malformed_expires_at")
-        elif expires_at <= utc_now_iso():
+        elif parsed_expires_at <= datetime.now(timezone.utc):
             errors.append("expired_quote")
         if quote.get("stale") is True:
             errors.append("stale_quote")
@@ -252,8 +253,17 @@ def _int_or_none(value: object) -> int | None:
         return None
 
 
-def _looks_like_timestamp(value: str) -> bool:
-    return bool(value and "T" in value and value.endswith("Z"))
+def parse_quote_timestamp(value: str) -> datetime | None:
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    try:
+        parsed = datetime.fromisoformat(cleaned.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.tzinfo.utcoffset(parsed) is None:
+        return None
+    return parsed.astimezone(timezone.utc)
 
 
 def _walk(value: object) -> tuple[tuple[str, object], ...]:

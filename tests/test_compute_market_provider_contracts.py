@@ -96,6 +96,7 @@ def test_provider_contract_rejects_missing_negative_unknown_and_expired_quotes()
         (_valid_quote(route_id=""), "missing_route_id"),
         (_valid_quote(quote_ttl_seconds=0), "missing_quote_ttl"),
         (_valid_quote(expires_at="not-a-time"), "malformed_expires_at"),
+        (_valid_quote(expires_at="9999-12-31TZ"), "malformed_expires_at"),
     ]
 
     for quote, expected in cases:

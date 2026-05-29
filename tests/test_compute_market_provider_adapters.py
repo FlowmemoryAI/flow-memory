@@ -277,6 +277,16 @@ def test_quote_expiry_boundary_is_consistent_between_adapter_and_service(monkeyp
 
     assert adapters_module._expired(expires_at) is True
     assert service_module._quote_is_stale_or_expired({"expires_at": expires_at}) is True
+    malformed_expires_at = "9999-12-31TZ"
+    assert adapters_module._expired(malformed_expires_at) is True
+    assert service_module._quote_is_stale_or_expired({"expires_at": malformed_expires_at}) is True
+    assert (
+        service_module._latest_quotes_by_route(
+            ({"route_id": "market-token-route", "expires_at": malformed_expires_at},),
+            {},
+        )
+        == {}
+    )
 
 
 def test_service_external_quote_uses_provider_secret_ref_env_binding(monkeypatch: Any) -> None:

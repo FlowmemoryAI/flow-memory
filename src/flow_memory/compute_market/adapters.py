@@ -22,7 +22,12 @@ from flow_memory.compute_market.models import (
     TaskEconomicProfile,
 )
 from flow_memory.compute_market.pricing import collect_quote, normalize_quote
-from flow_memory.compute_market.provider_contracts import EXECUTION_RESULT_SIGNATURE_CONTEXT, QUOTE_SIGNATURE_CONTEXT, verify_provider_quote_signature
+from flow_memory.compute_market.provider_contracts import (
+    EXECUTION_RESULT_SIGNATURE_CONTEXT,
+    QUOTE_SIGNATURE_CONTEXT,
+    parse_quote_timestamp,
+    verify_provider_quote_signature,
+)
 from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id, utc_now_iso
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.crypto.keys import LocalKeyPair
@@ -967,6 +972,10 @@ def _execution_error(error_code: str, message: str, *, provider_id: str, job_id:
 
 
 def _expired(expires_at: str) -> bool:
-    if not expires_at:
+    if not expires_at.strip():
         return False
-    return expires_at <= str(utc_now_iso())
+    parsed_expires_at = parse_quote_timestamp(expires_at)
+    parsed_now = parse_quote_timestamp(str(utc_now_iso()))
+    if parsed_expires_at is None or parsed_now is None:
+        return True
+    return parsed_expires_at <= parsed_now

@@ -2000,3 +2000,46 @@ flowchart TD
     Forbidden --> Preflight[public validation and deployment preflight]
     Preflight --> NoCustody[no custody, no checkout, no live settlement]
 ```
+
+## Checkpoint 2026-05-26 Redis operational evidence gate
+
+Files changed:
+
+- `deployments/compute-market/live.env.example`
+- `docker-compose.compute-market.yml`
+- `render.yaml`
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 88 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile("scripts/deploy_compute_market_public_level1.ps1", ...)'` — parsed with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 462 passed, 2 skipped
+- `git diff --check` — no whitespace errors; only existing CRLF normalization warnings for runtime evidence and PowerShell files
+
+Commit: `a8b1ac9 Require Redis operational evidence for Level 1`.
+
+Implementation:
+
+- Public Level 1 validation now requires evidence URIs for live Redis limiter tests, circuit-breaker tests, multi-instance shared-state tests, and Redis dashboard binding.
+- Render and PowerShell deployment automation reject missing or non-`https://`/`s3://` Redis operational evidence before provisioning.
+- Render env sync, Docker compose config, and the live env template now carry the Redis operational evidence keys so deployed services retain the evidence references used for release review.
+
+```mermaid
+flowchart TD
+    Env[Public Level 1 env] --> Limiter[Redis limiter test evidence]
+    Env --> Circuit[Redis circuit-breaker test evidence]
+    Env --> Multi[Redis multi-instance evidence]
+    Env --> Dashboard[Redis dashboard URI]
+    Limiter --> Preflight[public validation and Render preflight]
+    Circuit --> Preflight
+    Multi --> Preflight
+    Dashboard --> Preflight
+    Preflight --> ManagedRedis[managed Redis Level 1 readiness]
+```

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `7a688eb Document provider callback allowlist gate`
+Latest inspected commit: `c79a807 Resolve inference provider credential refs`
 
 ## Current architecture
 
@@ -2100,7 +2100,7 @@ Tests run:
 - `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 463 passed, 2 skipped
 - `git diff --check -- src/flow_memory/inference_market/service.py tests/test_inference_capacity_futures_markets.py docs/INFERENCE_MARKET.md docs/ops/INFERENCE_MARKET_PROVIDER_ONBOARDING.md docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
 
-Commit: pending.
+Commit: `c79a807 Resolve inference provider credential refs`.
 
 Implementation:
 

@@ -527,6 +527,14 @@ foreach ($metricName in $requiredPrometheusMetrics) {
 $alerts = Invoke-ComputeMarketRequest -Method GET -Path '/compute/alerts' -Scopes 'compute:read'
 Assert-Status -Response $alerts -Expected 200 -Name 'alerts'
 Assert-True ($alerts.Json.ok -eq $true) 'alerts endpoint did not return ok=true.'
+$alertsRoute = Invoke-ComputeMarketRequest -Method POST -Path '/compute/alerts/route' -Scopes 'compute:admin' -Body @{
+    request_id = "public-smoke-alert-route-$([Guid]::NewGuid().ToString('N'))"
+}
+Assert-Status -Response $alertsRoute -Expected 200 -Name 'alerts route'
+Assert-True ($alertsRoute.Json.ok -eq $true) 'alerts route endpoint did not return ok=true.'
+$alertsRouteData = $alertsRoute.Json.data
+Assert-True ($alertsRouteData.routing_enabled -eq $true) 'alerts route did not report routing_enabled=true.'
+Assert-True ([int]$alertsRouteData.delivery_count -ge 1) 'alerts route did not deliver to the configured sink.'
 
 $telemetry = Invoke-ComputeMarketRequest -Method GET -Path '/compute/telemetry' -Scopes 'compute:read'
 Assert-Status -Response $telemetry -Expected 200 -Name 'telemetry'
@@ -710,6 +718,8 @@ $result = [ordered]@{
     audit_verify = $auditVerify.StatusCode
     metrics = [int]$metrics.StatusCode
     alerts = $alerts.StatusCode
+    alerts_route = $alertsRoute.StatusCode
+    alerts_route_delivery_count = [int]$alertsRouteData.delivery_count
     audit_export = $auditExport.StatusCode
     audit_export_write = $auditExportWrite.StatusCode
     audit_export_write_manifest_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)

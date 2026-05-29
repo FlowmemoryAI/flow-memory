@@ -1225,6 +1225,52 @@ def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch
         else:  # pragma: no cover
             raise AssertionError("public buildout validator accepted fail-open Redis diagnostics")
 
+def test_public_buildout_validation_rejects_observability_delivery_failures(monkeypatch: Any) -> None:
+    cases: tuple[tuple[str, Mapping[str, Any], str], ...] = (
+        (
+            "/compute/alerts/route",
+            {"ok": True, "data": {"ok": True, "routing_enabled": True, "delivery_count": 0}},
+            "alert routing did not deliver to the configured sink",
+        ),
+        (
+            "/compute/errors/track",
+            {"ok": True, "data": {"ok": True, "status": "failed", "event_id": "error_public"}},
+            "error tracking sink delivery failed",
+        ),
+        (
+            "/admin/compute/otlp/export",
+            {"ok": True, "data": {"ok": True, "status": "failed", "export_id": "otlp_public"}},
+            "OTLP telemetry export delivery failed",
+        ),
+    )
+    for suffix, response, expected_message in cases:
+        base_call_json = _passing_public_buildout_call_json()
+
+        def failing_call_json(
+            method: str,
+            url: str,
+            headers: Mapping[str, str] | None = None,
+            body: Mapping[str, Any] | None = None,
+        ) -> tuple[int, Mapping[str, Any]]:
+            if url.endswith(suffix):
+                return 200, response
+            return base_call_json(method, url, headers, body)
+
+        monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+        monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+        monkeypatch.setattr(validator, "call_json", failing_call_json)
+
+        try:
+            validator.validate(
+                "https://api.example.test",
+                "prod-key",
+                require_immutable_audit=True,
+            )
+        except AssertionError as exc:
+            assert expected_message in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError(f"public buildout validator accepted failed observability sink: {suffix}")
+
 
 def test_public_buildout_validation_rejects_redis_without_shared_state(monkeypatch: Any) -> None:
     monkeypatch.setattr(validator.time, "time", lambda: 1234567890)

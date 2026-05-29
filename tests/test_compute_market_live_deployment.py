@@ -688,6 +688,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     "live_trading_enabled": False,
                 },
             }
+        if url.endswith("/compute/alerts/route"):
+            return 200, {"ok": True, "data": {"routing_enabled": True, "delivery_count": 1}}
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
             return 200, {"ok": True, "data": {}}
         raise AssertionError(f"unexpected JSON call: {method} {url}")
@@ -725,6 +727,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_wrong_tenant"] == 403
     assert result["statuses"]["jwt_role_health"] == 200
     assert result["statuses"]["legacy_tenant_header"] == 403
+    assert result["statuses"]["alerts_route"] == 200
     assert result["audit_chain_monitor_export_ok"] is True
     assert result["audit_chain_monitor_export_event_count"] == 3
     assert result["postgres_idempotency_nonunique_indexes"] == ()
@@ -740,6 +743,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["audit_export_required"] is True
     assert result["stripe_checkout_enabled"] is False
     assert result["missing_metrics"] == ()
+    assert result["alerts_route_delivery_count"] == 1
     assert "audit_chain_verify_fail_total" in render_deploy.PUBLIC_REQUIRED_PROMETHEUS_METRICS
     assert result["external_provider_quotes_enabled"] is False
     assert result["external_provider_execution_enabled"] is False
@@ -758,7 +762,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 22
+    assert len(authenticated_headers) == 23
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
@@ -924,6 +928,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                     "circuit_breaker_fail_closed": True,
                 },
             }
+        if url.endswith("/compute/alerts/route"):
+            return 200, {"ok": True, "data": {"routing_enabled": True, "delivery_count": 1}}
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
             return 200, {"ok": True, "data": {}}
         raise AssertionError(f"unexpected JSON call: {method} {url}")
@@ -994,6 +1000,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "PUBLIC_REQUIRED_PROMETHEUS_METRICS" in render_script
     assert "Path '/compute/alerts'" in smoke_script
     assert "Path '/compute/telemetry'" in smoke_script
+    assert "Path '/compute/alerts/route'" in smoke_script
+    assert "alerts route did not deliver to the configured sink" in smoke_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "metrics")' in render_script
     assert "Path '/compute/audit/export'" in smoke_script
     assert "audit_export_write_manifest_hash_present" in smoke_script
@@ -1007,6 +1015,7 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '_smoke_api_headers(api_key_value, "compute:read", "telemetry")' in render_script
     assert '"metrics": checks["metrics"][0]' in render_script
     assert '"alerts": checks["alerts"][0]' in render_script
+    assert '"alerts_route": checks["alerts_route"][0]' in render_script
     assert '"telemetry": checks["telemetry"][0]' in render_script
     assert '"audit_export_write": checks["audit_export_write"][0]' in render_script
     assert '"audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash"))' in render_script

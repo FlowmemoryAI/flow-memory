@@ -1424,6 +1424,12 @@ def smoke_public(
     checks["plan_replay"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:plan", "plan-replay"), {**plan_body, "task": "public live Level 1 Flow Memory Compute Market smoke replay"})
     checks["metrics"] = call_text("GET", f"{base}/metrics", _smoke_api_headers(api_key_value, "compute:read", "metrics"))
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", _smoke_api_headers(api_key_value, "compute:read", "alerts"))
+    checks["alerts_route"] = call_json(
+        "POST",
+        f"{base}/compute/alerts/route",
+        _smoke_api_headers(api_key_value, "compute:admin", "alerts-route"),
+        {"request_id": f"render_level1_smoke_alert_route_{int(time.time())}"},
+    )
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", _smoke_api_headers(api_key_value, "compute:read", "telemetry"))
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", _smoke_api_headers(api_key_value, "compute:audit", "audit-verify"))
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", _smoke_api_headers(api_key_value, "compute:admin", "audit-export"))
@@ -1596,6 +1602,7 @@ def smoke_public(
     plan_replay_payload = checks["plan_replay"][1].get("data", {}).get("compute_plan", {}) if isinstance(checks["plan_replay"][1], dict) else {}
     audit_ok = checks["audit_verify"][0] == 200 and checks["audit_verify"][1].get("ok") is True
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
+    alerts_route_payload = checks["alerts_route"][1].get("data", {}) if isinstance(checks["alerts_route"][1], dict) else {}
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
     audit_export_write_payload = checks["audit_export_write"][1].get("data", {}) if isinstance(checks["audit_export_write"][1], dict) else {}
     audit_export_verify_payload = checks["audit_export_verify"][1].get("data", {}) if isinstance(checks["audit_export_verify"][1], dict) else {}
@@ -1727,6 +1734,10 @@ def smoke_public(
             not missing_metrics,
             checks["alerts"][0] == 200,
             checks["alerts"][1].get("ok") is True,
+            checks["alerts_route"][0] == 200,
+            checks["alerts_route"][1].get("ok") is True,
+            alerts_route_payload.get("routing_enabled") is True,
+            int(alerts_route_payload.get("delivery_count", 0) or 0) >= 1,
             checks["telemetry"][0] == 200,
             checks["telemetry"][1].get("ok") is True,
             (not jwt_secret or checks["jwt_health"][0] == 200),
@@ -1844,6 +1855,8 @@ def smoke_public(
         "metrics": checks["metrics"][0],
         "missing_metrics": missing_metrics,
         "alerts": checks["alerts"][0],
+        "alerts_route": checks["alerts_route"][0],
+        "alerts_route_delivery_count": int(alerts_route_payload.get("delivery_count", 0) or 0),
         "telemetry": checks["telemetry"][0],
     }
 

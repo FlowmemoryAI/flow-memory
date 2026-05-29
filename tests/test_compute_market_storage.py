@@ -7,8 +7,15 @@ import pytest
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.service import ComputeMarketService
-from flow_memory.compute_market.storage import ComputeMarketStore, deterministic_id, migration_plan
+from flow_memory.compute_market.storage import (
+    COMPUTE_RECORD_TYPES,
+    POSTGRES_COMPUTE_RECORD_TABLES,
+    ComputeMarketStore,
+    deterministic_id,
+    migration_plan,
+)
 from flow_memory.compute_market.storage_backends import (
+    _POSTGRES_TABLES,
     PostgresComputeMarketStore,
     SQLiteComputeMarketStore,
     create_compute_market_store,
@@ -94,8 +101,26 @@ def test_compute_database_config_supports_explicit_storage_settings() -> None:
     assert "alert_delivery" in plan["record_types"]
     assert "error_tracking_event" in plan["record_types"]
     assert "otlp_export_delivery" in plan["record_types"]
+    expected_postgres_tables = tuple(
+        POSTGRES_COMPUTE_RECORD_TABLES[record_type] for record_type in COMPUTE_RECORD_TYPES
+    )
+    assert plan["steps"][0]["postgres_tables"] == expected_postgres_tables
+    assert set(plan["steps"][0]["postgres_tables"]) == set(_POSTGRES_TABLES.values())
+    assert plan["steps"][0]["postgres_table_count"] == len(COMPUTE_RECORD_TYPES)
+    assert plan["steps"][0]["postgres_index_count"] == len(COMPUTE_RECORD_TYPES) * 12 + 3
     assert "compute_jobs" in plan["steps"][0]["postgres_tables"]
+    assert "inference_credit_sources" in plan["steps"][0]["postgres_tables"]
+    assert "capacity_inventory" in plan["steps"][0]["postgres_tables"]
+    assert "futures_markets" in plan["steps"][0]["postgres_tables"]
     assert "quote replay guard by quote_id/hash" in plan["steps"][0]["indexes"]
+    assert (
+        "inference market tables by provider, route, tenant/workspace, status, expiration, request, and idempotency"
+        in plan["steps"][0]["indexes"]
+    )
+    assert (
+        "capacity, forward-capacity, futures, and capacity-index tables by provider, route, status, expiration, tenant/workspace, request, and idempotency"
+        in plan["steps"][0]["indexes"]
+    )
     assert "Live settlement" in plan["steps"][0]["managed_sql_notes"][3]
 
     errors = ComputeMarketConfig(

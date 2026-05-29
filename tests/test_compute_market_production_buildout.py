@@ -1716,10 +1716,21 @@ def test_quote_comparison_across_unit_types_and_assets() -> None:
         "currency_or_asset": "USD",
         "comparability_warnings": ("reserved capacity quote normalized as slot cost; unused capacity is not credited",),
     }
+    nonfinite_quote = {
+        **_quote(),
+        "quote_id": "quote_nonfinite_compare",
+        "provider_id": "provider_nonfinite_compare",
+        "route_id": "route_nonfinite_compare",
+        "unit_price": "NaN",
+        "estimated_units": "Infinity",
+        "estimated_total_cost": "NaN",
+        "confidence": "NaN",
+    }
+
 
     compared = service.compare_quotes(
         {
-            "quotes": [token_quote, request_quote, _quote(), reserved_quote],
+            "quotes": [token_quote, request_quote, _quote(), reserved_quote, nonfinite_quote],
             "task": "compare heterogeneous compute quotes",
             "estimated_units": {"token": 12000, "request": 1, "gpu_minute": 2, "reserved_capacity_slot": 1},
         }
@@ -1727,7 +1738,7 @@ def test_quote_comparison_across_unit_types_and_assets() -> None:
     comparison = compared["quote_comparison"]
     rows = {row["quote_id"]: row for row in comparison["rows"]}
 
-    assert comparison["summary"]["quote_count"] == 4
+    assert comparison["summary"]["quote_count"] == 5
     assert comparison["summary"]["comparable_quote_count"] == 4
     assert comparison["summary"]["cross_asset"] is True
     assert "cross-asset quotes require FX/treasury policy before direct price ranking" in comparison["summary"]["warnings"]
@@ -1736,6 +1747,9 @@ def test_quote_comparison_across_unit_types_and_assets() -> None:
     assert rows["quote_token_compare"]["cost_per_1000_token_equivalent"] == 0.00045
     assert rows["quote_live_gpu_1"]["unit_family"] == "compute_time"
     assert rows["quote_reserved_compare"]["unit_family"] == "reserved_capacity"
+    assert rows["quote_nonfinite_compare"]["estimated_total_cost"] is None
+    assert rows["quote_nonfinite_compare"]["normalized_total_cost"] is None
+    assert rows["quote_nonfinite_compare"]["confidence"] == 0.0
     assert rows["quote_reserved_compare"]["comparability_warnings"]
 
 def test_plan_records_route_rejection_metrics() -> None:

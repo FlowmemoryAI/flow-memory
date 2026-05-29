@@ -904,3 +904,31 @@ flowchart TD
     Word --> Reject
     Legit --> Continue[Continue simulation]
 ```
+
+## Checkpoint 2026-05-26 Marketplace safety audit classification
+
+Files changed:
+
+- `docs/ops/MARKETPLACE_SAFETY_AUDIT.md`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_naming.py tests/test_inference_capacity_futures_markets.py -q` — 22 passed
+- `git diff --check -- docs/ops/MARKETPLACE_SAFETY_AUDIT.md` — clean
+
+Commit: `29402eb Add marketplace safety audit classification`.
+
+Implementation:
+
+- Added a current naming-audit classification for reference-pattern branding hits.
+- Added a current broad safety-audit classification for private-key, broadcast, settlement, margin, leverage, transfer, custody, and live-futures terms.
+- Documented that public production deployment remains blocked on external managed infrastructure and secrets.
+
+```mermaid
+flowchart TD
+    Audit[Marketplace safety audit] --> Naming[Naming classification]
+    Audit --> Safety[Safety classification]
+    Naming --> PublicSurface[No reference branding in public surface]
+    Safety --> DryRun[Dry-run simulation only]
+    DryRun --> Blockers[External infra blockers remain]
+```

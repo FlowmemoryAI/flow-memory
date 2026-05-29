@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `2ccc7eb Test deploy smoke fail closed`
+Latest inspected commit: `b9e8371 Test public Redis fail closed validation`
 
 ## Current architecture
 
@@ -1384,4 +1384,38 @@ flowchart TD
     Smoke -->|ok false| Retry[Retry smoke loop]
     Retry --> Failed[failed_public_smoke_tests exit 34]
     Smoke -->|ok true| Live[public_level_1_live]
+```
+
+## Checkpoint 2026-05-26 Public Redis fail-closed validator coverage
+
+Files changed:
+
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py::test_public_buildout_validation_rejects_redis_fail_open_controls -q` — 1 passed
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 15 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 439 passed, 2 skipped
+- `git diff --check -- tests/test_compute_market_public_validation_script.py` — clean
+
+Commit: `b9e8371 Test public Redis fail closed validation`.
+
+Implementation:
+
+- The public buildout validator test suite now covers both fail-open Redis diagnostic regressions: `rate_limit_fail_closed=false` and `circuit_breaker_fail_closed=false`.
+- The test proves validation rejects public Level 1 deployments when Redis-backed rate limits or circuit breakers are not reported fail-closed.
+- A compact public-buildout fake response helper now supports future negative-path validation tests without real public infrastructure.
+
+```mermaid
+flowchart TD
+    Validator[Public buildout validator] --> RedisDiag[/admin/redis/diagnostics]
+    RedisDiag --> Limiter{rate limit fail closed?}
+    RedisDiag --> Breaker{circuit breaker fail closed?}
+    Limiter -->|false| Reject[Fail public validation]
+    Breaker -->|false| Reject
+    Limiter -->|true| Continue[Continue Level 1 gates]
+    Breaker -->|true| Continue
 ```

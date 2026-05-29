@@ -10,6 +10,8 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
         "\n".join(
             (
                 f"FLOW_MEMORY_API_KEY={api_key}",
+                "FLOW_MEMORY_API_KEY_SCOPES=compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:billing compute:settlement-admin",
+                "FLOW_MEMORY_API_REQUIRE_SCOPES=true",
                 "FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true",
                 "FLOW_MEMORY_API_NONCE_FAIL_CLOSED=true",
                 "FLOW_MEMORY_API_NONCE_REQUIRE_TLS=true",
@@ -192,6 +194,58 @@ def test_public_buildout_main_blocks_missing_nonce_prerequisites_before_network(
         assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK" in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted missing nonce prerequisites")
+
+
+def test_public_buildout_main_blocks_missing_scope_enforcement_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace("FLOW_MEMORY_API_REQUIRE_SCOPES=true\n", ""),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_API_REQUIRE_SCOPES" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing API scope enforcement")
+
+
+def test_public_buildout_main_blocks_missing_required_api_scopes_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace(
+            "FLOW_MEMORY_API_KEY_SCOPES=compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:billing compute:settlement-admin\n",
+            "FLOW_MEMORY_API_KEY_SCOPES=compute:read compute:plan compute:audit\n",
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_API_KEY_SCOPES" in message
+        assert "compute:execute" in message
+        assert "compute:settlement-admin" in message
+        assert '"expected": "contains_required_scopes"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing required API scopes")
 
 
 def test_public_buildout_main_blocks_non_redis_nonce_replay_backend_before_network(

@@ -42,7 +42,18 @@ _PLACEHOLDER_API_KEY_FRAGMENTS = (
 _WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", "password"))
 _MIN_POSTGRES_SCHEMA_TABLE_COUNT_FALLBACK = 110
 _MIN_POSTGRES_SCHEMA_INDEX_COUNT_FALLBACK = 1311
+_REQUIRED_PRODUCTION_SCOPES = (
+    "compute:read",
+    "compute:plan",
+    "compute:execute",
+    "compute:admin",
+    "compute:audit",
+    "compute:provider-admin",
+    "compute:billing",
+    "compute:settlement-admin",
+)
 _LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
+    "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
     "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
     "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
     "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
@@ -67,6 +78,7 @@ _POSTGRES_EVIDENCE_URI_KEYS = (
     "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI",
 )
 _PRODUCTION_ENV_REQUIRED_KEYS = (
+    "FLOW_MEMORY_API_KEY_SCOPES",
     "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND",
     "FLOW_MEMORY_API_NONCE_REDIS_PREFIX",
     "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND",
@@ -393,6 +405,18 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
                     "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
                     "actual": retention_days,
                     "expected": "positive_integer",
+                }
+            )
+    raw_scopes = values.get("FLOW_MEMORY_API_KEY_SCOPES", "")
+    if raw_scopes.strip() and not has_infra_placeholder(raw_scopes):
+        configured_scopes = frozenset(scope for scope in raw_scopes.replace(",", " ").split() if scope)
+        missing_scopes = tuple(scope for scope in _REQUIRED_PRODUCTION_SCOPES if scope not in configured_scopes)
+        if missing_scopes:
+            invalid.append(
+                {
+                    "key": "FLOW_MEMORY_API_KEY_SCOPES",
+                    "actual": " ".join(missing_scopes),
+                    "expected": "contains_required_scopes",
                 }
             )
 

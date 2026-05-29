@@ -660,6 +660,9 @@ Assert-Status -Response $missingKey -Expected 401 -Name 'missing-key health'
 $wrongScope = Invoke-ComputeMarketRequest -Method POST -Path '/compute/plan' -Scopes 'compute:read' -Body $planBody
 Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 
+$wrongScopeAdminStorage = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:read'
+Assert-Status -Response $wrongScopeAdminStorage -Expected 403 -Name 'wrong-scope admin storage diagnostics'
+
 $legacyTenantHeader = Invoke-ComputeMarketRequest -Method GET -Path '/compute/health' -Scopes 'compute:read' -ExtraHeaders @{ 'x-flow-memory-tenant' = 'tenant_spoofed_public' }
 Assert-Status -Response $legacyTenantHeader -Expected 403 -Name 'legacy tenant-header health'
 
@@ -781,6 +784,7 @@ $result = [ordered]@{
     audit_export_immutable = [bool]$auditExport.Json.data.immutable
     missing_key = $missingKey.StatusCode
     wrong_scope = $wrongScope.StatusCode
+    wrong_scope_admin_storage = $wrongScopeAdminStorage.StatusCode
     legacy_tenant_header = $legacyTenantHeader.StatusCode
     jwt_health = $jwtHealthStatus
     jwt_wrong_audience = $jwtWrongAudienceStatus

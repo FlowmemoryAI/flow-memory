@@ -29,12 +29,12 @@ from .models import (
 )
 
 UNSAFE_TOKENS: tuple[str, ...] = (
+    "wallet_private_key",
     "private_key",
     "seed_phrase",
     "seed phrase",
     "mnemonic",
     "secret_key",
-    "wallet_private_key",
     "broadcast=true",
     "live_settlement=true",
     "sendtransaction",

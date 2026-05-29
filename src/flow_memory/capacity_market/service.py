@@ -118,6 +118,27 @@ class CapacityMarketService:
             return
         self.store.put_record(record_type, record_id, payload, **metadata)
 
+    def _audit(self, event_type: str, **fields: Any) -> None:
+        sequence_hint = len(self.audit_events)
+        if self.store is not None:
+            count_records = getattr(self.store, "count_records", None)
+            if callable(count_records):
+                sequence_hint = int(count_records("audit_event"))
+        event = {
+            "audit_event_id": _stable_id("capaud", event_type, str(sequence_hint), str(fields)),
+            "event_type": event_type,
+            "action": event_type,
+            "result": str(fields.pop("result", "simulated")),
+            "dry_run_only": True,
+            "funds_moved": False,
+            **fields,
+        }
+        self.audit_events.append(event)
+        if self.store is not None:
+            append_audit_event = getattr(self.store, "append_audit_event", None)
+            if callable(append_audit_event):
+                append_audit_event(event, chain_id="capacity-market")
+
     def inventory(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         data = payload or {}
         self._assert_safe_payload(data)
@@ -205,7 +226,7 @@ class CapacityMarketService:
             status=hold.status,
             expires_at=hold.hold_expires_at,
         )
-        self.audit_events.append({"event_type": "capacity.hold.simulated", "hold_id": hold.hold_id})
+        self._audit("capacity.hold.simulated", hold_id=hold.hold_id, provider_id=hold.provider_id, route_id=hold.route_id)
         return {"ok": True, "hold": hold.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def reserve(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -234,7 +255,12 @@ class CapacityMarketService:
             status=reservation.status,
             expires_at=reservation.reserved_until,
         )
-        self.audit_events.append({"event_type": "capacity.reserve.simulated", "reservation_id": reservation.reservation_id})
+        self._audit(
+            "capacity.reserve.simulated",
+            reservation_id=reservation.reservation_id,
+            provider_id=reservation.provider_id,
+            route_id=reservation.route_id,
+        )
         return {"ok": True, "reservation": reservation.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def release(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -253,6 +279,12 @@ class CapacityMarketService:
             route_id=released.route_id,
             status=released.status,
             expires_at=released.reserved_until,
+        )
+        self._audit(
+            "capacity.release.simulated",
+            reservation_id=released.reservation_id,
+            provider_id=released.provider_id,
+            route_id=released.route_id,
         )
         return {"ok": True, "reservation": released.as_record(), "dry_run_only": True, "funds_moved": False}
 
@@ -363,6 +395,12 @@ class CapacityMarketService:
             status=contract.status,
             expires_at=contract.delivery_end,
         )
+        self._audit(
+            "capacity.forward.drafted",
+            contract_id=contract.contract_id,
+            provider_id=contract.provider_id,
+            actor_id=contract.buyer_id,
+        )
         return {"ok": True, "contract": contract.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def forward_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -391,6 +429,12 @@ class CapacityMarketService:
             risk.risk_assessment_id,
             risk.as_record(),
             status="simulated",
+        )
+        self._audit(
+            "capacity.forward.simulated",
+            contract_id=contract_id,
+            settlement_plan_id=settlement.settlement_plan_id,
+            risk_assessment_id=risk.risk_assessment_id,
         )
         return {
             "ok": True,
@@ -421,6 +465,7 @@ class CapacityMarketService:
             status="simulated",
             expires_at=schedule.delivery_end,
         )
+        self._audit("capacity.forward.delivery_simulated", schedule_id=schedule.schedule_id, contract_id=contract_id)
         return {"ok": True, "delivery_schedule": schedule.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def _assert_safe_payload(self, payload: Mapping[str, Any]) -> None:

@@ -321,6 +321,27 @@ class InferenceMarketService:
             return
         self.store.put_record(record_type, record_id, payload, **metadata)
 
+    def _audit(self, event_type: str, **fields: Any) -> None:
+        sequence_hint = len(self.audit_events)
+        if self.store is not None:
+            count_records = getattr(self.store, "count_records", None)
+            if callable(count_records):
+                sequence_hint = int(count_records("audit_event"))
+        event = {
+            "audit_event_id": _stable_id("infaud", event_type, str(sequence_hint), str(fields)),
+            "event_type": event_type,
+            "action": event_type,
+            "result": str(fields.pop("result", "simulated")),
+            "dry_run_only": True,
+            "funds_moved": False,
+            **fields,
+        }
+        self.audit_events.append(event)
+        if self.store is not None:
+            append_audit_event = getattr(self.store, "append_audit_event", None)
+            if callable(append_audit_event):
+                append_audit_event(event, chain_id="inference-market")
+
     def _persist_listing(self, listing: InferenceCreditListing) -> None:
         self._persist(
             "inference_credit_listing",
@@ -704,7 +725,7 @@ class InferenceMarketService:
             status="simulated",
             idempotency_key=str(payload.get("idempotency_key") or fill.fill_id),
         )
-        self.audit_events.append({"event_type": "inference.buy.simulated", "order_id": order.order_id, "fill_id": fill.fill_id})
+        self._audit("inference.buy.simulated", order_id=order.order_id, fill_id=fill.fill_id, actor_id=order.buyer_id)
         return {
             "ok": True,
             "order": order.as_record(),
@@ -737,7 +758,7 @@ class InferenceMarketService:
         )
         self.listings[listing.listing_id] = listing
         self._persist_listing(listing)
-        self.audit_events.append({"event_type": "inference.sell.listed", "listing_id": listing.listing_id})
+        self._audit("inference.sell.listed", listing_id=listing.listing_id, actor_id=listing.seller_id)
         return {
             "ok": True,
             "listing": listing.as_record(),
@@ -866,7 +887,12 @@ class InferenceMarketService:
             status=usage.selected_decision,
             idempotency_key=str(payload.get("idempotency_key") or usage.usage_id),
         )
-        self.audit_events.append({"event_type": "inference.opportunity_cost", "decision_id": decision_record.decision_id})
+        self._audit(
+            "inference.opportunity_cost",
+            decision_id=decision_record.decision_id,
+            actor_id=agent_id,
+            goal_id=goal_id,
+        )
         return {
             "ok": True,
             "decision": decision_record.as_record(),
@@ -1080,7 +1106,7 @@ class InferenceMarketService:
             status="completed",
             idempotency_key=str(payload.get("idempotency_key") or usage.usage_id),
         )
-        self.audit_events.append({"event_type": f"inference.proxy.{provider_api}", "usage_id": usage.usage_id})
+        self._audit(f"inference.proxy.{provider_api}", usage_id=usage.usage_id, actor_id=usage.agent_id, route_id=usage.route_id)
         return usage
 
     def _active_listings(self, model: str = "", unit_type: str = "") -> tuple[InferenceCreditListing, ...]:

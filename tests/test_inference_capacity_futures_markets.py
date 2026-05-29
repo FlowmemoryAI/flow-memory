@@ -400,6 +400,11 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
     assert reopened.get_record("futures_index_price", index_id) is not None
     assert reopened.get_record("futures_risk_check", risk_id) is not None
     assert reopened.get_record("futures_settlement_simulation", settlement_id) is not None
+    chains = set(reopened.audit_chain_ids())
+    assert {"inference-market", "capacity-market", "futures-simulator"} <= chains
+    assert reopened.verify_audit_chain(chain_id="inference-market").ok is True
+    assert reopened.verify_audit_chain(chain_id="capacity-market").ok is True
+    assert reopened.verify_audit_chain(chain_id="futures-simulator").ok is True
 
     reloaded_inference = InferenceMarketService.seeded(store=reopened)
     reloaded_capacity = CapacityMarketService.seeded(store=reopened)

@@ -63,6 +63,7 @@ class FuturesMarketService:
         self.contracts: dict[str, GPUFuturesContractSpec] = {DEFAULT_SYMBOL: GPUFuturesContractSpec()}
         self.orders: dict[str, GPUFuturesOrder] = {}
         self.positions: dict[str, GPUFuturesPosition] = {}
+        self.audit_events: list[dict[str, Any]] = []
         self._persist_seed_records()
         self._load_persisted_records()
 
@@ -95,6 +96,28 @@ class FuturesMarketService:
         if self.store is None:
             return
         self.store.put_record(record_type, record_id, payload, **metadata)
+
+    def _audit(self, event_type: str, **fields: Any) -> None:
+        sequence_hint = len(self.audit_events)
+        if self.store is not None:
+            count_records = getattr(self.store, "count_records", None)
+            if callable(count_records):
+                sequence_hint = int(count_records("audit_event"))
+        event = {
+            "audit_event_id": _stable_id("futaud", event_type, str(sequence_hint), str(fields)),
+            "event_type": event_type,
+            "action": event_type,
+            "result": str(fields.pop("result", "simulated")),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "live_trading_enabled": False,
+            **fields,
+        }
+        self.audit_events.append(event)
+        if self.store is not None:
+            append_audit_event = getattr(self.store, "append_audit_event", None)
+            if callable(append_audit_event):
+                append_audit_event(event, chain_id="futures-simulator")
 
     def markets(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         self._assert_safe_payload(payload or {})
@@ -180,6 +203,13 @@ class FuturesMarketService:
             actor_id=position.account_id,
             status="simulated",
         )
+        self._audit(
+            "futures.order.simulated",
+            order_id=order.order_id,
+            position_id=position.position_id,
+            route_id=order.symbol,
+            actor_id=position.account_id,
+        )
         return _safe({"ok": True, "order": order.as_record(), "position": position.as_record()})
 
     def cancel_order(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -197,6 +227,7 @@ class FuturesMarketService:
             route_id=cancelled.symbol,
             status=cancelled.status,
         )
+        self._audit("futures.order.cancelled", order_id=cancelled.order_id, route_id=cancelled.symbol)
         return _safe({"ok": True, "order": cancelled.as_record()})
 
     def positions_list(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -266,6 +297,13 @@ class FuturesMarketService:
             actor_id=margin.account_id,
             status="simulated",
         )
+        self._audit(
+            "futures.risk_check.simulated",
+            risk_check_id=risk.risk_check_id,
+            margin_account_id=margin.margin_account_id,
+            route_id=risk.symbol,
+            actor_id=margin.account_id,
+        )
         return _safe({"ok": True, "risk_check": risk.as_record(), "margin_account": margin.as_record()})
 
     def expiry_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -283,6 +321,7 @@ class FuturesMarketService:
             route_id=expiry.symbol,
             status="simulated",
         )
+        self._audit("futures.expiry.simulated", expiry_id=expiry.expiry_id, route_id=expiry.symbol)
         return _safe({"ok": True, "expiry": expiry.as_record()})
 
     def delivery_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -303,6 +342,11 @@ class FuturesMarketService:
             status="simulated",
             expires_at=notice.delivery_end,
         )
+        self._audit(
+            "futures.delivery.simulated",
+            delivery_notice_id=notice.delivery_notice_id,
+            route_id=notice.symbol,
+        )
         return _safe({"ok": True, "delivery_notice": notice.as_record()})
 
     def settlement_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -319,6 +363,11 @@ class FuturesMarketService:
             settlement.as_record(),
             route_id=settlement.symbol,
             status="simulated",
+        )
+        self._audit(
+            "futures.settlement.simulated",
+            settlement_simulation_id=settlement.settlement_simulation_id,
+            route_id=settlement.symbol,
         )
         return _safe({"ok": True, "settlement_simulation": settlement.as_record()})
 

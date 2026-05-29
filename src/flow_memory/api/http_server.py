@@ -24,6 +24,16 @@ from flow_memory.api.request_context import RequestContext
 from flow_memory.api.scopes import COMPUTE_BILLING_SCOPE, KNOWN_SCOPES, context_from_headers, require_scopes
 from flow_memory.core.types import new_id
 
+_FORWARDED_IDENTITY_HEADERS = frozenset(
+    {
+        "x-flow-memory-client",
+        "x-flow-memory-client-ip",
+        "x-flow-memory-principal",
+        "x-flow-memory-tenant",
+        "x-flow-memory-workspace",
+    }
+)
+
 
 @dataclass(frozen=True)
 class HttpApiConfig:
@@ -392,7 +402,7 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
             headers = {
                 key: value
                 for key, value in self.headers.items()
-                if key.lower() != "x-flow-memory-client-ip"
+                if key.lower() not in _FORWARDED_IDENTITY_HEADERS
             }
             headers["x-flow-memory-client-ip"] = str(self.client_address[0])
             response = resolved_gateway.handle(self.command, self.path, headers, body)

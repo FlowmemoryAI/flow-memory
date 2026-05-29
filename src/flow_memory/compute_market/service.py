@@ -6346,12 +6346,26 @@ class ComputeMarketService:
             latest_checkpoint if isinstance(latest_checkpoint, Mapping) else {},
             self.config.audit_checkpoint_interval_seconds,
         )
-        ok = all(bool(chain.get("ok")) for chain in chains)
-        if not ok:
+        chain_ok = all(bool(chain.get("ok")) for chain in chains)
+        exporter_status = self.audit_exporter.get_status()
+        export_verification = self.audit_exporter.verify_export().as_record()
+        export_error_code = str(export_verification.get("error_code", ""))
+        export_verification_failed = (
+            str(exporter_status.get("exporter", "")) != "none"
+            and not bool(export_verification.get("ok"))
+            and export_error_code != "missing_export_key"
+        )
+        ok = chain_ok and not export_verification_failed
+        reason_codes: list[str] = []
+        if not chain_ok:
             self.telemetry.increment("audit_chain_verify_fail_total")
+            reason_codes.append("audit_chain_invalid")
+        if export_verification_failed:
+            self.telemetry.increment("audit_export_verify_fail_total")
+            reason_codes.append("audit_export_verify_failed")
         if checkpoint_stale:
             self.telemetry.increment("audit_checkpoint_stale_total")
-        self._audit("compute.audit.chain_monitored", payload, result="completed" if ok else "failed", reason_codes=() if ok else ("audit_chain_invalid",))
+        self._audit("compute.audit.chain_monitored", payload, result="completed" if ok else "failed", reason_codes=tuple(reason_codes))
         return {
             "ok": ok,
             "chains": chains,
@@ -6359,7 +6373,8 @@ class ComputeMarketService:
             "latest_checkpoint": latest_checkpoint,
             "checkpoint_stale": checkpoint_stale,
             "stale_checkpoint_warning": "latest audit checkpoint is older than the configured interval" if checkpoint_stale else "",
-            "audit_exporter_status": self.audit_exporter.get_status(),
+            "audit_exporter_status": exporter_status,
+            "export_verification": export_verification,
         }
 
     def admin_audit_export_status(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
@@ -8744,24 +8759,30 @@ def _mark_expired_quotes_stale(
     filters = {"provider_id": provider_id, "route_id": route_id}
     if tenant_id:
         filters["tenant_id"] = tenant_id
-    for quote in store.list_records("compute_quote", filters=filters, limit=500).records:
-        expires_at = str(quote.get("expires_at", ""))
-        if not expires_at or expires_at > now or str(quote.get("status", "")) != "valid":
-            continue
-        updated = {**dict(quote), "status": "stale", "stale": True, "updated_at": now}
-        store.put_record(
-            "compute_quote",
-            str(updated.get("record_id", "") or _quote_record_id(str(updated["quote_id"]), tenant_id)),
-            updated,
-            provider_id=provider_id,
-            route_id=route_id,
-            status="stale",
-            expires_at=expires_at,
-            request_id=request_id,
-            tenant_id=tenant_id or str(updated.get("tenant_id", "")),
-            workspace_id=workspace_id or str(updated.get("workspace_id", "")),
-        )
-        marked += 1
+    cursor = ""
+    while True:
+        page = store.list_records("compute_quote", filters=filters, limit=500, cursor=cursor)
+        for quote in page.records:
+            expires_at = str(quote.get("expires_at", ""))
+            if not expires_at or expires_at > now or str(quote.get("status", "")) != "valid":
+                continue
+            updated = {**dict(quote), "status": "stale", "stale": True, "updated_at": now}
+            store.put_record(
+                "compute_quote",
+                str(updated.get("record_id", "") or _quote_record_id(str(updated["quote_id"]), tenant_id)),
+                updated,
+                provider_id=provider_id,
+                route_id=route_id,
+                status="stale",
+                expires_at=expires_at,
+                request_id=request_id,
+                tenant_id=tenant_id or str(updated.get("tenant_id", "")),
+                workspace_id=workspace_id or str(updated.get("workspace_id", "")),
+            )
+            marked += 1
+        if not page.next_cursor:
+            break
+        cursor = page.next_cursor
     return marked
 
 

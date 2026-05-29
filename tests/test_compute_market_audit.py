@@ -609,7 +609,7 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
     service.plan({"task": "checkpoint schedule two", "request_id": "sched-2"})
 
     skipped = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 100})
-    scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 1, "force": True})
+    scheduled = service.audit_checkpoint_schedule({"chain_id": "all", "min_events": 1, "force": True, "export": True})
     monitor = service.audit_chain_monitor({})
     admin_status = service.admin_audit_export_status({})
 
@@ -619,6 +619,8 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
     assert service.store.count_records("audit_checkpoint_manifest") == 1
     assert monitor["ok"] is True
     assert monitor["checkpoint_count"] == 1
+    assert monitor["export_verification"]["ok"] is True
+    assert monitor["export_verification"]["event_count"] >= 1
     assert admin_status["ok"] is True
     assert admin_status["immutable"] is False
     assert admin_status["latest_checkpoint"]["checkpoint_id"] == scheduled["scheduled_result"]["checkpoint_record"]["checkpoint_id"]
@@ -639,6 +641,69 @@ def test_audit_checkpoint_schedule_monitor_and_admin_status(tmp_path: Any) -> No
     assert stale_monitor["checkpoint_stale"] is True
     assert stale_monitor["stale_checkpoint_warning"]
     assert stale_metric_total == 1.0
+
+
+def test_audit_chain_monitor_detects_s3_export_corruption() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            audit_export_required=True,
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_immutable_required=True,
+            audit_export_object_lock_mode="COMPLIANCE",
+            audit_export_retention_days=30,
+            audit_export_s3_region="us-east-1",
+        ),
+        audit_exporter=exporter,
+    )
+    service.plan({"task": "monitor corrupt export one", "request_id": "monitor-corrupt-1"})
+    service.plan({"task": "monitor corrupt export two", "request_id": "monitor-corrupt-2"})
+
+    export_result = service.audit_export({"chain_id": "all", "request_id": "monitor-corrupt-export"})
+    export_key = str(export_result["path"]).removeprefix("s3://flow-memory-audit/")
+    lines = client.objects[("flow-memory-audit", export_key)].decode("utf-8").splitlines()
+    manifest = json.loads(lines[0])
+    manifest["event_count"] = int(manifest["event_count"]) + 1
+    lines[0] = json.dumps(manifest, separators=(",", ":"), sort_keys=True)
+    client.objects[("flow-memory-audit", export_key)] = ("\n".join(lines) + "\n").encode("utf-8")
+
+    monitor = service.audit_chain_monitor({})
+
+    assert monitor["ok"] is False
+    assert monitor["export_verification"]["ok"] is False
+    assert monitor["export_verification"]["error_code"] == "manifest_hash_mismatch"
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert isinstance(metric_totals, dict)
+    assert metric_totals.get("audit_export_verify_fail_total", 0.0) == 1.0
+
+
+def test_audit_chain_monitor_allows_missing_s3_export_key() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            audit_export_required=True,
+            audit_export_uri="s3://flow-memory-audit/compute-market",
+            audit_export_immutable_required=True,
+            audit_export_object_lock_mode="COMPLIANCE",
+            audit_export_retention_days=30,
+            audit_export_s3_region="us-east-1",
+        ),
+        audit_exporter=exporter,
+    )
+
+    monitor = service.audit_chain_monitor({})
+
+    assert monitor["ok"] is True
+    assert monitor["export_verification"]["ok"] is False
+    assert monitor["export_verification"]["error_code"] == "missing_export_key"
 
 
 def test_audit_checkpoint_schedule_initial_interval_uses_oldest_pending_event() -> None:

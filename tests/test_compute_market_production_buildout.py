@@ -16,6 +16,7 @@ from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEX
 from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
 from flow_memory.compute_market.service import (
     ComputeMarketService,
+    _mark_expired_quotes_stale,
     _provider_quote_ingress_callback_signature_payload,
     _provider_state_callback_signature_payload,
     reset_default_service,
@@ -953,6 +954,83 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["quote_replay_count"] == 1
     assert reputation["quote_price_manipulation_count"] == 1
     assert reputation["fraud_signal_count"] == 2
+
+
+def test_mark_expired_quotes_stale_paginates_beyond_storage_page_limit() -> None:
+    service = _service()
+    provider_id = "provider_paginated_stale"
+    route_id = "route_paginated_stale"
+    expired_at = "2000-01-01T00:00:00Z"
+    fresh_at = "2099-01-01T00:00:00Z"
+
+    for index in range(510):
+        quote_id = f"quote_paginated_expired_{index:03d}"
+        quote = {
+            **_quote(),
+            "quote_id": quote_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "expires_at": expired_at,
+            "status": "valid",
+        }
+        service.store.put_record(
+            "compute_quote",
+            quote_id,
+            quote,
+            provider_id=provider_id,
+            route_id=route_id,
+            status="valid",
+            expires_at=expired_at,
+        )
+    for index in range(5):
+        quote_id = f"quote_paginated_fresh_{index:03d}"
+        quote = {
+            **_quote(),
+            "quote_id": quote_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "expires_at": fresh_at,
+            "status": "valid",
+        }
+        service.store.put_record(
+            "compute_quote",
+            quote_id,
+            quote,
+            provider_id=provider_id,
+            route_id=route_id,
+            status="valid",
+            expires_at=fresh_at,
+        )
+
+    marked = _mark_expired_quotes_stale(
+        service.store,
+        provider_id,
+        route_id,
+        request_id="quote-stale-pagination",
+    )
+
+    records: list[Mapping[str, Any]] = []
+    cursor = ""
+    while True:
+        page = service.store.list_records(
+            "compute_quote",
+            filters={"provider_id": provider_id, "route_id": route_id},
+            limit=500,
+            cursor=cursor,
+        )
+        records.extend(page.records)
+        if not page.next_cursor:
+            break
+        cursor = page.next_cursor
+    stale_records = [record for record in records if record.get("status") == "stale"]
+    valid_records = [record for record in records if record.get("status") == "valid"]
+
+    assert marked == 510
+    assert len(stale_records) == 510
+    assert len(valid_records) == 5
+    assert all(record.get("stale") is True for record in stale_records)
+    assert all(str(record.get("updated_at", "")) for record in stale_records)
+    assert all(record.get("expires_at") == fresh_at for record in valid_records)
 
 
 def test_quote_broker_rejects_cross_provider_quote_id_replay() -> None:

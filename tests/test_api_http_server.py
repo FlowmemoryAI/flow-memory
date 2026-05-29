@@ -2203,6 +2203,44 @@ def test_dependency_free_http_server_uses_socket_client_ip_over_spoofed_header(t
     assert service.store.count_records("compute_quote") == 1
 
 
+def test_dependency_free_http_server_strips_spoofed_identity_headers() -> None:
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            api_key="dev",
+            api_key_scopes=("compute:read",),
+            require_scopes=True,
+            enable_rate_limit=False,
+        )
+    )
+    data: dict[str, Any] = {}
+    server = create_http_server(gateway, host="127.0.0.1", port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        port = server.server_address[1]
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{port}/compute/health",
+            headers={
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:read",
+                "x-flow-memory-tenant": "tenant_spoofed",
+                "x-flow-memory-workspace": "workspace_spoofed",
+                "x-flow-memory-principal": "principal_spoofed",
+                "x-flow-memory-client": "client_spoofed",
+            },
+            method="GET",
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert data["data"]["ok"] is True
+    assert gateway.audit_sink.events[-1]["tenant_id"] == ""
+    assert gateway.audit_sink.events[-1]["principal"] == "api-key"
+
+
 def test_dependency_free_http_server_handles_local_request() -> None:
     gateway = HttpApiGateway(config=HttpApiConfig(enable_rate_limit=False))
     server = create_http_server(gateway, host="127.0.0.1", port=0)

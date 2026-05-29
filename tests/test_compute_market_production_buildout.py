@@ -6132,6 +6132,87 @@ def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credit
     assert balance["available_credits"] == 0.0
     assert balance["reserved_credits"] == 0.0
 
+def test_stripe_refund_events_share_one_debit_when_checkout_gate_disabled() -> None:
+    service = _service()
+    account_id = "acct_stripe_refund_dedupe"
+    checkout_reference_id = "checkout_payment_event_refund_dedupe"
+    secret = "whsec_test_secret"
+    credited_event = {
+        "id": "evt_stripe_refund_dedupe_credit",
+        "type": "checkout.session.completed",
+        "amount_total": 1234,
+        "currency": "usd",
+        "metadata": {"account_id": account_id, "payment_event_id": checkout_reference_id},
+    }
+    charge_refunded_event = {
+        "id": "evt_stripe_refund_dedupe_charge",
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "id": "ch_stripe_refund_dedupe",
+                "amount_refunded": 1234,
+                "currency": "usd",
+                "metadata": {"account_id": account_id, "payment_event_id": checkout_reference_id},
+            }
+        },
+    }
+    refund_created_event = {
+        "id": "evt_stripe_refund_dedupe_refund_created",
+        "type": "refund.created",
+        "data": {
+            "object": {
+                "id": "re_stripe_refund_dedupe",
+                "amount": 1234,
+                "currency": "usd",
+                "metadata": {"account_id": account_id, "payment_event_id": checkout_reference_id},
+            }
+        },
+    }
+
+    credited = service.billing_webhook_stripe(
+        {
+            "raw_event": credited_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(credited_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    charge_refund = service.billing_webhook_stripe(
+        {
+            "raw_event": charge_refunded_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(charge_refunded_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    duplicate_refund = service.billing_webhook_stripe(
+        {
+            "raw_event": refund_created_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(refund_created_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+
+    assert credited["ok"] is True
+    assert charge_refund["ok"] is True
+    assert duplicate_refund["ok"] is True
+    assert charge_refund["refund_debit"]["amount"] == 12.34
+    assert duplicate_refund["refund_debit"]["credit_transaction_id"] == charge_refund["refund_debit"]["credit_transaction_id"]
+    assert duplicate_refund["refund_debit"]["source_event_id"] == "evt_stripe_refund_dedupe_charge"
+    assert service.store.count_records("credit_transaction") == 2
+    assert balance["available_credits"] == 0.0
+
 def test_stripe_charge_refunded_uses_partial_amount_refunded() -> None:
     server, base_url = _stripe_checkout_server()
     try:

@@ -5446,7 +5446,12 @@ class ComputeMarketService:
                 source_event_id=event_id,
                 checkout_payment_event_id=checkout_reference_id,
             )
-            self._audit("billing.credit.refund_debited", payload, request_id=request_id, result="debited")
+            refund_debit_result = (
+                "duplicate_ignored"
+                if refund_debit_record and str(refund_debit_record.get("source_event_id", "")) != event_id
+                else "debited"
+            )
+            self._audit("billing.credit.refund_debited", payload, request_id=request_id, result=refund_debit_result)
         checkout_update: Mapping[str, Any] = {}
         invoice_update: Mapping[str, Any] = {}
         if verified and checkout_reference_id and not duplicate_checkout_terminal_status:
@@ -11208,6 +11213,23 @@ def _apply_external_refund_debit(
             request_id=request_id,
         )
         return existing
+    if checkout_payment_event_id:
+        refund_debits = store.list_records(
+            "credit_transaction",
+            filters={"tenant_id": account_id, "action": checkout_payment_event_id, "status": "posted"},
+            limit=500,
+        ).records
+        for refund_debit in refund_debits:
+            if str(refund_debit.get("debit_reason", "")) != "stripe_refund":
+                continue
+            _rebuild_credit_balance_from_transactions(
+                store,
+                account_id,
+                currency=str(refund_debit.get("currency", currency)),
+                request_id=request_id,
+            )
+            return refund_debit
+
     now = utc_now_iso()
     transaction = {
         "credit_transaction_id": transaction_id,
@@ -11233,6 +11255,7 @@ def _apply_external_refund_debit(
         status="posted",
         request_id=request_id,
         idempotency_key=transaction_id,
+        action=checkout_payment_event_id,
     )
     _rebuild_credit_balance_from_transactions(
         store,

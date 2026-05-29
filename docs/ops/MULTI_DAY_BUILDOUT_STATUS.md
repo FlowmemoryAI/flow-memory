@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `1be6568 Document marketplace alpha smoke option`
+Latest inspected commit: `95a63b2 Document full mypy evidence`
 
 ## Current architecture
 
@@ -636,7 +636,7 @@ Tests run:
 
 - `python -m mypy src tests scripts --config-file pyproject.toml` — OK
 
-Commit: pending.
+Commit: `95a63b2 Document full mypy evidence`.
 
 Implementation:
 

@@ -1,6 +1,7 @@
 """Dry-run Flow Memory Inference Market service."""
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable, Mapping
 from dataclasses import fields
 from hashlib import sha256
@@ -75,8 +76,17 @@ class InferenceMarketService:
         listings: Iterable[InferenceCreditListing] = (),
         *,
         store: Any | None = None,
+        credential_env: Mapping[str, str] | None = None,
+        require_resolvable_credentials: bool | None = None,
     ) -> None:
         self.store = store
+        self._credential_env = credential_env if credential_env is not None else os.environ
+        require_from_env = os.environ.get("FLOW_MEMORY_INFERENCE_REQUIRE_RESOLVABLE_CREDENTIAL_REFS", "")
+        self.require_resolvable_credentials = (
+            _truthy_env(require_from_env)
+            if require_resolvable_credentials is None
+            else require_resolvable_credentials
+        )
         self.sources: dict[str, InferenceCreditSource] = {source.source_id: source for source in sources}
         self.accounts: dict[str, InferenceCreditAccount] = {account.account_id: account for account in accounts}
         self.balances: dict[str, InferenceCreditBalance] = {balance.balance_id: balance for balance in balances}
@@ -92,7 +102,13 @@ class InferenceMarketService:
         self._load_persisted_records()
 
     @classmethod
-    def seeded(cls, *, store: Any | None = None) -> "InferenceMarketService":
+    def seeded(
+        cls,
+        *,
+        store: Any | None = None,
+        credential_env: Mapping[str, str] | None = None,
+        require_resolvable_credentials: bool | None = None,
+    ) -> "InferenceMarketService":
         sources = (
             InferenceCreditSource(
                 source_id="src-discount-openai-compatible",
@@ -259,7 +275,15 @@ class InferenceMarketService:
                 transferable=False,
             ),
         )
-        return cls(sources=sources, accounts=accounts, balances=balances, listings=listings, store=store)
+        return cls(
+            sources=sources,
+            accounts=accounts,
+            balances=balances,
+            listings=listings,
+            store=store,
+            credential_env=credential_env,
+            require_resolvable_credentials=require_resolvable_credentials,
+        )
 
     def _persist_seed_records(self) -> None:
         for source in self.sources.values():
@@ -438,6 +462,40 @@ class InferenceMarketService:
         )
         return {"ok": True, "account": account.as_record(), "dry_run_only": True, "funds_moved": False}
 
+    def _credential_ref_status(self, credential_ref: str) -> dict[str, Any]:
+        if not credential_ref:
+            return {"required": False, "configured": True, "env_key": "", "reason": ""}
+        env_key = _credential_env_key(credential_ref)
+        if not env_key:
+            return {
+                "required": True,
+                "configured": False,
+                "env_key": "",
+                "reason": "unsupported_credential_ref_scheme",
+            }
+        configured = bool(self._credential_env.get(env_key, "").strip())
+        return {
+            "required": True,
+            "configured": configured,
+            "env_key": env_key,
+            "reason": "" if configured else "credential_env_missing",
+        }
+
+    def _validate_source_credentials(self, source: InferenceCreditSource) -> None:
+        if source.source_type == SourceType.LOCAL.value:
+            return
+        credential_status = self._credential_ref_status(source.credential_ref)
+        if (
+            source.credential_ref
+            and credential_status["reason"] == "unsupported_credential_ref_scheme"
+        ):
+            raise ValueError("unsupported inference provider credential_ref scheme")
+        if source.verified and not source.credential_ref:
+            raise ValueError("verified external inference source requires credential_ref")
+        if source.verified and not credential_status["configured"]:
+            reason = credential_status["reason"] or "credential_ref_unresolved"
+            raise ValueError(f"inference provider credential_ref unresolved: {reason}")
+
     def create_source(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         self._assert_safe_payload(payload)
         _reject_raw_provider_credentials(payload)
@@ -456,6 +514,7 @@ class InferenceMarketService:
             quality_score=_positive_float(payload.get("quality_score"), 1.0),
             reliability_score=_positive_float(payload.get("reliability_score"), 1.0),
         )
+        self._validate_source_credentials(source)
         self.sources[source.source_id] = source
         self._persist(
             "inference_credit_source",
@@ -499,6 +558,7 @@ class InferenceMarketService:
         if "supported_units" in payload:
             record["supported_units"] = _tuple_str(payload.get("supported_units"), ())
         updated = InferenceCreditSource(**{key: record[key] for key in InferenceCreditSource.__dataclass_fields__})
+        self._validate_source_credentials(updated)
         self.sources[source_id] = updated
         self._persist(
             "inference_credit_source",
@@ -518,8 +578,29 @@ class InferenceMarketService:
     def source_health(self, source_id: str, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         self._assert_safe_payload(payload or {})
         source = self.sources.get(source_id)
-        health = "simulated_healthy" if source is not None and source.status == "active" else "disabled_or_unknown"
-        return {"ok": source is not None, "source_id": source_id, "health": health, "dry_run_only": True}
+        credential_status = self._credential_ref_status(
+            source.credential_ref if source is not None else ""
+        )
+        health = (
+            "simulated_healthy"
+            if source is not None and source.status == "active"
+            else "disabled_or_unknown"
+        )
+        if (
+            source is not None
+            and source.status == "active"
+            and source.source_type != SourceType.LOCAL.value
+            and self.require_resolvable_credentials
+            and not credential_status["configured"]
+        ):
+            health = "credential_unresolved"
+        return {
+            "ok": source is not None and health != "credential_unresolved",
+            "source_id": source_id,
+            "health": health,
+            "credential_status": credential_status,
+            "dry_run_only": True,
+        }
 
     def cancel_listing(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         self._assert_safe_payload(payload)
@@ -680,6 +761,22 @@ class InferenceMarketService:
             source = self.sources.get(listing.source_id)
             if source is None or source.status != "active":
                 rejected.append({"listing_id": listing.listing_id, "code": "source_disabled"})
+                continue
+            credential_status = self._credential_ref_status(source.credential_ref)
+            if (
+                self.require_resolvable_credentials
+                and source.source_type != SourceType.LOCAL.value
+                and not credential_status["configured"]
+            ):
+                rejected.append(
+                    {
+                        "listing_id": listing.listing_id,
+                        "code": "credential_ref_unresolved",
+                        "source_id": source.source_id,
+                        "env_key": credential_status["env_key"],
+                        "reason": credential_status["reason"],
+                    }
+                )
                 continue
             if policy.allowed_models and listing.model not in policy.allowed_models:
                 rejected.append({"listing_id": listing.listing_id, "code": "model_disallowed"})
@@ -1635,6 +1732,26 @@ def _tuple_str(value: Any, default: tuple[str, ...]) -> tuple[str, ...]:
         return tuple(str(item) for item in value)
     return default
 
+
+def _credential_env_key(credential_ref: str) -> str:
+    prefix = "secret://inference/"
+    if not credential_ref.startswith(prefix):
+        return ""
+    normalized = []
+    previous_separator = False
+    for char in credential_ref[len(prefix) :]:
+        if char.isalnum():
+            normalized.append(char.upper())
+            previous_separator = False
+        elif not previous_separator:
+            normalized.append("_")
+            previous_separator = True
+    name = "".join(normalized).strip("_")
+    return f"FLOW_MEMORY_INFERENCE_CREDENTIAL_{name}" if name else ""
+
+
+def _truthy_env(value: str) -> bool:
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 def _reject_raw_provider_credentials(payload: Mapping[str, Any]) -> None:
     banned_keys = {

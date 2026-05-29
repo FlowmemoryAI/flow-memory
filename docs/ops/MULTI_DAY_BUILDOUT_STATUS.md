@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `669d711 Validate provider callback allowlists publicly`
+Latest inspected commit: `7a688eb Document provider callback allowlist gate`
 
 ## Current architecture
 
@@ -2081,4 +2081,41 @@ flowchart TD
     WorldOpen --> Preflight
     Unspecified --> Preflight
     Preflight --> ProviderSafety[external provider callback safety gate]
+```
+
+## Checkpoint 2026-05-26 Inference provider credential reference gate
+
+Files changed:
+
+- `docs/INFERENCE_MARKET.md`
+- `docs/ops/INFERENCE_MARKET_PROVIDER_ONBOARDING.md`
+- `src/flow_memory/inference_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q` — 19 passed
+- `python -m ruff check src/flow_memory/inference_market/service.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m mypy src/flow_memory/inference_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 463 passed, 2 skipped
+- `git diff --check -- src/flow_memory/inference_market/service.py tests/test_inference_capacity_futures_markets.py docs/INFERENCE_MARKET.md docs/ops/INFERENCE_MARKET_PROVIDER_ONBOARDING.md docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
+
+Commit: pending.
+
+Implementation:
+
+- Inference provider credential references now resolve from `secret://inference/<source-id>` to `FLOW_MEMORY_INFERENCE_CREDENTIAL_<SANITIZED_ID>` without exposing secret values in source health, quote, route, usage, or audit payloads.
+- Verified non-local inference sources now fail closed when their credential reference is missing, unsupported, or unresolved.
+- Strict credential mode rejects external-source quotes when the corresponding credential reference is not configured, while leaving default dry-run local planning available for deterministic tests.
+
+```mermaid
+flowchart TD
+    Source[Inference provider source] --> Ref[secret://inference/source-id]
+    Ref --> Env[FLOW_MEMORY_INFERENCE_CREDENTIAL_SOURCE_ID]
+    Env --> Resolve[credential status resolver]
+    Resolve --> VerifyGate[verified source onboarding gate]
+    Resolve --> QuoteGate[strict quote eligibility gate]
+    VerifyGate --> NoSecret[secret value never emitted]
+    QuoteGate --> NoSecret
+    QuoteGate --> DryRun[default dry-run planning remains available]
 ```

@@ -173,6 +173,83 @@ def test_inference_admin_credit_and_demand_methods_are_stateful_and_safe() -> No
         service.create_source({"source_id": "src-unsafe", "api_key": "raw-provider-key"})
 
 
+def test_inference_provider_credential_refs_resolve_from_env_without_exposing_secret() -> None:
+    secret_value = "sk-live-inference-provider-secret"
+    service = InferenceMarketService.seeded(
+        credential_env={"FLOW_MEMORY_INFERENCE_CREDENTIAL_SRC_REAL_PROVIDER": secret_value},
+        require_resolvable_credentials=True,
+    )
+
+    created = service.create_source(
+        {
+            "source_id": "src-real-provider",
+            "source_name": "Real provider",
+            "credential_ref": "secret://inference/src-real-provider",
+            "verified": True,
+            "models": ["gpt-4o-mini"],
+        }
+    )
+    assert created["ok"] is True
+
+    health = service.source_health("src-real-provider", {})
+    assert health["ok"] is True
+    assert health["credential_status"]["configured"] is True
+    assert (
+        health["credential_status"]["env_key"]
+        == "FLOW_MEMORY_INFERENCE_CREDENTIAL_SRC_REAL_PROVIDER"
+    )
+    assert secret_value not in json.dumps(created)
+    assert secret_value not in json.dumps(health)
+
+    with pytest.raises(ValueError, match="credential_ref unresolved"):
+        service.create_source(
+            {
+                "source_id": "src-missing-provider",
+                "source_name": "Missing provider",
+                "credential_ref": "secret://inference/src-missing-provider",
+                "verified": True,
+            }
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="unsupported inference provider credential_ref scheme",
+    ):
+        service.create_source(
+            {
+                "source_id": "src-bad-ref",
+                "source_name": "Bad ref",
+                "credential_ref": "env://OPENAI_API_KEY",
+            }
+        )
+
+
+def test_inference_strict_credential_mode_rejects_unresolved_external_routes() -> None:
+    strict = InferenceMarketService.seeded(
+        credential_env={},
+        require_resolvable_credentials=True,
+    )
+
+    quote = strict.quote({"model": "gpt-4o-mini", "estimated_units": 1000})
+    assert quote["quotes"] == ()
+    assert quote["rejected_routes"][0]["code"] == "credential_ref_unresolved"
+    assert (
+        quote["rejected_routes"][0]["env_key"]
+        == "FLOW_MEMORY_INFERENCE_CREDENTIAL_SRC_DISCOUNT_OPENAI_COMPATIBLE"
+    )
+    assert quote["rejected_routes"][0]["reason"] == "credential_env_missing"
+
+    resolved = InferenceMarketService.seeded(
+        credential_env={
+            "FLOW_MEMORY_INFERENCE_CREDENTIAL_SRC_DISCOUNT_OPENAI_COMPATIBLE": "provider-secret"
+        },
+        require_resolvable_credentials=True,
+    )
+    resolved_quote = resolved.quote({"model": "gpt-4o-mini", "estimated_units": 1000})
+    assert resolved_quote["quotes"]
+    assert "provider-secret" not in json.dumps(resolved_quote)
+
+
 def test_inference_buy_accounting_decrements_inventory_and_ledger(tmp_path: Path) -> None:
     store = ComputeMarketStore(f"sqlite:///{tmp_path / 'inference-ledger.sqlite3'}")
     service = InferenceMarketService.seeded(store=store)

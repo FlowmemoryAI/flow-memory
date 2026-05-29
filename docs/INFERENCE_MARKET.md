@@ -54,6 +54,25 @@ All behavior is simulation-only until real provider, billing, legal, compliance,
 - raw credentials rejected
 - seller credentials never exposed
 
+## Credential references
+
+External inference providers are onboarded with `secret://inference/<provider-or-source-id>` references only. The service resolves those references to process environment variables named `FLOW_MEMORY_INFERENCE_CREDENTIAL_<SANITIZED_ID>` when strict credential resolution is enabled, for example:
+
+- `secret://inference/src-real-provider`
+- `FLOW_MEMORY_INFERENCE_CREDENTIAL_SRC_REAL_PROVIDER`
+
+The resolved secret is never returned in API, CLI, health, quote, route, usage, or audit payloads. A verified non-local source cannot be created with a missing or unresolvable credential reference, and strict mode rejects quotes for external sources whose secret reference is not configured.
+
+```mermaid
+flowchart TD
+    Source[Inference source] --> Ref[secret://inference/source-id]
+    Ref --> Env[FLOW_MEMORY_INFERENCE_CREDENTIAL_SOURCE_ID]
+    Env --> Status[credential_status configured true or false]
+    Status --> Health[source health]
+    Status --> StrictQuote[strict quote gate]
+    StrictQuote --> NoSecret[secret value never emitted]
+```
+
 ## Auth roles
 
 The marketplace can be scoped by API key records or gateway JWT roles without putting every raw scope in every credential.

@@ -398,6 +398,7 @@ Assert-True ($readinessData.production_safety_defaults.external_provider_quotes_
 Assert-True ($readinessData.production_safety_defaults.external_provider_execution_enabled -eq $false) 'readiness did not report external_provider_execution_enabled=false.'
 Assert-True ($readinessData.production_safety_defaults.audit_required -eq $true) 'readiness did not report audit_required=true.'
 Assert-True ($readinessData.production_safety_defaults.audit_export_required -eq $true) 'readiness did not report audit_export_required=true.'
+Assert-True ($readinessData.production_safety_defaults.audit_export_immutable_required -eq $true) 'readiness did not report audit_export_immutable_required=true.'
 $redisUrlScheme = $readinessData.production_safety_defaults.redis_url_scheme
 $allowInternalRedis = $readinessData.production_safety_defaults.allow_internal_redis_in_production
 $redisSchemeAllowed = ($redisUrlScheme -eq 'rediss') -or (($redisUrlScheme -eq 'redis') -and ($allowInternalRedis -eq $true))

@@ -559,6 +559,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                         "private_key_inputs_allowed": False,
                         "audit_required": True,
                         "audit_export_required": True,
+                        "audit_export_immutable_required": audit_exporter == "s3_object_lock",
                         "stripe_checkout_enabled": False,
                         "external_provider_quotes_enabled": False,
                         "external_provider_execution_enabled": False,
@@ -755,6 +756,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["private_key_inputs_allowed"] is False
     assert result["audit_required"] is True
     assert result["audit_export_required"] is True
+    assert result["audit_export_immutable_required"] is False
     assert result["stripe_checkout_enabled"] is False
     assert result["missing_metrics"] == ()
     assert result["alerts_route_delivery_count"] == 1
@@ -786,6 +788,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     )
     assert strict_audit_result["ok"] is False
     assert strict_audit_result["audit_export_s3_object_lock"] is False
+    assert strict_audit_result["audit_export_immutable_required"] is False
 
     audit_exporter = "s3_object_lock"
     strict_s3_result = render_deploy.smoke_public(
@@ -795,6 +798,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     )
     assert strict_s3_result["ok"] is True
     assert strict_s3_result["audit_export_s3_object_lock"] is True
+    assert strict_s3_result["audit_export_immutable_required"] is True
     assert strict_s3_result["audit_checkpoint_schedule"] == 200
     assert strict_s3_result["audit_checkpoint_schedule_due"] is True
     assert strict_s3_result["audit_chain_monitor"] == 200
@@ -1080,12 +1084,14 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
         "production_safety_defaults.external_provider_execution_enabled -eq $false",
         "production_safety_defaults.audit_required -eq $true",
         "production_safety_defaults.audit_export_required -eq $true",
+        "production_safety_defaults.audit_export_immutable_required -eq $true",
     ):
         assert expected in smoke_script
     for expected in (
         '"stripe_checkout_enabled": safety.get("stripe_checkout_enabled")',
         '"audit_required": safety.get("audit_required")',
         '"audit_export_required": safety.get("audit_export_required")',
+        '"audit_export_immutable_required": safety.get("audit_export_immutable_required")',
         '"external_provider_quotes_enabled": safety.get("external_provider_quotes_enabled")',
         '"external_provider_execution_enabled": safety.get("external_provider_execution_enabled")',
     ):

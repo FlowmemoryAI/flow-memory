@@ -374,6 +374,58 @@ def test_external_provider_adapter_verifies_signed_quote_responses() -> None:
     assert all(quote.status == "invalid_response" for quote in tampered)
 
 
+def test_service_external_provider_quote_preserves_signed_payload_for_broker_validation() -> None:
+    global _SIGNED_QUOTE_RESPONSE
+    signer = LocalTestSigner("provider-response-key", "provider-response-seed")
+    unsigned = _quote()
+    signed = _signed_provider_payload(unsigned, signer, QUOTE_SIGNATURE_CONTEXT)
+    provider_public_key: Mapping[str, Any] = signer.public_record().as_record()
+    server, base = _server()
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_quotes_enabled=True,
+        external_provider_allowlist=("127.0.0.1",),
+        external_provider_quote_timeout_ms=1_000,
+    )
+    provider_record = {
+        "provider_id": "market-token-provider",
+        "provider_name": "Market Token Provider",
+        "provider_type": "marketplace",
+        "status": "active",
+        "supported_unit_types": ("token",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("solana",),
+        "quote_endpoint": f"{base}/signed",
+        "metadata": {"quote_endpoint": f"{base}/signed", "public_key": provider_public_key},
+    }
+    store = ComputeMarketStore(":memory:")
+    service = ComputeMarketService(store=store, config=config)
+
+    try:
+        _SIGNED_QUOTE_RESPONSE = signed
+        service.create_provider(provider_record)
+        response = service.request_external_provider_quote(
+            {
+                "provider_id": "market-token-provider",
+                "task": "signed provider response",
+                "allowed_assets": ("USDC",),
+                "allowed_networks": ("solana",),
+            }
+        )
+    finally:
+        _SIGNED_QUOTE_RESPONSE = None
+        server.shutdown()
+
+    quote_record = store.get_record("compute_quote", "http-quote")
+    assert response["ok"] is True
+    assert response["validations"][0]["ok"] is True
+    assert response["quotes"][0]["signed_quote_valid"] is True
+    assert quote_record is not None
+    assert quote_record["signed_quote_valid"] is True
+    assert json.loads(str(quote_record["signed_quote"])) == signed["signature"]
+
+
 def test_http_provider_verifies_signed_execution_results() -> None:
     signer = LocalTestSigner("provider-execution-response-key", "provider-execution-response-seed")
     unsigned = {
@@ -753,6 +805,66 @@ def test_provider_sandbox_quote_contract_and_http_adapter() -> None:
     assert quotes[0].provider_id == "sandbox-provider"
     assert quotes[0].route_id == "sandbox-gpu-route"
     assert quotes[0].status == "valid"
+
+
+def test_provider_sandbox_signed_quote_response_flows_through_service() -> None:
+    signer = LocalTestSigner("sandbox-quote-response-key", "sandbox-quote-response-seed")
+    provider_public_key: Mapping[str, Any] = signer.public_record().as_record()
+    server = create_provider_sandbox_server("127.0.0.1", 0, quote_signer=signer)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = cast(tuple[str, int], server.server_address)
+    endpoint = f"http://{host}:{port}/quote"
+    config = ComputeMarketConfig(
+        compute_market_mode="test",
+        rate_limits_enabled=False,
+        external_provider_quotes_enabled=True,
+        external_provider_allowlist=("127.0.0.1",),
+    )
+    provider_record = {
+        "provider_id": "sandbox-provider",
+        "provider_name": "Sandbox Provider",
+        "provider_type": "gpu",
+        "status": "active",
+        "supported_unit_types": ("gpu_minute",),
+        "supported_assets": ("USDC",),
+        "supported_networks": ("offchain",),
+        "quote_endpoint": endpoint,
+        "metadata": {"quote_endpoint": endpoint, "public_key": provider_public_key},
+    }
+    store = ComputeMarketStore(":memory:")
+    service = ComputeMarketService(store=store, config=config)
+
+    try:
+        adapter = build_external_provider_adapter(provider_record, (), config)
+        direct_quotes = adapter.quote(build_task_profile({"task": "signed sandbox"}), ComputeMarketPolicy())
+        service.create_provider(provider_record)
+        response = service.request_external_provider_quote(
+            {
+                "provider_id": "sandbox-provider",
+                "task": "signed sandbox",
+                "allowed_assets": ("USDC",),
+                "allowed_networks": ("offchain",),
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    quote_record = store.get_record("compute_quote", direct_quotes[0].quote_id)
+    assert direct_quotes[0].status == "valid"
+    assert direct_quotes[0].signed_quote_valid is True
+    assert "broadcast_allowed" not in direct_quotes[0].original_quote
+    assert "private_key_required" not in direct_quotes[0].original_quote
+    assert response["ok"] is True
+    assert response["validations"][0]["ok"] is True
+    assert response["quotes"][0]["signed_quote_valid"] is True
+    assert quote_record is not None
+    assert quote_record["signed_quote_valid"] is True
+    assert quote_record["dry_run_only"] is True
+    assert response["funds_moved"] is False
+    assert response["broadcast_allowed"] is False
+    assert response["private_key_required"] is False
 
 
 def test_provider_health_pings_sandbox_health_endpoint_and_records_snapshot() -> None:

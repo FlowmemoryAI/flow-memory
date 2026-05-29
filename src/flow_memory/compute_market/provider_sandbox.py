@@ -7,10 +7,25 @@ from http.client import HTTPMessage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping
 
+from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEXT
 from flow_memory.compute_market.storage import deterministic_id, utc_now_iso
+from flow_memory.crypto.asymmetric import LocalTestSigner
 from flow_memory.crypto.hashes import content_hash
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import verify_payload
+
+_SANDBOX_QUOTE_CONTRACT_UNSAFE_KEYS = frozenset(
+    {
+        "broadcast",
+        "broadcast_allowed",
+        "broadcast_required",
+        "private_key",
+        "private_key_required",
+        "sendTransaction",
+        "signTransaction",
+    }
+)
+
 
 
 def sandbox_quote(payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -45,6 +60,17 @@ def sandbox_quote(payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         "assumptions": ("sandbox deterministic quote only",),
         "created_at": utc_now_iso(),
     }
+
+
+def sign_sandbox_quote(quote: Mapping[str, Any], signer: LocalTestSigner) -> dict[str, Any]:
+    contract_quote = {
+        str(key): value
+        for key, value in quote.items()
+        if str(key) not in _SANDBOX_QUOTE_CONTRACT_UNSAFE_KEYS
+    }
+    signed_payload = {**contract_quote, "_signature_context": QUOTE_SIGNATURE_CONTEXT}
+    contract_quote["signature"] = signer.sign(signed_payload).as_record()
+    return contract_quote
 
 
 def sandbox_execute(payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -85,7 +111,13 @@ def sandbox_health() -> dict[str, Any]:
     }
 
 
-def create_provider_sandbox_server(host: str = "127.0.0.1", port: int = 0, *, signing_key: LocalKeyPair | None = None) -> ThreadingHTTPServer:
+def create_provider_sandbox_server(
+    host: str = "127.0.0.1",
+    port: int = 0,
+    *,
+    signing_key: LocalKeyPair | None = None,
+    quote_signer: LocalTestSigner | None = None,
+) -> ThreadingHTTPServer:
     class Handler(BaseHTTPRequestHandler):
         server_version = "FlowMemoryProviderSandbox/0.1"
 
@@ -132,7 +164,10 @@ def create_provider_sandbox_server(host: str = "127.0.0.1", port: int = 0, *, si
             if self.path == "/execute":
                 self._send({"ok": True, "execution": sandbox_execute(payload)})
                 return
-            self._send({"ok": True, "quote": sandbox_quote(payload)})
+            quote = sandbox_quote(payload)
+            if quote_signer is not None:
+                quote = sign_sandbox_quote(quote, quote_signer)
+            self._send({"ok": True, "quote": quote})
 
         def _send(self, payload: Mapping[str, Any], *, status: int = 200) -> None:
             body = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")

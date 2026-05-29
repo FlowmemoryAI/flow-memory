@@ -8926,7 +8926,10 @@ def _capacity_fulfillment_rate(reservations: tuple[Mapping[str, Any], ...]) -> f
 
 def _contract_quote_from_normalized(quote: Mapping[str, Any]) -> dict[str, Any]:
     original = quote.get("original_quote", {})
-    record = dict(original) if isinstance(original, Mapping) else {}
+    original_record = dict(original) if isinstance(original, Mapping) else {}
+    if "signature" in original_record or "verification" in original_record:
+        return original_record
+    record = dict(original_record)
     record.update(dict(quote))
     for unsafe_key in ("broadcast", "broadcast_allowed", "broadcast_required", "sendTransaction", "signTransaction", "private_key", "private_key_required"):
         record.pop(unsafe_key, None)
@@ -8939,6 +8942,13 @@ def _contract_quote_from_normalized(quote: Mapping[str, Any]) -> dict[str, Any]:
     record.setdefault("capacity_available", bool(record.get("capacity_available", True)))
     record.setdefault("confidence", float(record.get("confidence", 0.75) or 0.75))
     return record
+
+
+def _signed_quote_json(quote: Mapping[str, Any]) -> str:
+    envelope = quote.get("signature") or quote.get("verification")
+    if not isinstance(envelope, Mapping):
+        return ""
+    return json.dumps(envelope, sort_keys=True, default=str)
 
 def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote_hash: str, signed_quote_valid: bool = False) -> dict[str, Any]:
     now = utc_now_iso()
@@ -8967,7 +8977,7 @@ def _normalized_provider_quote(quote: Mapping[str, Any], *, quote_id: str, quote
         "expires_at": str(quote["expires_at"]),
         "assumptions": tuple(str(item) for item in quote.get("assumptions", ())),
         "raw_quote_hash": quote_hash,
-        "signed_quote": str(quote.get("signature", "")),
+        "signed_quote": _signed_quote_json(quote),
         "signed_quote_valid": signed_quote_valid,
         "created_at": now,
         "updated_at": now,

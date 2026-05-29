@@ -1892,6 +1892,133 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
 
 
 
+def test_render_deploy_main_fails_closed_when_public_smoke_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    env_file = tmp_path / "render.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RENDER_API_KEY=render_live_key_from_env_file",
+                "RENDER_OWNER_ID=owner_from_env_file",
+                "RENDER_REGION=frankfurt",
+                "RENDER_POSTGRES_PLAN=pro",
+                "RENDER_KEYVALUE_PLAN=pro",
+                "RENDER_SERVICE_PLAN=professional",
+                "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                "RENDER_BRANCH=main",
+                "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
+                "RENDER_ENABLE_DISK=true",
+                "FLOW_MEMORY_API_KEY=fmk_live_test_secret",
+                "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
+                "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
+                "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED=false",
+                "FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
+                "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_PUBLIC_API_URL=https://api.flowmemory.example",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    smoke_calls: list[dict[str, object]] = []
+
+    def fake_ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str) -> dict[str, str]:
+        return {"id": "pg_1"}
+
+    def fake_ensure_keyvalue(
+        api_key: str,
+        owner_id: str,
+        region: str,
+        *,
+        plan: str,
+        ip_allowlist: str | None = None,
+    ) -> dict[str, str]:
+        return {"id": "kv_1"}
+
+    def fake_wait_available(api_key: str, path: str, resource_id: str, label: str) -> dict[str, str]:
+        return {"id": resource_id, "label": label, "path": path}
+
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
+        if method == "GET" and path == "/postgres/pg_1/connection-info":
+            return {"internalConnectionString": "postgresql://postgres.internal/flow_memory"}
+        if method == "GET" and path == "/key-value/kv_1/connection-info":
+            return {"externalConnectionString": "rediss://redis.external:6379/0"}
+        if method == "PUT" and path == "/services/srv_1/env-vars":
+            return {}
+        raise AssertionError(f"unexpected Render call: {method} {path}")
+
+    def fake_ensure_service(
+        api_key: str,
+        owner_id: str,
+        region: str,
+        repo: str,
+        branch: str,
+        env_vars: list[dict[str, str]],
+        *,
+        plan: str,
+        enable_disk: bool,
+    ) -> dict[str, object]:
+        return {"id": "srv_1", "serviceDetails": {"url": "flow-memory-api.onrender.com"}}
+
+    def fake_smoke_public(
+        url: str,
+        api_key: str,
+        gateway_jwt: Mapping[str, str] | None = None,
+        *,
+        require_immutable_audit: bool = False,
+        include_market_alpha: bool = False,
+    ) -> dict[str, object]:
+        smoke_calls.append(
+            {
+                "url": url,
+                "api_key": api_key,
+                "require_immutable_audit": require_immutable_audit,
+                "include_market_alpha": include_market_alpha,
+            }
+        )
+        return {"ok": False, "reason": "require_managed_sql_in_production is False"}
+
+    monkeypatch.setattr(sys, "argv", ["deploy", "--env-file", str(env_file)])
+    monkeypatch.setattr(render_deploy, "ensure_postgres", fake_ensure_postgres)
+    monkeypatch.setattr(render_deploy, "ensure_keyvalue", fake_ensure_keyvalue)
+    monkeypatch.setattr(render_deploy, "wait_available", fake_wait_available)
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+    monkeypatch.setattr(render_deploy, "ensure_service", fake_ensure_service)
+    monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
+    monkeypatch.setattr(render_deploy, "smoke_public", fake_smoke_public)
+    monkeypatch.setattr(render_deploy, "assert_branch_is_publishable", lambda branch: None)
+    monkeypatch.setattr(render_deploy.time, "sleep", lambda seconds: None)
+
+    with pytest.raises(SystemExit) as failed:
+        render_deploy.main()
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert failed.value.code == 34
+    assert payload["status"] == "failed_public_smoke_tests"
+    assert payload["public_url"] == "https://flow-memory-api.onrender.com"
+    assert payload["smoke"]["ok"] is False
+    assert payload["smoke"]["reason"] == "require_managed_sql_in_production is False"
+    assert smoke_calls
+    assert smoke_calls[0]["api_key"] == "fmk_live_test_secret"
+    assert smoke_calls[0]["require_immutable_audit"] is True
+
 def test_render_env_builder_blocks_incomplete_immutable_s3_audit_settings() -> None:
     with pytest.raises(SystemExit) as blocked:
         render_deploy.build_env_vars(

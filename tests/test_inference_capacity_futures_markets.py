@@ -12,6 +12,7 @@ from flow_memory.compute_market.storage import COMPUTE_RECORD_TYPES, ComputeMark
 from flow_memory.compute_market.storage_backends import PostgresComputeMarketStore, _POSTGRES_TABLES
 from flow_memory.futures_market.service import FuturesMarketService
 from flow_memory.inference_market.service import InferenceMarketService
+from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.capacity_market.service import default_capacity_market_service
@@ -220,6 +221,43 @@ def test_marketplace_api_endpoints_persist_through_compute_store(tmp_path: Path)
     assert service.store.get_record("inference_credit_source", str(source["source"]["source_id"])) is not None
     assert service.store.get_record("capacity_reservation", str(reservation["reservation"]["reservation_id"])) is not None
     assert service.store.get_record("futures_order_simulated", str(order["order"]["order_id"])) is not None
+
+
+def test_proxy_http_scope_and_streaming_warning(tmp_path: Path) -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(f"sqlite:///{tmp_path / 'proxy-http.sqlite3'}"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"),
+    )
+    reset_default_service(service)
+    gateway = HttpApiGateway(config=HttpApiConfig(api_key="dev", require_scopes=True, enable_rate_limit=False))
+    body = json.dumps(
+        {
+            "model": "claude-3-5-haiku",
+            "messages": [{"role": "user", "content": "hello"}],
+            "stream": True,
+        }
+    ).encode()
+    try:
+        denied = gateway.handle(
+            "POST",
+            "/anthropic/v1/messages",
+            {"x-flow-memory-api-key": "dev", "x-flow-memory-scopes": "inference:read"},
+            body,
+        )
+        allowed = gateway.handle(
+            "POST",
+            "/anthropic/v1/messages",
+            {"x-flow-memory-api-key": "dev", "x-flow-memory-scopes": "inference:proxy"},
+            body,
+        )
+    finally:
+        reset_default_service(None)
+
+    assert denied.status == 403
+    assert allowed.status == 200
+    assert allowed.body["data"]["flow_memory"]["warnings"] == ("streaming_not_implemented",)
+    assert service.store.count_records("inference_usage_record") >= 1
+    assert service.store.verify_audit_chain(chain_id="inference-market").ok is True
 
 
 def test_new_market_scope_mapping() -> None:

@@ -976,11 +976,13 @@ class InferenceMarketService:
             return route
         usage = self._record_proxy_usage(payload, model=model, route_result=route, provider_api="openai")
         response_id = _stable_id("chatcmpl", model, str(payload.get("messages", ())))
+        warnings = ("streaming_not_implemented",) if bool(payload.get("stream", False)) else ()
         return {
             "id": response_id,
             "object": "chat.completion",
             "created": 1_779_753_600,
             "model": model,
+            "request_id": str(payload.get("request_id") or _stable_id("req", "openai", response_id)),
             "choices": (
                 {
                     "index": 0,
@@ -999,6 +1001,7 @@ class InferenceMarketService:
                 "funds_moved": False,
                 "broadcast_allowed": False,
                 "private_key_required": False,
+                "warnings": warnings,
             },
         }
 
@@ -1010,11 +1013,13 @@ class InferenceMarketService:
             return route
         usage = self._record_proxy_usage(payload, model=model, route_result=route, provider_api="anthropic")
         response_id = _stable_id("msg", model, str(payload.get("messages", ())))
+        warnings = ("streaming_not_implemented",) if bool(payload.get("stream", False)) else ()
         return {
             "id": response_id,
             "type": "message",
             "role": "assistant",
             "model": model,
+            "request_id": str(payload.get("request_id") or _stable_id("req", "anthropic", response_id)),
             "content": (
                 {
                     "type": "text",
@@ -1031,6 +1036,7 @@ class InferenceMarketService:
                 "funds_moved": False,
                 "broadcast_allowed": False,
                 "private_key_required": False,
+                "warnings": warnings,
             },
         }
 

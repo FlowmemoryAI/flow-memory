@@ -1473,19 +1473,23 @@ class ComputeMarketService:
             tenant_id=tenant_id,
             workspace_id=workspace_id,
         )
-        self.store.put_record(
-            "compute_quote",
-            quote_record_id,
-            record,
-            provider_id=provider_id,
-            route_id=route_id,
-            status=str(record.get("status", "valid")),
-            expires_at=str(record.get("expires_at", "")),
-            request_id=request_id,
-            tenant_id=tenant_id,
-            workspace_id=workspace_id,
-            idempotency_key=str(payload.get("idempotency_key", "")),
-        )
+        try:
+            self.store.put_record(
+                "compute_quote",
+                quote_record_id,
+                record,
+                provider_id=provider_id,
+                route_id=route_id,
+                status=str(record.get("status", "valid")),
+                expires_at=str(record.get("expires_at", "")),
+                request_id=request_id,
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                idempotency_key=str(payload.get("idempotency_key", "")),
+            )
+        except Exception:
+            self.store.delete_record("quote_replay_guard", quote_replay_record_id)
+            raise
         if drift:
             self.store.put_record(
                 "quote_drift_observation",

@@ -1206,6 +1206,36 @@ def test_quote_broker_rejects_provider_route_ownership_mismatch() -> None:
     assert service.store.count_records("quote_replay_guard") == 0
 
 
+def test_quote_replay_guard_rolls_back_when_quote_write_fails(monkeypatch: Any) -> None:
+    service = _service()
+    original_put_record = service.store.put_record
+
+    def failing_put_record(
+        record_type: str,
+        record_id: str,
+        payload: Mapping[str, Any],
+        **filters: Any,
+    ) -> None:
+        if record_type == "compute_quote":
+            raise RuntimeError("forced quote write failure")
+        original_put_record(record_type, record_id, payload, **filters)
+
+    monkeypatch.setattr(service.store, "put_record", failing_put_record)
+
+    with pytest.raises(RuntimeError, match="forced quote write failure"):
+        service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+
+    assert service.store.count_records("quote_replay_guard") == 0
+    assert service.store.count_records("compute_quote") == 0
+
+    monkeypatch.setattr(service.store, "put_record", original_put_record)
+    accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+
+    assert accepted["ok"] is True
+    assert service.store.count_records("quote_replay_guard") == 1
+    assert service.store.count_records("compute_quote") == 1
+
+
 def test_quote_broker_rejects_same_provider_stale_quote_replay() -> None:
     service = _service()
     accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})

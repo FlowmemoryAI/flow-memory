@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `50eaca1 Require Redis shared-state diagnostics`
+Latest inspected commit: `f614160 Verify audit export readback in public smoke`
 
 ## Current architecture
 
@@ -1779,4 +1779,47 @@ flowchart TD
     CircuitA --> SharedRedis
     CircuitB --> SharedRedis
     SharedRedis --> Gate[Public validation and smoke gate]
+```
+
+## Checkpoint 2026-05-26 Audit export readback gate
+
+Files changed:
+
+- `docs/API_SNAPSHOT.json`
+- `docs/openapi/flow-memory.openapi.json`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/validate_compute_market_public_buildout.py`
+- `src/flow_memory/api/manifest.py`
+- `src/flow_memory/compute_market/service.py`
+- `tests/test_compute_market_audit.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_audit.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py tests/test_api_snapshot.py tests/test_api_openapi_snapshot.py -q` — 113 passed
+- `python -m ruff check src/flow_memory/compute_market/service.py src/flow_memory/api/manifest.py scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_audit.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy src/flow_memory/api/manifest.py scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_audit.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile("scripts/smoke_compute_market_public.ps1", [ref]$tokens, [ref]$errors)'` — parsed with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 452 passed, 2 skipped
+- `git diff --check` — no whitespace errors
+
+Commit: `f614160 Verify audit export readback in public smoke`.
+
+Implementation:
+
+- `audit_verify_export({})` now verifies the configured audit exporter readback instead of requiring a local export path, so public S3 Object Lock exports can be checked through the live service.
+- Public validation, Render smoke automation, and the PowerShell public smoke script now require an audit export write followed by readback verification with a checkpoint hash and event count.
+- API manifest and snapshots now document configured audit-export readback verification.
+
+```mermaid
+flowchart TD
+    AuditEvents[Audit events] --> Export[/compute/audit/export]
+    Export --> ObjectLock[(Configured audit exporter)]
+    ObjectLock --> Readback[/compute/audit/verify-export]
+    Readback --> CheckpointHash[checkpoint_hash present]
+    Readback --> EventCount[event_count >= 1]
+    CheckpointHash --> PublicGate[Public validation and smoke gate]
+    EventCount --> PublicGate
 ```

@@ -6726,6 +6726,53 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
         raise AssertionError("over-refund was accepted")
 
 
+def test_billing_refund_surfaces_settled_provider_payout_adjustment_failure() -> None:
+    service = _service()
+    account_id = "acct_refund_settled"
+    _credit_account(service, account_id, 1.0, event_id="evt_credit_refund_settled")
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_paid_compute_refund_settled"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {"account_id": account_id, "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"},
+    )
+    usage_charge_id = str(completed["usage_charge"]["usage_charge_id"])
+    payout_id = str(completed["provider_payout"]["provider_payout_id"])
+    service.settle_provider_payout(
+        payout_id,
+        {"external_payout_reference": "stripe_transfer_refund_settled", "settled_by": "ops"},
+    )
+
+    refund = service.billing_refund(
+        {
+            "usage_charge_id": usage_charge_id,
+            "reason": "sla_credit",
+            "idempotency_key": "refund-settled-payout-1",
+        }
+    )
+    payout = service.store.get_record("provider_payout", payout_id)
+    audit_actions = tuple(event["action"] for event in service.store.list_records("audit_event", limit=100).records)
+
+    assert refund["ok"] is True
+    assert refund["provider_payout_adjustment"]["adjusted"] is False
+    assert refund["provider_payout_adjustment"]["status"] == "settled"
+    assert refund["provider_payout_adjustment_error"]["error_code"] == "billing.provider_payout.adjustment_failed"
+    assert service.billing_balance({"account_id": account_id})["balance"]["available_credits"] == 1.0
+    assert payout is not None
+    assert payout["status"] == "settled"
+    assert payout["amount"] == 0.18
+    assert "billing.provider_payout.adjustment_failed" in audit_actions
+    assert (
+        _metric_total(
+            service,
+            "billing_payout_adjustment_failed_total",
+            {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "reason": "settled"},
+        )
+        == 1.0
+    )
+
+
 def test_provider_reputation_counts_dispute_refunds_and_signals() -> None:
     service = _service()
     account_id = "acct_dispute"

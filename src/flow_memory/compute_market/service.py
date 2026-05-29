@@ -5967,6 +5967,7 @@ class ComputeMarketService:
         )
         credit_transaction: Mapping[str, Any] = {}
         provider_payout_adjustment: Mapping[str, Any] = {}
+        provider_payout_adjustment_error: Mapping[str, Any] = {}
         if usage_charge is not None:
             debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
             debit = self.store.get_record("credit_transaction", debit_id)
@@ -5982,6 +5983,31 @@ class ComputeMarketService:
                 )
             if _payload_enabled({"enabled": payload.get("adjust_provider_payout", True)}, default=True):
                 provider_payout_adjustment = self._adjust_provider_payout_for_refund(refund, usage_charge, request_id=request_id)
+        provider_payout_adjustment_failed = _provider_payout_adjustment_failed(provider_payout_adjustment)
+        if provider_payout_adjustment_failed:
+            adjustment_failure_reason = str(
+                provider_payout_adjustment.get("reason")
+                or provider_payout_adjustment.get("status")
+                or "unknown"
+            )
+            provider_payout_adjustment_error = compute_error(
+                "billing.provider_payout.adjustment_failed",
+                "Provider payout could not be adjusted for refund.",
+                details={
+                    "refund_id": refund_id,
+                    "provider_payout_adjustment": provider_payout_adjustment,
+                    "reason": adjustment_failure_reason,
+                },
+                request_id=request_id,
+            ).as_record()
+            self.telemetry.increment(
+                "billing_payout_adjustment_failed_total",
+                {
+                    "provider_id": provider_id,
+                    "route_id": route_id,
+                    "reason": adjustment_failure_reason,
+                },
+            )
         self._audit(
             "billing.refund.recorded",
             payload,
@@ -5991,15 +6017,37 @@ class ComputeMarketService:
             route_id=route_id,
         )
         if provider_payout_adjustment:
-            self._audit(
-                "billing.provider_payout.adjusted_for_refund",
-                {**dict(payload), "refund_id": refund_id},
-                request_id=request_id,
-                result=str(provider_payout_adjustment.get("status", "")),
-                provider_id=provider_id,
-                route_id=route_id,
-            )
-        return {"ok": True, "refund": refund, "credit_transaction": credit_transaction, "provider_payout_adjustment": provider_payout_adjustment, "idempotent_replay": False}
+            if provider_payout_adjustment_error:
+                self._audit(
+                    "billing.provider_payout.adjustment_failed",
+                    {
+                        **dict(payload),
+                        "refund_id": refund_id,
+                        "provider_payout_adjustment": provider_payout_adjustment,
+                    },
+                    request_id=request_id,
+                    result="failed",
+                    reason_codes=("billing.provider_payout.adjustment_failed",),
+                    provider_id=provider_id,
+                    route_id=route_id,
+                )
+            else:
+                self._audit(
+                    "billing.provider_payout.adjusted_for_refund",
+                    {**dict(payload), "refund_id": refund_id},
+                    request_id=request_id,
+                    result=str(provider_payout_adjustment.get("status", "")),
+                    provider_id=provider_id,
+                    route_id=route_id,
+                )
+        return {
+            "ok": True,
+            "refund": refund,
+            "credit_transaction": credit_transaction,
+            "provider_payout_adjustment": provider_payout_adjustment,
+            "provider_payout_adjustment_error": provider_payout_adjustment_error,
+            "idempotent_replay": False,
+        }
 
     def _reconcile_provider_sla_penalties(
         self,
@@ -11484,6 +11532,12 @@ def _posted_refund_total(
         ),
         6,
     )
+
+
+def _provider_payout_adjustment_failed(adjustment: Mapping[str, Any]) -> bool:
+    if not adjustment or adjustment.get("adjusted") is True:
+        return False
+    return str(adjustment.get("reason", "")).strip() != "already_adjusted"
 
 
 def _apply_refund_credit(

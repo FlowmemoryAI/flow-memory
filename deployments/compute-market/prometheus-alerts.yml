@@ -176,6 +176,15 @@ groups:
         annotations:
           summary: Billing refund was skipped because no posted debit exists.
           description: Investigate insufficient-credit completions, SLA refund reconciliation, and tenant credit funding before allowing paid execution to continue.
+      - alert: FlowMemoryComputeMarketBillingPayoutAdjustmentFailed
+        expr: billing_payout_adjustment_failed_total > 0
+        for: 0m
+        labels:
+          severity: critical
+          component: billing
+        annotations:
+          summary: Billing provider payout adjustment failed.
+          description: Investigate settled or missing provider payouts before processing more refunds or SLA credits.
 
 
       - alert: FlowMemoryComputeMarketPlanFailClosed

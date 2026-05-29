@@ -105,7 +105,8 @@
         {"expr": "sum(rate(billing_insufficient_credit_total[5m]))", "legendFormat": "insufficient credit", "refId": "G"},
         {"expr": "sum(rate(billing_ledger_mismatch_total[5m]))", "legendFormat": "ledger mismatches", "refId": "H"},
         {"expr": "sum(rate(billing_payout_settled_total[5m]))", "legendFormat": "payouts settled", "refId": "I"},
-        {"expr": "sum(rate(billing_refund_skipped_no_debit_total[5m]))", "legendFormat": "refund skipped: no debit", "refId": "J"}
+        {"expr": "sum(rate(billing_refund_skipped_no_debit_total[5m]))", "legendFormat": "refund skipped: no debit", "refId": "J"},
+        {"expr": "sum(rate(billing_payout_adjustment_failed_total[5m]))", "legendFormat": "payout adjustment failures", "refId": "K"}
       ],
       "title": "Billing and prepaid credits",
       "type": "timeseries"

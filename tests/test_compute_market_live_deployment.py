@@ -78,6 +78,8 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://CHANGEME-ops.example.com/flow-memory/postgres-blue-green-rehearsal",
         "FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS=86400",
         "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
+        "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED=false",
+        "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false",
         "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
         "FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL=https://api.stripe.com",
         "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS=300",
@@ -122,6 +124,8 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED: \"false\"" in compose
     assert "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED: \"false\"" in compose
     assert "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED: \"false\"" in compose
+    assert "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED: \"false\"" in compose
+    assert "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED: \"false\"" in compose
     assert "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED: ${FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED:-false}" in compose
     assert "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS: ${FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS:-2000}" in compose
     assert "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED: ${FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED:-false}" in compose
@@ -449,6 +453,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                         "audit_required": True,
                         "audit_export_required": True,
                         "stripe_checkout_enabled": False,
+                        "external_provider_quotes_enabled": False,
+                        "external_provider_execution_enabled": False,
                     },
                 },
             }
@@ -595,6 +601,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["audit_required"] is True
     assert result["audit_export_required"] is True
     assert result["stripe_checkout_enabled"] is False
+    assert result["external_provider_quotes_enabled"] is False
+    assert result["external_provider_execution_enabled"] is False
     assert len(jwt_headers) == 3
     role_payloads = [_jwt_payload(headers["authorization"]) for headers in jwt_headers if headers is not None]
     assert any(payload.get("flow_memory_roles") == ["inference-admin"] for payload in role_payloads)
@@ -689,6 +697,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                         "audit_required": True,
                         "audit_export_required": True,
                         "stripe_checkout_enabled": False,
+                        "external_provider_quotes_enabled": False,
+                        "external_provider_execution_enabled": False,
                     },
                 },
             }
@@ -763,8 +773,12 @@ def test_render_blueprint_preserves_billing_safety_defaults() -> None:
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS\n        value: 300" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED\n        value: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED\n        value: false" in blueprint
     public_script = (ROOT / "scripts" / "deploy_compute_market_public_level1.ps1").read_text(encoding="utf-8")
     assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'" in public_script
+    assert "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'" in public_script
+    assert "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED = 'false'" in public_script
 
 
 def test_compute_market_deployment_runbook_covers_live_drills() -> None:
@@ -838,6 +852,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
         "production_safety_defaults.broadcast_enabled -eq $false",
         "production_safety_defaults.private_key_inputs_allowed -eq $false",
         "production_safety_defaults.stripe_checkout_enabled -eq $false",
+        "production_safety_defaults.external_provider_quotes_enabled -eq $false",
+        "production_safety_defaults.external_provider_execution_enabled -eq $false",
         "production_safety_defaults.audit_required -eq $true",
         "production_safety_defaults.audit_export_required -eq $true",
     ):
@@ -846,6 +862,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
         '"stripe_checkout_enabled": safety.get("stripe_checkout_enabled")',
         '"audit_required": safety.get("audit_required")',
         '"audit_export_required": safety.get("audit_export_required")',
+        '"external_provider_quotes_enabled": safety.get("external_provider_quotes_enabled")',
+        '"external_provider_execution_enabled": safety.get("external_provider_execution_enabled")',
     ):
         assert expected in render_script
 

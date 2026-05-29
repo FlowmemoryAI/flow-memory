@@ -462,6 +462,7 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'
+    FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED = 'false'
     FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'
 }
 
@@ -528,6 +529,8 @@ $composeChecks = @{
     live_settlement_false = 'FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED:\s+"?false"?'
     broadcast_false = 'FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED:\s+"?false"?'
     private_key_inputs_false = 'FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED:\s+"?false"?'
+    external_provider_quotes_false = 'FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED:\s+"?false"?'
+    external_provider_execution_false = 'FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED:\s+"?false"?'
 }
 $failedComposeChecks = New-Object System.Collections.Generic.List[string]
 foreach ($name in $composeChecks.Keys) {

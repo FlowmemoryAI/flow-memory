@@ -74,6 +74,7 @@ LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED": "false",
     "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED": "false",
     "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED": "false",
     "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
 }
 DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST = os.environ.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "").strip()
@@ -1047,6 +1048,7 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_OTLP_HEADERS": otlp_headers,
         "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS": otlp_timeout_ms,
         "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "false",
+        "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED": "false",
         "FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST": "",
         "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist,
         "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED": "false",
@@ -1486,6 +1488,8 @@ def smoke_public(
             safety.get("audit_required") is True,
             safety.get("audit_export_required") is True,
             safety.get("stripe_checkout_enabled") is False,
+            safety.get("external_provider_quotes_enabled") is False,
+            safety.get("external_provider_execution_enabled") is False,
             checks["plan"][0] == 200,
             plan_payload.get("dry_run_only") is True,
             plan_payload.get("funds_moved") is False,
@@ -1575,6 +1579,8 @@ def smoke_public(
         "audit_required": safety.get("audit_required"),
         "audit_export_required": safety.get("audit_export_required"),
         "stripe_checkout_enabled": safety.get("stripe_checkout_enabled"),
+        "external_provider_quotes_enabled": safety.get("external_provider_quotes_enabled"),
+        "external_provider_execution_enabled": safety.get("external_provider_execution_enabled"),
         "metrics": checks["metrics"][0],
         "alerts": checks["alerts"][0],
         "telemetry": checks["telemetry"][0],

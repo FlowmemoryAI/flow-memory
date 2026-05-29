@@ -25,6 +25,7 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED=false",
                 "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED=false",
                 "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.ai/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED=true",
@@ -300,6 +301,33 @@ def test_public_buildout_main_blocks_external_provider_config_before_network(
         assert '"expected": "false"' in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted external providers in Level 1 mode")
+
+
+def test_public_buildout_main_blocks_external_execution_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace(
+            "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false\n",
+            "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=true\n",
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED" in message
+        assert '"expected": "false"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted external provider execution in Level 1 mode")
 
 def test_public_buildout_main_blocks_missing_observability_sinks_before_network(
     tmp_path: Any, monkeypatch: Any
@@ -630,6 +658,8 @@ def _passing_public_buildout_call_json(
                         "audit_export_required": True,
                         "audit_export_immutable_required": True,
                         "stripe_checkout_enabled": False,
+                        "external_provider_quotes_enabled": False,
+                        "external_provider_execution_enabled": False,
                         "alert_routing_enabled": True,
                         "alert_webhook_configured": True,
                         "error_tracking_enabled": True,
@@ -960,6 +990,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "audit_export_required": True,
                         "audit_export_immutable_required": True,
                         "stripe_checkout_enabled": False,
+                        "external_provider_quotes_enabled": False,
+                        "external_provider_execution_enabled": False,
                         "alert_routing_enabled": True,
                         "alert_webhook_configured": True,
                         "error_tracking_enabled": True,
@@ -1196,6 +1228,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_export_required"] is True
     assert result["audit_export_immutable_required"] is True
     assert result["stripe_checkout_enabled"] is False
+    assert result["external_provider_quotes_enabled"] is False
+    assert result["external_provider_execution_enabled"] is False
     assert result["alert_routing_enabled"] is True
     assert result["alert_webhook_configured"] is True
     assert result["error_tracking_enabled"] is True

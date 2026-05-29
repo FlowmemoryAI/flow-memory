@@ -180,6 +180,8 @@ services:
         value: 5000
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED
         value: false
+      - key: FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED
+        value: false
       - key: FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST
         value: ""
       - key: FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST

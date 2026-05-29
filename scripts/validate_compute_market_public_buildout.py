@@ -65,6 +65,7 @@ _LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED": "false",
     "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED": "false",
     "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED": "false",
     "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED": "true",
     "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED": "true",
     "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED": "true",
@@ -821,6 +822,8 @@ def validate(
     require(safety_defaults.get("private_key_inputs_allowed") is False, "private key inputs must remain disabled")
     require(safety_defaults.get("audit_required") is True, "audit requirement is not enabled")
     require(safety_defaults.get("audit_export_required") is True, "audit export requirement is not enabled")
+    require(safety_defaults.get("external_provider_quotes_enabled") is False, "external provider quotes must remain disabled for Level 1")
+    require(safety_defaults.get("external_provider_execution_enabled") is False, "external provider execution must remain disabled for Level 1")
     require(safety_defaults.get("stripe_checkout_enabled") is False, "Stripe Checkout must remain disabled for Level 1")
     require(
         safety_defaults.get("alert_routing_enabled") is True
@@ -953,6 +956,8 @@ def validate(
         "audit_export_required": safety_defaults.get("audit_export_required"),
         "audit_export_immutable_required": safety_defaults.get("audit_export_immutable_required"),
         "stripe_checkout_enabled": safety_defaults.get("stripe_checkout_enabled"),
+        "external_provider_quotes_enabled": safety_defaults.get("external_provider_quotes_enabled"),
+        "external_provider_execution_enabled": safety_defaults.get("external_provider_execution_enabled"),
         "alert_routing_enabled": safety_defaults.get("alert_routing_enabled"),
         "alert_webhook_configured": safety_defaults.get("alert_webhook_configured"),
         "error_tracking_enabled": safety_defaults.get("error_tracking_enabled"),

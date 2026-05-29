@@ -616,6 +616,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     },
                 },
             }
+        if url.endswith("/compute/audit/verify") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/compute/audit/verify"):
             return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/audit/export"):
@@ -742,6 +744,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "event_id": "error_smoke"}}
         if url.endswith("/admin/compute/otlp/export"):
             return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "export_id": "otlp_smoke"}}
+        if url.endswith("/compute/alerts/route") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/compute/alerts/route"):
             return 200, {"ok": True, "data": {"routing_enabled": True, "delivery_count": 1}}
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
@@ -785,6 +789,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["error_tracking"] == 200
     assert result["statuses"]["otlp_export"] == 200
     assert result["statuses"]["wrong_scope_admin_storage"] == 403
+    assert result["statuses"]["wrong_scope_audit_verify"] == 403
+    assert result["statuses"]["wrong_scope_alerts_route"] == 403
     assert result["error_tracking_status"] == "delivered"
     assert result["otlp_export_status"] == "delivered"
     assert result["audit_chain_monitor_export_ok"] is True
@@ -823,7 +829,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 26
+    assert len(authenticated_headers) == 28
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
@@ -931,6 +937,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                     }
                 },
             }
+        if url.endswith("/compute/audit/verify") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/compute/audit/verify"):
             return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/audit/export"):
@@ -1012,6 +1020,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
             return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "event_id": "error_smoke"}}
         if url.endswith("/admin/compute/otlp/export"):
             return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "export_id": "otlp_smoke"}}
+        if url.endswith("/compute/alerts/route") and scopes == "compute:read":
+            return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/compute/alerts/route"):
             return 200, {"ok": True, "data": {"routing_enabled": True, "delivery_count": 1}}
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
@@ -1093,11 +1103,15 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "Path '/admin/compute/otlp/export'" in smoke_script
     assert "OTLP telemetry export delivery failed" in smoke_script
     assert "wrong-scope admin storage diagnostics" in smoke_script
+    assert "wrong-scope audit verify" in smoke_script
+    assert "wrong-scope alerts route" in smoke_script
     assert 'checks["error_tracking"] = call_json(' in render_script
     assert 'checks["otlp_export"] = call_json(' in render_script
     assert 'error_tracking_payload.get("status") == "delivered"' in render_script
     assert 'otlp_export_payload.get("status") == "delivered"' in render_script
     assert 'checks["wrong_scope_admin_storage"] = call_json(' in render_script
+    assert 'checks["wrong_scope_audit_verify"] = call_json(' in render_script
+    assert 'checks["wrong_scope_alerts_route"] = call_json(' in render_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "metrics")' in render_script
     assert "Path '/compute/audit/export'" in smoke_script
     assert "audit_export_write_manifest_hash_present" in smoke_script

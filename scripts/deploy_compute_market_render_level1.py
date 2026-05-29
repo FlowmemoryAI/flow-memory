@@ -1621,6 +1621,13 @@ def smoke_public(
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:read", "wrong-scope"), plan_body)
     checks["wrong_scope_admin_storage"] = call_json("GET", f"{base}/admin/storage/diagnostics", _smoke_api_headers(api_key_value, "compute:read", "wrong-scope-admin-storage"))
+    checks["wrong_scope_audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", _smoke_api_headers(api_key_value, "compute:read", "wrong-scope-audit-verify"))
+    checks["wrong_scope_alerts_route"] = call_json(
+        "POST",
+        f"{base}/compute/alerts/route",
+        _smoke_api_headers(api_key_value, "compute:read", "wrong-scope-alerts-route"),
+        {"request_id": f"render_level1_smoke_wrong_scope_alert_route_{int(time.time())}"},
+    )
     checks["legacy_tenant_header"] = call_json(
         "GET",
         f"{base}/compute/health",
@@ -1998,6 +2005,8 @@ def smoke_public(
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
             checks["wrong_scope_admin_storage"][0] == 403,
+            checks["wrong_scope_audit_verify"][0] == 403,
+            checks["wrong_scope_alerts_route"][0] == 403,
             checks["legacy_tenant_header"][0] == 403,
             market_alpha_ok,
         )
@@ -2041,6 +2050,8 @@ def smoke_public(
         "postgres_required_unique_idempotency_index_count": schema_verification.get("required_unique_idempotency_index_count") if isinstance(schema_verification, dict) else None,
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
         "wrong_scope_admin_storage": checks["wrong_scope_admin_storage"][0],
+        "wrong_scope_audit_verify": checks["wrong_scope_audit_verify"][0],
+        "wrong_scope_alerts_route": checks["wrong_scope_alerts_route"][0],
         "postgres_required_table_count": schema_required_table_count,
         "postgres_required_index_count": schema_required_index_count,
         "admin_redis_diagnostics": checks["admin_redis_diagnostics"][0],

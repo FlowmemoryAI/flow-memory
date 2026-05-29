@@ -662,6 +662,14 @@ Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 
 $wrongScopeAdminStorage = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:read'
 Assert-Status -Response $wrongScopeAdminStorage -Expected 403 -Name 'wrong-scope admin storage diagnostics'
+$wrongScopeAuditVerify = Invoke-ComputeMarketRequest -Method GET -Path '/compute/audit/verify' -Scopes 'compute:read'
+Assert-Status -Response $wrongScopeAuditVerify -Expected 403 -Name 'wrong-scope audit verify'
+
+$wrongScopeAlertsRoute = Invoke-ComputeMarketRequest -Method POST -Path '/compute/alerts/route' -Scopes 'compute:read' -Body @{
+    request_id = "public-smoke-wrong-scope-alert-route-$([Guid]::NewGuid().ToString('N'))"
+}
+Assert-Status -Response $wrongScopeAlertsRoute -Expected 403 -Name 'wrong-scope alerts route'
+
 
 $legacyTenantHeader = Invoke-ComputeMarketRequest -Method GET -Path '/compute/health' -Scopes 'compute:read' -ExtraHeaders @{ 'x-flow-memory-tenant' = 'tenant_spoofed_public' }
 Assert-Status -Response $legacyTenantHeader -Expected 403 -Name 'legacy tenant-header health'
@@ -785,6 +793,8 @@ $result = [ordered]@{
     missing_key = $missingKey.StatusCode
     wrong_scope = $wrongScope.StatusCode
     wrong_scope_admin_storage = $wrongScopeAdminStorage.StatusCode
+    wrong_scope_audit_verify = $wrongScopeAuditVerify.StatusCode
+    wrong_scope_alerts_route = $wrongScopeAlertsRoute.StatusCode
     legacy_tenant_header = $legacyTenantHeader.StatusCode
     jwt_health = $jwtHealthStatus
     jwt_wrong_audience = $jwtWrongAudienceStatus

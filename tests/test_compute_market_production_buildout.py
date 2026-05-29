@@ -18,6 +18,7 @@ from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEX
 from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
 from flow_memory.compute_market.service import (
     ComputeMarketService,
+    _credit_ledger_integrity,
     _cross_provider_quote_replay,
     _mark_expired_quotes_stale,
     _provider_quote_ingress_callback_signature_payload,
@@ -7102,6 +7103,56 @@ def test_reconciliation_detects_credit_balance_drift_and_emits_alert_metric() ->
     assert mismatch["expected_available_credits"] == 0.82
     assert mismatch["actual_available_credits"] == 0.12
     assert _metric_total(service, "billing_ledger_mismatch_total") == 1.0
+
+
+def test_credit_ledger_integrity_ignores_cross_account_reservation_references() -> None:
+    transactions: tuple[Mapping[str, object], ...] = (
+        {
+            "credit_transaction_id": "credit-a",
+            "account_id": "acct-a",
+            "transaction_type": "credit",
+            "amount": 1.0,
+            "status": "posted",
+            "created_at": "2026-05-25T00:00:00Z",
+        },
+        {
+            "credit_transaction_id": "reserve-b",
+            "account_id": "acct-b",
+            "transaction_type": "reserve",
+            "amount": 0.5,
+            "status": "reserved",
+            "created_at": "2026-05-25T00:00:01Z",
+        },
+        {
+            "credit_transaction_id": "debit-a",
+            "account_id": "acct-a",
+            "transaction_type": "debit",
+            "amount": 0.4,
+            "status": "posted",
+            "reservation_transaction_id": "reserve-b",
+            "created_at": "2026-05-25T00:00:02Z",
+        },
+    )
+    balances: tuple[Mapping[str, object], ...] = (
+        {
+            "account_id": "acct-a",
+            "available_credits": 0.6,
+            "reserved_credits": 0.0,
+            "currency": "USD",
+        },
+        {
+            "account_id": "acct-b",
+            "available_credits": 0.0,
+            "reserved_credits": 0.5,
+            "currency": "USD",
+        },
+    )
+
+    integrity = _credit_ledger_integrity(balances, transactions)
+
+    assert integrity["ok"] is True
+    assert integrity["mismatch_count"] == 0
+
 
 def test_prepaid_credit_preauthorization_blocks_dispatch_without_credit() -> None:
     service = _service()

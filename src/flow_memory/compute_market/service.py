@@ -11324,6 +11324,7 @@ def _expected_credit_balance_from_transactions(
         str(transaction.get("credit_transaction_id", "")): transaction
         for transaction in credit_transactions
         if str(transaction.get("transaction_type", "")) == "reserve"
+        and str(transaction.get("account_id", "")).strip() == account_id
     }
     expected_available = 0.0
     expected_reserved = 0.0
@@ -11350,7 +11351,11 @@ def _expected_credit_balance_from_transactions(
         elif transaction_type == "debit" and status == "posted":
             reservation_id = str(transaction.get("reservation_transaction_id", ""))
             reservation = reserve_by_id.get(reservation_id)
-            if reservation is not None and str(reservation.get("status", "")) == "reserved":
+            if (
+                reservation is not None
+                and str(reservation.get("status", "")) == "reserved"
+                and str(reservation.get("account_id", "")).strip() == account_id
+            ):
                 reservation_amount = _safe_non_negative_float(reservation.get("amount", 0.0))
                 expected_reserved = max(0.0, expected_reserved - reservation_amount)
                 expected_available += max(0.0, reservation_amount - amount)

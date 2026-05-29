@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `f6f4763 Validate public Postgres migration evidence`
+Latest inspected commit: `d65fb20 Require Postgres operational evidence`
 
 ## Current architecture
 
@@ -1689,4 +1689,48 @@ flowchart TD
     MigrationStatus --> Gate[Public validation gate]
     MigrationHistory --> Gate
     Lock --> Gate
+```
+
+## Checkpoint 2026-05-26 Public Postgres operational evidence gate
+
+Files changed:
+
+- `deployments/compute-market/live.env.example`
+- `render.yaml`
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 24 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 53 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile("scripts/deploy_compute_market_public_level1.ps1", [ref]$tokens, [ref]$errors)'` — parsed with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 451 passed, 2 skipped
+- `git diff --check` — no whitespace errors
+
+Commit: `d65fb20 Require Postgres operational evidence`.
+
+Implementation:
+
+- Public environment validation now requires externally stored managed-Postgres operational evidence URIs for backup/PITR policy, restore drill, and blue/green migration rehearsal before network validation can run.
+- Render API deployment now fails closed before provisioning if these evidence URIs are missing, placeholder-filled, or not stored at `https://` or `s3://` locations.
+- Render blueprint and the live environment template now model the evidence URIs as explicit production inputs, preventing a public Level 1 deployment from claiming live Postgres readiness without recoverability and migration-rehearsal artifacts.
+
+```mermaid
+flowchart TD
+    Env[Public env file] --> EvidenceGate[Postgres operational evidence gate]
+    EvidenceGate --> Backup[Backup and PITR policy URI]
+    EvidenceGate --> Restore[Restore drill URI]
+    EvidenceGate --> BlueGreen[Blue/green migration rehearsal URI]
+    Backup --> PublicValidation[Public buildout validation]
+    Restore --> PublicValidation
+    BlueGreen --> PublicValidation
+    Backup --> RenderDeploy[Render API deployment]
+    Restore --> RenderDeploy
+    BlueGreen --> RenderDeploy
 ```

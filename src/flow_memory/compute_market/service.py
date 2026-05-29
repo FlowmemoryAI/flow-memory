@@ -17,7 +17,16 @@ from typing import Any, Mapping, Sequence, cast
 
 from flow_memory.compute_market.config import ComputeMarketConfig, config_from_env
 from flow_memory.compute_market.adapters import build_external_provider_adapter
-from flow_memory.compute_market.audit_export import AuditExporterProtocol, LocalFileAuditExporter, audit_events_from_export_file, build_checkpoint, create_audit_exporter, verify_audit_export, verify_exported_chain
+from flow_memory.compute_market.audit_export import (
+    AuditExporterProtocol,
+    LocalFileAuditExporter,
+    audit_events_from_export_file,
+    build_checkpoint,
+    create_audit_exporter,
+    read_export_file,
+    verify_audit_export,
+    verify_exported_chain,
+)
 from flow_memory.compute_market.controls import CircuitBreaker, RateLimiter, RedisCircuitBreaker, RedisRateLimiter, create_circuit_breaker, create_rate_limiter
 from flow_memory.compute_market.errors import compute_error, policy_denial_error
 from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEXT, validate_provider_quote_contract, verify_provider_quote_signature
@@ -6471,8 +6480,13 @@ class ComputeMarketService:
         from_sequence = int(payload.get("from_sequence", 1) or 1)
         to_sequence = int(payload.get("to_sequence", 0) or 0)
         if path:
+            parsed_export = read_export_file(path)
+            manifest = parsed_export[0] if parsed_export else {}
             events = audit_events_from_export_file(path)
-            integrity = verify_exported_chain(events)
+            integrity = verify_exported_chain(
+                events,
+                manifest=manifest if isinstance(manifest, Mapping) else None,
+            )
             export_verification = verify_audit_export(path).as_record()
             source = "export_file"
         else:

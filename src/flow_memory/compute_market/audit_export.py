@@ -685,11 +685,35 @@ def audit_events_from_export_file(path: str | Path) -> tuple[Mapping[str, Any], 
     return tuple(event for event in events if event is not None)
 
 
-def verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> Mapping[str, Any]:
+def verify_exported_chain(
+    events: tuple[Mapping[str, Any], ...],
+    *,
+    manifest: Mapping[str, Any] | None = None,
+) -> Mapping[str, Any]:
     error = _verify_exported_chain(events)
+    immutable_evidence = False
+    warnings: tuple[str, ...] = ()
+    if manifest is not None:
+        immutable_evidence = _manifest_has_immutable_evidence(manifest)
+        if not immutable_evidence:
+            warnings = ("missing_immutable_evidence",)
     if error:
-        return {"ok": False, "event_count": len(events), "error_code": error[0], "message": error[1]}
-    return {"ok": True, "event_count": len(events), "error_code": "", "message": ""}
+        return {
+            "ok": False,
+            "event_count": len(events),
+            "error_code": error[0],
+            "message": error[1],
+            "immutable_evidence": immutable_evidence,
+            "warnings": warnings,
+        }
+    return {
+        "ok": True,
+        "event_count": len(events),
+        "error_code": "",
+        "message": "",
+        "immutable_evidence": immutable_evidence,
+        "warnings": warnings,
+    }
 
 
 def _select_events(
@@ -762,6 +786,13 @@ def _verify_manifest_hash(manifest: Mapping[str, Any]) -> tuple[str, str] | None
     if manifest_hash != expected:
         return ("manifest_hash_mismatch", "manifest hash does not match manifest payload")
     return None
+
+
+def _manifest_has_immutable_evidence(manifest: Mapping[str, Any]) -> bool:
+    object_lock_mode = str(manifest.get("object_lock_mode", "")).strip().upper()
+    retention_until = str(manifest.get("retention_until", "")).strip()
+    storage_uri = str(manifest.get("storage_uri", manifest.get("exported_to", ""))).strip()
+    return object_lock_mode == "COMPLIANCE" and bool(retention_until) and storage_uri.startswith("s3://")
 
 
 def _verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> tuple[str, str] | None:

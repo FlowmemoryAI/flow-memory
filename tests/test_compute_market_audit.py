@@ -8,7 +8,14 @@ from flow_memory.api.http_server import HttpApiConfig, HttpApiGateway
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import ComputeMarketStore
-from flow_memory.compute_market.audit_export import LocalFileAuditExporter, NoopAuditExporter, S3WormAuditExporter, create_audit_exporter
+from flow_memory.compute_market.audit_export import (
+    LocalFileAuditExporter,
+    NoopAuditExporter,
+    S3WormAuditExporter,
+    audit_events_from_export_file,
+    create_audit_exporter,
+    verify_exported_chain,
+)
 from flow_memory.cli import main as cli_main
 
 
@@ -743,6 +750,18 @@ def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None
     assert file_replay["replay"]["source"] == "export_file"
     assert file_replay["replay"]["summary"]["event_count"] == file_replay["replay"]["event_count"]
     assert service.store.count_records("audit_replay_run") == 2
+    assert file_replay["replay"]["integrity"]["immutable_evidence"] is False
+    assert "missing_immutable_evidence" in file_replay["replay"]["integrity"]["warnings"]
+    immutable_integrity = verify_exported_chain(
+        audit_events_from_export_file(out),
+        manifest={
+            "object_lock_mode": "COMPLIANCE",
+            "retention_until": "2099-01-01T00:00:00Z",
+            "storage_uri": "s3://flow-memory-audit/replay.ndjson",
+        },
+    )
+    assert immutable_integrity["immutable_evidence"] is True
+    assert immutable_integrity["warnings"] == ()
 
 def test_audit_forensic_replay_rejects_export_manifest_tampering(tmp_path: Any) -> None:
     service = _service()

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `148e660 Verify public smoke plan replay`
+Latest inspected commit: `fef5048 Document public smoke replay gate`
 
 ## Current architecture
 
@@ -1300,8 +1300,9 @@ Tests run:
 - `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
 - `python -m ruff check tests/test_compute_market_live_deployment.py scripts/deploy_compute_market_render_level1.py` — OK
 - `python -m mypy tests/test_compute_market_live_deployment.py scripts/deploy_compute_market_render_level1.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile(...)'` — PowerShell parser returned no syntax errors
 - `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 437 passed, 2 skipped
-- `git diff --check -- scripts/smoke_compute_market_public.ps1 tests/test_compute_market_live_deployment.py scripts/deploy_compute_market_render_level1.py` — clean except the expected PowerShell LF-to-CRLF working-copy warning
+- `git diff --check -- scripts/smoke_compute_market_public.ps1 tests/test_compute_market_live_deployment.py docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
 
 Commit: `148e660 Verify public smoke plan replay`.
 

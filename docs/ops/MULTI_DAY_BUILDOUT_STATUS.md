@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `3babbb1 Add inference demand price intelligence`
+Latest inspected commit: `15f5820 Add inference intelligence CLI commands`
 
 ## Current architecture
 
@@ -478,4 +478,39 @@ flowchart TD
     History --> Spreads[Spreads]
     History --> Anomalies[Anomalies]
     History --> PriceForecast[Price forecast]
+```
+
+## Checkpoint 2026-05-26 Inference intelligence CLI
+
+Files changed:
+
+- `src/flow_memory/cli.py`
+- `docs/INFERENCE_MARKET.md`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/cli.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/cli.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commit:
+
+- `15f5820 Add inference intelligence CLI commands`
+
+Implementation:
+
+- Added inference CLI commands for demand summaries, demand forecasts, price history, price spreads, price anomalies, and price forecasts.
+- Regression tests verify JSON CLI output for demand summary and price forecast.
+- CLI remains dry-run and does not prompt for settlement, private keys, or provider credentials.
+
+```mermaid
+flowchart TD
+    CLI[flow-memory inference] --> DemandSummary[demand-summary]
+    CLI --> DemandForecast[demand-forecast]
+    CLI --> PriceHistory[price-history]
+    CLI --> PriceForecast[price-forecast]
+    DemandSummary --> AgentDecision[Agent economic decision]
+    PriceForecast --> AgentDecision
 ```

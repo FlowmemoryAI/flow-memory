@@ -6225,6 +6225,38 @@ class ComputeMarketService:
                 "idempotent_replay": True,
             }
 
+        payout_refund_blocker = _provider_payout_refund_blocker(self.store, usage_charge if isinstance(usage_charge, Mapping) else None)
+        if payout_refund_blocker:
+            payout_status = str(payout_refund_blocker.get("status", ""))
+            error = compute_error(
+                "billing.refund.provider_payout_not_adjustable",
+                "Billing refund requires an adjustable provider payout before crediting the account.",
+                details={
+                    "usage_charge_id": usage_charge_id,
+                    "provider_payout_id": str(payout_refund_blocker.get("provider_payout_id", "")),
+                    "provider_payout_status": payout_status,
+                },
+                request_id=request_id,
+            )
+            self._audit(
+                "billing.refund.rejected",
+                payload,
+                request_id=request_id,
+                result="provider_payout_not_adjustable",
+                reason_codes=("billing.refund.provider_payout_not_adjustable",),
+                provider_id=provider_id,
+                route_id=route_id,
+            )
+            return {
+                "ok": False,
+                "refund": {},
+                "credit_transaction": {},
+                "provider_payout_adjustment": payout_refund_blocker,
+                "provider_payout_adjustment_error": error.as_record(),
+                "error": error.as_record(),
+                "idempotent_replay": False,
+            }
+
         now = utc_now_iso()
         refund = {
             "refund_id": refund_id,
@@ -11943,6 +11975,34 @@ def _posted_refund_total(
         6,
     )
 
+
+def _provider_payout_refund_blocker(
+    store: ComputeMarketStoreProtocol,
+    usage_charge: Mapping[str, Any] | None,
+) -> Mapping[str, Any]:
+    if not isinstance(usage_charge, Mapping):
+        return {}
+    provider_id = str(usage_charge.get("provider_id", "")).strip()
+    job_id = str(usage_charge.get("job_id", "")).strip()
+    usage_charge_id = str(usage_charge.get("usage_charge_id", "")).strip()
+    if not provider_id or not job_id or not usage_charge_id:
+        return {}
+    payout_id = deterministic_id(
+        "provider_payout",
+        {"provider_id": provider_id, "job_id": job_id, "usage_charge_id": usage_charge_id},
+    )
+    payout = store.get_record("provider_payout", payout_id)
+    if payout is None:
+        return {}
+    status = str(payout.get("status", "")).strip()
+    if status == "accrued":
+        return {}
+    return {
+        "provider_payout_id": payout_id,
+        "adjusted": False,
+        "status": status,
+        "reason": "provider_payout_not_adjustable",
+    }
 
 def _provider_payout_adjustment_failed(adjustment: Mapping[str, Any]) -> bool:
     if not adjustment or adjustment.get("adjusted") is True:

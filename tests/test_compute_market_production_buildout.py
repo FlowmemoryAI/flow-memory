@@ -4194,18 +4194,19 @@ def test_reconciliation_surfaces_sla_payout_adjustment_failure_after_settlement(
 
     assert reconciliation["provider_sla_penalty_reconciled_this_run"] == 0
     assert reconciliation["provider_sla_penalty_reconciled_count"] == 0
-    assert reconciliation["ledger_balanced"] is False
+    assert reconciliation["ledger_balanced"] is True
     assert penalty is not None
     assert penalty["status"] == "payout_adjustment_failed"
-    assert penalty["refund_id"]
-    assert penalty["credit_transaction_id"]
+    assert penalty["refund_id"] == ""
+    assert penalty["credit_transaction_id"] == ""
     assert penalty["provider_payout_adjustment"]["adjusted"] is False
     assert penalty["provider_payout_adjustment"]["status"] == "settled"
     assert penalty["provider_payout_adjustment_error"]["error_code"] == "billing.provider_payout.adjustment_failed"
     assert payout is not None
     assert payout["status"] == "settled"
     assert payout["amount"] == 0.18
-    assert balance["available_credits"] == 1.0
+    assert balance["available_credits"] == 0.82
+    assert "billing.refund.rejected" in audit_actions
     assert "billing.provider_sla_penalty.payout_adjustment_failed" in audit_actions
     assert (
         _metric_total(
@@ -7693,7 +7694,7 @@ def test_billing_refund_replay_rejects_recorded_refund_without_posted_credit() -
     assert service.store.count_records("credit_transaction") == 0
     assert "billing.refund.replay_rejected" in audit_actions
 
-def test_billing_refund_surfaces_settled_provider_payout_adjustment_failure() -> None:
+def test_billing_refund_rejects_settled_provider_payout_before_crediting_account() -> None:
     service = _service()
     account_id = "acct_refund_settled"
     _credit_account(service, account_id, 1.0, event_id="evt_credit_refund_settled")
@@ -7721,22 +7722,24 @@ def test_billing_refund_surfaces_settled_provider_payout_adjustment_failure() ->
     payout = service.store.get_record("provider_payout", payout_id)
     audit_actions = tuple(event["action"] for event in service.store.list_records("audit_event", limit=100).records)
 
-    assert refund["ok"] is True
+    assert refund["ok"] is False
+    assert refund["error"]["error_code"] == "billing.refund.provider_payout_not_adjustable"
     assert refund["provider_payout_adjustment"]["adjusted"] is False
     assert refund["provider_payout_adjustment"]["status"] == "settled"
-    assert refund["provider_payout_adjustment_error"]["error_code"] == "billing.provider_payout.adjustment_failed"
-    assert service.billing_balance({"account_id": account_id})["balance"]["available_credits"] == 1.0
+    assert refund["credit_transaction"] == {}
+    assert service.billing_balance({"account_id": account_id})["balance"]["available_credits"] == 0.82
+    assert service.store.count_records("refund") == 0
     assert payout is not None
     assert payout["status"] == "settled"
     assert payout["amount"] == 0.18
-    assert "billing.provider_payout.adjustment_failed" in audit_actions
+    assert "billing.refund.rejected" in audit_actions
     assert (
         _metric_total(
             service,
             "billing_payout_adjustment_failed_total",
             {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "reason": "settled"},
         )
-        == 1.0
+        == 0.0
     )
 
 

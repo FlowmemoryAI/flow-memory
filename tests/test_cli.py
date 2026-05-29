@@ -306,14 +306,14 @@ class CLITests(unittest.TestCase):
         self.assertEqual(usage_code, 0)
         self.assertEqual(payout_code, 0)
         self.assertEqual(settle_code, 0)
-        self.assertEqual(refund_code, 0)
+        self.assertEqual(refund_code, 1)
         self.assertEqual(balance["balance"]["available_credits"], 0.82)
         self.assertEqual(usage["usage_charges"][0]["usage_charge_id"], usage_charge_id)
         self.assertEqual(payout["provider_payouts"][0]["provider_payout_id"], payout_id)
         self.assertEqual(settled["provider_payout"]["status"], "settled")
         self.assertFalse(settled["provider_payout"]["funds_moved"])
-        self.assertEqual(refund["refund"]["usage_charge_id"], usage_charge_id)
-        self.assertFalse(refund["refund"]["funds_moved"])
+        self.assertFalse(refund["ok"])
+        self.assertEqual(refund["error"]["error_code"], "billing.refund.provider_payout_not_adjustable")
 
     def test_execution_and_capacity_cli_lifecycle(self) -> None:
         from flow_memory.compute_market.config import ComputeMarketConfig

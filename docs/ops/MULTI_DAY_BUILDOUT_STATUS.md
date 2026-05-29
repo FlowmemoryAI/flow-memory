@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `3fd7cd7 Harden inference credit accounting`
+Latest inspected commit: `46c5c43 Harden capacity reservation accounting`
 
 ## Current architecture
 
@@ -552,4 +552,41 @@ flowchart TD
     Fill --> Ledger[Buyer and seller ledger entries]
     Ledger --> Store[ComputeMarketStore]
     Ledger --> Audit[Inference audit chain]
+```
+
+## Checkpoint 2026-05-26 Capacity reservation accounting
+
+Files changed:
+
+- `src/flow_memory/capacity_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+- `docs/CAPACITY_MARKET.md`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q` — 16 passed
+- `python -m ruff check src/flow_memory/capacity_market/service.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m mypy src/flow_memory/capacity_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- src/flow_memory/capacity_market/service.py tests/test_inference_capacity_futures_markets.py docs/CAPACITY_MARKET.md docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
+
+Commit:
+
+- `46c5c43 Harden capacity reservation accounting`
+
+Implementation:
+
+- Capacity holds decrement the selected capacity window's available units and persist the updated window.
+- Repeated holds and releases are idempotent, so retries cannot double-consume or double-restore simulated capacity.
+- Reservation release restores available capacity once, marks the hold released, and excludes released reservations from active utilization.
+
+```mermaid
+flowchart TD
+    Quote[Capacity quote] --> Hold[Dry-run hold]
+    Hold --> Decrement[Decrement available units]
+    Decrement --> Store[Persist capacity window]
+    Hold --> Reservation[Non-binding reservation]
+    Reservation --> Release[Release request]
+    Release --> Restore[Restore available units once]
+    Restore --> Utilization[Active utilization excludes released reservations]
 ```

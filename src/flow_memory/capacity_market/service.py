@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import fields
 from hashlib import sha256
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from .models import (
     CapacityHold,
@@ -39,21 +40,26 @@ UNSAFE_TOKENS: tuple[str, ...] = (
     "margin",
 )
 
+_T = TypeVar("_T")
+
 
 def default_capacity_market_service() -> "CapacityMarketService":
     return CapacityMarketService.seeded()
 
 
 class CapacityMarketService:
-    def __init__(self, windows: tuple[CapacityWindow, ...] = ()) -> None:
+    def __init__(self, windows: tuple[CapacityWindow, ...] = (), *, store: Any | None = None) -> None:
+        self.store = store
         self.windows: dict[str, CapacityWindow] = {window.capacity_window_id: window for window in windows}
         self.holds: dict[str, CapacityHold] = {}
         self.reservations: dict[str, CapacityReservation] = {}
         self.forward_contracts: dict[str, ForwardCapacityContract] = {}
         self.audit_events: list[dict[str, Any]] = []
+        self._persist_seed_records()
+        self._load_persisted_records()
 
     @classmethod
-    def seeded(cls) -> "CapacityMarketService":
+    def seeded(cls, *, store: Any | None = None) -> "CapacityMarketService":
         return cls(
             windows=(
                 CapacityWindow(
@@ -76,8 +82,41 @@ class CapacityMarketService:
                     ends_at="2026-06-08T00:00:00Z",
                     price_floor=0.8,
                 ),
-            )
+            ),
+            store=store,
         )
+
+    def _persist_seed_records(self) -> None:
+        for window in self.windows.values():
+            self._persist(
+                "capacity_window",
+                window.capacity_window_id,
+                window.as_record(),
+                provider_id=window.provider_id,
+                status=window.status,
+                expires_at=window.ends_at,
+            )
+
+    def _load_persisted_records(self) -> None:
+        for window in self._load_records("capacity_window", CapacityWindow):
+            self.windows[window.capacity_window_id] = window
+        for hold in self._load_records("capacity_hold", CapacityHold):
+            self.holds[hold.hold_id] = hold
+        for reservation in self._load_records("capacity_reservation", CapacityReservation):
+            self.reservations[reservation.reservation_id] = reservation
+        for contract in self._load_records("forward_capacity_contract", ForwardCapacityContract):
+            self.forward_contracts[contract.contract_id] = contract
+
+    def _load_records(self, record_type: str, model_type: type[_T]) -> tuple[_T, ...]:
+        if self.store is None:
+            return ()
+        page = self.store.list_records(record_type, limit=500, include_archived=True)
+        return tuple(_dataclass_from_record(model_type, record) for record in page.records if isinstance(record, Mapping))
+
+    def _persist(self, record_type: str, record_id: str, payload: Mapping[str, Any], **metadata: Any) -> None:
+        if self.store is None:
+            return
+        self.store.put_record(record_type, record_id, payload, **metadata)
 
     def inventory(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         data = payload or {}
@@ -93,6 +132,12 @@ class CapacityMarketService:
             windows=windows,
             total_available_units=sum(window.available_units for window in windows),
         )
+        self._persist(
+            "capacity_inventory",
+            inventory.inventory_id,
+            inventory.as_record(),
+            status="recorded",
+        )
         return {"ok": True, "inventory": inventory.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def quote(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -107,22 +152,31 @@ class CapacityMarketService:
         if not candidates:
             return _denial("insufficient_capacity", "No dry-run capacity window can satisfy the request.", "Try a smaller size or different GPU class.")
         window = min(candidates, key=lambda item: item.price_floor)
+        quote_data = {
+            "quote_id": _stable_id("capq", window.capacity_window_id, str(units)),
+            "capacity_window_id": window.capacity_window_id,
+            "provider_id": window.provider_id,
+            "gpu_class": window.gpu_class,
+            "region": window.region,
+            "unit_type": window.resource_type,
+            "capacity_units": units,
+            "unit_price": window.price_floor,
+            "estimated_total_cost": round(units * window.price_floor, 8),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "legally_binding": False,
+        }
+        self._persist(
+            "capacity_quote",
+            str(quote_data["quote_id"]),
+            quote_data,
+            provider_id=window.provider_id,
+            status="quoted",
+            expires_at=window.ends_at,
+        )
         return {
             "ok": True,
-            "quote": {
-                "quote_id": _stable_id("capq", window.capacity_window_id, str(units)),
-                "capacity_window_id": window.capacity_window_id,
-                "provider_id": window.provider_id,
-                "gpu_class": window.gpu_class,
-                "region": window.region,
-                "unit_type": window.resource_type,
-                "capacity_units": units,
-                "unit_price": window.price_floor,
-                "estimated_total_cost": round(units * window.price_floor, 8),
-                "dry_run_only": True,
-                "funds_moved": False,
-                "legally_binding": False,
-            },
+            "quote": quote_data,
             "dry_run_only": True,
             "funds_moved": False,
         }
@@ -142,6 +196,15 @@ class CapacityMarketService:
             unit_type=str(quote_data.get("unit_type", "gpu_hour")),
         )
         self.holds[hold.hold_id] = hold
+        self._persist(
+            "capacity_hold",
+            hold.hold_id,
+            hold.as_record(),
+            provider_id=hold.provider_id,
+            route_id=hold.route_id,
+            status=hold.status,
+            expires_at=hold.hold_expires_at,
+        )
         self.audit_events.append({"event_type": "capacity.hold.simulated", "hold_id": hold.hold_id})
         return {"ok": True, "hold": hold.as_record(), "dry_run_only": True, "funds_moved": False}
 
@@ -162,6 +225,15 @@ class CapacityMarketService:
             reserved_until=str(payload.get("reserved_until") or payload.get("ends_at") or "2026-06-08T00:00:00Z"),
         )
         self.reservations[reservation.reservation_id] = reservation
+        self._persist(
+            "capacity_reservation",
+            reservation.reservation_id,
+            reservation.as_record(),
+            provider_id=reservation.provider_id,
+            route_id=reservation.route_id,
+            status=reservation.status,
+            expires_at=reservation.reserved_until,
+        )
         self.audit_events.append({"event_type": "capacity.reserve.simulated", "reservation_id": reservation.reservation_id})
         return {"ok": True, "reservation": reservation.as_record(), "dry_run_only": True, "funds_moved": False}
 
@@ -173,6 +245,15 @@ class CapacityMarketService:
             return _denial("unknown_reservation", "Unknown dry-run reservation.", "List reservations before release.")
         released = CapacityReservation(**{**reservation.as_record(), "status": "released"})
         self.reservations[reservation_id] = released
+        self._persist(
+            "capacity_reservation",
+            released.reservation_id,
+            released.as_record(),
+            provider_id=released.provider_id,
+            route_id=released.route_id,
+            status=released.status,
+            expires_at=released.reserved_until,
+        )
         return {"ok": True, "reservation": released.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def reservations_list(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -189,16 +270,22 @@ class CapacityMarketService:
         records = []
         for window in self.windows.values():
             reserved = sum(item.capacity_units for item in self.reservations.values() if item.provider_id == window.provider_id)
-            records.append(
-                CapacityUtilizationRecord(
-                    utilization_id=_stable_id("capu", window.capacity_window_id, str(reserved)),
-                    provider_id=window.provider_id,
-                    capacity_window_id=window.capacity_window_id,
-                    reserved_units=reserved,
-                    consumed_units=0.0,
-                    released_units=0.0,
-                    utilization_rate=reserved / window.available_units if window.available_units else 0.0,
-                ).as_record()
+            record = CapacityUtilizationRecord(
+                utilization_id=_stable_id("capu", window.capacity_window_id, str(reserved)),
+                provider_id=window.provider_id,
+                capacity_window_id=window.capacity_window_id,
+                reserved_units=reserved,
+                consumed_units=0.0,
+                released_units=0.0,
+                utilization_rate=reserved / window.available_units if window.available_units else 0.0,
+            )
+            records.append(record.as_record())
+            self._persist(
+                "capacity_utilization_record",
+                record.utilization_id,
+                record.as_record(),
+                provider_id=record.provider_id,
+                status="recorded",
             )
         return {"ok": True, "utilization": tuple(records), "dry_run_only": True, "funds_moved": False}
 
@@ -217,24 +304,32 @@ class CapacityMarketService:
         self._assert_safe_payload(payload)
         units = _positive_float(payload.get("hours", payload.get("capacity_units")), 100.0)
         unit_price = _positive_float(payload.get("unit_price"), 2.5)
+        quote_data = {
+            "quote_id": _stable_id("fwq", str(payload.get("gpu_class", GPUClass.H100.value)), str(units), str(unit_price)),
+            "gpu_class": str(payload.get("gpu_class") or payload.get("gpu_type") or GPUClass.H100.value),
+            "region": str(payload.get("region") or "us-east"),
+            "capacity_units": units,
+            "unit_type": str(payload.get("unit_type") or "gpu_hour"),
+            "unit_price": unit_price,
+            "estimated_notional_value": round(units * unit_price, 8),
+            "delivery_start": str(payload.get("delivery_start") or "2027-07-01T00:00:00Z"),
+            "delivery_end": str(payload.get("delivery_end") or "2027-09-30T23:59:59Z"),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "legally_binding": False,
+            "legal_review_required": True,
+            "compliance_review_required": True,
+        }
+        self._persist(
+            "forward_capacity_quote",
+            str(quote_data["quote_id"]),
+            quote_data,
+            status="quoted",
+            expires_at=str(quote_data["delivery_end"]),
+        )
         return {
             "ok": True,
-            "forward_quote": {
-                "quote_id": _stable_id("fwq", str(payload.get("gpu_class", GPUClass.H100.value)), str(units), str(unit_price)),
-                "gpu_class": str(payload.get("gpu_class") or payload.get("gpu_type") or GPUClass.H100.value),
-                "region": str(payload.get("region") or "us-east"),
-                "capacity_units": units,
-                "unit_type": str(payload.get("unit_type") or "gpu_hour"),
-                "unit_price": unit_price,
-                "estimated_notional_value": round(units * unit_price, 8),
-                "delivery_start": str(payload.get("delivery_start") or "2027-07-01T00:00:00Z"),
-                "delivery_end": str(payload.get("delivery_end") or "2027-09-30T23:59:59Z"),
-                "dry_run_only": True,
-                "funds_moved": False,
-                "legally_binding": False,
-                "legal_review_required": True,
-                "compliance_review_required": True,
-            },
+            "forward_quote": quote_data,
             "dry_run_only": True,
             "funds_moved": False,
             "legal_review_required": True,
@@ -259,6 +354,15 @@ class CapacityMarketService:
             delivery_end=str(quote_data.get("delivery_end", "")),
         )
         self.forward_contracts[contract.contract_id] = contract
+        self._persist(
+            "forward_capacity_contract",
+            contract.contract_id,
+            contract.as_record(),
+            provider_id=contract.provider_id,
+            actor_id=contract.buyer_id,
+            status=contract.status,
+            expires_at=contract.delivery_end,
+        )
         return {"ok": True, "contract": contract.as_record(), "dry_run_only": True, "funds_moved": False}
 
     def forward_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -275,6 +379,18 @@ class CapacityMarketService:
             risk_assessment_id=_stable_id("fwr", contract_id),
             contract_id=contract_id,
             warnings=("simulation_only", "legal_review_required", "compliance_review_required"),
+        )
+        self._persist(
+            "forward_capacity_settlement_plan",
+            settlement.settlement_plan_id,
+            settlement.as_record(),
+            status="simulated",
+        )
+        self._persist(
+            "forward_capacity_risk_assessment",
+            risk.risk_assessment_id,
+            risk.as_record(),
+            status="simulated",
         )
         return {
             "ok": True,
@@ -297,6 +413,13 @@ class CapacityMarketService:
             delivery_start=str(payload.get("delivery_start") or "2027-07-01T00:00:00Z"),
             delivery_end=str(payload.get("delivery_end") or "2027-09-30T23:59:59Z"),
             scheduled_units=_positive_float(payload.get("capacity_units"), 100.0),
+        )
+        self._persist(
+            "forward_capacity_delivery_schedule",
+            schedule.schedule_id,
+            schedule.as_record(),
+            status="simulated",
+            expires_at=schedule.delivery_end,
         )
         return {"ok": True, "delivery_schedule": schedule.as_record(), "dry_run_only": True, "funds_moved": False}
 
@@ -334,6 +457,11 @@ def _flatten_payload(value: Any) -> str:
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
 
+
+def _dataclass_from_record(model_type: type[_T], record: Mapping[str, Any]) -> _T:
+    allowed = {field.name for field in fields(cast(Any, model_type))}
+    constructor = cast(Any, model_type)
+    return cast(_T, constructor(**{key: value for key, value in record.items() if key in allowed}))
 
 def _stable_id(prefix: str, *parts: str) -> str:
     digest = sha256("\x1f".join(parts).encode("utf-8")).hexdigest()[:16]

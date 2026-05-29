@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import fields
 from hashlib import sha256
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from .models import (
     DEFAULT_SYMBOL,
@@ -49,24 +50,60 @@ UNSAFE_TOKENS: tuple[str, ...] = (
     "collateral",
 )
 
+_T = TypeVar("_T")
+
 
 def default_futures_market_service() -> "FuturesMarketService":
     return FuturesMarketService()
 
 
 class FuturesMarketService:
-    def __init__(self) -> None:
+    def __init__(self, *, store: Any | None = None) -> None:
+        self.store = store
         self.contracts: dict[str, GPUFuturesContractSpec] = {DEFAULT_SYMBOL: GPUFuturesContractSpec()}
         self.orders: dict[str, GPUFuturesOrder] = {}
         self.positions: dict[str, GPUFuturesPosition] = {}
+        self._persist_seed_records()
+        self._load_persisted_records()
+
+    def _persist_seed_records(self) -> None:
+        for contract in self.contracts.values():
+            self._persist(
+                "futures_contract_spec",
+                contract.symbol,
+                contract.as_record(),
+                route_id=contract.symbol,
+                status="simulated",
+                expires_at=contract.delivery_end,
+            )
+
+    def _load_persisted_records(self) -> None:
+        for contract in self._load_records("futures_contract_spec", GPUFuturesContractSpec):
+            self.contracts[contract.symbol] = contract
+        for order in self._load_records("futures_order_simulated", GPUFuturesOrder):
+            self.orders[order.order_id] = order
+        for position in self._load_records("futures_position_simulated", GPUFuturesPosition):
+            self.positions[position.position_id] = position
+
+    def _load_records(self, record_type: str, model_type: type[_T]) -> tuple[_T, ...]:
+        if self.store is None:
+            return ()
+        page = self.store.list_records(record_type, limit=500, include_archived=True)
+        return tuple(_dataclass_from_record(model_type, record) for record in page.records if isinstance(record, Mapping))
+
+    def _persist(self, record_type: str, record_id: str, payload: Mapping[str, Any], **metadata: Any) -> None:
+        if self.store is None:
+            return
+        self.store.put_record(record_type, record_id, payload, **metadata)
 
     def markets(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         self._assert_safe_payload(payload or {})
-        markets = tuple(
-            GPUFuturesMarket(market_id=_stable_id("fmm", symbol), symbol=symbol).as_record()
-            for symbol in self.contracts
-        )
-        return _safe({"ok": True, "markets": markets})
+        market_records = []
+        for symbol in self.contracts:
+            market = GPUFuturesMarket(market_id=_stable_id("fmm", symbol), symbol=symbol)
+            market_records.append(market.as_record())
+            self._persist("futures_market", market.market_id, market.as_record(), route_id=symbol, status="simulated")
+        return _safe({"ok": True, "markets": tuple(market_records)})
 
     def contracts_list(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         self._assert_safe_payload(payload or {})
@@ -84,6 +121,14 @@ class FuturesMarketService:
             delivery_end=str(payload.get("delivery_end") or "2027-09-30T23:59:59Z"),
         )
         self.contracts[symbol] = contract
+        self._persist(
+            "futures_contract_spec",
+            contract.symbol,
+            contract.as_record(),
+            route_id=contract.symbol,
+            status="simulated",
+            expires_at=contract.delivery_end,
+        )
         return _safe({"ok": True, "contract": contract.as_record()})
 
     def order_book(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -118,6 +163,23 @@ class FuturesMarketService:
             unrealized_pnl=0.0,
         )
         self.positions[position.position_id] = position
+        self._persist(
+            "futures_order_simulated",
+            order.order_id,
+            order.as_record(),
+            route_id=order.symbol,
+            actor_id=position.account_id,
+            status=order.status,
+            idempotency_key=str(payload.get("idempotency_key") or order.order_id),
+        )
+        self._persist(
+            "futures_position_simulated",
+            position.position_id,
+            position.as_record(),
+            route_id=position.symbol,
+            actor_id=position.account_id,
+            status="simulated",
+        )
         return _safe({"ok": True, "order": order.as_record(), "position": position.as_record()})
 
     def cancel_order(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -128,6 +190,13 @@ class FuturesMarketService:
             return _denial("unknown_order", "Unknown simulated futures order.", "List the order book before cancelling.")
         cancelled = GPUFuturesOrder(**{**order.as_record(), "status": "simulated_cancelled"})
         self.orders[order_id] = cancelled
+        self._persist(
+            "futures_order_simulated",
+            cancelled.order_id,
+            cancelled.as_record(),
+            route_id=cancelled.symbol,
+            status=cancelled.status,
+        )
         return _safe({"ok": True, "order": cancelled.as_record()})
 
     def positions_list(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
@@ -146,6 +215,13 @@ class FuturesMarketService:
             index_price=index_price,
             basis=round(mark - index_price, 8),
         )
+        self._persist(
+            "futures_mark_price",
+            price.mark_price_id,
+            price.as_record(),
+            route_id=price.symbol,
+            status="simulated",
+        )
         return _safe({"ok": True, "mark_price": price.as_record()})
 
     def index_price(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -156,6 +232,13 @@ class FuturesMarketService:
             symbol=symbol,
             index_price=_positive_float(payload.get("index_price"), 2.4),
             sample_count=int(payload.get("sample_count", 3) or 3),
+        )
+        self._persist(
+            "futures_index_price",
+            price.index_price_id,
+            price.as_record(),
+            route_id=price.symbol,
+            status="simulated",
         )
         return _safe({"ok": True, "index_price": price.as_record()})
 
@@ -169,6 +252,20 @@ class FuturesMarketService:
             account_id=str(data.get("account_id") or "simulated-account"),
             simulated_equity=_positive_float(data.get("simulated_equity"), 0.0),
         )
+        self._persist(
+            "futures_risk_check",
+            risk.risk_check_id,
+            risk.as_record(),
+            route_id=risk.symbol,
+            status="simulated",
+        )
+        self._persist(
+            "futures_margin_account_simulated",
+            margin.margin_account_id,
+            margin.as_record(),
+            actor_id=margin.account_id,
+            status="simulated",
+        )
         return _safe({"ok": True, "risk_check": risk.as_record(), "margin_account": margin.as_record()})
 
     def expiry_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -178,6 +275,13 @@ class FuturesMarketService:
             expiry_id=_stable_id("fmexp", symbol),
             symbol=symbol,
             final_index_price=_positive_float(payload.get("final_index_price"), 2.4),
+        )
+        self._persist(
+            "futures_expiry",
+            expiry.expiry_id,
+            expiry.as_record(),
+            route_id=expiry.symbol,
+            status="simulated",
         )
         return _safe({"ok": True, "expiry": expiry.as_record()})
 
@@ -191,6 +295,14 @@ class FuturesMarketService:
             delivery_start=str(payload.get("delivery_start") or "2027-07-01T00:00:00Z"),
             delivery_end=str(payload.get("delivery_end") or "2027-09-30T23:59:59Z"),
         )
+        self._persist(
+            "futures_delivery_notice",
+            notice.delivery_notice_id,
+            notice.as_record(),
+            route_id=notice.symbol,
+            status="simulated",
+            expires_at=notice.delivery_end,
+        )
         return _safe({"ok": True, "delivery_notice": notice.as_record()})
 
     def settlement_simulate(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -200,6 +312,13 @@ class FuturesMarketService:
             settlement_simulation_id=_stable_id("fmsettle", symbol),
             symbol=symbol,
             settlement_value=_positive_float(payload.get("settlement_value"), 0.0),
+        )
+        self._persist(
+            "futures_settlement_simulation",
+            settlement.settlement_simulation_id,
+            settlement.as_record(),
+            route_id=settlement.symbol,
+            status="simulated",
         )
         return _safe({"ok": True, "settlement_simulation": settlement.as_record()})
 
@@ -221,6 +340,18 @@ class FuturesMarketService:
             region=region,
             spot_price=2.35,
             available_units=128.0,
+        )
+        self._persist(
+            "compute_capacity_index",
+            capacity.index_id,
+            capacity.as_record(),
+            status="simulated",
+        )
+        self._persist(
+            "gpu_capacity_spot_index",
+            spot.index_id,
+            spot.as_record(),
+            status="simulated",
         )
         return _safe({"ok": True, "capacity_index": capacity.as_record(), "spot_index": spot.as_record()})
 
@@ -250,6 +381,32 @@ class FuturesMarketService:
             region=region,
             annualized_volatility=0.42,
             sample_count=12,
+        )
+        self._persist(
+            "gpu_forward_curve",
+            curve.curve_id,
+            curve.as_record(),
+            status="simulated",
+        )
+        self._persist(
+            "implied_forward_price",
+            implied.implied_price_id,
+            implied.as_record(),
+            route_id=implied.symbol,
+            status="simulated",
+        )
+        self._persist(
+            "basis_risk_model",
+            basis.model_id,
+            basis.as_record(),
+            route_id=basis.symbol,
+            status="simulated",
+        )
+        self._persist(
+            "capacity_volatility_estimate",
+            vol.estimate_id,
+            vol.as_record(),
+            status="simulated",
         )
         return _safe(
             {
@@ -307,6 +464,11 @@ def _flatten_payload(value: Any) -> str:
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
 
+
+def _dataclass_from_record(model_type: type[_T], record: Mapping[str, Any]) -> _T:
+    allowed = {field.name for field in fields(cast(Any, model_type))}
+    constructor = cast(Any, model_type)
+    return cast(_T, constructor(**{key: value for key, value in record.items() if key in allowed}))
 
 def _stable_id(prefix: str, *parts: str) -> str:
     digest = sha256("\x1f".join(parts).encode("utf-8")).hexdigest()[:16]

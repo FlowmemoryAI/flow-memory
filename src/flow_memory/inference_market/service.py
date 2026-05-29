@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import fields
 from hashlib import sha256
-from typing import Any
+from typing import Any, TypeVar, cast
 
 from .models import (
     AgentInferenceDecision,
@@ -47,6 +48,8 @@ UNSAFE_PAYLOAD_TOKENS: tuple[str, ...] = (
     "margin",
 )
 
+_T = TypeVar("_T")
+
 
 def default_inference_market_service() -> "InferenceMarketService":
     return InferenceMarketService.seeded()
@@ -66,7 +69,10 @@ class InferenceMarketService:
         accounts: Iterable[InferenceCreditAccount] = (),
         balances: Iterable[InferenceCreditBalance] = (),
         listings: Iterable[InferenceCreditListing] = (),
+        *,
+        store: Any | None = None,
     ) -> None:
+        self.store = store
         self.sources: dict[str, InferenceCreditSource] = {source.source_id: source for source in sources}
         self.accounts: dict[str, InferenceCreditAccount] = {account.account_id: account for account in accounts}
         self.balances: dict[str, InferenceCreditBalance] = {balance.balance_id: balance for balance in balances}
@@ -76,9 +82,11 @@ class InferenceMarketService:
         self.usage_records: dict[str, InferenceUsageRecord] = {}
         self.price_snapshots: dict[str, InferencePriceSnapshot] = {}
         self.audit_events: list[dict[str, Any]] = []
+        self._persist_seed_records()
+        self._load_persisted_records()
 
     @classmethod
-    def seeded(cls) -> "InferenceMarketService":
+    def seeded(cls, *, store: Any | None = None) -> "InferenceMarketService":
         sources = (
             InferenceCreditSource(
                 source_id="src-discount-openai-compatible",
@@ -200,7 +208,80 @@ class InferenceMarketService:
                 transferable=False,
             ),
         )
-        return cls(sources=sources, accounts=accounts, balances=balances, listings=listings)
+        return cls(sources=sources, accounts=accounts, balances=balances, listings=listings, store=store)
+
+    def _persist_seed_records(self) -> None:
+        for source in self.sources.values():
+            self._persist(
+                "inference_credit_source",
+                source.source_id,
+                source.as_record(),
+                provider_id=source.source_id,
+                actor_id=source.seller_id,
+                status=source.status,
+            )
+        for account in self.accounts.values():
+            self._persist(
+                "inference_credit_account",
+                account.account_id,
+                account.as_record(),
+                workspace_id=account.workspace_id,
+                provider_id=account.source_id,
+                actor_id=account.owner_id,
+                status=account.status,
+            )
+        for balance in self.balances.values():
+            self._persist(
+                "inference_credit_balance",
+                balance.balance_id,
+                balance.as_record(),
+                provider_id=balance.source_id,
+                actor_id=balance.owner_id,
+                status="active",
+                expires_at=balance.expires_at,
+            )
+        for listing in self.listings.values():
+            self._persist_listing(listing)
+
+    def _load_persisted_records(self) -> None:
+        for source in self._load_records("inference_credit_source", InferenceCreditSource):
+            self.sources[source.source_id] = source
+        for account in self._load_records("inference_credit_account", InferenceCreditAccount):
+            self.accounts[account.account_id] = account
+        for balance in self._load_records("inference_credit_balance", InferenceCreditBalance):
+            self.balances[balance.balance_id] = balance
+        for listing in self._load_records("inference_credit_listing", InferenceCreditListing):
+            self.listings[listing.listing_id] = listing
+        for order in self._load_records("inference_credit_order", InferenceCreditOrder):
+            self.orders[order.order_id] = order
+        for fill in self._load_records("inference_credit_fill", InferenceCreditFill):
+            self.fills[fill.fill_id] = fill
+        for usage in self._load_records("inference_usage_record", InferenceUsageRecord):
+            self.usage_records[usage.usage_id] = usage
+        for snapshot in self._load_records("inference_price_snapshot", InferencePriceSnapshot):
+            self.price_snapshots[snapshot.snapshot_id] = snapshot
+
+    def _load_records(self, record_type: str, model_type: type[_T]) -> tuple[_T, ...]:
+        if self.store is None:
+            return ()
+        page = self.store.list_records(record_type, limit=500, include_archived=True)
+        return tuple(_dataclass_from_record(model_type, record) for record in page.records if isinstance(record, Mapping))
+
+    def _persist(self, record_type: str, record_id: str, payload: Mapping[str, Any], **metadata: Any) -> None:
+        if self.store is None:
+            return
+        self.store.put_record(record_type, record_id, payload, **metadata)
+
+    def _persist_listing(self, listing: InferenceCreditListing) -> None:
+        self._persist(
+            "inference_credit_listing",
+            listing.listing_id,
+            listing.as_record(),
+            provider_id=listing.source_id,
+            actor_id=listing.seller_id,
+            status=listing.status,
+            expires_at=listing.expires_at,
+        )
 
     def credits(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         data = payload or {}
@@ -280,16 +361,32 @@ class InferenceMarketService:
             if discount_bps < policy.min_discount_bps:
                 rejected.append({"listing_id": listing.listing_id, "code": "min_discount_not_met"})
                 continue
-            quotes.append(
-                InferenceQuote(
-                    quote_id=_stable_id("infq", listing.listing_id, str(units), str(listing.unit_price)),
-                    route=route,
-                    estimated_units=units,
-                    estimated_total_cost=round(units * listing.unit_price, 8),
-                    discount_bps=discount_bps,
-                    expires_at=listing.expires_at,
-                    assumptions=("dry_run_quote", "provider_credentials_not_exposed"),
-                )
+            quote = InferenceQuote(
+                quote_id=_stable_id("infq", listing.listing_id, str(units), str(listing.unit_price)),
+                route=route,
+                estimated_units=units,
+                estimated_total_cost=round(units * listing.unit_price, 8),
+                discount_bps=discount_bps,
+                expires_at=listing.expires_at,
+                assumptions=("dry_run_quote", "provider_credentials_not_exposed"),
+            )
+            quotes.append(quote)
+            self._persist(
+                "inference_route",
+                route.route_id,
+                route.as_record(),
+                provider_id=route.source_id,
+                route_id=route.route_id,
+                status="available",
+            )
+            self._persist(
+                "inference_credit_quote",
+                quote.quote_id,
+                quote.as_record(),
+                provider_id=route.source_id,
+                route_id=route.route_id,
+                status="quoted",
+                expires_at=quote.expires_at,
             )
         return {
             "ok": True,
@@ -318,17 +415,27 @@ class InferenceMarketService:
                 "dry_run_only": True,
                 "funds_moved": False,
             }
+        decision = {
+            "decision_id": _stable_id("infd", str(selected.get("quote_id", ""))),
+            "decision": AgentInferenceDecision.BUY_DISCOUNT_INFERENCE.value,
+            "selected_quote": dict(selected),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "broadcast_allowed": False,
+            "private_key_required": False,
+        }
+        route_record = selected.get("route") if isinstance(selected.get("route"), Mapping) else {}
+        self._persist(
+            "inference_market_decision",
+            str(decision["decision_id"]),
+            decision,
+            provider_id=str(route_record.get("source_id", "")) if isinstance(route_record, Mapping) else "",
+            route_id=str(route_record.get("route_id", "")) if isinstance(route_record, Mapping) else "",
+            status=str(decision["decision"]),
+        )
         return {
             "ok": True,
-            "route_decision": {
-                "decision_id": _stable_id("infd", str(selected.get("quote_id", ""))),
-                "decision": AgentInferenceDecision.BUY_DISCOUNT_INFERENCE.value,
-                "selected_quote": dict(selected),
-                "dry_run_only": True,
-                "funds_moved": False,
-                "broadcast_allowed": False,
-                "private_key_required": False,
-            },
+            "route_decision": decision,
             "dry_run_only": True,
             "funds_moved": False,
         }
@@ -368,6 +475,22 @@ class InferenceMarketService:
         )
         self.orders[order.order_id] = order
         self.fills[fill.fill_id] = fill
+        self._persist(
+            "inference_credit_order",
+            order.order_id,
+            order.as_record(),
+            actor_id=order.buyer_id,
+            status=order.status,
+            idempotency_key=str(payload.get("idempotency_key") or order.order_id),
+        )
+        self._persist(
+            "inference_credit_fill",
+            fill.fill_id,
+            fill.as_record(),
+            actor_id=fill.buyer_id,
+            status="simulated",
+            idempotency_key=str(payload.get("idempotency_key") or fill.fill_id),
+        )
         self.audit_events.append({"event_type": "inference.buy.simulated", "order_id": order.order_id, "fill_id": fill.fill_id})
         return {
             "ok": True,
@@ -400,6 +523,7 @@ class InferenceMarketService:
             transferable=True,
         )
         self.listings[listing.listing_id] = listing
+        self._persist_listing(listing)
         self.audit_events.append({"event_type": "inference.sell.listed", "listing_id": listing.listing_id})
         return {
             "ok": True,
@@ -506,6 +630,29 @@ class InferenceMarketService:
             opportunity_cost=opportunity_cost,
         )
         self.usage_records[usage.usage_id] = usage
+        self._persist(
+            "opportunity_cost_decision",
+            decision_record.decision_id,
+            decision_record.as_record(),
+            workspace_id=usage.workspace_id,
+            agent_id=agent_id,
+            goal_id=goal_id,
+            route_id=usage.route_id,
+            status=decision.value,
+            idempotency_key=str(payload.get("idempotency_key") or decision_record.decision_id),
+        )
+        self._persist(
+            "inference_usage_record",
+            usage.usage_id,
+            usage.as_record(),
+            workspace_id=usage.workspace_id,
+            agent_id=usage.agent_id,
+            goal_id=usage.goal_id,
+            route_id=usage.route_id,
+            task_type=str(payload.get("task_type") or "inference"),
+            status=usage.selected_decision,
+            idempotency_key=str(payload.get("idempotency_key") or usage.usage_id),
+        )
         self.audit_events.append({"event_type": "inference.opportunity_cost", "decision_id": decision_record.decision_id})
         return {
             "ok": True,
@@ -572,6 +719,14 @@ class InferenceMarketService:
             )
             snapshots.append(snapshot.as_record())
             self.price_snapshots[snapshot.snapshot_id] = snapshot
+            self._persist(
+                "inference_price_snapshot",
+                snapshot.snapshot_id,
+                snapshot.as_record(),
+                provider_id=snapshot.source_id,
+                route_id=snapshot.route_id,
+                status="recorded",
+            )
         return {"ok": True, "prices": tuple(snapshots), "dry_run_only": True, "funds_moved": False}
 
     def proxy_chat_completion(self, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -799,6 +954,11 @@ def _flatten_payload(value: Any) -> str:
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
 
+
+def _dataclass_from_record(model_type: type[_T], record: Mapping[str, Any]) -> _T:
+    allowed = {field.name for field in fields(cast(Any, model_type))}
+    constructor = cast(Any, model_type)
+    return cast(_T, constructor(**{key: value for key, value in record.items() if key in allowed}))
 
 def _stable_id(prefix: str, *parts: str) -> str:
     digest = sha256("\x1f".join(parts).encode("utf-8")).hexdigest()[:16]

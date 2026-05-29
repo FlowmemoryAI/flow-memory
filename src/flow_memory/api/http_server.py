@@ -649,11 +649,18 @@ def _inject_stripe_webhook_context(method: str, path: str, payload: Mapping[str,
 
 def _trusted_client_ip(headers: Mapping[str, str]) -> str:
     direct = _header(headers, "x-flow-memory-client-ip")
-    if direct:
-        return direct
     forwarded = _header(headers, "x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",", 1)[0].strip()
+    forwarded_client = forwarded.split(",", 1)[0].strip() if forwarded else ""
+    if direct:
+        try:
+            direct_address = ipaddress.ip_address(direct)
+        except ValueError:
+            return direct
+        if forwarded_client and (direct_address.is_private or direct_address.is_loopback or direct_address.is_link_local):
+            return forwarded_client
+        return direct
+    if forwarded_client:
+        return forwarded_client
     return _header(headers, "x-real-ip")
 
 

@@ -2320,6 +2320,79 @@ def test_dependency_free_http_server_uses_socket_client_ip_over_spoofed_header(t
     assert data["data"]["ok"] is True
     assert service.store.count_records("compute_quote") == 1
 
+def test_dependency_free_http_server_uses_forwarded_provider_ip_from_proxy(tmp_path: Any) -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(str(tmp_path / "forwarded-ip.sqlite3")),
+        config=ComputeMarketConfig(
+            database_url=str(tmp_path / "forwarded-ip.sqlite3"),
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_ip_allowlist=("8.8.8.0/24",),
+        ),
+    )
+    base_quote = {
+        "provider_id": "provider_http_forwarded_ip",
+        "route_id": "route_http_forwarded_ip",
+        "unit_type": "gpu_minute",
+        "unit_price": 0.09,
+        "estimated_units": 2,
+        "estimated_total_cost": 0.18,
+        "currency_or_asset": "USDC",
+        "network": "solana",
+        "confidence": 0.93,
+        "capacity_available": True,
+        "quote_ttl_seconds": 300,
+        "expires_at": "2099-01-01T00:00:00Z",
+        "settlement_modes": ["generic_dry_run"],
+        "dry_run_supported": True,
+        "assumptions": [],
+    }
+
+    reset_default_service(service)
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            api_key="dev",
+            require_scopes=True,
+            enable_rate_limit=False,
+            provider_callback_ip_allowlist=("8.8.8.0/24",),
+        )
+    )
+    server = create_http_server(gateway, host="127.0.0.1", port=0)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    def post_quote(quote_id: str, forwarded_for: str) -> tuple[int, dict[str, Any]]:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{server.server_address[1]}/market/quotes/ingest",
+            data=json.dumps({"quote": {**base_quote, "quote_id": quote_id}}).encode("utf-8"),
+            headers={
+                "x-flow-memory-api-key": "dev",
+                "x-flow-memory-scopes": "compute:provider-admin",
+                "x-flow-memory-client-ip": "1.1.1.1",
+                "x-forwarded-for": forwarded_for,
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                return response.status, json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+
+    try:
+        blocked_status, blocked_body = post_quote("quote_http_forwarded_ip_blocked", "1.1.1.1")
+        allowed_status, allowed_body = post_quote("quote_http_forwarded_ip_allowed", "8.8.8.8")
+    finally:
+        server.shutdown()
+        server.server_close()
+        reset_default_service(None)
+
+    assert blocked_status == 403
+    assert blocked_body["error"]["details"]["client_ip"] == "1.1.1.1"
+    assert allowed_status == 200
+    assert allowed_body["data"]["ok"] is True
+    assert service.store.count_records("compute_quote") == 1
+
 
 def test_dependency_free_http_server_strips_spoofed_principal_header() -> None:
     gateway = HttpApiGateway(

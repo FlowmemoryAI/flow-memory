@@ -10,6 +10,9 @@ param(
 
     [Parameter()]
     [switch]$RequireImmutableAudit,
+    [Parameter()]
+    [switch]$IncludeMarketAlpha,
+
 
     [Parameter()]
     [string]$GatewayJwtHs256Secret = $env:FLOW_MEMORY_API_JWT_HS256_SECRET,
@@ -293,6 +296,12 @@ function Get-DataField {
     if ($null -eq $Json -or $null -eq $Json.data) { return $null }
     return $Json.data.$Name
 }
+function Assert-DataFlag {
+    param([hashtable]$Response, [string]$Field, [object]$Expected, [string]$Name)
+    $actual = Get-DataField -Json $Response.Json -Name $Field
+    Assert-True ($actual -eq $Expected) "$Name expected $Field=$Expected but received '$actual'."
+}
+
 $gatewayJwtConfigured = (
     -not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret) -or
     -not [string]::IsNullOrWhiteSpace($GatewayJwtIssuer) -or
@@ -372,6 +381,54 @@ Assert-True ($computePlan.dry_run_only -eq $true) 'plan did not return dry_run_o
 Assert-True ($computePlan.funds_moved -eq $false) 'plan did not return funds_moved=false.'
 Assert-True ($computePlan.broadcast_allowed -eq $false) 'plan did not return broadcast_allowed=false.'
 Assert-True ($computePlan.private_key_required -eq $false) 'plan did not return private_key_required=false.'
+
+$marketAlphaStatuses = [ordered]@{}
+if ($IncludeMarketAlpha) {
+    $inferenceOpportunity = Invoke-ComputeMarketRequest -Method POST -Path '/inference/opportunity-cost' -Scopes 'inference:plan' -Body @{
+        task = 'public market alpha inference opportunity smoke'
+        estimated_value = 25
+        budget = 5
+    }
+    Assert-Status -Response $inferenceOpportunity -Expected 200 -Name 'inference opportunity-cost'
+    Assert-True ((Get-DataField -Json $inferenceOpportunity.Json -Name 'ok') -eq $true) 'inference opportunity-cost did not return ok=true.'
+    Assert-DataFlag -Response $inferenceOpportunity -Field 'dry_run_only' -Expected $true -Name 'inference opportunity-cost'
+    Assert-DataFlag -Response $inferenceOpportunity -Field 'funds_moved' -Expected $false -Name 'inference opportunity-cost'
+    $marketAlphaStatuses['inference_opportunity_cost'] = $inferenceOpportunity.StatusCode
+
+    $inferenceOrderBook = Invoke-ComputeMarketRequest -Method GET -Path '/inference/market/order-book' -Scopes 'inference:read'
+    Assert-Status -Response $inferenceOrderBook -Expected 200 -Name 'inference order-book'
+    Assert-True ((Get-DataField -Json $inferenceOrderBook.Json -Name 'ok') -eq $true) 'inference order-book did not return ok=true.'
+    Assert-DataFlag -Response $inferenceOrderBook -Field 'dry_run_only' -Expected $true -Name 'inference order-book'
+    Assert-DataFlag -Response $inferenceOrderBook -Field 'funds_moved' -Expected $false -Name 'inference order-book'
+    $marketAlphaStatuses['inference_order_book'] = $inferenceOrderBook.StatusCode
+
+    $proxyBody = @{
+        model = 'flow-local-small'
+        messages = @(@{ role = 'user'; content = 'public alpha proxy smoke' })
+    }
+    $proxyChat = Invoke-ComputeMarketRequest -Method POST -Path '/v1/chat/completions' -Scopes 'inference:proxy' -Body $proxyBody
+    Assert-Status -Response $proxyChat -Expected 200 -Name 'OpenAI-compatible proxy'
+    $proxyData = $proxyChat.Json.data
+    Assert-True ($proxyData.object -eq 'chat.completion') 'OpenAI-compatible proxy did not return chat.completion.'
+    Assert-True ($proxyData.flow_memory.dry_run_only -eq $true) 'OpenAI-compatible proxy did not return dry_run_only=true.'
+    Assert-True ($proxyData.flow_memory.funds_moved -eq $false) 'OpenAI-compatible proxy did not return funds_moved=false.'
+    $marketAlphaStatuses['openai_proxy'] = $proxyChat.StatusCode
+
+    $capacityInventory = Invoke-ComputeMarketRequest -Method GET -Path '/capacity/inventory' -Scopes 'compute:read'
+    Assert-Status -Response $capacityInventory -Expected 200 -Name 'capacity inventory'
+    Assert-True ((Get-DataField -Json $capacityInventory.Json -Name 'ok') -eq $true) 'capacity inventory did not return ok=true.'
+    Assert-DataFlag -Response $capacityInventory -Field 'dry_run_only' -Expected $true -Name 'capacity inventory'
+    Assert-DataFlag -Response $capacityInventory -Field 'funds_moved' -Expected $false -Name 'capacity inventory'
+    $marketAlphaStatuses['capacity_inventory'] = $capacityInventory.StatusCode
+
+    $futuresMarkets = Invoke-ComputeMarketRequest -Method GET -Path '/futures/markets' -Scopes 'compute:read'
+    Assert-Status -Response $futuresMarkets -Expected 200 -Name 'futures markets'
+    Assert-True ((Get-DataField -Json $futuresMarkets.Json -Name 'ok') -eq $true) 'futures markets did not return ok=true.'
+    Assert-DataFlag -Response $futuresMarkets -Field 'dry_run_only' -Expected $true -Name 'futures markets'
+    Assert-DataFlag -Response $futuresMarkets -Field 'funds_moved' -Expected $false -Name 'futures markets'
+    Assert-DataFlag -Response $futuresMarkets -Field 'live_trading_enabled' -Expected $false -Name 'futures markets'
+    $marketAlphaStatuses['futures_markets'] = $futuresMarkets.StatusCode
+}
 
 $metricsHeaders = Add-NonceHeaders -Headers @{
     'x-flow-memory-api-key' = $ApiKey
@@ -491,6 +548,8 @@ $result = [ordered]@{
     wrong_scope = $wrongScope.StatusCode
     jwt_health = $jwtHealthStatus
     jwt_wrong_audience = $jwtWrongAudienceStatus
+    market_alpha = [bool]$IncludeMarketAlpha
+    market_alpha_statuses = $marketAlphaStatuses
     dry_run_only = [bool]$computePlan.dry_run_only
     funds_moved = [bool]$computePlan.funds_moved
     broadcast_allowed = [bool]$computePlan.broadcast_allowed

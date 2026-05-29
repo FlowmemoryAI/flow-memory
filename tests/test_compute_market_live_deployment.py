@@ -155,7 +155,7 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
 def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
     script = (ROOT / "scripts" / "smoke_compute_market_public.ps1").read_text(encoding="utf-8")
 
-    for expected in (
+    expected_snippets = (
         "$GatewayJwtHs256Secret = $env:FLOW_MEMORY_API_JWT_HS256_SECRET",
         "$GatewayJwtIssuer = $env:FLOW_MEMORY_API_JWT_ISSUER",
         "$GatewayJwtAudience = $env:FLOW_MEMORY_API_JWT_AUDIENCE",
@@ -168,7 +168,17 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "jwt_wrong_audience = $jwtWrongAudienceStatus",
         "Gateway JWT secret must be a real high-entropy secret",
         "must be configured together when JWT smoke is configured",
-    ):
+        "[switch]$IncludeMarketAlpha",
+        "if ($IncludeMarketAlpha)",
+        "Invoke-ComputeMarketRequest -Method POST -Path '/inference/opportunity-cost' -Scopes 'inference:plan'",
+        "Invoke-ComputeMarketRequest -Method GET -Path '/inference/market/order-book' -Scopes 'inference:read'",
+        "Invoke-ComputeMarketRequest -Method POST -Path '/v1/chat/completions' -Scopes 'inference:proxy'",
+        "Invoke-ComputeMarketRequest -Method GET -Path '/capacity/inventory' -Scopes 'compute:read'",
+        "Invoke-ComputeMarketRequest -Method GET -Path '/futures/markets' -Scopes 'compute:read'",
+        "Assert-DataFlag -Response $futuresMarkets -Field 'live_trading_enabled' -Expected $false",
+        "market_alpha = [bool]$IncludeMarketAlpha",
+    )
+    for expected in expected_snippets:
         assert expected in script
 
 def test_public_smoke_rejects_placeholder_gateway_jwt_secret_before_network() -> None:

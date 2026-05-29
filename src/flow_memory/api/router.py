@@ -1297,6 +1297,13 @@ def create_default_router() -> LocalApiRouter:
         market_handler("openai_chat_completions"),
         "openai_chat_completions",
     )
+    router.register("GET", "/anthropic/v1/models", market_handler("anthropic_models"), "anthropic_models")
+    router.register(
+        "POST",
+        "/anthropic/v1/messages",
+        market_handler("anthropic_messages"),
+        "anthropic_messages",
+    )
     router.register("GET", "/capacity/inventory", market_handler("capacity_inventory"), "capacity_inventory")
     router.register("POST", "/capacity/quote", market_handler("capacity_quote"), "capacity_quote")
     router.register("POST", "/capacity/hold", market_handler("capacity_hold"), "capacity_hold")

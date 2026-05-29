@@ -1,10 +1,10 @@
 # Flow Memory Inference Proxy
 
-The inference proxy is the one-line base URL adoption path. It exposes OpenAI-compatible local endpoints backed by a deterministic fake provider until external provider credentials are configured.
+The inference proxy is the one-line base URL adoption path. It exposes OpenAI-compatible and Anthropic-compatible local endpoints backed by deterministic fake providers until external provider credentials are configured.
 
 ```mermaid
 flowchart TD
-    SDK[OpenAI-compatible SDK] --> BaseURL[Flow Memory base URL]
+    SDK[OpenAI or Anthropic-compatible SDK] --> BaseURL[Flow Memory base URL]
     BaseURL --> Auth[Flow Memory auth and scopes]
     Auth --> Policy[Spend, quality, and safety policy]
     Policy --> Market[Inference Market quote selection]
@@ -18,6 +18,8 @@ flowchart TD
 
 - `GET /v1/models`
 - `POST /v1/chat/completions`
+- `GET /anthropic/v1/models`
+- `POST /anthropic/v1/messages`
 - `POST /inference/proxy`
 
 ## Credential boundary
@@ -36,4 +38,14 @@ Raw provider credentials, private keys, seed phrases, live settlement flags, and
 
 ```bash
 flow-memory inference proxy-smoke --model flow-local-small --task "hello" --json
+```
+
+Anthropic-compatible local smoke:
+
+```bash
+curl -s http://127.0.0.1:8765/anthropic/v1/messages \
+  -H "content-type: application/json" \
+  -H "x-flow-memory-api-key: dev" \
+  -H "x-flow-memory-scopes: inference:proxy" \
+  -d '{"model":"claude-3-5-haiku","messages":[{"role":"user","content":"hello"}]}'
 ```

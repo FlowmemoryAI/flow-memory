@@ -105,6 +105,20 @@ class InferenceMarketService:
                 reliability_score=0.98,
             ),
             InferenceCreditSource(
+                source_id="src-discount-anthropic-compatible",
+                source_name="Discount Anthropic-compatible pool",
+                source_type=SourceType.ANTHROPIC_COMPATIBLE.value,
+                status="active",
+                verified=True,
+                models=("claude-3-5-haiku", "flow-local-small"),
+                base_url="https://providers.flowmemory.ai/anthropic-compatible",
+                credential_ref="secret://inference/src-discount-anthropic-compatible",
+                transferable=True,
+                seller_id="seller-unused-anthropic-credits",
+                quality_score=0.9,
+                reliability_score=0.97,
+            ),
+            InferenceCreditSource(
                 source_id="src-local-no-payment",
                 source_name="Flow Memory local fake provider",
                 source_type=SourceType.LOCAL.value,
@@ -134,6 +148,12 @@ class InferenceMarketService:
                 sell_enabled=True,
             ),
             InferenceCreditAccount(
+                account_id="acct-seller-unused-anthropic-credits",
+                owner_id="seller-unused-anthropic-credits",
+                source_id="src-discount-anthropic-compatible",
+                sell_enabled=True,
+            ),
+            InferenceCreditAccount(
                 account_id="acct-local-no-payment",
                 owner_id="flow-memory-local",
                 source_id="src-local-no-payment",
@@ -155,6 +175,17 @@ class InferenceMarketService:
                 model="gpt-4o-mini",
                 unit_type=CreditUnit.TOKEN.value,
                 available_units=250_000,
+                expires_at="2026-05-27T00:00:00Z",
+                transferable=True,
+            ),
+            InferenceCreditBalance(
+                balance_id="bal-seller-claude-haiku-request",
+                account_id="acct-seller-unused-anthropic-credits",
+                source_id="src-discount-anthropic-compatible",
+                owner_id="seller-unused-anthropic-credits",
+                model="claude-3-5-haiku",
+                unit_type=CreditUnit.REQUEST.value,
+                available_units=12_000,
                 expires_at="2026-05-27T00:00:00Z",
                 transferable=True,
             ),
@@ -183,6 +214,20 @@ class InferenceMarketService:
                 expires_at="2026-05-27T00:00:00Z",
                 transferable=True,
                 metadata={"reference_unit_price": 0.000001, "discount_bps": 2500},
+            ),
+            InferenceCreditListing(
+                listing_id="lst-discount-claude-haiku-request",
+                seller_id="seller-unused-anthropic-credits",
+                account_id="acct-seller-unused-anthropic-credits",
+                source_id="src-discount-anthropic-compatible",
+                model="claude-3-5-haiku",
+                unit_type=CreditUnit.REQUEST.value,
+                available_units=12_000,
+                unit_price=0.00018,
+                currency="USD_CREDIT",
+                expires_at="2026-05-27T00:00:00Z",
+                transferable=True,
+                metadata={"reference_unit_price": 0.00025, "discount_bps": 2800},
             ),
             InferenceCreditListing(
                 listing_id="lst-stale-gpt4o-mini-token",
@@ -899,10 +944,11 @@ class InferenceMarketService:
 
     def proxy_chat_completion(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         self._assert_safe_payload(payload)
-        route = self.route({"model": payload.get("model", "flow-local-small"), "unit_type": CreditUnit.REQUEST.value, "estimated_units": 1})
+        model = str(payload.get("model") or "flow-local-small")
+        route = self.route({"model": model, "unit_type": CreditUnit.REQUEST.value, "estimated_units": 1})
         if not route.get("ok"):
             return route
-        model = str(payload.get("model") or "flow-local-small")
+        usage = self._record_proxy_usage(payload, model=model, route_result=route, provider_api="openai")
         response_id = _stable_id("chatcmpl", model, str(payload.get("messages", ())))
         return {
             "id": response_id,
@@ -922,6 +968,39 @@ class InferenceMarketService:
             "usage": {"prompt_tokens": 0, "completion_tokens": 10, "total_tokens": 10},
             "flow_memory": {
                 "route_decision": route.get("route_decision", {}),
+                "usage_record": usage.as_record(),
+                "dry_run_only": True,
+                "funds_moved": False,
+                "broadcast_allowed": False,
+                "private_key_required": False,
+            },
+        }
+
+    def proxy_anthropic_message(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        model = str(payload.get("model") or "claude-3-5-haiku")
+        route = self.route({"model": model, "unit_type": CreditUnit.REQUEST.value, "estimated_units": 1})
+        if not route.get("ok"):
+            return route
+        usage = self._record_proxy_usage(payload, model=model, route_result=route, provider_api="anthropic")
+        response_id = _stable_id("msg", model, str(payload.get("messages", ())))
+        return {
+            "id": response_id,
+            "type": "message",
+            "role": "assistant",
+            "model": model,
+            "content": (
+                {
+                    "type": "text",
+                    "text": "Flow Memory fake provider response. External providers are disabled by default.",
+                },
+            ),
+            "stop_reason": "end_turn",
+            "stop_sequence": None,
+            "usage": {"input_tokens": 0, "output_tokens": 10},
+            "flow_memory": {
+                "route_decision": route.get("route_decision", {}),
+                "usage_record": usage.as_record(),
                 "dry_run_only": True,
                 "funds_moved": False,
                 "broadcast_allowed": False,
@@ -932,6 +1011,77 @@ class InferenceMarketService:
     def models(self, _payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         names = sorted({model for source in self.sources.values() if source.status == "active" for model in source.models})
         return {"object": "list", "data": tuple({"id": name, "object": "model", "owned_by": "flow-memory"} for name in names)}
+
+    def anthropic_models(self, _payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        names = sorted(
+            {
+                model
+                for source in self.sources.values()
+                if source.status == "active" and source.source_type == SourceType.ANTHROPIC_COMPATIBLE.value
+                for model in source.models
+            }
+        )
+        return {
+            "data": tuple({"id": name, "type": "model", "display_name": name} for name in names),
+            "has_more": False,
+            "first_id": names[0] if names else "",
+            "last_id": names[-1] if names else "",
+        }
+
+    def _record_proxy_usage(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        model: str,
+        route_result: Mapping[str, Any],
+        provider_api: str,
+    ) -> InferenceUsageRecord:
+        decision = route_result.get("route_decision", {})
+        selected_quote = decision.get("selected_quote", {}) if isinstance(decision, Mapping) else {}
+        route = selected_quote.get("route", {}) if isinstance(selected_quote, Mapping) else {}
+        estimated_cost = _nonnegative_float(selected_quote.get("estimated_total_cost") if isinstance(selected_quote, Mapping) else 0.0, 0.0)
+        estimated_units = _positive_float(selected_quote.get("estimated_units") if isinstance(selected_quote, Mapping) else 1.0, 1.0)
+        usage = InferenceUsageRecord(
+            usage_id=_stable_id(
+                "infu",
+                provider_api,
+                model,
+                str(payload.get("agent_id", "agent-default")),
+                str(payload.get("messages", ())),
+            ),
+            workspace_id=str(payload.get("workspace_id") or "workspace-default"),
+            agent_id=str(payload.get("agent_id") or "agent-default"),
+            goal_id=str(payload.get("goal_id") or "goal-default"),
+            task_id=str(payload.get("task_id") or _stable_id("task", provider_api, model)),
+            model=model,
+            source_id=str(route.get("source_id", "")) if isinstance(route, Mapping) else "",
+            route_id=str(route.get("route_id", "")) if isinstance(route, Mapping) else "",
+            unit_type=str(route.get("unit_type", CreditUnit.REQUEST.value)) if isinstance(route, Mapping) else CreditUnit.REQUEST.value,
+            estimated_units=estimated_units,
+            actual_units=1.0,
+            estimated_cost=estimated_cost,
+            actual_cost=estimated_cost,
+            credits_consumed=1.0,
+            discount_bps=int(selected_quote.get("discount_bps", 0) or 0) if isinstance(selected_quote, Mapping) else 0,
+            selected_decision=str(decision.get("decision", f"{provider_api}_proxy_fake_provider")) if isinstance(decision, Mapping) else f"{provider_api}_proxy_fake_provider",
+            latency_ms=int(route.get("latency_ms", 25) or 25) if isinstance(route, Mapping) else 25,
+            quality_score=float(route.get("quality_score", 1.0) or 1.0) if isinstance(route, Mapping) else 1.0,
+        )
+        self.usage_records[usage.usage_id] = usage
+        self._persist(
+            "inference_usage_record",
+            usage.usage_id,
+            usage.as_record(),
+            workspace_id=usage.workspace_id,
+            provider_id=usage.source_id,
+            route_id=usage.route_id,
+            actor_id=usage.agent_id,
+            task_type=f"{provider_api}_proxy",
+            status="completed",
+            idempotency_key=str(payload.get("idempotency_key") or usage.usage_id),
+        )
+        self.audit_events.append({"event_type": f"inference.proxy.{provider_api}", "usage_id": usage.usage_id})
+        return usage
 
     def _active_listings(self, model: str = "", unit_type: str = "") -> tuple[InferenceCreditListing, ...]:
         listings = []

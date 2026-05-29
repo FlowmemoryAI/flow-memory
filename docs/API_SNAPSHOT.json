@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 247,
-  "manifest_hash": "cfc670086fb8c4c6529632d5a14264f10cb7055705c2b22935279a8ba6105da0",
-  "openapi_hash": "2c74325c3bc04d8936e30531aafbfb0ffb112297d25862b81a126187c4c75300",
+  "endpoint_count": 249,
+  "manifest_hash": "d3ff7d51e12e83ba1940ae01c7e3264058ab2968744bf49d4d39c0c8455290fd",
+  "openapi_hash": "a1f984972c1fa756f010dfb3c9d4b2f5fca17f557fc59c53bf5a7cf479d4f75d",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -11,6 +11,7 @@
     "GET /agents/{did}",
     "GET /agents/{did}/memory",
     "GET /agents/{did}/skills",
+    "GET /anthropic/v1/models",
     "GET /audit",
     "GET /auth/api-keys",
     "GET /auth/users",
@@ -128,6 +129,7 @@
     "POST /agents/launch-flowlang",
     "POST /agents/launch-neural",
     "POST /agents/{did}/run",
+    "POST /anthropic/v1/messages",
     "POST /attestations",
     "POST /auth/api-keys",
     "POST /auth/api-keys/{key_id}/disable",
@@ -251,7 +253,7 @@
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 230,
+  "path_count": 232,
   "paths": [
     "/admin/audit/export",
     "/admin/compute/otlp/export",
@@ -270,6 +272,8 @@
     "/agents/{did}/memory",
     "/agents/{did}/run",
     "/agents/{did}/skills",
+    "/anthropic/v1/messages",
+    "/anthropic/v1/models",
     "/attestations",
     "/audit",
     "/auth/api-keys",

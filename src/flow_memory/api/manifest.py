@@ -204,6 +204,8 @@ API_ENDPOINTS: tuple[EndpointSpec, ...] = (
     EndpointSpec("POST", "/inference/proxy", "inference_proxy", "OpenAI-compatible dry-run inference proxy", request_fields=("model", "messages"), response_fields=("id", "choices", "flow_memory")),
     EndpointSpec("GET", "/v1/models", "openai_models", "OpenAI-compatible model list", response_fields=("object", "data")),
     EndpointSpec("POST", "/v1/chat/completions", "openai_chat_completions", "OpenAI-compatible dry-run chat completions", request_fields=("model", "messages"), response_fields=("id", "choices", "usage")),
+    EndpointSpec("GET", "/anthropic/v1/models", "anthropic_models", "Anthropic-compatible model list", response_fields=("data", "has_more")),
+    EndpointSpec("POST", "/anthropic/v1/messages", "anthropic_messages", "Anthropic-compatible dry-run messages proxy", request_fields=("model", "messages"), response_fields=("id", "content", "usage")),
     EndpointSpec("GET", "/capacity/inventory", "capacity_inventory", "List Flow Memory capacity inventory", response_fields=("ok", "inventory")),
     EndpointSpec("POST", "/capacity/quote", "capacity_quote", "Quote simulated capacity", request_fields=("gpu_class", "region", "hours"), response_fields=("ok", "quote")),
     EndpointSpec("POST", "/capacity/hold", "capacity_hold", "Hold simulated capacity", request_fields=("gpu_class", "region", "hours"), response_fields=("ok", "hold")),

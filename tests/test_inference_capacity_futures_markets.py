@@ -36,6 +36,16 @@ def test_inference_market_quotes_discounted_route_and_openai_proxy() -> None:
     assert response["object"] == "chat.completion"
     assert response["flow_memory"]["dry_run_only"] is True
 
+    anthropic = service.proxy_anthropic_message(
+        {"model": "claude-3-5-haiku", "messages": [{"role": "user", "content": "hello"}]}
+    )
+    assert anthropic["type"] == "message"
+    assert anthropic["flow_memory"]["dry_run_only"] is True
+    assert anthropic["flow_memory"]["usage_record"]["source_id"] == "src-discount-anthropic-compatible"
+
+    anthropic_models = service.anthropic_models()
+    assert any(model["id"] == "claude-3-5-haiku" for model in anthropic_models["data"])
+
 
 def test_agent_opportunity_planner_can_sell_unused_inference() -> None:
     service = default_inference_market_service()
@@ -167,6 +177,13 @@ def test_router_exposes_inference_capacity_and_futures_endpoints() -> None:
     proxy = router.dispatch("POST", "/v1/chat/completions", {"model": "flow-local-small", "messages": []})
     assert proxy["object"] == "chat.completion"
 
+    anthropic = router.dispatch(
+        "POST",
+        "/anthropic/v1/messages",
+        {"model": "claude-3-5-haiku", "messages": [{"role": "user", "content": "hello"}]},
+    )
+    assert anthropic["type"] == "message"
+
 
 
 def test_marketplace_api_endpoints_persist_through_compute_store(tmp_path: Path) -> None:
@@ -210,6 +227,7 @@ def test_new_market_scope_mapping() -> None:
     assert required_scopes_for("POST", "/inference/credits/buy") == ("inference:buy",)
     assert required_scopes_for("POST", "/inference/credits/sell") == ("inference:sell",)
     assert required_scopes_for("POST", "/inference/proxy") == ("inference:proxy",)
+    assert required_scopes_for("POST", "/anthropic/v1/messages") == ("inference:proxy",)
     assert required_scopes_for("POST", "/capacity/forwards/simulate") == ("compute:settlement-admin",)
     assert required_scopes_for("POST", "/futures/orders/simulate") == ("compute:settlement-admin",)
 

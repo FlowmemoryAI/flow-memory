@@ -161,6 +161,14 @@ def openai_chat_completions(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return _ensure_mapping(_inference_service().proxy_chat_completion(payload))
 
 
+def anthropic_models(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().anthropic_models(payload))
+
+
+def anthropic_messages(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().proxy_anthropic_message(payload))
+
+
 def capacity_inventory(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return _ensure_mapping(_capacity_service().inventory(payload))
 

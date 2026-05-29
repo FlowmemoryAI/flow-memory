@@ -734,6 +734,88 @@
         ]
       }
     },
+    "/anthropic/v1/messages": {
+      "post": {
+        "operationId": "anthropic_messages",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "messages": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "content": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Anthropic-compatible dry-run messages proxy",
+        "tags": [
+          "anthropic"
+        ]
+      }
+    },
+    "/anthropic/v1/models": {
+      "get": {
+        "operationId": "anthropic_models",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "has_more": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Anthropic-compatible model list",
+        "tags": [
+          "anthropic"
+        ]
+      }
+    },
     "/attestations": {
       "post": {
         "operationId": "attestation_create",

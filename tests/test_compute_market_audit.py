@@ -52,6 +52,15 @@ class FakeS3Client:
     def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         return {"Body": self.objects[(Bucket, Key)]}
 
+    def list_objects_v2(self, *, Bucket: str, Prefix: str) -> dict[str, Any]:
+        contents = []
+        for index, put in enumerate(self.puts):
+            bucket = str(put["Bucket"])
+            key = str(put["Key"])
+            if bucket == Bucket and key.startswith(Prefix) and (bucket, key) in self.objects:
+                contents.append({"Key": key, "LastModified": index})
+        return {"Contents": contents}
+
     def get_bucket_object_lock_configuration(self, *, Bucket: str) -> dict[str, Any]:
         return {"ObjectLockConfiguration": {"ObjectLockEnabled": "Enabled"}}
 
@@ -343,6 +352,22 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     tampered = exporter.verify_export()
     assert tampered.ok is False
     assert tampered.error_code == "manifest_hash_mismatch"
+
+def test_s3_object_lock_verify_export_discovers_export_after_restart() -> None:
+    client = FakeS3Client()
+    exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    service = _service()
+    service.plan({"task": "restart-safe s3 export", "request_id": "s3-restart-export"})
+
+    exported = exporter.export_events(service.store, chain_id="all")
+    restarted = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
+    verified = restarted.verify_export()
+
+    assert exported.ok is True
+    assert verified.ok is True
+    assert verified.path == exported.path
+    assert verified.event_count == exported.event_count
+    assert verified.immutable_evidence is True
 
 def test_s3_object_lock_readback_rejects_wrong_retention_date() -> None:
     class TruncatingRetentionClient(FakeS3Client):
@@ -694,7 +719,7 @@ def test_audit_chain_monitor_detects_s3_export_corruption() -> None:
     assert metric_totals.get("audit_export_verify_fail_total", 0.0) == 1.0
 
 
-def test_audit_chain_monitor_allows_missing_s3_export_key() -> None:
+def test_audit_chain_monitor_fails_missing_s3_export_key() -> None:
     client = FakeS3Client()
     exporter = S3WormAuditExporter("flow-memory-audit", "compute-market", retention_days=30, client=client)
     service = ComputeMarketService(
@@ -714,9 +739,12 @@ def test_audit_chain_monitor_allows_missing_s3_export_key() -> None:
 
     monitor = service.audit_chain_monitor({})
 
-    assert monitor["ok"] is True
+    assert monitor["ok"] is False
     assert monitor["export_verification"]["ok"] is False
     assert monitor["export_verification"]["error_code"] == "missing_export_key"
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    assert isinstance(metric_totals, dict)
+    assert metric_totals.get("audit_export_verify_fail_total", 0.0) == 1.0
 
 
 def test_audit_checkpoint_schedule_initial_interval_uses_oldest_pending_event() -> None:

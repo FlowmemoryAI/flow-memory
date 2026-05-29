@@ -386,7 +386,13 @@ class S3WormAuditExporter:
 
     def verify_export(self) -> AuditExportVerification:
         if not self._last_export_key:
-            return AuditExportVerification(False, f"s3://{self.bucket}/{self.prefix}", 0, error_code="missing_export_key", message="no export has been written by this exporter instance")
+            try:
+                client = self._client()
+                self._last_export_key = self._discover_latest_export_key(client)
+            except Exception as exc:
+                return AuditExportVerification(False, f"s3://{self.bucket}/{self.prefix}", 0, error_code=type(exc).__name__, message=str(exc))
+        if not self._last_export_key:
+            return AuditExportVerification(False, f"s3://{self.bucket}/{self.prefix}", 0, error_code="missing_export_key", message="no export object was found for this exporter")
         try:
             client = self._client()
             response = client.get_object(Bucket=self.bucket, Key=self._last_export_key)
@@ -575,6 +581,25 @@ class S3WormAuditExporter:
             )
             if signature_error:
                 raise RuntimeError(signature_error[1])
+
+    def _discover_latest_export_key(self, client: Any) -> str:
+        if not hasattr(client, "list_objects_v2"):
+            return ""
+        prefix = self._key("exports/")
+        response = client.list_objects_v2(Bucket=self.bucket, Prefix=prefix)
+        contents = response.get("Contents", []) if isinstance(response, Mapping) else []
+        candidates: list[Mapping[str, Any]] = []
+        if isinstance(contents, list):
+            for item in contents:
+                if not isinstance(item, Mapping):
+                    continue
+                key = str(item.get("Key", ""))
+                if key.endswith(".ndjson"):
+                    candidates.append(item)
+        if not candidates:
+            return ""
+        candidates.sort(key=lambda item: (str(item.get("LastModified", "")), str(item.get("Key", ""))))
+        return str(candidates[-1].get("Key", ""))
 
     def _client(self) -> Any:
         if not self.bucket:

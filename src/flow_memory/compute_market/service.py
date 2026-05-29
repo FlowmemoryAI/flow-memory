@@ -6671,11 +6671,8 @@ class ComputeMarketService:
         chain_ok = all(bool(chain.get("ok")) for chain in chains)
         exporter_status = self.audit_exporter.get_status()
         export_verification = self.audit_exporter.verify_export().as_record()
-        export_error_code = str(export_verification.get("error_code", ""))
-        export_verification_failed = (
-            str(exporter_status.get("exporter", "")) != "none"
-            and not bool(export_verification.get("ok"))
-            and export_error_code != "missing_export_key"
+        export_verification_failed = str(exporter_status.get("exporter", "")) != "none" and not bool(
+            export_verification.get("ok")
         )
         ok = chain_ok and not export_verification_failed
         reason_codes: list[str] = []

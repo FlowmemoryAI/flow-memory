@@ -5221,6 +5221,7 @@ class ComputeMarketService:
             if verified and (posts_credit or posts_refund or _stripe_event_is_payment_failure(event_type))
             else ""
         )
+        checkout_refund_total_amount = credit_amount
         existing = self.store.get_record("payment_event", event_id)
         if existing is not None:
             if str(existing.get("raw_event_hash", "")) != raw_event_hash:
@@ -5317,6 +5318,13 @@ class ComputeMarketService:
                 session_id = _stripe_checkout_session_id(raw_event)
                 expected_session_id = str(checkout_record.get("external_checkout_session_id", "")).strip()
                 checkout_status = str(checkout_record.get("status", ""))
+                previous_refunded_amount = _safe_non_negative_float(checkout_record.get("refunded_amount", 0.0))
+                if posts_refund:
+                    checkout_refund_total_amount = (
+                        credit_amount
+                        if event_type == "charge.refunded"
+                        else round(previous_refunded_amount + credit_amount, 6)
+                    )
                 checkout_details.update(
                     {
                         "expected_amount": expected_amount,
@@ -5325,6 +5333,8 @@ class ComputeMarketService:
                         "reported_currency": credit_currency,
                         "expected_session_id": expected_session_id,
                         "reported_session_id": session_id,
+                        "previous_refunded_amount": previous_refunded_amount,
+                        "reported_refund_total_amount": checkout_refund_total_amount if posts_refund else 0.0,
                     }
                 )
                 if expected_session_id and session_id and expected_session_id != session_id:
@@ -5336,7 +5346,16 @@ class ComputeMarketService:
                 elif posts_credit and abs(expected_amount - credit_amount) > 1e-9:
                     checkout_error_code = "billing.webhook.checkout_amount_mismatch"
                     checkout_error_message = "Stripe credit webhook amount does not match the server-created checkout."
-                elif posts_refund and credit_amount - expected_amount > 1e-9:
+                elif (
+                    posts_refund
+                    and checkout_status == "payment_refunded"
+                    and event_type != "charge.refunded"
+                    and previous_refunded_amount >= expected_amount - 1e-9
+                ):
+                    account_id = str(checkout_record.get("account_id", account_id))
+                    credit_currency = expected_currency
+                    duplicate_checkout_terminal_status = "verified_duplicate_checkout_refund_ignored"
+                elif posts_refund and checkout_refund_total_amount - expected_amount > 1e-9:
                     checkout_error_code = "billing.webhook.checkout_refund_amount_exceeds_checkout"
                     checkout_error_message = "Stripe refund webhook amount exceeds the server-created checkout."
                 elif posts_credit and checkout_status in {"payment_credited", "payment_refunded"}:
@@ -5347,7 +5366,11 @@ class ComputeMarketService:
                 elif posts_refund and checkout_status == "payment_refunded":
                     account_id = str(checkout_record.get("account_id", account_id))
                     credit_currency = expected_currency
-                    duplicate_checkout_terminal_status = "verified_duplicate_checkout_refund_ignored"
+                    if event_type == "charge.refunded":
+                        if credit_amount <= previous_refunded_amount + 1e-9:
+                            duplicate_checkout_terminal_status = "verified_duplicate_checkout_refund_ignored"
+                        else:
+                            credit_amount = round(credit_amount - previous_refunded_amount, 6)
                 else:
                     account_id = str(checkout_record.get("account_id", account_id))
                     if posts_credit:
@@ -5444,7 +5467,7 @@ class ComputeMarketService:
             refund_debit_record = _apply_external_refund_debit(
                 self.store,
                 account_id,
-                amount=credit_amount,
+                amount=checkout_refund_total_amount if event_type == "charge.refunded" else credit_amount,
                 currency=credit_currency,
                 request_id=request_id,
                 source_event_id=event_id,
@@ -5488,7 +5511,7 @@ class ComputeMarketService:
                     event_type=event_type,
                     status="payment_refunded",
                     request_id=request_id,
-                    amount=credit_amount,
+                    amount=checkout_refund_total_amount,
                     currency=credit_currency,
                     failure={},
                 )
@@ -5525,7 +5548,9 @@ class ComputeMarketService:
         if invoice_id:
             invoice_record = self.store.get_record("billing_invoice", invoice_id) or {}
         if previous_status == "payment_refunded" and status == "payment_refunded":
-            return checkout_record, invoice_record if isinstance(invoice_record, Mapping) else {}
+            previous_refunded_amount = _safe_non_negative_float(checkout_record.get("refunded_amount", 0.0))
+            if amount <= previous_refunded_amount + 1e-9:
+                return checkout_record, invoice_record if isinstance(invoice_record, Mapping) else {}
         if previous_status == "payment_credited" and status == "payment_credited":
             return checkout_record, invoice_record if isinstance(invoice_record, Mapping) else {}
         if previous_status == "payment_refunded" and status != "payment_refunded":
@@ -11231,16 +11256,31 @@ def _apply_external_refund_debit(
             filters={"tenant_id": account_id, "action": checkout_payment_event_id, "status": "posted"},
             limit=500,
         ).records
+        prior_refund_debit: Mapping[str, Any] = {}
+        prior_refund_amount = 0.0
         for refund_debit in refund_debits:
             if str(refund_debit.get("debit_reason", "")) != "stripe_refund":
                 continue
-            _rebuild_credit_balance_from_transactions(
-                store,
-                account_id,
-                currency=str(refund_debit.get("currency", currency)),
-                request_id=request_id,
-            )
-            return refund_debit
+            prior_refund_debit = refund_debit
+            prior_refund_amount += _safe_non_negative_float(refund_debit.get("amount", 0.0))
+        if prior_refund_debit:
+            if amount <= prior_refund_amount + 1e-9:
+                _rebuild_credit_balance_from_transactions(
+                    store,
+                    account_id,
+                    currency=str(prior_refund_debit.get("currency", currency)),
+                    request_id=request_id,
+                )
+                return prior_refund_debit
+            amount = round(amount - prior_refund_amount, 6)
+            if amount <= 0:
+                _rebuild_credit_balance_from_transactions(
+                    store,
+                    account_id,
+                    currency=str(prior_refund_debit.get("currency", currency)),
+                    request_id=request_id,
+                )
+                return prior_refund_debit
 
     now = utc_now_iso()
     transaction = {

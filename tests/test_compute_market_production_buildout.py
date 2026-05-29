@@ -6184,6 +6184,103 @@ def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credit
     assert balance["available_credits"] == 0.0
     assert balance["reserved_credits"] == 0.0
 
+def test_stripe_checkout_cumulative_partial_refunds_debit_only_new_amount() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_partial_refunds",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-partial-refunded-request",
+                "idempotency_key": "checkout-partial-refunded-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    secret = str(service.config.stripe_webhook_secret)
+    success_event = {
+        "id": "evt_checkout_partial_refunds_success",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 1234,
+                "currency": "usd",
+                "metadata": {
+                    "account_id": "acct_checkout_partial_refunds",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+    first_refund_event = {
+        "id": "evt_checkout_partial_refunds_500",
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "id": "ch_checkout_partial_refunds",
+                "amount_refunded": 500,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_checkout_partial_refunds",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+    second_refund_event = {
+        "id": "evt_checkout_partial_refunds_1000",
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "id": "ch_checkout_partial_refunds",
+                "amount_refunded": 1000,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_checkout_partial_refunds",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+
+    def webhook_payload(raw_event: Mapping[str, object]) -> dict[str, object]:
+        return {
+            "raw_event": raw_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(raw_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+
+    credited = service.billing_webhook_stripe(webhook_payload(success_event))
+    first_refund = service.billing_webhook_stripe(webhook_payload(first_refund_event))
+    second_refund = service.billing_webhook_stripe(webhook_payload(second_refund_event))
+    checkout_record = service.store.get_record("payment_event", payment_event_id)
+    balance = service.billing_balance({"account_id": "acct_checkout_partial_refunds"})["balance"]
+
+    assert credited["ok"] is True
+    assert first_refund["ok"] is True
+    assert second_refund["ok"] is True
+    assert first_refund["refund_debit"]["amount"] == 5.0
+    assert second_refund["refund_debit"]["amount"] == 5.0
+    assert first_refund["refund_debit"]["source_event_id"] == "evt_checkout_partial_refunds_500"
+    assert second_refund["refund_debit"]["source_event_id"] == "evt_checkout_partial_refunds_1000"
+    assert checkout_record is not None
+    assert checkout_record["status"] == "payment_refunded"
+    assert checkout_record["refunded_amount"] == 10.0
+    assert balance["available_credits"] == 2.34
+    assert service.store.count_records("credit_transaction") == 3
+
 def test_stripe_refund_events_share_one_debit_when_checkout_gate_disabled() -> None:
     service = _service()
     account_id = "acct_stripe_refund_dedupe"

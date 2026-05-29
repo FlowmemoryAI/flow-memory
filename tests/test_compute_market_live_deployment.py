@@ -88,7 +88,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         assert required in template
 
     assert "FLOW_MEMORY_API_KEY=CHANGEME-high-entropy-api-key" in template
-    assert "FLOW_MEMORY_API_KEY_SCOPES=api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin" in template
+    assert "FLOW_MEMORY_API_KEY_SCOPES=api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin inference:read inference:plan inference:proxy inference:buy inference:sell inference:admin inference:audit" in template
     assert "FLOW_MEMORY_POSTGRES_PASSWORD=CHANGEME-compose-fallback-postgres-password" in template
     assert "PRIVATE" + "_KEY=" not in template
     assert "SEED" not in template
@@ -99,7 +99,7 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
 
     assert "FLOW_MEMORY_EXTRAS: compute-market-live" in compose
     assert "FLOW_MEMORY_API_KEY: ${FLOW_MEMORY_API_KEY:?" in compose
-    assert "FLOW_MEMORY_API_KEY_SCOPES: ${FLOW_MEMORY_API_KEY_SCOPES:-api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin}" in compose
+    assert "FLOW_MEMORY_API_KEY_SCOPES: ${FLOW_MEMORY_API_KEY_SCOPES:-api:read api:write api:admin api:audit compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:policy-admin compute:billing compute:settlement-admin inference:read inference:plan inference:proxy inference:buy inference:sell inference:admin inference:audit}" in compose
     assert "--require-scopes" in compose
     assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK: \"true\"" in compose
     assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND: ${FLOW_MEMORY_API_NONCE_REPLAY_BACKEND:-redis}" in compose
@@ -151,6 +151,7 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND\n        value: redis" in blueprint
     assert "FLOW_MEMORY_API_NONCE_REQUIRE_TLS\n        value: true" in blueprint
     assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
+    assert "inference:proxy" in blueprint
 
 def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
     script = (ROOT / "scripts" / "smoke_compute_market_public.ps1").read_text(encoding="utf-8")
@@ -1834,6 +1835,8 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert env_vars_by_key["FLOW_MEMORY_API_KEY"] == "fmk_existing_render_service_key"
     assert "compute:read" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert "compute:admin" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
+    assert "inference:plan" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
+    assert "inference:proxy" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert calls["smoke"]["api_key"] == "fmk_existing_render_service_key"
     assert calls["smoke"]["url"] == "https://flow-memory-api.onrender.com"
     assert calls["smoke"]["require_immutable_audit"] is True

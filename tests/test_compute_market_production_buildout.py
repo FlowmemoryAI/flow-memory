@@ -3705,6 +3705,58 @@ def test_signed_provider_receipt_callback_completes_job_and_blocks_replay(monkey
     assert _metric_total(service, "compute_provider_receipt_accepted_total", {"provider_id": "receipt-provider", "status": "succeeded"}) == 1.0
     assert _metric_total(service, "compute_provider_receipt_rejected_total", {"provider_id": "receipt-provider", "reason": "provider_receipt.replay_detected"}) == 1.0
 
+def test_provider_receipt_replay_guard_waits_for_successful_state_transition(monkeypatch: Any) -> None:
+    service = _service()
+    key = LocalKeyPair("provider-receipt-key", "provider-receipt-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_RECEIPT_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "receipt-provider-transition",
+            "provider_name": "Receipt Provider Transition",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_RECEIPT_SECRET",
+            },
+        }
+    )
+    job_id = str(
+        service.create_job(
+            {**_job_payload(), "provider_id": "receipt-provider-transition", "route_id": "receipt-route"}
+        )["job"]["job_id"]
+    )
+    receipt = {
+        "receipt_id": "receipt-transition-001",
+        "timestamp": "2099-01-01T00:00:00Z",
+        "job_id": job_id,
+        "provider_id": "receipt-provider-transition",
+        "route_id": "receipt-route",
+        "status": "succeeded",
+        "actual_units": 2,
+        "actual_total_cost": 0.18,
+        "funds_moved": False,
+    }
+    payload = {
+        "receipt": receipt,
+        "signature": sign_payload(receipt, key).as_record(),
+        "request_id": "receipt-transition-request-1",
+    }
+
+    try:
+        service.provider_job_receipt(job_id, payload)
+    except ValueError as exc:
+        assert "status queued" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("provider receipt completed a queued job")
+    assert service.store.count_records("provider_receipt_replay_guard") == 0
+
+    service.dispatch_job(job_id, {})
+    accepted = service.provider_job_receipt(job_id, payload)
+
+    assert accepted["ok"] is True
+    assert accepted["job"]["status"] == "succeeded"
+    assert service.store.count_records("provider_receipt_replay_guard") == 1
+
 
 def test_provider_receipt_callback_rejects_tampered_signature(monkeypatch: Any) -> None:
     service = _service()
@@ -4680,6 +4732,8 @@ def test_compute_job_cancel_and_retry_require_claim_owner() -> None:
     cancelled = service.cancel_job(job_id, {"tenant_id": tenant_id, "worker_id": "worker_a"})
     assert cancelled["ok"] is True
     assert cancelled["job"]["status"] == "cancelled"
+    with pytest.raises(ValueError, match="worker_id does not own claim.*cancel"):
+        service.cancel_job(job_id, {"tenant_id": tenant_id, "worker_id": "worker_b"})
 
 
 def test_compute_job_retry_respects_max_retries() -> None:

@@ -2953,22 +2953,15 @@ class ComputeMarketService:
             return {"ok": False, "error": error.as_record(), "verification": verification}
         receipt_id = str(verification["receipt_id"])
         receipt_hash = str(verification["receipt_hash"])
-        self.store.put_record(
-            "provider_receipt_replay_guard",
-            receipt_id,
-            {
-                "receipt_id": receipt_id,
-                "receipt_hash": receipt_hash,
-                "job_id": job_id,
-                "provider_id": provider_id,
-                "route_id": route_id,
-                "created_at": utc_now_iso(),
-                "request_id": request_id,
-            },
-            provider_id=provider_id,
-            route_id=route_id,
-            request_id=request_id,
-        )
+        receipt_replay_guard = {
+            "receipt_id": receipt_id,
+            "receipt_hash": receipt_hash,
+            "job_id": job_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "created_at": utc_now_iso(),
+            "request_id": request_id,
+        }
         status = str(receipt.get("status", "")).strip().lower()
         completion_payload = {
             **dict(receipt),
@@ -2981,11 +2974,29 @@ class ComputeMarketService:
             self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
             completed = self.complete_job(job_id, completion_payload, _verified_provider_receipt=True)
+            if completed.get("ok") is True:
+                self.store.put_record(
+                    "provider_receipt_replay_guard",
+                    receipt_id,
+                    receipt_replay_guard,
+                    provider_id=provider_id,
+                    route_id=route_id,
+                    request_id=request_id,
+                )
             return {"ok": True, "receipt": receipt, "verification": verification, "completion": completed, "job": completed["job"]}
         if status in {"failed", "failure", "error"}:
             self._audit("compute.job.provider_receipt_accepted", payload, request_id=request_id, result=status, provider_id=provider_id, route_id=route_id)
             self.telemetry.increment("compute_provider_receipt_accepted_total", {"provider_id": provider_id, "route_id": route_id, "status": status})
             failed = self.fail_job(job_id, completion_payload, _verified_provider_receipt=True)
+            if failed.get("ok") is True:
+                self.store.put_record(
+                    "provider_receipt_replay_guard",
+                    receipt_id,
+                    receipt_replay_guard,
+                    provider_id=provider_id,
+                    route_id=route_id,
+                    request_id=request_id,
+                )
             return {"ok": True, "receipt": receipt, "verification": verification, "failure": failed, "job": failed["job"]}
         error = compute_error(
             "provider_receipt.unsupported_status",
@@ -4307,9 +4318,9 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
+        _assert_claim_owner(job, payload, "cancel")
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
-        _assert_claim_owner(job, payload, "cancel")
         credit_release: Mapping[str, Any] = {}
         capacity_release: Mapping[str, Any] = {}
         cancelled_at = utc_now_iso()

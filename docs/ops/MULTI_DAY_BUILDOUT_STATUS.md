@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `c79a807 Resolve inference provider credential refs`
+Latest inspected commit: `53c234e Document inference credential reference gate`
 
 ## Current architecture
 
@@ -2118,4 +2118,38 @@ flowchart TD
     VerifyGate --> NoSecret[secret value never emitted]
     QuoteGate --> NoSecret
     QuoteGate --> DryRun[default dry-run planning remains available]
+```
+
+## Checkpoint 2026-05-26 Compute provider credential binding gate
+
+Files changed:
+
+- `docs/COMPUTE_MARKET.md`
+- `src/flow_memory/compute_market/service.py`
+- `tests/test_compute_market_production_buildout.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_production_buildout.py::test_provider_verification_requires_resolved_env_binding_when_external_quotes_enabled tests/test_compute_market_production_buildout.py::test_provider_onboarding_verification_and_secret_reference_only -q` — 2 passed
+- `python -m ruff check src/flow_memory/compute_market/service.py tests/test_compute_market_production_buildout.py` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 464 passed, 2 skipped
+- `git diff --check -- src/flow_memory/compute_market/service.py tests/test_compute_market_production_buildout.py docs/COMPUTE_MARKET.md docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
+
+Commit: pending.
+
+Implementation:
+
+- Provider applications and stored secret-reference records now include `credential_status` derived from credential binding environment variables without storing or returning secret values.
+- Market provider verification now fails closed when external provider quotes or execution are enabled and any required credential environment variable is unresolved.
+- The existing outbound HTTP quote adapter remains the only place where bound secret values are read, preserving secret-reference-only provider records.
+
+```mermaid
+flowchart TD
+    Application[Provider application] --> Bindings[credential bindings]
+    Bindings --> Status[credential_status]
+    Status --> External{external quotes or execution enabled?}
+    External -->|yes and unresolved| Reject[verification rejected]
+    External -->|configured| Verify[provider verified]
+    Verify --> Adapter[outbound adapter reads env]
+    Adapter --> NoLeak[secret value never emitted]
 ```

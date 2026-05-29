@@ -713,12 +713,23 @@ class ComputeMarketService:
         if str(application.get("status", "")) not in {"pending", "probation"}:
             raise ValueError("provider application must be pending or probation before verification")
         verified_at = utc_now_iso()
+        credential_status = _provider_credential_binding_status(application.get("credential_bindings", {}))
+        if (
+            self.config.external_provider_quotes_enabled or self.config.external_provider_execution_enabled
+        ) and _provider_credential_bindings_unresolved(credential_status):
+            unresolved = ", ".join(
+                item["env_key"]
+                for item in credential_status
+                if item["required"] and not item["configured"]
+            )
+            raise ValueError(f"provider credential bindings unresolved: {unresolved}")
         updated_application = {
             **application,
             "status": "verified",
             "verified": True,
             "verified_at": verified_at,
             "verification_notes": str(payload.get("verification_notes", "")),
+            "credential_status": credential_status,
             "updated_at": verified_at,
         }
         self.store.put_record(
@@ -7587,6 +7598,7 @@ def _provider_application(
     )
     now = utc_now_iso()
     credential_bindings = _provider_credential_bindings(payload)
+    credential_status = _provider_credential_binding_status(credential_bindings)
     return {
         "application_id": str(payload.get("application_id") or deterministic_id("provider_application", {"provider_id": provider_id, "request_id": request_id})),
         "provider_id": provider_id,
@@ -7604,6 +7616,7 @@ def _provider_application(
         "public_key": str(payload.get("public_key", "")),
         "sla": dict(payload.get("sla", {})) if isinstance(payload.get("sla"), Mapping) else {},
         "credential_bindings": credential_bindings,
+        "credential_status": credential_status,
         "tenant_id": str(payload.get("tenant_id", "")),
         "workspace_id": str(payload.get("workspace_id", "")),
         "configured_by": str(payload.get("configured_by", "provider-admin")),
@@ -7621,6 +7634,7 @@ def _provider_secret_reference(payload: Mapping[str, Any], *, provider_id: str, 
     if not secret_ref:
         return {}
     bindings = _provider_credential_bindings(payload)
+    credential_status = _provider_credential_binding_status(bindings)
     return {
         "secret_ref_id": deterministic_id("provider_secret_ref", {"provider_id": provider_id, "secret_ref": secret_ref}),
         "provider_id": provider_id,
@@ -7628,6 +7642,7 @@ def _provider_secret_reference(payload: Mapping[str, Any], *, provider_id: str, 
         "secret_ref_hash": content_hash({"provider_id": provider_id, "secret_ref": secret_ref}),
         "storage": "external_secret_manager",
         "credential_bindings": bindings,
+        "credential_status": credential_status,
         "tenant_id": str(payload.get("tenant_id", "")),
         "workspace_id": str(payload.get("workspace_id", "")),
         "created_at": utc_now_iso(),
@@ -7692,6 +7707,36 @@ def _env_var_from_secret_ref(secret_ref: str) -> str:
     if "/" not in value and ":" not in value:
         return value
     return ""
+
+
+def _provider_credential_binding_status(bindings: object) -> tuple[dict[str, Any], ...]:
+    if not isinstance(bindings, Mapping):
+        return ()
+    statuses: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for key in (
+        "auth_header_value_env",
+        "execution_auth_header_value_env",
+        "outbound_signing_key_env",
+        "execution_outbound_signing_key_env",
+    ):
+        env_key = str(bindings.get(key, "")).strip()
+        if not env_key or env_key in seen:
+            continue
+        seen.add(env_key)
+        statuses.append(
+            {
+                "binding": key,
+                "env_key": env_key,
+                "required": True,
+                "configured": bool(os.environ.get(env_key, "").strip()),
+            }
+        )
+    return tuple(statuses)
+
+
+def _provider_credential_bindings_unresolved(statuses: tuple[Mapping[str, Any], ...]) -> bool:
+    return any(item.get("required") is True and item.get("configured") is not True for item in statuses)
 
 
 def _provider_with_credential_bindings(provider: Mapping[str, Any], payload: Mapping[str, Any]) -> dict[str, Any]:

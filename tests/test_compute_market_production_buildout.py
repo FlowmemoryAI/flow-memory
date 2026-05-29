@@ -255,6 +255,8 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
     assert {route["provider_id"] for route in routes} == {"provider_live_gpu_1"}
     assert all(route["dry_run_only"] is True for route in routes)
     assert all(route["verified_provider_required"] is True for route in routes)
+
+
     stored_routes = service.store.list_records(
         "compute_route",
         filters={"provider_id": "provider_live_gpu_1"},
@@ -286,6 +288,41 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
         assert "pending or probation" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("disabled provider application re-verification succeeded")
+
+
+def test_provider_verification_requires_resolved_env_binding_when_external_quotes_enabled(
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.delenv("FLOW_MEMORY_PROVIDER_GPU_1_TOKEN", raising=False)
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            external_provider_quotes_enabled=True,
+            external_provider_allowlist=("provider.example.com",),
+        ),
+    )
+
+    applied = service.apply_market_provider(_provider_application())
+    credential_status = applied["provider_application"]["credential_status"][0]
+    assert credential_status["env_key"] == "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN"
+    assert credential_status["configured"] is False
+
+    try:
+        service.verify_market_provider("provider_live_gpu_1", {"verification_notes": "contract reviewed"})
+    except ValueError as exc:
+        assert "provider credential bindings unresolved" in str(exc)
+        assert "FLOW_MEMORY_PROVIDER_GPU_1_TOKEN" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("provider verification accepted an unresolved credential binding")
+
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_GPU_1_TOKEN", "super-secret-token")
+    verified = service.verify_market_provider("provider_live_gpu_1", {"verification_notes": "contract reviewed"})
+    verified_status = verified["provider_application"]["credential_status"][0]
+    assert verified_status["configured"] is True
+    assert "super-secret-token" not in json.dumps(verified)
 
 def test_provider_reapplication_tracks_new_pending_version_without_settlement_side_effects() -> None:
     service = _service()

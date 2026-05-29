@@ -295,6 +295,20 @@ The service exposes `RateLimiter` and `CircuitBreaker` contracts with in-memory 
 
 `HTTPQuoteProvider` remains disabled unless explicitly configured. When enabled it validates scheme/host, blocks local/private network targets unless dev mode allows them, rejects redirects, enforces a max response size, injects auth headers from environment variables without logging secret values, parses only typed quote fields, hashes raw quotes, and marks stale or unknown-price responses for fail-closed policy evaluation.
 
+Provider onboarding stores only external secret references and environment variable names. The verification path recomputes `credential_status` from those bindings and, when external provider quotes or execution are enabled, refuses to verify a provider whose required credential environment variables are unresolved. Secret values are used only by outbound adapters and are never emitted in provider, route, quote, audit, or release-evidence payloads.
+
+```mermaid
+flowchart TD
+    Application[Provider application] --> SecretRef[external secret reference]
+    SecretRef --> Bindings[credential binding env names]
+    Bindings --> Status[credential_status configured true or false]
+    Status --> Verify{external quote or execution enabled?}
+    Verify -->|unresolved| Reject[verification rejected]
+    Verify -->|configured| Provider[verified provider record]
+    Provider --> Adapter[outbound quote/execution adapter]
+    Adapter --> NoLeak[secret value never returned]
+```
+
 `flow-memory compute provider-contract validate <quote.json> --json` validates provider quote samples before onboarding. Contract checks reject missing/negative/unknown prices, expired or stale quotes, provider spoofing, policy override attempts, live-settlement demands, private-key requirements, broadcast requirements, oversized responses, and disallowed assets/networks.
 
 

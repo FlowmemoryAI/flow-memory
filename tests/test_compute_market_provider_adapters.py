@@ -6,6 +6,8 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Mapping, cast
 
+import flow_memory.compute_market.adapters as adapters_module
+import flow_memory.compute_market.service as service_module
 from flow_memory.compute_market.adapters import HTTPQuoteProvider, QuoteCollector, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
@@ -266,6 +268,15 @@ def test_http_provider_honors_provider_marked_stale_quote() -> None:
     assert quotes[0].route_id == "market-token-route"
     assert quotes[0].status == "stale"
     assert quotes[0].stale is True
+
+
+def test_quote_expiry_boundary_is_consistent_between_adapter_and_service(monkeypatch: Any) -> None:
+    expires_at = "2026-05-29T12:34:56Z"
+    monkeypatch.setattr(adapters_module, "utc_now_iso", lambda: expires_at)
+    monkeypatch.setattr(service_module, "utc_now_iso", lambda: expires_at)
+
+    assert adapters_module._expired(expires_at) is True
+    assert service_module._quote_is_stale_or_expired({"expires_at": expires_at}) is True
 
 
 def test_service_external_quote_uses_provider_secret_ref_env_binding(monkeypatch: Any) -> None:

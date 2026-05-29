@@ -969,4 +969,4 @@ def _execution_error(error_code: str, message: str, *, provider_id: str, job_id:
 def _expired(expires_at: str) -> bool:
     if not expires_at:
         return False
-    return expires_at < str(utc_now_iso())
+    return expires_at <= str(utc_now_iso())

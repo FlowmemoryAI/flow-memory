@@ -6907,6 +6907,12 @@ class ComputeMarketService:
         if self.config.require_managed_sql_in_production and self.config.storage_backend_effective != "postgresql":
             failures.append("sqlite_disallowed_in_production")
         audit_exporter_status = health.get("audit_exporter_status", {})
+        checkpoint_page = self.store.list_records("audit_checkpoint_manifest", limit=100, include_archived=True)
+        latest_checkpoint = checkpoint_page.records[-1] if checkpoint_page.records else {}
+        checkpoint_stale = _checkpoint_interval_due(
+            latest_checkpoint if isinstance(latest_checkpoint, Mapping) else {},
+            self.config.audit_checkpoint_interval_seconds,
+        )
         if self.config.audit_export_required and (
             not self.config.audit_export_uri
             or not isinstance(audit_exporter_status, Mapping)
@@ -6929,6 +6935,8 @@ class ComputeMarketService:
             )
         ):
             failures.append("audit_immutable_storage_unavailable")
+        if self.config.audit_export_required and checkpoint_stale:
+            failures.append("audit_checkpoint_stale")
         if self.config.alert_routing_enabled and not self.config.alert_webhook_url.strip():
             failures.append("alert_webhook_unavailable")
         if self.config.alert_routing_enabled and self.config.alert_webhook_url.strip() and not _alert_webhook_url_allowed(self.config.alert_webhook_url.strip()):
@@ -6970,6 +6978,8 @@ class ComputeMarketService:
         health["migration_status"] = migration_status
         health["migration_plan"] = migration_plan()
         health["audit_chain"] = audit_chain
+        health["latest_audit_checkpoint"] = latest_checkpoint
+        health["audit_checkpoint_stale"] = checkpoint_stale
         health["production_safety_defaults"] = self.config.as_record()
         return health
 
@@ -7758,6 +7768,7 @@ _READINESS_FAILURE_METRICS = {
     "audit_chain_invalid": "audit_chain_verify_fail_total",
     "audit_export_unavailable": "audit_chain_verify_fail_total",
     "audit_immutable_storage_unavailable": "audit_chain_verify_fail_total",
+    "audit_checkpoint_stale": "audit_checkpoint_stale_total",
     "provider_registry_unavailable": "postgres_unavailable_total",
     "sqlite_disallowed_in_production": "postgres_unavailable_total",
     "alert_webhook_unavailable": "alert_delivery_failed_total",

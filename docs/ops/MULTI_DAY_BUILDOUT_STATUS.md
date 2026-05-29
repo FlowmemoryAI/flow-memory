@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `74f3dea Add inference marketplace auth roles`
+Latest inspected commit: `b1592e5 Add role JWT public smoke coverage`
 
 ## Current architecture
 
@@ -967,4 +967,39 @@ flowchart TD
     Role --> Sell[inference sell]
     Role --> Audit[inference audit]
     Role --> Admin[inference admin]
+```
+
+## Checkpoint 2026-05-26 Role JWT public smoke coverage
+
+Files changed:
+
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_public_smoke_script_validates_gateway_jwt_when_configured tests/test_compute_market_live_deployment.py::test_render_smoke_validates_gateway_jwt_when_configured -q` — 2 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 429 passed, 2 skipped
+- `git diff --check -- scripts/smoke_compute_market_public.ps1 scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — clean, with expected CRLF warning for the PowerShell file
+
+Commit: `b1592e5 Add role JWT public smoke coverage`.
+
+Implementation:
+
+- PowerShell public smoke JWTs can now include validated `flow_memory_roles` claims.
+- Public smoke now proves an `inference-admin` role JWT can pass the gateway and, when market-alpha smoke is enabled, authorize `/inference/market/order-book` with `inference:read`.
+- Render deployment automation has matching role-claim JWT smoke coverage so Python and PowerShell public smoke paths stay aligned.
+
+```mermaid
+flowchart TD
+    GatewayJWT[Gateway JWT] --> Explicit[Explicit compute read scope]
+    GatewayJWT --> Role[flow_memory_roles inference-admin]
+    Explicit --> Health[/compute/health smoke]
+    Role --> ScopeExpansion[Role expands to inference scopes]
+    ScopeExpansion --> Inference[/inference/market/order-book smoke]
+    Inference --> DryRun[Dry-run public market alpha remains safe]
 ```

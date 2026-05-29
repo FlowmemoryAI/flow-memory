@@ -13,6 +13,9 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true",
                 "FLOW_MEMORY_API_NONCE_FAIL_CLOSED=true",
                 "FLOW_MEMORY_API_NONCE_REQUIRE_TLS=true",
+                "FLOW_MEMORY_API_NONCE_VERIFY_TLS=true",
+                "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=redis",
+                "FLOW_MEMORY_API_NONCE_REDIS_PREFIX=flow-memory:api",
                 "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_METRICS_ENABLED=true",
@@ -180,6 +183,30 @@ def test_public_buildout_main_blocks_missing_nonce_prerequisites_before_network(
         assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK" in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted missing nonce prerequisites")
+
+
+def test_public_buildout_main_blocks_non_redis_nonce_replay_backend_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace("FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=redis\n", "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=memory\n"),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND" in message
+        assert '"expected": "redis"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted non-Redis nonce replay backend")
 
 
 def test_public_buildout_main_blocks_http_observability_sink_before_network(

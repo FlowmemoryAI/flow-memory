@@ -1505,6 +1505,24 @@ def smoke_public(
         _smoke_api_headers(api_key_value, "compute:admin", "alerts-route"),
         {"request_id": f"render_level1_smoke_alert_route_{int(time.time())}"},
     )
+    suffix = int(time.time())
+    checks["error_tracking"] = call_json(
+        "POST",
+        f"{base}/compute/errors/track",
+        _smoke_api_headers(api_key_value, "compute:admin", "error-tracking"),
+        {
+            "error_code": "render_level1_smoke_error_tracking",
+            "message": "Render Level 1 smoke exercised the production error tracking sink.",
+            "details": {"source": "deploy_compute_market_render_level1"},
+            "request_id": f"render_level1_smoke_error_tracking_{suffix}",
+        },
+    )
+    checks["otlp_export"] = call_json(
+        "POST",
+        f"{base}/admin/compute/otlp/export",
+        _smoke_api_headers(api_key_value, "compute:admin", "otlp-export"),
+        {"reset": False, "request_id": f"render_level1_smoke_otlp_export_{suffix}"},
+    )
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", _smoke_api_headers(api_key_value, "compute:read", "telemetry"))
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", _smoke_api_headers(api_key_value, "compute:audit", "audit-verify"))
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", _smoke_api_headers(api_key_value, "compute:admin", "audit-export"))
@@ -1678,6 +1696,8 @@ def smoke_public(
     audit_ok = checks["audit_verify"][0] == 200 and checks["audit_verify"][1].get("ok") is True
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
     alerts_route_payload = checks["alerts_route"][1].get("data", {}) if isinstance(checks["alerts_route"][1], dict) else {}
+    error_tracking_payload = checks["error_tracking"][1].get("data", {}) if isinstance(checks["error_tracking"][1], dict) else {}
+    otlp_export_payload = checks["otlp_export"][1].get("data", {}) if isinstance(checks["otlp_export"][1], dict) else {}
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
     audit_export_write_payload = checks["audit_export_write"][1].get("data", {}) if isinstance(checks["audit_export_write"][1], dict) else {}
     audit_export_verify_payload = checks["audit_export_verify"][1].get("data", {}) if isinstance(checks["audit_export_verify"][1], dict) else {}
@@ -1832,6 +1852,12 @@ def smoke_public(
             checks["alerts_route"][1].get("ok") is True,
             alerts_route_payload.get("routing_enabled") is True,
             int(alerts_route_payload.get("delivery_count", 0) or 0) >= 1,
+            checks["error_tracking"][0] == 200,
+            checks["error_tracking"][1].get("ok") is True,
+            error_tracking_payload.get("status") == "delivered",
+            checks["otlp_export"][0] == 200,
+            checks["otlp_export"][1].get("ok") is True,
+            otlp_export_payload.get("status") == "delivered",
             checks["telemetry"][0] == 200,
             checks["telemetry"][1].get("ok") is True,
             (not jwt_secret or checks["jwt_health"][0] == 200),
@@ -1956,6 +1982,10 @@ def smoke_public(
         "alerts": checks["alerts"][0],
         "alerts_route": checks["alerts_route"][0],
         "alerts_route_delivery_count": int(alerts_route_payload.get("delivery_count", 0) or 0),
+        "error_tracking": checks["error_tracking"][0],
+        "error_tracking_status": error_tracking_payload.get("status"),
+        "otlp_export": checks["otlp_export"][0],
+        "otlp_export_status": otlp_export_payload.get("status"),
         "telemetry": checks["telemetry"][0],
     }
 

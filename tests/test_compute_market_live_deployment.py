@@ -714,6 +714,10 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     "live_trading_enabled": False,
                 },
             }
+        if url.endswith("/compute/errors/track"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "event_id": "error_smoke"}}
+        if url.endswith("/admin/compute/otlp/export"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "export_id": "otlp_smoke"}}
         if url.endswith("/compute/alerts/route"):
             return 200, {"ok": True, "data": {"routing_enabled": True, "delivery_count": 1}}
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
@@ -754,6 +758,10 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_role_health"] == 200
     assert result["statuses"]["legacy_tenant_header"] == 403
     assert result["statuses"]["alerts_route"] == 200
+    assert result["statuses"]["error_tracking"] == 200
+    assert result["statuses"]["otlp_export"] == 200
+    assert result["error_tracking_status"] == "delivered"
+    assert result["otlp_export_status"] == "delivered"
     assert result["audit_chain_monitor_export_ok"] is True
     assert result["audit_chain_monitor_export_event_count"] == 3
     assert result["postgres_idempotency_nonunique_indexes"] == ()
@@ -790,7 +798,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 23
+    assert len(authenticated_headers) == 25
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
@@ -973,6 +981,10 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                     "circuit_breaker_fail_closed": True,
                 },
             }
+        if url.endswith("/compute/errors/track"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "event_id": "error_smoke"}}
+        if url.endswith("/admin/compute/otlp/export"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "export_id": "otlp_smoke"}}
         if url.endswith("/compute/alerts/route"):
             return 200, {"ok": True, "data": {"routing_enabled": True, "delivery_count": 1}}
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
@@ -1049,6 +1061,14 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "Path '/compute/telemetry'" in smoke_script
     assert "Path '/compute/alerts/route'" in smoke_script
     assert "alerts route did not deliver to the configured sink" in smoke_script
+    assert "Path '/compute/errors/track'" in smoke_script
+    assert "error tracking sink delivery failed" in smoke_script
+    assert "Path '/admin/compute/otlp/export'" in smoke_script
+    assert "OTLP telemetry export delivery failed" in smoke_script
+    assert 'checks["error_tracking"] = call_json(' in render_script
+    assert 'checks["otlp_export"] = call_json(' in render_script
+    assert 'error_tracking_payload.get("status") == "delivered"' in render_script
+    assert 'otlp_export_payload.get("status") == "delivered"' in render_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "metrics")' in render_script
     assert "Path '/compute/audit/export'" in smoke_script
     assert "audit_export_write_manifest_hash_present" in smoke_script

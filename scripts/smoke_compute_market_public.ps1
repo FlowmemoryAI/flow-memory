@@ -537,6 +537,25 @@ Assert-True ($alertsRoute.Json.ok -eq $true) 'alerts route endpoint did not retu
 $alertsRouteData = $alertsRoute.Json.data
 Assert-True ($alertsRouteData.routing_enabled -eq $true) 'alerts route did not report routing_enabled=true.'
 Assert-True ([int]$alertsRouteData.delivery_count -ge 1) 'alerts route did not deliver to the configured sink.'
+$errorTracking = Invoke-ComputeMarketRequest -Method POST -Path '/compute/errors/track' -Scopes 'compute:admin' -Body @{
+    error_code = 'public_smoke_error_tracking'
+    message = 'Public smoke exercised the production error tracking sink.'
+    details = @{ source = 'smoke_compute_market_public' }
+    request_id = "public-smoke-error-tracking-$([Guid]::NewGuid().ToString('N'))"
+}
+Assert-Status -Response $errorTracking -Expected 200 -Name 'error tracking'
+Assert-True ($errorTracking.Json.ok -eq $true) 'error tracking endpoint did not return ok=true.'
+$errorTrackingData = $errorTracking.Json.data
+Assert-True ($errorTrackingData.status -eq 'delivered') 'error tracking sink delivery failed.'
+
+$otlpExport = Invoke-ComputeMarketRequest -Method POST -Path '/admin/compute/otlp/export' -Scopes 'compute:admin' -Body @{
+    reset = $false
+    request_id = "public-smoke-otlp-export-$([Guid]::NewGuid().ToString('N'))"
+}
+Assert-Status -Response $otlpExport -Expected 200 -Name 'OTLP export'
+Assert-True ($otlpExport.Json.ok -eq $true) 'OTLP export endpoint did not return ok=true.'
+$otlpExportData = $otlpExport.Json.data
+Assert-True ($otlpExportData.status -eq 'delivered') 'OTLP telemetry export delivery failed.'
 
 $telemetry = Invoke-ComputeMarketRequest -Method GET -Path '/compute/telemetry' -Scopes 'compute:read'
 Assert-Status -Response $telemetry -Expected 200 -Name 'telemetry'

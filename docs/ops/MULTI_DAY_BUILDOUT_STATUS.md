@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `46c5c43 Harden capacity reservation accounting`
+Latest inspected commit: `df0c3bb Add marketplace alpha public smoke option`
 
 ## Current architecture
 
@@ -589,4 +589,39 @@ flowchart TD
     Reservation --> Release[Release request]
     Release --> Restore[Restore available units once]
     Restore --> Utilization[Active utilization excludes released reservations]
+```
+
+## Checkpoint 2026-05-26 Public marketplace alpha smoke option
+
+Files changed:
+
+- `scripts/smoke_compute_market_public.ps1`
+- `tests/test_compute_market_live_deployment.py`
+- `docs/ops/PUBLIC_DEPLOYMENT_BLOCKERS.md`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_public_smoke_script_validates_gateway_jwt_when_configured -q` — 1 passed
+- `python -m ruff check tests/test_compute_market_live_deployment.py` — OK
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- scripts/smoke_compute_market_public.ps1 tests/test_compute_market_live_deployment.py` — clean except Git line-ending warning for the PowerShell file
+
+Commit: `df0c3bb Add marketplace alpha public smoke option`.
+
+Implementation:
+
+- Public Level 1 smoke remains compute-first by default.
+- Optional `-IncludeMarketAlpha` adds inference opportunity-cost, inference order-book, OpenAI-compatible proxy, capacity inventory, and futures-market checks.
+- Optional marketplace alpha checks assert dry-run and no-funds safety fields instead of implying live provider, billing, settlement, or futures readiness.
+
+```mermaid
+flowchart TD
+    Smoke[Public smoke script] --> Level1[Compute Level 1 gates]
+    Smoke --> Optional[IncludeMarketAlpha optional flag]
+    Optional --> Inference[Inference Market dry-run checks]
+    Optional --> Proxy[One-line proxy dry-run check]
+    Optional --> Capacity[Capacity inventory dry-run check]
+    Optional --> Futures[Futures simulator non-live check]
+    Futures --> Safety[No live trading or funds movement]
 ```

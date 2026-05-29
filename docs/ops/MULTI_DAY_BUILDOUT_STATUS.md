@@ -1,8 +1,8 @@
 # Multi-day buildout status
 
 Date: 2026-05-26
-Branch: current checked-out build branch
-Latest inspected commit: `7e95359 Reject placeholder provider endpoints in production`
+Branch: `work/squire-v2`
+Latest inspected commit: `7819d2c Persist market simulator records`
 
 ## Current architecture
 
@@ -107,3 +107,92 @@ Files added:
 Tests run: pending for this checkpoint.
 Commit: pending.
 Next phase: research artifacts and inference market foundation.
+
+## Checkpoint 2026-05-26 Inference, capacity, and futures alpha
+
+Files changed:
+
+- `src/flow_memory/inference_market/`
+- `src/flow_memory/capacity_market/`
+- `src/flow_memory/futures_market/`
+- `src/flow_memory/api/router.py`
+- `src/flow_memory/api/manifest.py`
+- `src/flow_memory/api/scopes.py`
+- `src/flow_memory/cli.py`
+- `docs/API_SNAPSHOT.json`
+- `docs/openapi/flow-memory.openapi.json`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m pytest tests/test_inference_capacity_futures_markets.py tests/test_api_openapi_snapshot.py tests/test_api_snapshot.py tests/test_compute_market_naming.py -q`
+- `python -m pytest tests/test_api_auth.py tests/test_api_auth_scopes.py -q`
+- `python -m ruff check src/flow_memory/inference_market src/flow_memory/capacity_market src/flow_memory/futures_market src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py`
+- `python scripts/check_compute_market_production.py`
+- `python -m mypy src tests scripts --config-file pyproject.toml`
+
+Commits:
+
+- `2f88883 Add inference capacity futures simulators`
+
+Safety status:
+
+- Inference, capacity, forward-capacity, and futures behavior remains dry-run or simulation-only.
+- External providers remain disabled by default.
+- Futures remain non-live with legal and compliance review flags.
+
+```mermaid
+flowchart TD
+    Inference[Inference Market Alpha] --> AgentEconomy[Run vs sell planner]
+    Inference --> Proxy[OpenAI-compatible fake proxy]
+    AgentEconomy --> Usage[Usage and ROI ledger]
+    Capacity[Capacity Market Simulator] --> Holds[Holds and reservations]
+    Capacity --> Forwards[Forward capacity simulation]
+    Futures[GPU Futures Simulator] --> Orders[Simulated orders]
+    Futures --> Risk[Simulation risk checks]
+    Proxy --> Safety[Dry-run safety envelope]
+    Holds --> Safety
+    Forwards --> Safety
+    Orders --> Safety
+```
+
+## Checkpoint 2026-05-26 Persistence follow-up
+
+Files changed:
+
+- `src/flow_memory/compute_market/storage.py`
+- `src/flow_memory/compute_market/storage_backends.py`
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/capacity_market/service.py`
+- `src/flow_memory/futures_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/capacity_market src/flow_memory/futures_market src/flow_memory/compute_market src/flow_memory/api tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+- `git diff --check -- src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_inference_capacity_futures_markets.py`
+
+Commits:
+
+- `7819d2c Persist market simulator records`
+
+Blockers:
+
+- Public Level 1 deployment still requires external Render credentials, managed Postgres, managed Redis, public URL, API secret, object-lock audit URI, and production provider allowlist.
+- Live provider quotes, live billing, live settlement, and live futures remain intentionally blocked.
+
+```mermaid
+flowchart TD
+    MarketServices[Market simulator services] --> Store[ComputeMarketStore JSON records]
+    Store --> SQLite[SQLite local store]
+    Store --> Postgres[Postgres schema generator]
+    InferenceRecords[Inference record families] --> Store
+    CapacityRecords[Capacity and forward record families] --> Store
+    FuturesRecords[Futures simulation record families] --> Store
+    Postgres --> ManagedDB[Managed Postgres when credentials exist]
+    SQLite --> LocalTests[Persistence tests]
+```

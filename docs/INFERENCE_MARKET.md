@@ -1,6 +1,6 @@
 # Flow Memory Inference Market
 
-Flow Memory Inference Market is a dry-run marketplace layer for inference credit resale, discounted routing, demand aggregation, and agent economic decisions. Squire and UsePod are reference patterns only; Flow Memory is the product.
+Flow Memory Inference Market is a dry-run marketplace layer for inference credit resale, discounted routing, demand aggregation, and agent economic decisions. Flow Memory is the product and the public naming surface.
 
 ## Architecture
 

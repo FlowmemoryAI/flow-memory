@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `a032aa6 Gate public buildout validation on schema evidence`
+Latest inspected commit: `72262c8 Verify render smoke plan replay`
 
 ## Current architecture
 
@@ -1251,4 +1251,38 @@ flowchart TD
     Replay --> Pass
     Nonce --> Pass
     AuditExport --> Pass
+```
+
+## Checkpoint 2026-05-26 Render smoke plan replay gate
+
+Files changed:
+
+- `scripts/deploy_compute_market_render_level1.py`
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_render_smoke_validates_gateway_jwt_when_configured -q` — 1 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 437 passed, 2 skipped
+- `git diff --check -- scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — clean
+
+Commit: `72262c8 Verify render smoke plan replay`.
+
+Implementation:
+
+- Render Level 1 smoke now submits a second `/compute/plan` request with the same idempotency key and requires `idempotent_replay=true`.
+- The smoke gate requires the replayed `decision_id` to match the original plan before reporting a successful public deployment.
+- Smoke output exposes `plan_idempotent_replay` as deployment evidence alongside Postgres, Redis, audit, JWT, metrics, and safety flags.
+
+```mermaid
+flowchart TD
+    RenderDeploy[Render Level 1 deploy] --> Smoke[Post-deploy smoke]
+    Smoke --> Plan[First compute plan]
+    Plan --> Replay[Same idempotency key replay]
+    Replay --> Match{Decision ID matches?}
+    Match -->|Yes| Continue[Continue public readiness gates]
+    Match -->|No| Fail[Fail deployment smoke]
 ```

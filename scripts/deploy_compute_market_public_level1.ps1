@@ -466,6 +466,15 @@ $safetyExpectations = @{
     FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'
 }
 
+$forbiddenLevel1ConfiguredKeys = @(
+    'FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY',
+    'FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET',
+    'FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL',
+    'FLOW_MEMORY_BILLING_STRIPE_CANCEL_URL',
+    'FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT',
+    'FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID'
+)
+
 $badSafety = New-Object System.Collections.Generic.List[string]
 foreach ($key in $safetyExpectations.Keys) {
     if (-not $envValues.Contains($key) -or ([string]$envValues[$key]).ToLowerInvariant() -ne $safetyExpectations[$key]) {
@@ -476,6 +485,21 @@ if ($badSafety.Count -gt 0) {
     Write-Status -Status 'blocked_invalid_safety_config' -Fields @{
         public_url = ''
         invalid_keys = @($badSafety)
+    }
+    exit 3
+}
+
+$forbiddenConfigured = New-Object System.Collections.Generic.List[string]
+foreach ($key in $forbiddenLevel1ConfiguredKeys) {
+    if ($envValues.Contains($key) -and -not [string]::IsNullOrWhiteSpace([string]$envValues[$key])) {
+        $forbiddenConfigured.Add($key)
+    }
+}
+if ($forbiddenConfigured.Count -gt 0) {
+    Write-Status -Status 'blocked_forbidden_level1_config' -Fields @{
+        public_url = ''
+        forbidden_keys = @($forbiddenConfigured)
+        expected = 'empty_for_level1'
     }
     exit 3
 }

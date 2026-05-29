@@ -71,6 +71,14 @@ _LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED": "true",
     "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
 }
+_LEVEL1_FORBIDDEN_CONFIGURED_KEYS = (
+    "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY",
+    "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET",
+    "FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL",
+    "FLOW_MEMORY_BILLING_STRIPE_CANCEL_URL",
+    "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT",
+    "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID",
+)
 _OBSERVABILITY_HTTPS_URL_KEYS = (
     "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
@@ -350,6 +358,10 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
         actual = values.get(key, "").strip().lower()
         if actual and actual != expected:
             invalid.append({"key": key, "actual": actual, "expected": expected})
+
+    for key in _LEVEL1_FORBIDDEN_CONFIGURED_KEYS:
+        if values.get(key, "").strip():
+            invalid.append({"key": key, "actual": "configured", "expected": "empty_for_level1"})
 
     database_url = values.get("FLOW_MEMORY_COMPUTE_DATABASE_URL", "").strip()
     if database_url and not has_infra_placeholder(database_url):

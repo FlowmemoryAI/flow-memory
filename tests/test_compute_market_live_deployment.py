@@ -376,6 +376,30 @@ def test_render_deploy_blocks_unsafe_level1_env_overrides() -> None:
     assert blocked.value.code == 38
 
 
+def test_render_deploy_blocks_level1_billing_and_settlement_material(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.assert_level1_safety_settings(
+            {
+                "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY": "sk_live_forbidden",
+                "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET": "whsec_forbidden",
+                "FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL": "https://billing.example.test/success",
+                "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT": "mainnet",
+                "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID": "review-123",
+            }
+        )
+
+    payload = json.loads(capsys.readouterr().out)
+    invalid = {item["key"]: item for item in payload["invalid_values"]}
+    assert blocked.value.code == 38
+    assert invalid["FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY"]["actual"] == "configured"
+    assert invalid["FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET"]["expected"] == "empty_for_level1"
+    assert invalid["FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL"]["expected"] == "empty_for_level1"
+    assert invalid["FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT"]["actual"] == "configured"
+    assert invalid["FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID"]["expected"] == "empty_for_level1"
+    assert "sk_live_forbidden" not in json.dumps(payload)
+    assert "whsec_forbidden" not in json.dumps(payload)
+
+
 def test_render_deploy_blocks_disabled_level1_control_planes(capsys: Any) -> None:
     with pytest.raises(SystemExit) as blocked:
         render_deploy.assert_level1_safety_settings(
@@ -779,6 +803,11 @@ def test_render_blueprint_preserves_billing_safety_defaults() -> None:
     assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'" in public_script
     assert "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'" in public_script
     assert "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED = 'false'" in public_script
+    assert "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY" in public_script
+    assert "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET" in public_script
+    assert "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT" in public_script
+    assert "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID" in public_script
+    assert "blocked_forbidden_level1_config" in public_script
 
 
 def test_compute_market_deployment_runbook_covers_live_drills() -> None:

@@ -329,6 +329,64 @@ def test_public_buildout_main_blocks_external_execution_before_network(
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted external provider execution in Level 1 mode")
 
+
+def test_public_buildout_main_blocks_billing_provider_material_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        + "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY=sk_live_forbidden\n"
+        + "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET=whsec_forbidden\n",
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY" in message
+        assert "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET" in message
+        assert '"actual": "configured"' in message
+        assert '"expected": "empty_for_level1"' in message
+        assert "sk_live_forbidden" not in message
+        assert "whsec_forbidden" not in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted billing provider material in Level 1 mode")
+
+
+def test_public_buildout_main_blocks_settlement_identifiers_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        + "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT=mainnet\n"
+        + "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID=review-123\n",
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT" in message
+        assert "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID" in message
+        assert '"expected": "empty_for_level1"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted settlement identifiers in Level 1 mode")
+
+
 def test_public_buildout_main_blocks_missing_observability_sinks_before_network(
     tmp_path: Any, monkeypatch: Any
 ) -> None:

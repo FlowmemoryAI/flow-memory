@@ -77,6 +77,14 @@ LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED": "false",
     "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
 }
+LEVEL1_FORBIDDEN_CONFIGURED_KEYS = (
+    "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY",
+    "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET",
+    "FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL",
+    "FLOW_MEMORY_BILLING_STRIPE_CANCEL_URL",
+    "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT",
+    "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID",
+)
 DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST = os.environ.get("FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", "").strip()
 DEFAULT_API_JWT_HS256_SECRET = os.environ.get("FLOW_MEMORY_API_JWT_HS256_SECRET", "").strip()
 DEFAULT_API_JWT_ISSUER = os.environ.get("FLOW_MEMORY_API_JWT_ISSUER", "").strip()
@@ -304,6 +312,11 @@ def assert_level1_safety_settings(values: dict[str, str]) -> None:
         for key, expected in LEVEL1_EXPECTED_BOOLEAN_SETTINGS.items()
         if key in values and values[key].strip() and normalized_bool_text(values[key]) != expected
     ]
+    invalid.extend(
+        {"key": key, "expected": "empty_for_level1", "actual": "configured"}
+        for key in LEVEL1_FORBIDDEN_CONFIGURED_KEYS
+        if values.get(key, "").strip()
+    )
     if invalid:
         emit(
             "blocked_unsafe_level1_config",

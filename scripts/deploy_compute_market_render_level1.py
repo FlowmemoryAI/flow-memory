@@ -1277,6 +1277,7 @@ def smoke_public(
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", _smoke_api_headers(api_key_value, "compute:audit", "audit-verify"))
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", _smoke_api_headers(api_key_value, "compute:admin", "audit-export"))
     checks["audit_export_write"] = call_json("POST", f"{base}/compute/audit/export", _smoke_api_headers(api_key_value, "compute:audit", "audit-export-write"), {"chain_id": "all"})
+    checks["audit_export_verify"] = call_json("POST", f"{base}/compute/audit/verify-export", _smoke_api_headers(api_key_value, "compute:audit", "audit-export-verify"), {})
     checks["admin_storage_diagnostics"] = call_json("GET", f"{base}/admin/storage/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "storage-diagnostics"))
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "redis-diagnostics"))
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
@@ -1381,6 +1382,7 @@ def smoke_public(
     root_payload = checks["root"][1].get("data", {}) if isinstance(checks["root"][1], dict) else {}
     audit_export_payload = checks["admin_audit_export"][1].get("data", {}) if isinstance(checks["admin_audit_export"][1], dict) else {}
     audit_export_write_payload = checks["audit_export_write"][1].get("data", {}) if isinstance(checks["audit_export_write"][1], dict) else {}
+    audit_export_verify_payload = checks["audit_export_verify"][1].get("data", {}) if isinstance(checks["audit_export_verify"][1], dict) else {}
     audit_exporter_status = audit_export_payload.get("audit_exporter_status", {})
     audit_exporter = audit_exporter_status.get("exporter") if isinstance(audit_exporter_status, dict) else ""
     audit_export_is_immutable = audit_export_payload.get("immutable") is True
@@ -1509,6 +1511,10 @@ def smoke_public(
             audit_export_write_payload.get("ok") is True,
             bool(audit_export_write_payload.get("manifest_hash")),
             int(audit_export_write_payload.get("event_count", 0) or 0) >= 1,
+            checks["audit_export_verify"][0] == 200,
+            audit_export_verify_payload.get("ok") is True,
+            bool(audit_export_verify_payload.get("checkpoint_hash")),
+            int(audit_export_verify_payload.get("event_count", 0) or 0) >= 1,
             checks["admin_storage_diagnostics"][0] == 200,
             isinstance(schema_verification, dict),
             schema_verification.get("ok") is True,
@@ -1550,6 +1556,8 @@ def smoke_public(
         "audit_export_s3_object_lock": audit_export_is_s3_object_lock,
         "audit_export_write": checks["audit_export_write"][0],
         "audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash")),
+        "audit_export_readback": checks["audit_export_verify"][0],
+        "audit_export_readback_checkpoint_hash_present": bool(audit_export_verify_payload.get("checkpoint_hash")),
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
         "postgres_required_table_count": schema_required_table_count,
         "postgres_required_index_count": schema_required_index_count,

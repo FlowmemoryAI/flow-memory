@@ -6404,16 +6404,14 @@ class ComputeMarketService:
 
     def audit_verify_export(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         path = str(payload.get("path") or payload.get("out") or "")
-        if not path:
-            raise ValueError("audit verify-export requires --path")
-        result = verify_audit_export(path)
+        result = verify_audit_export(path) if path else self.audit_exporter.verify_export()
         self._audit(
             "compute.audit.export_verified",
             payload,
             result="completed" if result.ok else "failed",
             reason_codes=() if result.ok else (result.error_code,),
         )
-        return result.as_record()
+        return cast(Mapping[str, Any], result.as_record())
 
     def _persist_audit_checkpoint(
         self,

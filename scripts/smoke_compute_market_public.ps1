@@ -508,6 +508,13 @@ Assert-True (($auditExportWrite.Json.ok -eq $true) -and ($auditExportWriteData.o
 Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)) 'audit export write did not return a manifest_hash.'
 Assert-True ([int]$auditExportWriteData.event_count -ge 1) 'audit export write did not export any audit events.'
 
+$auditExportReadback = Invoke-ComputeMarketRequest -Method POST -Path '/compute/audit/verify-export' -Scopes 'compute:audit' -Body @{}
+Assert-Status -Response $auditExportReadback -Expected 200 -Name 'audit export readback'
+$auditExportReadbackData = $auditExportReadback.Json.data
+Assert-True (($auditExportReadback.Json.ok -eq $true) -and ($auditExportReadbackData.ok -eq $true)) 'audit export readback did not return ok=true.'
+Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditExportReadbackData.checkpoint_hash)) 'audit export readback did not return a checkpoint_hash.'
+Assert-True ([int]$auditExportReadbackData.event_count -ge 1) 'audit export readback did not verify any audit events.'
+
 $storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
 Assert-Status -Response $storageDiagnostics -Expected 200 -Name 'admin storage diagnostics'
 Assert-True ($storageDiagnostics.Json.data.ok -eq $true) 'admin storage diagnostics did not return ok=true.'

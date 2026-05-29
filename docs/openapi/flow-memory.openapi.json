@@ -3275,7 +3275,7 @@
             "description": "Local response"
           }
         },
-        "summary": "Verify an exported compute audit checkpoint",
+        "summary": "Verify the configured audit export readback or a local exported checkpoint file",
         "tags": [
           "compute"
         ]

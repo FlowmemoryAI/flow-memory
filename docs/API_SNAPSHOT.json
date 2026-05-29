@@ -1,7 +1,7 @@
 {
   "endpoint_count": 259,
-  "manifest_hash": "c3d1d385528619efe41426696bc95e97c2fc44a7b1f21f8b499a9ce2e0ea92ec",
-  "openapi_hash": "80ebcb62c19bdd4ee269ac1933ee6a7a9969d6c4a924ca8dad3ac74d6bc46ba4",
+  "manifest_hash": "57df2b2d9fc6009376489a76d64096b60d597d2fbffa73eaecb0c9ec825152f4",
+  "openapi_hash": "70f913bae4523d93fbdb10bfe72ea8829d33fc4abafcd139b4f97c2cf00cce1b",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",

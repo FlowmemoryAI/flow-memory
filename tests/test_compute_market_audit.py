@@ -246,6 +246,7 @@ def test_audit_export_uses_configured_exporter_when_out_is_omitted(tmp_path: Any
     service.plan({"task": "configured audit export"})
 
     exported = service.audit_export({"chain_id": "all"})
+    verified = service.audit_verify_export({})
     readiness = service.readiness()
 
     assert exported["ok"] is True
@@ -253,6 +254,9 @@ def test_audit_export_uses_configured_exporter_when_out_is_omitted(tmp_path: Any
     assert out.exists()
     assert readiness["ready"] is True
     assert readiness["audit_exporter_status"]["configured"] is True
+    assert verified["ok"] is True
+    assert verified["checkpoint_hash"] == exported["checkpoint"]["checkpoint_hash"]
+    assert verified["event_count"] == exported["event_count"]
 
 
 def test_audit_exporter_factory_resolves_file_s3_and_empty(tmp_path: Any) -> None:

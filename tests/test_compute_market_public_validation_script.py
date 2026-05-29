@@ -576,6 +576,8 @@ def _passing_public_buildout_call_json(
             return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/audit/export"):
             return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 2}}
+        if url.endswith("/compute/audit/verify-export"):
+            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
         if url.endswith("/compute/providers/external/quote"):
             return 200, {"ok": True, "data": {"ok": False}}
         if url.endswith("/market/capacity/reserve"):
@@ -907,6 +909,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             assert scopes == "compute:audit"
             assert body == {"chain_id": "all"}
             return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 2}}
+        if url.endswith("/compute/audit/verify-export"):
+            assert method == "POST"
+            assert scopes == "compute:audit"
+            assert body == {}
+            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
         if url.endswith("/market/capacity/reserve"):
             return 200, {"ok": True, "data": {"reservation": {"reservation_id": "res_public"}}}
         if url.endswith("/compute/providers/external/quote"):
@@ -1041,6 +1048,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                     "audit_exporter_status": {"exporter": "s3_object_lock", "immutable": True},
                 },
             }
+        if url.endswith("/compute/audit/verify-export"):
+            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
         return 200, {"ok": True, "data": {}}
 
     def fake_call_text(
@@ -1075,6 +1084,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["audit_export_write"] == 200
     assert result["audit_export_write_manifest_hash_present"] is True
     assert result["audit_export_write_event_count"] == 2
+    assert result["audit_export_readback_checkpoint_hash_present"] is True
+    assert result["audit_export_readback_event_count"] == 2
     assert result["plan_idempotent_replay"] is True
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
     assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT

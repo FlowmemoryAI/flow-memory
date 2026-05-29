@@ -734,6 +734,7 @@ def validate(
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", headers_admin)
     checks["admin_audit_export"] = call_json("GET", f"{base}/admin/audit/export", headers_admin)
     checks["audit_export_write"] = call_json("POST", f"{base}/compute/audit/export", headers_audit, {"chain_id": "all"})
+    checks["audit_export_verify"] = call_json("POST", f"{base}/compute/audit/verify-export", headers_audit, {})
 
     root_data = data(checks["root"][1])
     readiness = data(checks["readiness"][1])
@@ -766,6 +767,7 @@ def validate(
 
     audit_export_status = data(checks["admin_audit_export"][1])
     audit_export_write = data(checks["audit_export_write"][1])
+    audit_export_verify = data(checks["audit_export_verify"][1])
     audit_exporter_status = audit_export_status.get("audit_exporter_status", {})
     audit_exporter_status_map = audit_exporter_status if isinstance(audit_exporter_status, Mapping) else {}
     audit_exporter_name = str(audit_exporter_status_map.get("exporter", ""))
@@ -886,6 +888,13 @@ def validate(
         and int(audit_export_write.get("event_count", 0) or 0) >= 1,
         "audit export write failed",
     )
+    require(
+        checks["audit_export_verify"][0] == 200
+        and audit_export_verify.get("ok") is True
+        and bool(audit_export_verify.get("checkpoint_hash"))
+        and int(audit_export_verify.get("event_count", 0) or 0) >= 1,
+        "audit export readback verification failed",
+    )
     if require_immutable_audit:
         require(
             audit_export_is_immutable and audit_exporter_name == "s3_object_lock",
@@ -934,6 +943,8 @@ def validate(
         "audit_export_immutable": audit_export_status.get("immutable"),
         "audit_export_write_manifest_hash_present": bool(audit_export_write.get("manifest_hash")),
         "audit_export_write_event_count": audit_export_write.get("event_count"),
+        "audit_export_readback_checkpoint_hash_present": bool(audit_export_verify.get("checkpoint_hash")),
+        "audit_export_readback_event_count": audit_export_verify.get("event_count"),
         "postgres_required_table_count": schema_count_evidence.get("required_table_count"),
         "postgres_minimum_table_count": schema_count_evidence.get("minimum_table_count"),
         "postgres_required_index_count": schema_count_evidence.get("required_index_count"),

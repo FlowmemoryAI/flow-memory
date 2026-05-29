@@ -831,3 +831,40 @@ flowchart TD
     Embeddings --> FakeProvider
     FakeProvider --> Safety[Dry-run no funds no broadcast]
 ```
+
+## Checkpoint 2026-05-26 Marketplace unsafe payload hardening
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/capacity_market/service.py`
+- `src/flow_memory/futures_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q` — 17 passed
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/capacity_market src/flow_memory/futures_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py tests/test_inference_capacity_futures_markets.py` — clean
+
+Commit: `3169e95 Harden marketplace unsafe payload checks`.
+
+Implementation:
+
+- Unsafe token matching now reports the more specific `wallet_private_key` token before the shorter `private_key` substring across inference, capacity, and futures surfaces.
+- Inference proxy safety coverage now verifies seed phrase rejection.
+- Capacity and futures safety coverage now verifies wallet private key, live settlement, private key, and leverage rejection.
+
+```mermaid
+flowchart TD
+    Payload[Marketplace request payload] --> UnsafeScan[Unsafe token scan]
+    UnsafeScan --> Inference[Inference Market]
+    UnsafeScan --> Capacity[Capacity Market]
+    UnsafeScan --> Futures[Futures Simulator]
+    Inference --> Deny[Reject unsafe request]
+    Capacity --> Deny
+    Futures --> Deny
+    Deny --> SafeAction[Return safe denial path]
+```

@@ -504,6 +504,7 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'
     FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED = 'false'
+    FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED = 'true'
     FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED = 'false'
 }
 
@@ -620,6 +621,7 @@ $composeChecks = @{
     private_key_inputs_false = 'FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED:\s+"?false"?'
     external_provider_quotes_false = 'FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED:\s+"?false"?'
     external_provider_execution_false = 'FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED:\s+"?false"?'
+    provider_callback_signing_required_true = 'FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED:\s+"?true"?'
     redis_limiter_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI:\s+\S+'
     redis_circuit_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI:\s+\S+'
     redis_multi_instance_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI:\s+\S+'

@@ -172,13 +172,19 @@ def test_provider_callback_ip_allowlist_config_from_env() -> None:
         database_url=":memory:",
         compute_market_mode="test",
         provider_callback_ip_allowlist=("203.0.113.0/24", "2001:db8::1"),
+        provider_callback_signing_required=True,
     )
     from_env = config_from_env(
-        {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "203.0.113.0/24,2001:db8::1"}
+        {
+            "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "203.0.113.0/24,2001:db8::1",
+            "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED": "true",
+        }
     )
 
     assert config.as_record()["provider_callback_ip_allowlist_configured"] is True
+    assert config.as_record()["provider_callback_signing_required"] is True
     assert from_env.provider_callback_ip_allowlist == ("203.0.113.0/24", "2001:db8::1")
+    assert from_env.provider_callback_signing_required is True
 
 
 def test_provider_callback_ip_allowlist_rejects_open_or_missing_production_execution() -> None:
@@ -192,6 +198,7 @@ def test_provider_callback_ip_allowlist_rejects_open_or_missing_production_execu
         external_provider_execution_enabled=True,
         external_provider_allowlist=("provider.example.com",),
         provider_callback_ip_allowlist=("203.0.113.10",),
+        provider_callback_signing_required=True,
     ).validate()
     unsafe_config = ComputeMarketConfig(
         database_url=":memory:",
@@ -200,7 +207,9 @@ def test_provider_callback_ip_allowlist_rejects_open_or_missing_production_execu
     unsafe_gateway = HttpApiConfig(provider_callback_ip_allowlist=("::/0", "not-an-ip")).validate()
 
     assert "external_provider_execution_enabled requires provider_callback_ip_allowlist" in missing
+    assert "external_provider_execution_enabled requires provider_callback_signing_required" in missing
     assert "external_provider_execution_enabled requires provider_callback_ip_allowlist" not in valid
+    assert "external_provider_execution_enabled requires provider_callback_signing_required" not in valid
     assert "provider_callback_ip_allowlist must not include world-open CIDR ranges" in unsafe_config
     assert "provider_callback_ip_allowlist must not include unspecified IP addresses" in unsafe_config
     assert "provider_callback_ip_allowlist entry must be an IP address or CIDR: not-an-ip" in unsafe_config

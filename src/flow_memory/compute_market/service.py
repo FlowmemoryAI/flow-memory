@@ -1253,6 +1253,7 @@ class ComputeMarketService:
             provider_id,
             route_id,
             payload,
+            signing_required=self.config.provider_callback_signing_required,
         )
         if callback_signature_verification.get("ok") is not True:
             return self._provider_callback_signature_rejection(
@@ -3528,6 +3529,7 @@ class ComputeMarketService:
                 job,
                 payload,
                 callback_action="complete",
+                signing_required=self.config.provider_callback_signing_required,
             )
             if callback_signature_verification.get("ok") is not True:
                 return self._provider_callback_signature_rejection(
@@ -4186,6 +4188,7 @@ class ComputeMarketService:
                 job,
                 payload,
                 callback_action="fail",
+                signing_required=self.config.provider_callback_signing_required,
             )
             if callback_signature_verification.get("ok") is not True:
                 return self._provider_callback_signature_rejection(
@@ -4785,6 +4788,7 @@ class ComputeMarketService:
             job,
             payload,
             callback_action="heartbeat",
+            signing_required=self.config.provider_callback_signing_required,
         )
         if callback_signature_verification.get("ok") is not True:
             return self._provider_callback_signature_rejection(
@@ -8616,6 +8620,7 @@ def _verify_provider_state_callback(
     payload: Mapping[str, Any],
     *,
     callback_action: str,
+    signing_required: bool = False,
 ) -> Mapping[str, Any]:
     provider_id = str(job.get("provider_id", ""))
     route_id = str(job.get("route_id", ""))
@@ -8624,6 +8629,18 @@ def _verify_provider_state_callback(
         provider = {}
     key = _provider_callback_signing_key(provider)
     if key is None:
+        if signing_required:
+            return {
+                "ok": False,
+                "required": True,
+                "error": {
+                    "error_code": "provider_callback.signing_key_not_configured",
+                    "message": "Provider state callback signing is required but the provider has no callback signing key configured.",
+                    "provider_id": provider_id,
+                    "route_id": route_id,
+                    "callback_action": callback_action,
+                },
+            }
         return {"ok": True, "required": False}
     signature = payload.get("signature", payload.get("verification", {}))
     if not isinstance(signature, Mapping) or not signature:
@@ -8729,12 +8746,26 @@ def _verify_provider_quote_ingress_callback(
     provider_id: str,
     route_id: str,
     payload: Mapping[str, Any],
+    *,
+    signing_required: bool = False,
 ) -> Mapping[str, Any]:
     provider = store.get_record("compute_provider", provider_id) or {}
     if not isinstance(provider, Mapping):
         provider = {}
     key = _provider_callback_signing_key(provider)
     if key is None:
+        if signing_required:
+            return {
+                "ok": False,
+                "required": True,
+                "error": {
+                    "error_code": "provider_callback.signing_key_not_configured",
+                    "message": "Provider quote ingress callback signing is required but the provider has no callback signing key configured.",
+                    "provider_id": provider_id,
+                    "route_id": route_id,
+                    "callback_action": "quote_ingest",
+                },
+            }
         return {"ok": True, "required": False}
     signature = payload.get("callback_signature", payload.get("callback_verification", {}))
     if not isinstance(signature, Mapping) or not signature:

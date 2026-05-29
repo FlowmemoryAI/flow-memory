@@ -27,6 +27,7 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED=false",
                 "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED=true",
                 "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.ai/compute-market",
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET=alert-routing-secret",
@@ -951,6 +952,7 @@ def _passing_public_buildout_call_json(
                         "stripe_checkout_enabled": False,
                         "external_provider_quotes_enabled": False,
                         "external_provider_execution_enabled": False,
+                        "provider_callback_signing_required": True,
                         "alert_routing_enabled": True,
                         "alert_webhook_configured": True,
                         "alert_webhook_secret_configured": True,
@@ -1437,6 +1439,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "stripe_checkout_enabled": False,
                         "external_provider_quotes_enabled": False,
                         "external_provider_execution_enabled": False,
+                        "provider_callback_signing_required": True,
                         "alert_routing_enabled": True,
                         "alert_webhook_configured": True,
                         "alert_webhook_secret_configured": True,
@@ -1746,6 +1749,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["stripe_checkout_enabled"] is False
     assert result["external_provider_quotes_enabled"] is False
     assert result["external_provider_execution_enabled"] is False
+    assert result["provider_callback_signing_required"] is True
     assert result["alert_routing_enabled"] is True
     assert result["alert_webhook_configured"] is True
     assert result["alert_webhook_secret_configured"] is True

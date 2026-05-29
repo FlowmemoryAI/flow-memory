@@ -690,6 +690,41 @@ def test_quote_ingest_enforces_provider_callback_ip_allowlist() -> None:
     assert service.store.count_records("compute_quote") == 1
     assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest"}) == 1.0
 
+def test_quote_ingest_requires_callback_signing_key_when_configured() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_signing_required=True,
+        ),
+    )
+    service.create_provider(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "provider_name": "Unsigned Callback Provider",
+            "provider_type": "gpu",
+        }
+    )
+
+    rejected = service.broker_quote(
+        {
+            "quote": _quote(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+            "callback_id": "quote-no-key",
+            "timestamp": "2099-01-01T00:00:00Z",
+        }
+    )
+
+    assert rejected["ok"] is False
+    assert rejected["error"]["error_code"] == "provider_callback.signing_key_not_configured"
+    assert rejected["error"]["details"]["callback_action"] == "quote_ingest"
+    assert service.store.count_records("compute_quote") == 0
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest", "reason": "provider_callback.signing_key_not_configured"}) == 1.0
+
+
 
 def test_quote_ingest_verifies_provider_callback_signature_and_replay(monkeypatch: Any) -> None:
     service = _service()
@@ -4075,6 +4110,51 @@ def test_provider_job_state_callbacks_enforce_ip_allowlist() -> None:
     assert "heartbeat_count" not in service.get_job(heartbeat_job_id)["job"]
     assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.ip_not_allowed"}) == 3.0
 
+def test_provider_job_state_callbacks_require_signing_key_when_configured() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            rate_limits_enabled=False,
+            provider_callback_signing_required=True,
+        ),
+    )
+
+    complete_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    fail_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    heartbeat_job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    service.dispatch_job(complete_job_id, {})
+    service.dispatch_job(heartbeat_job_id, {})
+
+    rejected_complete = service.complete_job(
+        complete_job_id,
+        {"actual_total_cost": 0.2, "callback_id": "state-no-key-complete", "timestamp": "2099-01-01T00:00:00Z"},
+    )
+    rejected_fail = service.fail_job(
+        fail_job_id,
+        {"error_code": "provider_execution_failed", "callback_id": "state-no-key-fail", "timestamp": "2099-01-01T00:00:00Z"},
+    )
+    rejected_heartbeat = service.heartbeat_job(
+        heartbeat_job_id,
+        {"worker_id": "worker_1", "ttl_seconds": 60, "callback_id": "state-no-key-heartbeat", "timestamp": "2099-01-01T00:00:00Z"},
+    )
+
+    for callback_action, result in {
+        "complete": rejected_complete,
+        "fail": rejected_fail,
+        "heartbeat": rejected_heartbeat,
+    }.items():
+        assert result["ok"] is False
+        assert result["error"]["error_code"] == "provider_callback.signing_key_not_configured"
+        assert result["error"]["details"]["callback_action"] == callback_action
+
+    assert service.get_job(complete_job_id)["job"]["status"] == "running"
+    assert service.get_job(fail_job_id)["job"]["status"] == "queued"
+    assert service.get_job(heartbeat_job_id)["job"]["status"] == "running"
+    assert "heartbeat_count" not in service.get_job(heartbeat_job_id)["job"]
+    assert _metric_total(service, "compute_provider_callback_rejected_total", {"reason": "provider_callback.signing_key_not_configured"}) == 3.0
+
 
 def test_provider_job_state_callbacks_verify_signature_and_replay(monkeypatch: Any) -> None:
     service = _service()
@@ -4247,6 +4327,7 @@ def test_compute_worker_dispatch_calls_provider_execution_adapter() -> None:
             external_provider_allowlist=("127.0.0.1",),
             external_provider_execution_enabled=True,
             provider_callback_ip_allowlist=("127.0.0.1",),
+            provider_callback_signing_required=True,
             external_provider_execution_timeout_ms=1_000,
         ),
     )
@@ -4347,6 +4428,7 @@ def test_provider_execution_synchronous_success_completes_and_bills_job() -> Non
             external_provider_allowlist=("127.0.0.1",),
             external_provider_execution_enabled=True,
             provider_callback_ip_allowlist=("127.0.0.1",),
+            provider_callback_signing_required=True,
             external_provider_execution_timeout_ms=1_000,
         ),
     )
@@ -4461,6 +4543,7 @@ def test_provider_execution_synchronous_failure_fails_job_and_releases_credit() 
             external_provider_allowlist=("127.0.0.1",),
             external_provider_execution_enabled=True,
             provider_callback_ip_allowlist=("127.0.0.1",),
+            provider_callback_signing_required=True,
             external_provider_execution_timeout_ms=1_000,
         ),
     )
@@ -4533,6 +4616,7 @@ def test_provider_execution_fails_closed_when_configured_without_endpoint() -> N
             external_provider_allowlist=("127.0.0.1",),
             external_provider_execution_enabled=True,
             provider_callback_ip_allowlist=("127.0.0.1",),
+            provider_callback_signing_required=True,
         ),
     )
     service.store.put_record(

@@ -196,6 +196,8 @@ services:
         value: ""
       - key: FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST
         value: ""
+      - key: FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED
+        value: true
       - key: FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED
         value: false
       - key: FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED

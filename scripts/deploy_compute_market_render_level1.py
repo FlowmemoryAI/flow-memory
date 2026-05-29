@@ -105,6 +105,7 @@ LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED": "false",
     "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED": "false",
     "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED": "true",
     "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
 }
 LEVEL1_FORBIDDEN_CONFIGURED_KEYS = (
@@ -1247,6 +1248,7 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED": "false",
         "FLOW_MEMORY_COMPUTE_EXTERNAL_PROVIDER_ALLOWLIST": "",
         "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist,
+        "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED": "true",
         "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_REQUIRED": "false",
         "FLOW_MEMORY_COMPUTE_PROVIDER_CONTRACTS_VERIFIED": "false",
         "FLOW_MEMORY_COMPUTE_ECONOMIC_MEMORY_WRITES_ENABLED": "true",
@@ -1797,6 +1799,7 @@ def smoke_public(
             safety.get("stripe_checkout_enabled") is False,
             safety.get("external_provider_quotes_enabled") is False,
             safety.get("external_provider_execution_enabled") is False,
+            safety.get("provider_callback_signing_required") is True,
             checks["plan"][0] == 200,
             plan_payload.get("dry_run_only") is True,
             plan_payload.get("funds_moved") is False,
@@ -1931,6 +1934,7 @@ def smoke_public(
         "stripe_checkout_enabled": safety.get("stripe_checkout_enabled"),
         "external_provider_quotes_enabled": safety.get("external_provider_quotes_enabled"),
         "external_provider_execution_enabled": safety.get("external_provider_execution_enabled"),
+        "provider_callback_signing_required": safety.get("provider_callback_signing_required"),
         "metrics": checks["metrics"][0],
         "missing_metrics": missing_metrics,
         "alerts": checks["alerts"][0],

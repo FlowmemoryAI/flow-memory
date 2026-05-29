@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -196,6 +198,59 @@ def test_postgres_schema_generation_contains_required_tables_indexes_and_jsonb()
     assert "idx_compute_audit_events_chain" in sql
     assert "%(" not in sql
     assert "?" not in sql
+
+
+def test_postgres_schema_verification_rejects_nonunique_idempotency_indexes() -> None:
+    table_rows = [{"table_name": "compute_migrations"}] + [
+        {"table_name": table_name} for table_name in _POSTGRES_TABLES.values()
+    ]
+    target_index = "idx_compute_decisions_idempotency_unique"
+    index_rows = []
+    for statement in PostgresComputeMarketStore.schema_statements():
+        sql = statement.sql.lower()
+        if not (sql.startswith("create index") or sql.startswith("create unique index")):
+            continue
+        index_sql = statement.sql
+        if statement.name == target_index:
+            index_sql = index_sql.replace("create unique index", "create index")
+        index_rows.append({"indexname": statement.name, "indexdef": index_sql})
+
+    class _Result:
+        def __init__(self, rows: list[Mapping[str, Any]]) -> None:
+            self._rows = rows
+
+        def fetchall(self) -> list[Mapping[str, Any]]:
+            return self._rows
+
+        def fetchone(self) -> Mapping[str, Any]:
+            return self._rows[0] if self._rows else {}
+
+    class _Connection:
+        def execute(self, sql: str, _params: object | None = None) -> _Result:
+            normalized = sql.lower()
+            if "information_schema.tables" in normalized:
+                return _Result(table_rows)
+            if "pg_indexes" in normalized:
+                return _Result(index_rows)
+            if "pg_try_advisory_lock" in normalized:
+                return _Result([{"locked": True}])
+            if "pg_advisory_unlock" in normalized:
+                return _Result([])
+            raise AssertionError(f"unexpected SQL: {sql}")
+
+    class _Store(PostgresComputeMarketStore):
+        @contextmanager
+        def _connection(self) -> Iterator[Any]:
+            yield _Connection()
+
+    store = _Store("postgresql://flow-memory.example/db", connect=False)
+    verification = store.schema_verification()
+
+    assert verification["ok"] is False
+    assert verification["missing_tables"] == ()
+    assert verification["missing_indexes"] == ()
+    assert verification["required_unique_idempotency_index_count"] == len(COMPUTE_RECORD_TYPES)
+    assert verification["idempotency_nonunique_indexes"] == (target_index,)
 
 
 def test_production_can_require_managed_sql() -> None:

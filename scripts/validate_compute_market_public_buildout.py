@@ -1039,6 +1039,8 @@ def validate(
         schema_verification.get("ok") is True
         and not schema_verification.get("missing_tables", ())
         and not schema_verification.get("missing_indexes", ())
+        and "idempotency_nonunique_indexes" in schema_verification
+        and not schema_verification.get("idempotency_nonunique_indexes", ())
         and isinstance(advisory_lock_probe, Mapping)
         and advisory_lock_probe.get("acquired") is True,
         "admin storage schema verification failed",
@@ -1170,6 +1172,8 @@ def validate(
         "audit_chain_monitor_ok": audit_chain_monitor.get("ok"),
         "audit_checkpoint_count": audit_chain_monitor.get("checkpoint_count"),
         "audit_chain_monitor_export_ok": audit_chain_monitor_export.get("ok") if isinstance(audit_chain_monitor_export, Mapping) else None,
+        "postgres_idempotency_nonunique_indexes": tuple(schema_verification.get("idempotency_nonunique_indexes", ())),
+        "postgres_required_unique_idempotency_index_count": schema_verification.get("required_unique_idempotency_index_count"),
         "audit_chain_monitor_export_event_count": audit_chain_monitor_export.get("event_count") if isinstance(audit_chain_monitor_export, Mapping) else None,
         "provider_reputation_status": provider_reputation_map.get("status"),
         "provider_reputation_quote_accuracy_score": provider_reputation_map.get("quote_accuracy_score"),

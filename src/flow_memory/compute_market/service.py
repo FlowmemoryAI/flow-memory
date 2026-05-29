@@ -2021,7 +2021,15 @@ class ComputeMarketService:
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
         if not _tenant_can_access_record(payload, current):
             raise KeyError(f"Unknown capacity reservation: {reservation_id}")
-        if str(current.get("status", "")) == "released":
+        status = str(current.get("status", ""))
+        if status in {"consumed", "expired"}:
+            return {
+                "ok": True,
+                "reservation": current,
+                "idempotent_replay": False,
+                "note": f"reservation is in terminal state '{status}'; nothing to release",
+            }
+        if status == "released":
             return {"ok": True, "reservation": current, "idempotent_replay": True}
         released_at = utc_now_iso()
         released_capacity_units = _capacity_reservation_remaining_units(current)
@@ -10605,6 +10613,7 @@ def _create_stripe_checkout_session(
         "metadata[account_id]": account_id,
         "metadata[request_id]": request_id,
         "metadata[payment_event_id]": payment_event_id,
+        "payment_intent_data[metadata][payment_event_id]": payment_event_id,
     }
     body = urllib.parse.urlencode(fields).encode("utf-8")
     url = f"{config.stripe_api_base_url.rstrip('/')}/v1/checkout/sessions"

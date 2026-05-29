@@ -2057,6 +2057,72 @@ def test_compute_jobs_consume_confirmed_capacity_reservations() -> None:
     ) == 3.0
 
 
+def test_release_capacity_does_not_mutate_terminal_reservations() -> None:
+    service = _service()
+    consumed_reservation = _confirmed_capacity_reservation(
+        service,
+        reservation_id="reservation_capacity_release_consumed",
+        capacity_units=1,
+    )
+    consumed_reservation_id = str(consumed_reservation["reservation_id"])
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_capacity_release_consumed",
+                "capacity_reservation_id": consumed_reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+    service.complete_job(
+        job_id,
+        {
+            "actual_units": 1,
+            "actual_total_cost": 0.09,
+            "capacity_units_consumed": 1,
+            "currency": "USD",
+        },
+    )
+
+    consumed_release = service.release_capacity({"reservation_id": consumed_reservation_id})
+    stored_consumed = service.store.get_record("compute_reservation", consumed_reservation_id)
+    expired_reservation = {
+        **dict(consumed_reservation),
+        "reservation_id": "reservation_capacity_release_expired",
+        "status": "expired",
+        "remaining_capacity_units": 1,
+        "expiration_reason": "reservation_window_elapsed",
+    }
+    service.store.put_record(
+        "compute_reservation",
+        "reservation_capacity_release_expired",
+        expired_reservation,
+        provider_id="provider_live_gpu_1",
+        route_id="route_live_gpu_1",
+        status="expired",
+    )
+
+    expired_release = service.release_capacity({"reservation_id": "reservation_capacity_release_expired"})
+    stored_expired = service.store.get_record("compute_reservation", "reservation_capacity_release_expired")
+
+    assert consumed_release["reservation"]["status"] == "consumed"
+    assert "terminal state 'consumed'" in consumed_release["note"]
+    assert stored_consumed is not None
+    assert stored_consumed["status"] == "consumed"
+    assert stored_consumed["remaining_capacity_units"] == 0.0
+    assert expired_release["reservation"]["status"] == "expired"
+    assert "terminal state 'expired'" in expired_release["note"]
+    assert stored_expired is not None
+    assert stored_expired["status"] == "expired"
+    assert stored_expired["expiration_reason"] == "reservation_window_elapsed"
+    assert _metric_total(
+        service,
+        "capacity_released_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 0.0
+
+
 def test_capacity_consumption_rejects_overconsumption_without_terminal_job_change() -> None:
     service = _service()
     reservation = _confirmed_capacity_reservation(
@@ -4822,6 +4888,9 @@ def test_billing_checkout_creates_external_stripe_session_when_enabled() -> None
     assert params["client_reference_id"] == ["acct_checkout"]
     assert params["line_items[0][price_data][unit_amount]"] == ["1234"]
     assert params["metadata[account_id]"] == ["acct_checkout"]
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    assert params["metadata[payment_event_id]"] == [payment_event_id]
+    assert params["payment_intent_data[metadata][payment_event_id]"] == [payment_event_id]
 
 
 def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None:
@@ -4946,6 +5015,88 @@ def test_stripe_checkout_webhook_requires_server_checkout_amount_match() -> None
     assert stored_invoice is not None
     assert stored_checkout["status"] == "payment_credited"
     assert stored_invoice["status"] == "payment_credited"
+    assert service.store.count_records("credit_transaction") == 1
+
+
+def test_stripe_payment_intent_checkout_webhook_uses_propagated_payment_event_metadata() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_payment_intent_checkout",
+                "amount": 45.67,
+                "currency": "USD",
+                "request_id": "checkout-payment-intent-request",
+                "idempotency_key": "checkout-payment-intent-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    secret = service.config.stripe_webhook_secret
+    missing_reference_event = {
+        "id": "evt_payment_intent_checkout_missing_reference",
+        "type": "payment_intent.succeeded",
+        "data": {
+            "object": {
+                "id": "pi_checkout_missing_reference",
+                "amount": 4567,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {"account_id": "acct_payment_intent_checkout"},
+            }
+        },
+    }
+    accepted_event = {
+        "id": "evt_payment_intent_checkout_metadata",
+        "type": "payment_intent.succeeded",
+        "data": {
+            "object": {
+                "id": "pi_checkout_metadata",
+                "amount": 4567,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_payment_intent_checkout",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+
+    missing_reference = service.billing_webhook_stripe(
+        {
+            "raw_event": missing_reference_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(missing_reference_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    accepted = service.billing_webhook_stripe(
+        {
+            "raw_event": accepted_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(accepted_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    balance = service.billing_balance({"account_id": "acct_payment_intent_checkout"})["balance"]
+
+    assert missing_reference["ok"] is False
+    assert missing_reference["error"]["error_code"] == "billing.webhook.checkout_reference_required"
+    assert accepted["ok"] is True
+    assert accepted["credit_transaction"]["amount"] == 45.67
+    assert accepted["checkout_update"]["status"] == "payment_credited"
+    assert accepted["invoice_update"]["status"] == "payment_credited"
+    assert balance["available_credits"] == 45.67
     assert service.store.count_records("credit_transaction") == 1
 
 

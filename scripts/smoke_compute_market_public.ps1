@@ -584,6 +584,8 @@ $schemaVerification = $storageDiagnostics.Json.data.schema_verification
 Assert-True ($schemaVerification.ok -eq $true) 'Postgres schema verification did not return ok=true.'
 Assert-True (($null -eq $schemaVerification.missing_tables) -or ($schemaVerification.missing_tables.Count -eq 0)) 'Postgres schema verification reported missing tables.'
 Assert-True (($null -eq $schemaVerification.missing_indexes) -or ($schemaVerification.missing_indexes.Count -eq 0)) 'Postgres schema verification reported missing indexes.'
+Assert-True ($schemaVerification.PSObject.Properties.Name -contains 'idempotency_nonunique_indexes') 'Postgres schema verification did not report idempotency index uniqueness.'
+Assert-True (($null -eq $schemaVerification.idempotency_nonunique_indexes) -or ($schemaVerification.idempotency_nonunique_indexes.Count -eq 0)) 'Postgres schema verification reported non-unique idempotency indexes.'
 $requiredSchemaTableCount = 0
 if ($schemaVerification.PSObject.Properties.Name -contains 'required_table_count') {
     $requiredSchemaTableCount = [int]$schemaVerification.required_table_count
@@ -722,6 +724,8 @@ $result = [ordered]@{
     audit_chain_monitor_export_event_count = [int]$auditChainMonitorData.export_verification.event_count
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
     postgres_required_table_count = $requiredSchemaTableCount
+    postgres_idempotency_nonunique_index_count = if ($null -eq $schemaVerification.idempotency_nonunique_indexes) { 0 } else { [int]$schemaVerification.idempotency_nonunique_indexes.Count }
+    postgres_required_unique_idempotency_index_count = if ($schemaVerification.PSObject.Properties.Name -contains 'required_unique_idempotency_index_count') { [int]$schemaVerification.required_unique_idempotency_index_count } else { 0 }
     postgres_required_index_count = $requiredSchemaIndexCount
     admin_redis_diagnostics = $redisDiagnostics.StatusCode
     audit_export_immutable = [bool]$auditExport.Json.data.immutable

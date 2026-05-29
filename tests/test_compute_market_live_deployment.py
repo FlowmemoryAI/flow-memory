@@ -625,6 +625,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                         "ok": True,
                         "missing_tables": [],
                         "missing_indexes": [],
+                        "idempotency_nonunique_indexes": [],
+                        "required_unique_idempotency_index_count": 109,
                         "required_table_count": 110,
                         "required_index_count": 1311,
                         "advisory_lock_probe": {"acquired": True},
@@ -725,6 +727,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["legacy_tenant_header"] == 403
     assert result["audit_chain_monitor_export_ok"] is True
     assert result["audit_chain_monitor_export_event_count"] == 3
+    assert result["postgres_idempotency_nonunique_indexes"] == ()
+    assert result["postgres_required_unique_idempotency_index_count"] == 109
     assert result["postgres_required_table_count"] == 110
     assert result["postgres_required_index_count"] == 1311
     assert result["plan_idempotent_replay"] is True
@@ -901,6 +905,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                         "ok": True,
                         "missing_tables": [],
                         "missing_indexes": [],
+                        "idempotency_nonunique_indexes": [],
+                        "required_unique_idempotency_index_count": 109,
                         "required_table_count": 110,
                         "required_index_count": 1311,
                         "advisory_lock_probe": {"acquired": True},

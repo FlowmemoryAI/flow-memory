@@ -898,6 +898,7 @@ def _passing_public_buildout_call_json(
     storage_overrides: Mapping[str, Any] | None = None,
     migration_status_overrides: Mapping[str, Any] | None = None,
     migration_history_overrides: Mapping[str, Any] | None = None,
+    schema_overrides: Mapping[str, Any] | None = None,
 ) -> Any:
     expected_migration_version = int(validator.migration_plan()["current_version"])
     job_counter = 0
@@ -1097,9 +1098,12 @@ def _passing_public_buildout_call_json(
                         "ok": True,
                         "missing_tables": [],
                         "missing_indexes": [],
+                        "idempotency_nonunique_indexes": [],
+                        "required_unique_idempotency_index_count": len(validator.migration_plan()["record_types"]),
                         "advisory_lock_probe": {"acquired": True},
                         "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT,
                         "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+                        **(schema_overrides or {}),
                     },
                 },
             }
@@ -1172,6 +1176,29 @@ def test_public_buildout_validation_rejects_missing_postgres_migration_history(m
         assert '"has_expected_history": false' in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted missing migration history")
+
+
+def test_public_buildout_validation_rejects_nonunique_postgres_idempotency_indexes(monkeypatch: Any) -> None:
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+    monkeypatch.setattr(
+        validator,
+        "call_json",
+        _passing_public_buildout_call_json(
+            schema_overrides={"ok": False, "idempotency_nonunique_indexes": ["idx_compute_decisions_idempotency_unique"]}
+        ),
+    )
+
+    try:
+        validator.validate(
+            "https://api.example.test",
+            "prod-key",
+            require_immutable_audit=True,
+        )
+    except AssertionError as exc:
+        assert "admin storage schema verification failed" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted non-unique idempotency indexes")
 
 
 def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch: Any) -> None:
@@ -1492,6 +1519,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "ok": True,
                         "missing_tables": [],
                         "missing_indexes": [],
+                        "idempotency_nonunique_indexes": [],
+                        "required_unique_idempotency_index_count": len(validator.migration_plan()["record_types"]),
                         "advisory_lock_probe": {"acquired": True},
                         "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT,
                         "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT,
@@ -1571,6 +1600,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["provider_reputation_stale_quote_rate"] == 0.0
     assert "audit_chain_verify_fail_total" in result["required_prometheus_metrics"]
     assert result["plan_idempotent_replay"] is True
+    assert result["postgres_idempotency_nonunique_indexes"] == ()
+    assert result["postgres_required_unique_idempotency_index_count"] == len(validator.migration_plan()["record_types"])
     assert result["legacy_tenant_header_rejected"] == 403
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
     assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT

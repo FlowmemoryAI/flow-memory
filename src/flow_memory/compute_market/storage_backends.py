@@ -368,7 +368,7 @@ class PostgresComputeMarketStore:
                     "select table_name from information_schema.tables where table_schema = current_schema()"
                 ).fetchall()
                 index_rows = conn.execute(
-                    "select indexname from pg_indexes where schemaname = current_schema()"
+                    "select indexname, indexdef from pg_indexes where schemaname = current_schema()"
                 ).fetchall()
                 lock_row = conn.execute("select pg_try_advisory_lock(%s) as locked", (_POSTGRES_MIGRATION_LOCK_ID,)).fetchone()
                 lock_acquired = bool(lock_row.get("locked")) if isinstance(lock_row, Mapping) else False
@@ -378,14 +378,28 @@ class PostgresComputeMarketStore:
             return {"ok": False, "backend": self.backend, "reason": f"schema_verification_failed:{type(exc).__name__}"}
         actual_tables = {str(row.get("table_name", "")) for row in table_rows if isinstance(row, Mapping)}
         actual_indexes = {str(row.get("indexname", "")) for row in index_rows if isinstance(row, Mapping)}
+        index_definitions = {
+            str(row.get("indexname", "")): str(row.get("indexdef", ""))
+            for row in index_rows
+            if isinstance(row, Mapping)
+        }
         missing_tables = tuple(name for name in expected_tables if name not in actual_tables)
         missing_indexes = tuple(name for name in expected_indexes if name not in actual_indexes)
+        expected_idempotency_indexes = tuple(name for name in expected_indexes if name.endswith("_idempotency_unique"))
+        idempotency_nonunique_indexes = tuple(
+            name
+            for name in expected_idempotency_indexes
+            if name in actual_indexes
+            and not index_definitions.get(name, "").lstrip().lower().startswith("create unique index")
+        )
         return {
-            "ok": not missing_tables and not missing_indexes,
+            "ok": not missing_tables and not missing_indexes and not idempotency_nonunique_indexes,
             "backend": self.backend,
             "required_table_count": len(expected_tables),
             "missing_tables": missing_tables,
             "required_index_count": len(expected_indexes),
+            "required_unique_idempotency_index_count": len(expected_idempotency_indexes),
+            "idempotency_nonunique_indexes": idempotency_nonunique_indexes,
             "missing_indexes": missing_indexes,
             "advisory_lock_probe": {"lock_id": _POSTGRES_MIGRATION_LOCK_ID, "acquired": lock_acquired},
         }

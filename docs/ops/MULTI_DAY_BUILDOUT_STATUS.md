@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `939ad0b Add nested market CLI aliases`
+Latest inspected commit: `1e5e68e Document market CLI aliases`
 
 ## Current architecture
 
@@ -31,15 +31,15 @@ flowchart TD
 ## What exists
 
 - Compute Market planning, routing, dry-run payment planning, settlement simulation, audit, provider onboarding, quote validation, quote cache, quote drift, price history, price forecast, usage statements, jobs, billing ledger, capacity reservations, provider reputation, health/readiness, telemetry, alerts, Render deployment automation, Postgres path, and Redis path.
-- Flow Memory Inference Market models, deterministic resale fixtures, run-vs-sell opportunity planner, OpenAI-compatible fake proxy path, demand snapshots, usage records, API endpoints, CLI commands, and persistence-backed record families.
-- Flow Memory Capacity Market and Forward Capacity simulators exist with dry-run inventory, quotes, holds, reservations, delivery schedules, settlement simulation records, CLI commands, APIs, and persistence-backed record families.
-- Flow Memory GPU Futures Simulator exists with simulated contracts, orders, positions, mark/index prices, risk checks, delivery/expiry/settlement simulations, CLI commands, APIs, and persistence-backed record families.
+- Flow Memory Inference Market models, deterministic resale fixtures, run-vs-sell opportunity planner, OpenAI-compatible fake proxy path, demand snapshots, usage records, API endpoints, CLI commands, lazy API binding to the active compute-market store, and persistence-backed record families.
+- Flow Memory Capacity Market and Forward Capacity simulators exist with dry-run inventory, quotes, holds, reservations, delivery schedules, settlement simulation records, CLI commands, APIs, lazy API binding to the active compute-market store, and persistence-backed record families.
+- Flow Memory GPU Futures Simulator exists with simulated contracts, orders, positions, mark/index prices, risk checks, delivery/expiry/settlement simulations, CLI commands, APIs, lazy API binding to the active compute-market store, and persistence-backed record families.
 - Safety defaults and live-settlement gates are implemented in Compute Market code, market simulators, docs, and deployment validation.
 
 ## Partial areas
 
-- The new inference, capacity, forward-capacity, and futures services are simulator-grade and local by default; real provider credentials, real provider execution, and real billing providers are not bound.
-- New market services can persist through the compute-market store when attached, while the default local API singleton still runs as a dry-run simulator process.
+- The new inference, capacity, forward-capacity, and futures services are simulator-grade; real provider credentials, real provider execution, and real billing providers are not bound.
+- New market API services now attach lazily to the active compute-market store, so public API traffic uses the configured SQLite/Postgres storage path instead of a detached process-only singleton.
 - Deployment automation exists, but no real public managed Postgres, managed Redis, domain, TLS URL, production API key, object-lock audit storage, or Render API credentials are present in the environment.
 
 ## Missing buildout blocks
@@ -278,4 +278,46 @@ flowchart TD
     InferenceCredits --> InferenceService[Inference Market service]
     CapacityForward --> CapacityService[Capacity Market service]
     CapacityIndexes --> FuturesIndexes[Capacity index simulator]
+```
+
+## Checkpoint 2026-05-26 Marketplace API persistence binding
+
+Files changed:
+
+- `src/flow_memory/api/marketplace_endpoints.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/api/marketplace_endpoints.py src/flow_memory/inference_market src/flow_memory/capacity_market src/flow_memory/futures_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python -m pytest tests/test_api_auth.py tests/test_api_auth_scopes.py tests/test_api_openapi_snapshot.py tests/test_api_snapshot.py -q`
+- `python scripts/check_compute_market_production.py`
+- `git diff --check -- src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py docs/ops/MULTI_DAY_BUILDOUT_STATUS.md`
+
+Commit:
+
+- `27e2baf Bind market APIs to compute store`
+
+Implementation:
+
+- `/inference/*`, `/capacity/*`, `/capacity/forwards/*`, and `/futures/*` endpoint adapters now lazily bind their simulator services to `default_service().store`.
+- The endpoint adapters rebuild their service wrapper when the active compute-market service changes, which keeps tests and production configuration aligned.
+- API regression coverage verifies inference admin source creation, capacity reservation, and futures simulated orders persist to the active compute-market store.
+
+```mermaid
+flowchart TD
+    Request[Market API request] --> Router[API router]
+    Router --> Adapter[Marketplace endpoint adapter]
+    Adapter --> DefaultCompute[Active Compute Market service]
+    DefaultCompute --> Store[Configured ComputeMarketStore]
+    Adapter --> Inference[Inference Market wrapper]
+    Adapter --> Capacity[Capacity Market wrapper]
+    Adapter --> Futures[Futures simulator wrapper]
+    Inference --> Store
+    Capacity --> Store
+    Futures --> Store
+    Store --> SQLite[SQLite local]
+    Store --> Postgres[Managed Postgres path]
 ```

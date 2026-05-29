@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `3806d3f Document proxy smoke parity`
+Latest inspected commit: `c8e4e6b Add inference scopes to deployment defaults`
 
 ## Current architecture
 
@@ -759,4 +759,40 @@ flowchart TD
     Chat --> Safety[Dry-run no-funds assertions]
     Responses --> Safety
     Embeddings --> Safety
+```
+
+## Checkpoint 2026-05-26 Deployment inference scope parity
+
+Files changed:
+
+- `scripts/deploy_compute_market_render_level1.py`
+- `docker-compose.compute-market.yml`
+- `render.yaml`
+- `deployments/compute-market/live.env.example`
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- scripts/deploy_compute_market_render_level1.py docker-compose.compute-market.yml render.yaml deployments/compute-market/live.env.example tests/test_compute_market_live_deployment.py` — clean
+
+Commit: `c8e4e6b Add inference scopes to deployment defaults`.
+
+Implementation:
+
+- Render, Docker Compose, and live env templates now include `inference:read`, `inference:plan`, `inference:proxy`, `inference:buy`, `inference:sell`, `inference:admin`, and `inference:audit` in production API key scopes.
+- Optional marketplace-alpha public smoke can now authenticate inference and proxy checks with the default generated production key scope set.
+- Compute scope defaults are preserved.
+
+```mermaid
+flowchart TD
+    ApiKey[Production API key] --> ComputeScopes[Compute scopes]
+    ApiKey --> InferenceScopes[Inference scopes]
+    InferenceScopes --> Opportunity[Inference planning]
+    InferenceScopes --> Proxy[Proxy endpoints]
+    InferenceScopes --> BuySell[Credit buy sell admin]
+    ComputeScopes --> Readiness[Level 1 compute readiness]
 ```

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `7ce510f Require Redis nonce replay for public validation`
+Latest inspected commit: `e1b93aa Lock nonce TLS deployment templates`
 
 ## Current architecture
 
@@ -1517,4 +1517,35 @@ flowchart TD
     Backend -->|No| Reject[Fail before network validation]
     TLS -->|No| Reject
     Backend -->|Yes| PublicValidation[Run public Level 1 validation]
+```
+
+## Checkpoint 2026-05-26 Nonce TLS deployment template coverage
+
+Files changed:
+
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_live_env_template_preserves_non_settlement_safety_defaults tests/test_compute_market_live_deployment.py::test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api tests/test_compute_market_live_deployment.py::test_render_blueprint_requires_explicit_tls_redis_url -q` — 3 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 50 passed
+- `python -m ruff check tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 441 passed, 2 skipped
+- `git diff --check -- tests/test_compute_market_live_deployment.py` — clean
+
+Commit: `e1b93aa Lock nonce TLS deployment templates`.
+
+Implementation:
+
+- Deployment tests now lock `FLOW_MEMORY_API_NONCE_REDIS_PREFIX` and `FLOW_MEMORY_API_NONCE_VERIFY_TLS=true` in the live env template, Docker Compose stack, and Render blueprint.
+- This keeps API replay protection aligned with the public validator's new Redis nonce replay prerequisite.
+- The assertions prevent future drift where public deployments keep nonce checks enabled but accidentally lose TLS verification or a Redis replay namespace.
+
+```mermaid
+flowchart TD
+    LiveEnv[live.env.example] --> NonceTLS[nonce verify TLS true]
+    Compose[docker-compose] --> NonceTLS
+    Render[render.yaml] --> NonceTLS
+    NonceTLS --> Validator[Public buildout validation]
 ```

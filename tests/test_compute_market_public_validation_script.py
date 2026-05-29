@@ -375,6 +375,37 @@ def test_public_validator_schema_count_evidence_blocks_underreported_schema() ->
     assert evidence["minimum_index_count"] == validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
 
 
+def test_public_validator_connection_tuning_evidence_blocks_unbounded_postgres() -> None:
+    passing = validator.postgres_connection_tuning_evidence(
+        {
+            "postgres_ssl_mode": "require",
+            "pool_size": 4,
+            "max_overflow": 4,
+            "timeout_ms": 5000,
+            "statement_timeout_ms": 5000,
+            "migrations_enabled": True,
+            "migrations_auto_run": True,
+        }
+    )
+    missing_statement_timeout = validator.postgres_connection_tuning_evidence(
+        {
+            "postgres_ssl_mode": "disable",
+            "pool_size": 0,
+            "max_overflow": -1,
+            "timeout_ms": 0,
+            "statement_timeout_ms": 0,
+            "migrations_enabled": True,
+            "migrations_auto_run": False,
+        }
+    )
+
+    assert passing["ok"] is True
+    assert missing_statement_timeout["ok"] is False
+    assert missing_statement_timeout["postgres_ssl_mode"] == "disable"
+    assert missing_statement_timeout["statement_timeout_ms"] == 0
+
+
+
 def _passing_public_buildout_call_text(
     method: str,
     url: str,
@@ -386,6 +417,7 @@ def _passing_public_buildout_call_text(
 def _passing_public_buildout_call_json(
     redis_overrides: Mapping[str, Any] | None = None,
     audit_export_overrides: Mapping[str, Any] | None = None,
+    storage_overrides: Mapping[str, Any] | None = None,
 ) -> Any:
     job_counter = 0
     plan_counter = 0
@@ -520,6 +552,17 @@ def _passing_public_buildout_call_json(
                 "data": {
                     "ok": True,
                     "production_readiness": {"production_ready": True},
+                    "storage": {
+                        "backend": "postgresql",
+                        "postgres_ssl_mode": "require",
+                        "pool_size": 4,
+                        "max_overflow": 4,
+                        "timeout_ms": 5000,
+                        "statement_timeout_ms": 5000,
+                        "migrations_enabled": True,
+                        "migrations_auto_run": True,
+                        **(storage_overrides or {}),
+                    },
                     "schema_verification": {
                         "ok": True,
                         "missing_tables": [],
@@ -550,6 +593,30 @@ def _passing_public_buildout_call_json(
         return 200, {"ok": True, "data": {"ok": True}}
 
     return fake_call_json
+
+def test_public_buildout_validation_rejects_unsafe_postgres_connection_tuning(monkeypatch: Any) -> None:
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+    monkeypatch.setattr(
+        validator,
+        "call_json",
+        _passing_public_buildout_call_json(
+            storage_overrides={"statement_timeout_ms": 0, "migrations_auto_run": False}
+        ),
+    )
+
+    try:
+        validator.validate(
+            "https://api.example.test",
+            "prod-key",
+            require_immutable_audit=True,
+        )
+    except AssertionError as exc:
+        message = str(exc)
+        assert "admin storage connection tuning failed" in message
+        assert '"statement_timeout_ms": 0' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted unsafe Postgres tuning")
 
 
 def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch: Any) -> None:
@@ -774,6 +841,16 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                 "data": {
                     "ok": True,
                     "production_readiness": {"production_ready": True},
+                    "storage": {
+                        "backend": "postgresql",
+                        "postgres_ssl_mode": "require",
+                        "pool_size": 4,
+                        "max_overflow": 4,
+                        "timeout_ms": 5000,
+                        "statement_timeout_ms": 5000,
+                        "migrations_enabled": True,
+                        "migrations_auto_run": True,
+                    },
                     "schema_verification": {
                         "ok": True,
                         "missing_tables": [],
@@ -840,6 +917,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["plan_idempotent_replay"] is True
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
     assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
+    assert result["postgres_connection_pool_size"] == 4
+    assert result["postgres_connection_max_overflow"] == 4
+    assert result["postgres_connection_timeout_ms"] == 5000
+    assert result["postgres_statement_timeout_ms"] == 5000
+    assert result["postgres_migrations_auto_run"] is True
     assert result["audit_exporter"] == "s3_object_lock"
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"

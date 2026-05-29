@@ -157,6 +157,34 @@ def postgres_schema_count_evidence(schema: Mapping[str, Any]) -> Mapping[str, An
     }
 
 
+def postgres_connection_tuning_evidence(storage: Mapping[str, Any]) -> Mapping[str, Any]:
+    pool_size = _int_field(storage.get("pool_size"))
+    max_overflow = _int_field(storage.get("max_overflow"))
+    timeout_ms = _int_field(storage.get("timeout_ms"))
+    statement_timeout_ms = _int_field(storage.get("statement_timeout_ms"))
+    ssl_mode = str(storage.get("postgres_ssl_mode", "")).strip().lower()
+    migrations_enabled = storage.get("migrations_enabled") is True
+    migrations_auto_run = storage.get("migrations_auto_run") is True
+    return {
+        "ok": (
+            ssl_mode in {"require", "verify-ca", "verify-full"}
+            and pool_size >= 1
+            and max_overflow >= 0
+            and timeout_ms >= 1000
+            and statement_timeout_ms >= 1000
+            and migrations_enabled
+            and migrations_auto_run
+        ),
+        "postgres_ssl_mode": ssl_mode,
+        "pool_size": pool_size,
+        "max_overflow": max_overflow,
+        "timeout_ms": timeout_ms,
+        "statement_timeout_ms": statement_timeout_ms,
+        "migrations_enabled": migrations_enabled,
+        "migrations_auto_run": migrations_auto_run,
+    }
+
+
 def parse_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     if not path.exists():
@@ -681,6 +709,9 @@ def validate(
     schema_verification = storage_diag.get("schema_verification", {})
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {})
     schema_count_evidence = postgres_schema_count_evidence(schema_verification)
+    storage_status = storage_diag.get("storage", {})
+    storage_status_map = storage_status if isinstance(storage_status, Mapping) else {}
+    connection_tuning_evidence = postgres_connection_tuning_evidence(storage_status_map)
 
     audit_export_status = data(checks["admin_audit_export"][1])
     audit_export_write = data(checks["audit_export_write"][1])
@@ -774,6 +805,10 @@ def validate(
         schema_count_evidence.get("ok") is True,
         f"admin storage schema count floor failed: {json.dumps(schema_count_evidence, sort_keys=True)}",
     )
+    require(
+        connection_tuning_evidence.get("ok") is True,
+        f"admin storage connection tuning failed: {json.dumps(connection_tuning_evidence, sort_keys=True)}",
+    )
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
     require(
         redis_diag.get("rate_limit_fail_closed") is True
@@ -840,6 +875,11 @@ def validate(
         "postgres_minimum_table_count": schema_count_evidence.get("minimum_table_count"),
         "postgres_required_index_count": schema_count_evidence.get("required_index_count"),
         "postgres_minimum_index_count": schema_count_evidence.get("minimum_index_count"),
+        "postgres_connection_pool_size": connection_tuning_evidence.get("pool_size"),
+        "postgres_connection_max_overflow": connection_tuning_evidence.get("max_overflow"),
+        "postgres_connection_timeout_ms": connection_tuning_evidence.get("timeout_ms"),
+        "postgres_statement_timeout_ms": connection_tuning_evidence.get("statement_timeout_ms"),
+        "postgres_migrations_auto_run": connection_tuning_evidence.get("migrations_auto_run"),
         "audit_exporter": audit_exporter_name,
     }
 

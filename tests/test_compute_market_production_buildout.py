@@ -5569,6 +5569,89 @@ def test_stripe_checkout_refund_webhook_marks_checkout_invoice_and_debits_credit
     assert balance["available_credits"] == 0.0
     assert balance["reserved_credits"] == 0.0
 
+def test_stripe_charge_refunded_uses_partial_amount_refunded() -> None:
+    server, base_url = _stripe_checkout_server()
+    try:
+        service = _stripe_checkout_service(base_url)
+        checkout = service.billing_checkout(
+            {
+                "account_id": "acct_checkout_partial_refund",
+                "amount": 12.34,
+                "currency": "USD",
+                "request_id": "checkout-partial-refund-request",
+                "idempotency_key": "checkout-partial-refund-idem",
+            }
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    payment_event_id = str(checkout["checkout"]["payment_event_id"])
+    session_id = str(checkout["checkout"]["external_checkout_session_id"])
+    secret = str(service.config.stripe_webhook_secret)
+    success_event = {
+        "id": "evt_checkout_partial_refund_success",
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": session_id,
+                "amount_total": 1234,
+                "currency": "usd",
+                "metadata": {
+                    "account_id": "acct_checkout_partial_refund",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+    partial_refund_event = {
+        "id": "evt_checkout_partial_refund",
+        "type": "charge.refunded",
+        "data": {
+            "object": {
+                "id": "ch_checkout_partial_refund",
+                "amount": 1234,
+                "amount_refunded": 500,
+                "currency": "usd",
+                "checkout_session": session_id,
+                "metadata": {
+                    "account_id": "acct_checkout_partial_refund",
+                    "payment_event_id": payment_event_id,
+                },
+            }
+        },
+    }
+
+    credited = service.billing_webhook_stripe(
+        {
+            "raw_event": success_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(success_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    refunded = service.billing_webhook_stripe(
+        {
+            "raw_event": partial_refund_event,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(partial_refund_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    balance = service.billing_balance({"account_id": "acct_checkout_partial_refund"})["balance"]
+
+    assert credited["ok"] is True
+    assert credited["credit_transaction"]["amount"] == 12.34
+    assert refunded["ok"] is True
+    assert refunded["payment_event"]["amount"] == 5.0
+    assert refunded["refund_debit"]["amount"] == 5.0
+    assert refunded["checkout_update"]["refunded_amount"] == 5.0
+    assert balance["available_credits"] == 7.34
+
 def test_stripe_checkout_webhook_rejects_unknown_invalid_session_and_currency_references() -> None:
     server, base_url = _stripe_checkout_server()
     try:

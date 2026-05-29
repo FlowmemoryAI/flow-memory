@@ -10202,7 +10202,10 @@ def _stripe_checkout_session_id(raw_event: Mapping[str, Any]) -> str:
 
 def _stripe_credit(raw_event: Mapping[str, Any]) -> dict[str, object]:
     event_object = _stripe_event_object(raw_event)
-    amount_source = event_object.get("amount_total", "")
+    if str(raw_event.get("type", "")) == "charge.refunded":
+        amount_source = event_object.get("amount_refunded", "")
+    else:
+        amount_source = event_object.get("amount_total", "")
     amount_in_minor_units = amount_source not in (None, "")
     if amount_source in (None, ""):
         amount_source = event_object.get("amount_paid", "")

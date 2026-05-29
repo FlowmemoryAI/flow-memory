@@ -3223,6 +3223,58 @@ def test_compute_job_lifecycle_records_dispatch_completion_artifact_and_usage() 
     assert any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
 
+def test_compute_job_events_and_artifacts_are_tenant_isolated_after_job_id_collision() -> None:
+    service = _service()
+    shared_job_id = "job_child_record_collision"
+    victim_payload = {
+        **_job_payload(),
+        "job_id": shared_job_id,
+        "tenant_id": "tenant_child_victim",
+        "workspace_id": "workspace_child_victim",
+        "request_id": "victim-job-create",
+    }
+    attacker_payload = {
+        **_job_payload(),
+        "job_id": shared_job_id,
+        "tenant_id": "tenant_child_attacker",
+        "workspace_id": "workspace_child_attacker",
+        "request_id": "attacker-job-create",
+    }
+
+    victim_created = service.create_job(victim_payload)
+    service.dispatch_job(shared_job_id, {"tenant_id": "tenant_child_victim", "workspace_id": "workspace_child_victim"})
+    victim_completed = service.complete_job(
+        shared_job_id,
+        {
+            "tenant_id": "tenant_child_victim",
+            "workspace_id": "workspace_child_victim",
+            "actual_units": 1,
+            "actual_total_cost": 0.01,
+            "currency": "USD",
+            "artifact_ref": "s3://flow-memory-results/victim-collision.json",
+            "artifact_data": {"tenant": "victim"},
+            "request_id": "victim-job-complete",
+        },
+    )
+    attacker_created = service.create_job(attacker_payload)
+
+    attacker_events = service.job_events(
+        shared_job_id,
+        {"tenant_id": "tenant_child_attacker", "workspace_id": "workspace_child_attacker"},
+    )["events"]
+    attacker_artifacts = service.job_artifacts(
+        shared_job_id,
+        {"tenant_id": "tenant_child_attacker", "workspace_id": "workspace_child_attacker"},
+    )["artifacts"]
+
+    assert victim_created["job"]["tenant_id"] == "tenant_child_victim"
+    assert victim_completed["artifact"]["artifact_ref"] == "s3://flow-memory-results/victim-collision.json"
+    assert attacker_created["job"]["tenant_id"] == "tenant_child_attacker"
+    assert tuple(event["event_type"] for event in attacker_events) == ("job.queued",)
+    assert attacker_events[0]["request_id"] == "attacker-job-create"
+    assert attacker_artifacts == ()
+
+
 def test_complete_job_status_race_does_not_record_usage_or_debit(monkeypatch: Any) -> None:
     service = _service()
     account_id = "acct_complete_status_race"

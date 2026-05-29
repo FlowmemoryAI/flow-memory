@@ -2926,7 +2926,11 @@ class ComputeMarketService:
     ) -> tuple[tuple[Mapping[str, Any], ...], str]:
         limit = _page_limit(payload)
         cursor_offset = _page_cursor_offset(str(payload.get("cursor", "")))
-        filter_keys = ("provider_id", "route_id", "task_type") if record_type == "compute_job_artifact" else ("provider_id", "route_id")
+        filter_keys = (
+            ("tenant_id", "workspace_id", "provider_id", "route_id", "task_type")
+            if record_type == "compute_job_artifact"
+            else ("tenant_id", "workspace_id", "provider_id", "route_id")
+        )
         filters = {key: str(job.get(key, "")) for key in filter_keys if str(job.get(key, "")).strip()}
         records: list[Mapping[str, Any]] = []
         while len(records) < limit:

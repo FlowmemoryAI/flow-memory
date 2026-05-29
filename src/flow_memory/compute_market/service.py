@@ -11102,7 +11102,7 @@ def _expected_credit_balance_from_transactions(
                 expected_available -= max(0.0, amount - reservation_amount)
             else:
                 expected_available -= amount
-    return round(expected_available, 6), round(expected_reserved, 6)
+    return round(max(0.0, expected_available), 6), round(max(0.0, expected_reserved), 6)
 
 
 def _rebuild_credit_balance_from_transactions(

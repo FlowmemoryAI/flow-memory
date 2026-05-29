@@ -6213,6 +6213,44 @@ def test_stripe_refund_events_share_one_debit_when_checkout_gate_disabled() -> N
     assert service.store.count_records("credit_transaction") == 2
     assert balance["available_credits"] == 0.0
 
+def test_stripe_refund_debit_does_not_drive_credit_balance_negative() -> None:
+    service = _service()
+    account_id = "acct_stripe_refund_no_credit"
+    refund_event = {
+        "id": "evt_stripe_refund_no_credit",
+        "type": "refund.created",
+        "data": {
+            "object": {
+                "id": "re_stripe_refund_no_credit",
+                "amount": 1234,
+                "currency": "usd",
+                "metadata": {"account_id": account_id, "payment_event_id": "checkout_refund_no_credit"},
+            }
+        },
+    }
+    secret = "whsec_test_secret"
+
+    refund = service.billing_webhook_stripe(
+        {
+            "raw_event": refund_event,
+            "webhook_secret": secret,
+            "stripe_signature": hmac.new(
+                secret.encode("utf-8"),
+                content_hash(refund_event).encode("utf-8"),
+                "sha256",
+            ).hexdigest(),
+        }
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    reconciliation = service.reconciliation({})["reconciliation"]
+
+    assert refund["ok"] is True
+    assert refund["refund_debit"]["amount"] == 12.34
+    assert refund["refund_debit"]["debit_reason"] == "stripe_refund"
+    assert balance["available_credits"] == 0.0
+    assert balance["reserved_credits"] == 0.0
+    assert reconciliation["ledger_balanced"] is True
+
 def test_stripe_charge_refunded_uses_partial_amount_refunded() -> None:
     server, base_url = _stripe_checkout_server()
     try:

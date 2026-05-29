@@ -38,6 +38,48 @@ _PLACEHOLDER_API_KEY_FRAGMENTS = (
     "high-entropy-api-key",
 )
 _WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", "password"))
+_PRODUCTION_ENV_REQUIRED_KEYS = (
+    "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND",
+    "FLOW_MEMORY_COMPUTE_DATABASE_URL",
+    "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION",
+    "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION",
+    "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND",
+    "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND",
+    "FLOW_MEMORY_COMPUTE_REDIS_URL",
+    "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED",
+    "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED",
+    "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED",
+    "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION",
+)
+_PRODUCTION_ENV_EXPECTED_VALUES = {
+    "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND": "postgres",
+    "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
+    "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
+    "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND": "redis",
+    "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND": "redis",
+    "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED": "true",
+    "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED": "false",
+    "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED": "false",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED": "true",
+    "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": "true",
+}
+_PLACEHOLDER_INFRA_FRAGMENTS = _PLACEHOLDER_API_KEY_FRAGMENTS + (
+    "yourdomain.com",
+    "api.yourdomain.com",
+    "managed-postgres-host",
+    "managed-redis-host",
+    "audit-object-lock-bucket",
+    "<managed_postgres_url>",
+    "<managed_redis_url>",
+    "<audit_export_uri>",
+)
 
 
 
@@ -134,6 +176,95 @@ def api_key_block_reason(api_key: str) -> str:
 def has_placeholder(value: str) -> bool:
     raw = value.strip().lower()
     return any(fragment in raw for fragment in _PLACEHOLDER_API_KEY_FRAGMENTS)
+
+
+def has_infra_placeholder(value: str) -> bool:
+    raw = value.strip().lower()
+    return any(fragment in raw for fragment in _PLACEHOLDER_INFRA_FRAGMENTS)
+
+
+def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
+    missing = [key for key in _PRODUCTION_ENV_REQUIRED_KEYS if not values.get(key, "").strip()]
+    placeholders = [
+        key
+        for key in _PRODUCTION_ENV_REQUIRED_KEYS
+        if values.get(key, "").strip() and has_infra_placeholder(values[key])
+    ]
+    invalid: list[dict[str, str]] = []
+    for key, expected in _PRODUCTION_ENV_EXPECTED_VALUES.items():
+        actual = values.get(key, "").strip().lower()
+        if actual and actual != expected:
+            invalid.append({"key": key, "actual": actual, "expected": expected})
+
+    database_url = values.get("FLOW_MEMORY_COMPUTE_DATABASE_URL", "").strip()
+    if database_url and not has_infra_placeholder(database_url):
+        database_scheme = urllib.parse.urlparse(database_url).scheme.lower()
+        if database_scheme not in {"postgres", "postgresql"}:
+            invalid.append(
+                {
+                    "key": "FLOW_MEMORY_COMPUTE_DATABASE_URL",
+                    "actual": database_scheme,
+                    "expected": "postgresql",
+                }
+            )
+
+    redis_url = values.get("FLOW_MEMORY_COMPUTE_REDIS_URL", "").strip()
+    if redis_url and not has_infra_placeholder(redis_url):
+        redis_scheme = urllib.parse.urlparse(redis_url).scheme.lower()
+        if redis_scheme != "rediss":
+            invalid.append(
+                {
+                    "key": "FLOW_MEMORY_COMPUTE_REDIS_URL",
+                    "actual": redis_scheme,
+                    "expected": "rediss",
+                }
+            )
+
+    audit_export_uri = values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "").strip()
+    if audit_export_uri and not has_infra_placeholder(audit_export_uri):
+        audit_scheme = urllib.parse.urlparse(audit_export_uri).scheme.lower()
+        if audit_scheme != "s3":
+            invalid.append(
+                {
+                    "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI",
+                    "actual": audit_scheme,
+                    "expected": "s3",
+                }
+            )
+
+    object_lock_mode = values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", "").strip().upper()
+    if object_lock_mode and object_lock_mode not in {"COMPLIANCE", "GOVERNANCE"}:
+        invalid.append(
+            {
+                "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
+                "actual": object_lock_mode,
+                "expected": "COMPLIANCE_or_GOVERNANCE",
+            }
+        )
+
+    retention_days = values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS", "").strip()
+    if retention_days:
+        try:
+            retention_days_int = int(retention_days)
+        except ValueError:
+            retention_days_int = 0
+        if retention_days_int < 1:
+            invalid.append(
+                {
+                    "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
+                    "actual": retention_days,
+                    "expected": "positive_integer",
+                }
+            )
+
+    if missing or placeholders or invalid:
+        raise SystemExit(
+            "production environment prerequisites failed: "
+            + json.dumps(
+                {"missing": missing, "placeholder_values": placeholders, "invalid": invalid},
+                sort_keys=True,
+            )
+        )
 
 
 def base64url_json(payload: Mapping[str, Any]) -> str:
@@ -583,6 +714,7 @@ def main(argv: list[str] | None = None) -> int:
         False,
     )
     gateway_jwt_config = gateway_jwt_config_from_env(env_values)
+    validate_production_env_prerequisites(env_values)
     if gateway_jwt_config is not None:
         result = validate(
             api_url,

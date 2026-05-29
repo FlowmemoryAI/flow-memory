@@ -5,6 +5,34 @@ from typing import Any, Mapping
 import scripts.validate_compute_market_public_buildout as validator
 
 
+def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
+    return (
+        "\n".join(
+            (
+                f"FLOW_MEMORY_API_KEY={api_key}",
+                "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
+                "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://db.example.com:5432/flow_memory",
+                "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
+                "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
+                "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND=redis",
+                "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND=redis",
+                "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://redis.example.com:6379/0",
+                "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED=false",
+                "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED=false",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+            )
+        )
+        + "\n"
+    )
+
+
 def test_public_validator_nonce_headers_are_random_per_authenticated_request(monkeypatch: Any) -> None:
     nonces = iter(("nonce-a", "nonce-b"))
     monkeypatch.setattr(validator.secrets, "token_urlsafe", lambda _size: next(nonces))
@@ -77,6 +105,52 @@ def test_public_buildout_main_blocks_weak_api_key_before_network(tmp_path: Any, 
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted a weak API key")
 
+def test_public_buildout_main_blocks_missing_live_prerequisites_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text("FLOW_MEMORY_API_KEY=fmk_live_test_secret\n", encoding="utf-8")
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "production environment prerequisites failed" in message
+        assert "FLOW_MEMORY_COMPUTE_DATABASE_URL" in message
+        assert "FLOW_MEMORY_COMPUTE_REDIS_URL" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing production prerequisites")
+
+
+def test_public_buildout_main_blocks_insecure_live_prerequisites_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace("rediss://redis.example.com:6379/0", "redis://redis.example.com:6379/0"),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_REDIS_URL" in message
+        assert '"expected": "rediss"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted insecure production prerequisites")
+
+
 def test_public_buildout_main_blocks_incomplete_gateway_jwt_before_network(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
     env_file.write_text(
@@ -112,7 +186,7 @@ def test_public_buildout_main_blocks_incomplete_gateway_jwt_before_network(tmp_p
 
 def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
-    env_file.write_text("FLOW_MEMORY_API_KEY=fmk_live_test_secret\n", encoding="utf-8")
+    env_file.write_text(_production_env_text(), encoding="utf-8")
     captured: dict[str, Any] = {}
 
     def fake_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:

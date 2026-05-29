@@ -1963,3 +1963,40 @@ flowchart TD
     QuoteGate --> PublicSmoke
     PublicSmoke --> PlannerOnly[planning-only dry-run deployment]
 ```
+
+## Checkpoint 2026-05-26 No-custody Level 1 billing material gate
+
+Files changed:
+
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 85 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile("scripts/deploy_compute_market_public_level1.ps1", ...)'` — parsed with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 459 passed, 2 skipped
+- `git diff --check` — no whitespace errors; only existing CRLF normalization warnings for runtime evidence and PowerShell files
+
+Commit: `ab318ac Reject live billing material in Level 1`.
+
+Implementation:
+
+- Public Level 1 validation now rejects configured Stripe secret keys, webhook secrets, checkout return URLs, settlement environment, or settlement security review IDs before any network calls.
+- Render and PowerShell deployment automation report only key names and `configured`, never secret values, when those forbidden fields are populated.
+- Tests prove that checkout/live-settlement booleans are not the only safety gate; Level 1 also requires live billing and settlement material to remain absent.
+
+```mermaid
+flowchart TD
+    Env[Public Level 1 env] --> BillingSecrets[Stripe keys and checkout URLs]
+    Env --> SettlementIds[settlement environment and review id]
+    BillingSecrets --> Forbidden[empty_for_level1 required]
+    SettlementIds --> Forbidden
+    Forbidden --> Preflight[public validation and deployment preflight]
+    Preflight --> NoCustody[no custody, no checkout, no live settlement]
+```

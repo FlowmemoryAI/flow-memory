@@ -534,6 +534,41 @@ def test_public_buildout_main_blocks_invalid_redis_operational_evidence_before_n
         raise AssertionError("public buildout validator accepted local Redis operational evidence")
 
 
+def test_public_buildout_main_blocks_invalid_provider_callback_allowlist_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        + (
+            "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST="
+            "0.0.0.0/32,CHANGEME-provider-cidr\n"
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(
+        base_url: str,
+        api_key: str,
+        *,
+        require_immutable_audit: bool = False,
+    ) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST" in message
+        assert "unspecified_cidr_not_allowed" in message
+        assert "placeholder_not_allowed" in message
+        assert '"expected": "explicit_provider_ip_or_non_world_open_cidr"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted invalid provider callback allowlist")
+
+
 
 def test_public_buildout_main_blocks_http_observability_sink_before_network(
     tmp_path: Any, monkeypatch: Any

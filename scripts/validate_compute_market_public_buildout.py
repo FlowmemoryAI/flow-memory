@@ -353,6 +353,28 @@ def has_infra_placeholder(value: str) -> bool:
     return any(fragment in raw for fragment in _PLACEHOLDER_INFRA_FRAGMENTS)
 
 
+def provider_callback_ip_allowlist_violations(allowlist: str) -> tuple[dict[str, str], ...]:
+    invalid_entries: list[dict[str, str]] = []
+    for entry in (item.strip() for item in allowlist.split(",") if item.strip()):
+        if has_infra_placeholder(entry):
+            invalid_entries.append({"value": entry, "reason": "placeholder_not_allowed"})
+            continue
+        try:
+            if "/" in entry:
+                network = ipaddress.ip_network(entry, strict=True)
+                if network.prefixlen == 0:
+                    invalid_entries.append({"value": entry, "reason": "world_open_cidr_not_allowed"})
+                elif network.network_address.is_unspecified:
+                    invalid_entries.append({"value": entry, "reason": "unspecified_cidr_not_allowed"})
+            else:
+                address = ipaddress.ip_address(entry)
+                if address.is_unspecified:
+                    invalid_entries.append({"value": entry, "reason": "unspecified_ip_not_allowed"})
+        except ValueError as exc:
+            invalid_entries.append({"value": entry, "reason": str(exc)})
+    return tuple(invalid_entries)
+
+
 def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
     missing = [key for key in _PRODUCTION_ENV_REQUIRED_KEYS if not values.get(key, "").strip()]
     placeholders = [
@@ -450,6 +472,18 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
         scheme = urllib.parse.urlparse(evidence_uri).scheme.lower()
         if scheme not in {"https", "s3"}:
             invalid.append({"key": key, "actual": scheme, "expected": "https_or_s3"})
+    provider_callback_allowlist = values.get(
+        "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST", ""
+    ).strip()
+    for entry in provider_callback_ip_allowlist_violations(provider_callback_allowlist):
+        invalid.append(
+            {
+                "key": "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST",
+                "actual": entry["value"],
+                "expected": "explicit_provider_ip_or_non_world_open_cidr",
+                "reason": entry["reason"],
+            }
+        )
     for key in _OBSERVABILITY_HTTPS_URL_KEYS:
         sink_url = values.get(key, "").strip()
         if not sink_url or has_infra_placeholder(sink_url):

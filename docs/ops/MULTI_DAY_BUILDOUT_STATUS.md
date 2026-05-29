@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `b5d52eb Assert idempotent plan replay avoids duplicate audit`
+Latest inspected commit: `be8c7bb Document Redis operational evidence gate`
 
 ## Current architecture
 
@@ -2042,4 +2042,43 @@ flowchart TD
     Multi --> Preflight
     Dashboard --> Preflight
     Preflight --> ManagedRedis[managed Redis Level 1 readiness]
+```
+
+## Checkpoint 2026-05-26 Provider callback allowlist preflight gate
+
+Files changed:
+
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 89 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 463 passed, 2 skipped
+- `git diff --check -- scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
+
+Commit: pending.
+
+Implementation:
+
+- Public Level 1 validation now rejects configured provider callback source allowlists that contain placeholders, invalid IP/CIDR notation, world-open CIDRs, or unspecified IP/CIDR values before any network validation runs.
+- Render API deployment validation now also rejects unspecified CIDR entries such as `0.0.0.0/32`, closing the gap between deployment preflight and public buildout validation.
+- The gate keeps Level 1 external providers disabled while preventing unsafe provider callback allowlist material from silently passing release review.
+
+```mermaid
+flowchart TD
+    Env[Public env file] --> Allowlist[provider callback IP allowlist]
+    Allowlist --> Placeholder[placeholder rejection]
+    Allowlist --> Invalid[invalid IP/CIDR rejection]
+    Allowlist --> WorldOpen[world-open CIDR rejection]
+    Allowlist --> Unspecified[unspecified IP/CIDR rejection]
+    Placeholder --> Preflight[public validation and Render preflight]
+    Invalid --> Preflight
+    WorldOpen --> Preflight
+    Unspecified --> Preflight
+    Preflight --> ProviderSafety[external provider callback safety gate]
 ```

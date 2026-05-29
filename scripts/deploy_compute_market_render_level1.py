@@ -448,6 +448,8 @@ def provider_callback_ip_allowlist_from_env(values: dict[str, str]) -> str:
                 network = ipaddress.ip_network(entry, strict=True)
                 if network.prefixlen == 0:
                     invalid_entries.append({"value": entry, "reason": "world_open_cidr_not_allowed"})
+                elif network.network_address.is_unspecified:
+                    invalid_entries.append({"value": entry, "reason": "unspecified_cidr_not_allowed"})
             else:
                 address = ipaddress.ip_address(entry)
                 if address.is_unspecified:

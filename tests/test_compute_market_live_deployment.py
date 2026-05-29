@@ -1553,11 +1553,17 @@ def test_render_env_builder_propagates_and_validates_provider_callback_ip_allowl
         render_deploy.provider_callback_ip_allowlist_from_env(
             {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "changeme-provider-cidr"}
         )
+    with pytest.raises(SystemExit) as unspecified_cidr:
+        render_deploy.provider_callback_ip_allowlist_from_env(
+            {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": "0.0.0.0/32"}
+        )
+
 
     assert missing.value.code == 30
     assert world_open.value.code == 31
     assert placeholder.value.code == 31
     assert lowercase_placeholder.value.code == 31
+    assert unspecified_cidr.value.code == 31
 
 def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_HS256_SECRET", "")

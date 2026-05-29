@@ -4568,6 +4568,31 @@ def test_compute_job_retry_respects_max_retries() -> None:
     event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
     assert "job.max_retries_exceeded" in event_types
 
+def test_compute_job_retry_rejects_missing_status_without_transition() -> None:
+    service = _service()
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_retry_missing_status"})["job"]["job_id"])
+    job = dict(service.get_job(job_id)["job"])
+    job["status"] = ""
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        job,
+        provider_id=str(job.get("provider_id", "")),
+        route_id=str(job.get("route_id", "")),
+        task_type=str(job.get("task_type", "")),
+        status="",
+    )
+
+    retried = service.retry_job(job_id, {})
+    stored = service.get_job(job_id)["job"]
+    event_types = {event["event_type"] for event in service.job_events(job_id)["events"]}
+
+    assert retried["ok"] is False
+    assert retried["error"]["error_code"] == "job.status_missing"
+    assert stored["status"] == ""
+    assert "job.retry_status_missing" in event_types
+    assert "job.retry_queued" not in event_types
+
 
 def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signature() -> None:
     service = _service()

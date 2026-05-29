@@ -4445,6 +4445,42 @@ class ComputeMarketService:
             )
             return {"ok": False, "job": job, "event": event, "error": error.as_record()}
         original_job_for_release = dict(job)
+        retry_expected_status = str(original_job_for_release.get("status", "")).strip()
+        if not retry_expected_status:
+            error = compute_error(
+                "job.status_missing",
+                "Compute job status is required before retry can be queued.",
+                details={"job_id": job_id, "funds_moved": False},
+                request_id=request_id,
+            )
+            event = _job_event(
+                job_id,
+                "job.retry_status_missing",
+                status="",
+                request_id=request_id,
+                details={"error": error.as_record(), "funds_moved": False},
+            )
+            self.store.put_record(
+                "compute_job_event",
+                str(event["event_id"]),
+                event,
+                provider_id=str(original_job_for_release.get("provider_id", "")),
+                route_id=str(original_job_for_release.get("route_id", "")),
+                status="",
+                request_id=request_id,
+                tenant_id=str(original_job_for_release.get("tenant_id", "")),
+                workspace_id=str(original_job_for_release.get("workspace_id", "")),
+            )
+            self._audit(
+                "compute.job.retry_status_missing",
+                payload,
+                request_id=request_id,
+                result="rejected",
+                reason_codes=("status_missing",),
+                provider_id=str(original_job_for_release.get("provider_id", "")),
+                route_id=str(original_job_for_release.get("route_id", "")),
+            )
+            return {"ok": False, "job": original_job_for_release, "event": event, "error": error.as_record()}
         credit_release: Mapping[str, Any] = {}
         retry_at = utc_now_iso()
         attempts = current_attempts + 1
@@ -4472,11 +4508,10 @@ class ComputeMarketService:
             "last_lease_expires_at",
         ):
             job.pop(stale_key, None)
-        retry_expected_status = str(original_job_for_release.get("status", ""))
         transitioned_to_retry = self.store.put_record_if_state(
             "compute_job",
             job_id,
-            (retry_expected_status,) if retry_expected_status else ("queued", "dispatched", "running", "failed", "cancelled"),
+            (retry_expected_status,),
             job,
             provider_id=str(job.get("provider_id", "")),
             route_id=str(job.get("route_id", "")),

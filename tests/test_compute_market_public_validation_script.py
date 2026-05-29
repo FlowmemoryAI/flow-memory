@@ -323,6 +323,7 @@ def _passing_public_buildout_call_text(
 
 def _passing_public_buildout_call_json(
     redis_overrides: Mapping[str, Any] | None = None,
+    audit_export_overrides: Mapping[str, Any] | None = None,
 ) -> Any:
     job_counter = 0
     plan_counter = 0
@@ -466,10 +467,12 @@ def _passing_public_buildout_call_json(
             redis_diag.update(redis_overrides or {})
             return 200, {"ok": True, "data": redis_diag}
         if url.endswith("/admin/audit/export"):
-            return 200, {
-                "ok": True,
-                "data": {"immutable": True, "audit_exporter_status": {"exporter": "s3_object_lock", "immutable": True}},
+            audit_export_status = {
+                "immutable": True,
+                "audit_exporter_status": {"exporter": "s3_object_lock", "immutable": True},
             }
+            audit_export_status.update(audit_export_overrides or {})
+            return 200, {"ok": True, "data": audit_export_status}
         return 200, {"ok": True, "data": {"ok": True}}
 
     return fake_call_json
@@ -499,6 +502,31 @@ def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch
         else:  # pragma: no cover
             raise AssertionError("public buildout validator accepted fail-open Redis diagnostics")
 
+
+def test_public_buildout_validation_requires_immutable_s3_audit_when_requested(monkeypatch: Any) -> None:
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+    monkeypatch.setattr(
+        validator,
+        "call_json",
+        _passing_public_buildout_call_json(
+            audit_export_overrides={
+                "immutable": False,
+                "audit_exporter_status": {"exporter": "local_file", "immutable": False},
+            }
+        ),
+    )
+
+    try:
+        validator.validate(
+            "https://api.example.test",
+            "prod-key",
+            require_immutable_audit=True,
+        )
+    except AssertionError as exc:
+        assert "admin audit export is not immutable S3 Object Lock storage" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted non-immutable audit storage")
 
 
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:

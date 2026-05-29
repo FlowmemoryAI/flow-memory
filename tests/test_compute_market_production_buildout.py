@@ -5236,6 +5236,55 @@ def test_compute_job_failure_and_invalid_transitions_are_rejected() -> None:
         raise AssertionError("queued job completed without dispatch")
 
 
+def test_fail_job_reports_previously_released_credit_reservation_and_rebuilds_balance() -> None:
+    service = _service()
+    account_id = "acct_fail_previously_released"
+    _credit_account(service, account_id, 1.0, event_id="evt_fail_previously_released")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_fail_previously_released",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    reservation_id = str(dispatched["credit_reservation"]["credit_transaction_id"])
+    reservation = dict(service.store.get_record("credit_transaction", reservation_id) or {})
+    reservation["status"] = "released"
+    reservation["release_reason"] = "manual_recovery"
+    service.store.put_record(
+        "credit_transaction",
+        reservation_id,
+        reservation,
+        tenant_id=account_id,
+        status="released",
+        request_id="manual_recovery",
+        idempotency_key=reservation_id,
+    )
+
+    failed = service.fail_job(job_id, {"error_code": "provider_timeout", "reason": "late provider failure"})
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    transactions = service.store.list_records(
+        "credit_transaction",
+        filters={"tenant_id": account_id},
+        limit=10,
+    ).records
+    failure_event = next(event for event in service.job_events(job_id)["events"] if event["event_type"] == "job.failed")
+
+    assert failed["job"]["status"] == "failed"
+    assert failed["credit_release"]["status"] == "already_released"
+    assert failed["credit_release"]["reservation_status"] == "released"
+    assert failed["credit_release"]["amount"] == 0.0
+    assert failure_event["details"]["credit_release"]["reservation_transaction_id"] == reservation_id
+    assert not any(record["transaction_type"] == "reserve_release" for record in transactions)
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+
+
 def test_fail_job_status_race_does_not_release_reserved_credit(monkeypatch: Any) -> None:
     service = _service()
     account_id = "acct_fail_status_race"

@@ -11812,7 +11812,27 @@ def _release_credit_reservation(
         )
         return existing
     if str(reservation.get("status", "")) != "reserved":
-        return {}
+        _rebuild_credit_balance_from_transactions(
+            store,
+            account_id,
+            currency=currency,
+            request_id=request_id,
+        )
+        return {
+            "credit_transaction_id": release_id,
+            "account_id": account_id,
+            "transaction_type": "reserve_release",
+            "amount": 0.0,
+            "currency": currency,
+            "job_id": str(reservation.get("job_id", job.get("job_id", ""))),
+            "reservation_transaction_id": reservation_id,
+            "status": "already_released",
+            "reservation_status": str(reservation.get("status", "")),
+            "reason": reason,
+            "dry_run_only": True,
+            "funds_moved": False,
+            "request_id": request_id,
+        }
     now = utc_now_iso()
     currency = str(reservation.get("currency", "USD"))
     released_reservation = {

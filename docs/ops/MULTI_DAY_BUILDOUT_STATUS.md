@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `72262c8 Verify render smoke plan replay`
+Latest inspected commit: `148e660 Verify public smoke plan replay`
 
 ## Current architecture
 
@@ -1285,4 +1285,37 @@ flowchart TD
     Replay --> Match{Decision ID matches?}
     Match -->|Yes| Continue[Continue public readiness gates]
     Match -->|No| Fail[Fail deployment smoke]
+```
+
+## Checkpoint 2026-05-26 PowerShell public smoke plan replay gate
+
+Files changed:
+
+- `scripts/smoke_compute_market_public.ps1`
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_public_smoke_script_validates_gateway_jwt_when_configured -q` — 1 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check tests/test_compute_market_live_deployment.py scripts/deploy_compute_market_render_level1.py` — OK
+- `python -m mypy tests/test_compute_market_live_deployment.py scripts/deploy_compute_market_render_level1.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 437 passed, 2 skipped
+- `git diff --check -- scripts/smoke_compute_market_public.ps1 tests/test_compute_market_live_deployment.py scripts/deploy_compute_market_render_level1.py` — clean except the expected PowerShell LF-to-CRLF working-copy warning
+
+Commit: `148e660 Verify public smoke plan replay`.
+
+Implementation:
+
+- The standalone PowerShell public smoke now sends `/compute/plan` twice with the same idempotency key and requires `idempotent_replay=true`.
+- It rejects public deployments where the replayed plan returns a different `decision_id` from the original plan.
+- Smoke JSON output now includes `plan_idempotent_replay` next to storage, Redis, audit, JWT, and safety evidence.
+
+```mermaid
+flowchart TD
+    PublicSmoke[PowerShell public smoke] --> Plan[First compute plan]
+    Plan --> Replay[Same idempotency key replay]
+    Replay --> Match{Decision ID matches?}
+    Match -->|Yes| Evidence[plan_idempotent_replay true]
+    Match -->|No| Fail[Fail public smoke]
 ```

@@ -26,6 +26,7 @@ DEFAULT_POSTGRES_PLAN = os.environ.get("RENDER_POSTGRES_PLAN", "basic_256mb")
 DEFAULT_KEYVALUE_PLAN = os.environ.get("RENDER_KEYVALUE_PLAN", "starter")
 DEFAULT_SERVICE_PLAN = os.environ.get("RENDER_SERVICE_PLAN", "starter")
 DEFAULT_KEYVALUE_IP_ALLOWLIST = os.environ.get("RENDER_KEYVALUE_IP_ALLOWLIST", "0.0.0.0/32").strip()
+DEFAULT_POSTGRES_IP_ALLOWLIST = os.environ.get("RENDER_POSTGRES_IP_ALLOWLIST", "").strip()
 ALLOW_FREE_RENDER_PLANS = os.environ.get("RENDER_ALLOW_FREE_PLANS", "").strip().lower() in {"1", "true", "yes"}
 ENABLE_RENDER_DISK = os.environ.get("RENDER_ENABLE_DISK", "").strip().lower() in {"1", "true", "yes"}
 FREE_RENDER_PLANS = {"free"}
@@ -844,46 +845,37 @@ def ensure_service_disk(api_key: str, service_id: str) -> dict[str, Any] | None:
     return created.get("disk", created) if isinstance(created, dict) else None
 
 
-def ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str | None = None) -> dict[str, Any]:
-    plan = DEFAULT_POSTGRES_PLAN if plan is None else plan
-    existing = find_named(api_key, "/postgres", "postgres", owner_id, POSTGRES_NAME)
-    if existing is not None:
-        if _requires_paid_plan_update(existing, plan):
-            return _expect_dict(
-                render_request(
-                    api_key,
-                    "PATCH",
-                    f"/postgres/{urllib.parse.quote(str(existing['id']))}",
-                    {"plan": plan},
-                ),
-                "postgres",
-            )
-        return existing
-    body = {
-        "name": POSTGRES_NAME,
-        "ownerId": owner_id,
-        "plan": plan,
-        "version": "16",
-        "databaseName": "flow_memory",
-        "databaseUser": "flow_memory",
-        "region": region,
-        "ipAllowList": [],
-    }
-    return _expect_dict(render_request(api_key, "POST", "/postgres", body), "postgres")
+def _ip_allow_list_fingerprint(entries: object) -> tuple[str, ...]:
+    if not isinstance(entries, list):
+        return ()
+    cidrs = [
+        str(entry.get("cidrBlock", "")).strip()
+        for entry in entries
+        if isinstance(entry, dict) and str(entry.get("cidrBlock", "")).strip()
+    ]
+    return tuple(sorted(cidrs))
 
 
-def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
-    raw_value = DEFAULT_KEYVALUE_IP_ALLOWLIST if value is None else value
+def _render_ip_allow_lists_equal(left: object, right: list[dict[str, str]]) -> bool:
+    return _ip_allow_list_fingerprint(left) == _ip_allow_list_fingerprint(right)
+
+
+def _render_external_ip_allow_list(
+    raw_value: str,
+    *,
+    env_name: str,
+    missing_status: str,
+    invalid_status: str,
+    endpoint_description: str,
+    entry_description: str,
+) -> list[dict[str, str]]:
     entries = [entry.strip() for entry in raw_value.split(",") if entry.strip()]
     if not entries:
         emit(
-            "blocked_missing_redis_external_allowlist",
+            missing_status,
             26,
-            missing_values=["RENDER_KEYVALUE_IP_ALLOWLIST"],
-            required_action=(
-                "Set RENDER_KEYVALUE_IP_ALLOWLIST to the CIDR ranges allowed to reach the Render Key Value "
-                "external rediss:// endpoint."
-            ),
+            missing_values=[env_name],
+            required_action=f"Set {env_name} to the CIDR ranges allowed to reach the {endpoint_description}.",
         )
 
     invalid_entries: list[dict[str, str]] = []
@@ -901,13 +893,78 @@ def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
 
     if invalid_entries:
         emit(
-            "blocked_invalid_redis_external_allowlist",
+            invalid_status,
             27,
             invalid_values=invalid_entries,
-            required_action="Set RENDER_KEYVALUE_IP_ALLOWLIST to explicit non-world-open CIDR ranges.",
+            required_action=f"Set {env_name} to explicit non-world-open CIDR ranges.",
         )
 
-    return [{"cidrBlock": entry, "description": "flow-memory-compute-market-redis-tls"} for entry in entries]
+    return [{"cidrBlock": entry, "description": entry_description} for entry in entries]
+
+
+def postgres_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
+    raw_value = DEFAULT_POSTGRES_IP_ALLOWLIST if value is None else value
+    return _render_external_ip_allow_list(
+        raw_value,
+        env_name="RENDER_POSTGRES_IP_ALLOWLIST",
+        missing_status="blocked_missing_postgres_external_allowlist",
+        invalid_status="blocked_invalid_postgres_external_allowlist",
+        endpoint_description="Render Postgres external TLS endpoint",
+        entry_description="flow-memory-compute-market-postgres-tls",
+    )
+
+
+def ensure_postgres(
+    api_key: str,
+    owner_id: str,
+    region: str,
+    *,
+    plan: str | None = None,
+    ip_allowlist: str | None = None,
+) -> dict[str, Any]:
+    plan = DEFAULT_POSTGRES_PLAN if plan is None else plan
+    ip_allow_list = postgres_ip_allow_list(ip_allowlist)
+    existing = find_named(api_key, "/postgres", "postgres", owner_id, POSTGRES_NAME)
+    if existing is not None:
+        requires_plan_update = _requires_paid_plan_update(existing, plan)
+        requires_ip_update = not _render_ip_allow_lists_equal(existing.get("ipAllowList"), ip_allow_list)
+        if requires_plan_update or requires_ip_update:
+            patch_body: dict[str, object] = {"ipAllowList": ip_allow_list}
+            if requires_plan_update:
+                patch_body["plan"] = plan
+            return _expect_dict(
+                render_request(
+                    api_key,
+                    "PATCH",
+                    f"/postgres/{urllib.parse.quote(str(existing['id']))}",
+                    patch_body,
+                ),
+                "postgres",
+            )
+        return existing
+    body = {
+        "name": POSTGRES_NAME,
+        "ownerId": owner_id,
+        "plan": plan,
+        "version": "16",
+        "databaseName": "flow_memory",
+        "databaseUser": "flow_memory",
+        "region": region,
+        "ipAllowList": ip_allow_list,
+    }
+    return _expect_dict(render_request(api_key, "POST", "/postgres", body), "postgres")
+
+
+def keyvalue_ip_allow_list(value: str | None = None) -> list[dict[str, str]]:
+    raw_value = DEFAULT_KEYVALUE_IP_ALLOWLIST if value is None else value
+    return _render_external_ip_allow_list(
+        raw_value,
+        env_name="RENDER_KEYVALUE_IP_ALLOWLIST",
+        missing_status="blocked_missing_redis_external_allowlist",
+        invalid_status="blocked_invalid_redis_external_allowlist",
+        endpoint_description="Render Key Value external rediss:// endpoint",
+        entry_description="flow-memory-compute-market-redis-tls",
+    )
 
 
 def ensure_keyvalue(
@@ -1920,6 +1977,7 @@ def main() -> int:
     render_branch = args.branch or env_values.get("RENDER_BRANCH", "")
     render_repo_url = args.repo_url or env_values.get("RENDER_REPO_URL", "")
     render_postgres_plan = env_values.get("RENDER_POSTGRES_PLAN", "") or DEFAULT_POSTGRES_PLAN
+    render_postgres_ip_allowlist = env_values.get("RENDER_POSTGRES_IP_ALLOWLIST", "") or DEFAULT_POSTGRES_IP_ALLOWLIST
     render_keyvalue_plan = env_values.get("RENDER_KEYVALUE_PLAN", "") or DEFAULT_KEYVALUE_PLAN
     render_service_plan = env_values.get("RENDER_SERVICE_PLAN", "") or DEFAULT_SERVICE_PLAN
     render_keyvalue_ip_allowlist = env_values.get("RENDER_KEYVALUE_IP_ALLOWLIST", "") or DEFAULT_KEYVALUE_IP_ALLOWLIST
@@ -1927,6 +1985,8 @@ def main() -> int:
         render_owner_id = ""
     if has_placeholder(render_repo_url):
         render_repo_url = ""
+    if has_placeholder(render_postgres_ip_allowlist):
+        render_postgres_ip_allowlist = DEFAULT_POSTGRES_IP_ALLOWLIST
     if has_placeholder(render_keyvalue_ip_allowlist):
         render_keyvalue_ip_allowlist = DEFAULT_KEYVALUE_IP_ALLOWLIST
     render_enable_disk = _bool_setting(env_values, "RENDER_ENABLE_DISK", ENABLE_RENDER_DISK)
@@ -2028,7 +2088,13 @@ def main() -> int:
     assert_branch_is_publishable(branch)
 
     try:
-        postgres = ensure_postgres(render_api_key, owner_id, render_region, plan=render_postgres_plan)
+        postgres = ensure_postgres(
+            render_api_key,
+            owner_id,
+            render_region,
+            plan=render_postgres_plan,
+            ip_allowlist=render_postgres_ip_allowlist,
+        )
         keyvalue = ensure_keyvalue(
             render_api_key,
             owner_id,

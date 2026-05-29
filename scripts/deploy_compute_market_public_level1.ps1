@@ -261,6 +261,9 @@ if (
 if ($envValues.Contains('RENDER_KEYVALUE_IP_ALLOWLIST') -and [string]$envValues['RENDER_KEYVALUE_IP_ALLOWLIST'] -match $placeholderPattern) {
     $placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')
 }
+if ($envValues.Contains('RENDER_POSTGRES_IP_ALLOWLIST') -and [string]$envValues['RENDER_POSTGRES_IP_ALLOWLIST'] -match $placeholderPattern) {
+    $placeholders.Add('RENDER_POSTGRES_IP_ALLOWLIST')
+}
 if ([string]::IsNullOrWhiteSpace($PublicApiUrl) -and $envValues.Contains('FLOW_MEMORY_PUBLIC_API_URL')) {
     $PublicApiUrl = [string]$envValues['FLOW_MEMORY_PUBLIC_API_URL']
 }
@@ -291,6 +294,9 @@ if (-not [string]::IsNullOrWhiteSpace($PublicApiUrl)) {
 
 $renderManagedPrerequisites = New-Object System.Collections.Generic.List[string]
 $renderManagedPrerequisites.Add('RENDER_API_KEY')
+if ($placeholders -contains 'FLOW_MEMORY_COMPUTE_DATABASE_URL') {
+    $renderManagedPrerequisites.Add('RENDER_POSTGRES_IP_ALLOWLIST')
+}
 if ($placeholders -contains 'FLOW_MEMORY_COMPUTE_REDIS_URL') {
     $renderManagedPrerequisites.Add('RENDER_KEYVALUE_IP_ALLOWLIST')
 }

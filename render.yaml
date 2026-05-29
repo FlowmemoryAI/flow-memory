@@ -228,6 +228,9 @@ services:
     maxmemoryPolicy: noeviction
 
 databases:
+  # Direct blueprint deploys cannot infer public egress CIDRs for the external TLS Postgres endpoint.
+  # Prefer scripts/deploy_compute_market_render_level1.py with RENDER_POSTGRES_IP_ALLOWLIST set,
+  # or replace this empty list with explicit CIDRs before using the blueprint directly.
   - name: flow-memory-compute-market-postgres
     databaseName: flow_memory
     user: flow_memory

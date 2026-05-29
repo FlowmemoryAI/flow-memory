@@ -101,6 +101,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_BILLING_STRIPE_API_BASE_URL=https://api.stripe.com",
         "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS=300",
         "RENDER_KEYVALUE_IP_ALLOWLIST",
+        "RENDER_POSTGRES_IP_ALLOWLIST",
         "RENDER_API_KEY=CHANGEME-render-api-key",
         "RENDER_OWNER_ID=CHANGEME-render-owner-or-workspace-id",
         "RENDER_POSTGRES_PLAN=basic_256mb",
@@ -185,6 +186,7 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_PUBLIC_API_URL\n        sync: false" in blueprint
     assert "Direct blueprint deploys cannot infer public egress CIDRs" in blueprint
     assert "RENDER_KEYVALUE_IP_ALLOWLIST" in blueprint
+    assert "RENDER_POSTGRES_IP_ALLOWLIST" in blueprint
     assert "FLOW_MEMORY_API_JWT_HS256_SECRET\n        sync: false" in blueprint
     assert "FLOW_MEMORY_API_JWT_ISSUER\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_AUDIENCE\n        value: \"\"" in blueprint
@@ -1193,6 +1195,7 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "$weakApiKeys" in deploy_script
     assert "$placeholders.Add('FLOW_MEMORY_PUBLIC_API_URL')" in deploy_script
     assert "$placeholders.Add('RENDER_KEYVALUE_IP_ALLOWLIST')" in deploy_script
+    assert "$placeholders.Add('RENDER_POSTGRES_IP_ALLOWLIST')" in deploy_script
     assert "blocked_invalid_public_url" in deploy_script
     assert "Get-PublicUrlBlockReason" in deploy_script
     assert "public_url_must_use_global_host" in deploy_script
@@ -1941,7 +1944,15 @@ def test_render_deploy_upgrades_existing_free_resources_and_attaches_audit_disk(
     ) -> dict[str, object] | list[dict[str, object]]:
         calls.append((method, path, body))
         if method == "PATCH" and path == "/postgres/pg_free":
-            assert body == {"plan": "starter"}
+            assert body == {
+                "plan": "starter",
+                "ipAllowList": [
+                    {
+                        "cidrBlock": "203.0.113.0/24",
+                        "description": "flow-memory-compute-market-postgres-tls",
+                    }
+                ],
+            }
             return {"id": "pg_free", "plan": "starter"}
         if method == "PATCH" and path == "/key-value/kv_free":
             assert body is not None
@@ -1974,7 +1985,13 @@ def test_render_deploy_upgrades_existing_free_resources_and_attaches_audit_disk(
     monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
     monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
 
-    postgres = render_deploy.ensure_postgres("render-key", "owner", "oregon", plan="starter")
+    postgres = render_deploy.ensure_postgres(
+        "render-key",
+        "owner",
+        "oregon",
+        plan="starter",
+        ip_allowlist="203.0.113.0/24",
+    )
     keyvalue = render_deploy.ensure_keyvalue(
         "render-key",
         "owner",
@@ -2017,6 +2034,33 @@ def test_render_keyvalue_external_allowlist_rejects_invalid_or_world_open_cidrs(
     assert missing_prefix.value.code == 27
     assert host_bits.value.code == 27
     assert world_open.value.code == 27
+
+
+def test_render_postgres_external_allowlist_rejects_missing_invalid_or_world_open_cidrs() -> None:
+    with pytest.raises(SystemExit) as missing:
+        render_deploy.postgres_ip_allow_list("")
+
+    with pytest.raises(SystemExit) as missing_prefix:
+        render_deploy.postgres_ip_allow_list("203.0.113.10")
+
+    with pytest.raises(SystemExit) as host_bits:
+        render_deploy.postgres_ip_allow_list("203.0.113.10/24")
+
+    with pytest.raises(SystemExit) as world_open:
+        render_deploy.postgres_ip_allow_list("0.0.0.0/0")
+
+    valid = render_deploy.postgres_ip_allow_list("203.0.113.0/24")
+
+    assert missing.value.code == 26
+    assert missing_prefix.value.code == 27
+    assert host_bits.value.code == 27
+    assert world_open.value.code == 27
+    assert valid == [
+        {
+            "cidrBlock": "203.0.113.0/24",
+            "description": "flow-memory-compute-market-postgres-tls",
+        }
+    ]
 
 
 def test_public_powershell_render_placeholder_gate_requires_render_api_key(tmp_path: Path) -> None:
@@ -2080,6 +2124,7 @@ def test_render_deploy_main_blocks_missing_public_observability_sinks_before_ren
                 "RENDER_POSTGRES_PLAN=pro",
                 "RENDER_KEYVALUE_PLAN=pro",
                 "RENDER_SERVICE_PLAN=professional",
+                "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
@@ -2136,6 +2181,7 @@ def test_render_deploy_main_blocks_missing_postgres_operational_evidence_before_
                 "RENDER_POSTGRES_PLAN=pro",
                 "RENDER_KEYVALUE_PLAN=pro",
                 "RENDER_SERVICE_PLAN=professional",
+                "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
@@ -2191,6 +2237,7 @@ def test_render_deploy_main_blocks_invalid_postgres_operational_evidence_before_
                 "RENDER_POSTGRES_PLAN=pro",
                 "RENDER_KEYVALUE_PLAN=pro",
                 "RENDER_SERVICE_PLAN=professional",
+                "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
@@ -2252,6 +2299,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "RENDER_POSTGRES_PLAN=pro",
                 "RENDER_KEYVALUE_PLAN=pro",
                 "RENDER_SERVICE_PLAN=professional",
+                "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
                 "RENDER_BRANCH=main",
                 "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
@@ -2313,8 +2361,21 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
         return "fmk_existing_render_service_key" if key == "FLOW_MEMORY_API_KEY" else ""
 
 
-    def fake_ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str) -> dict[str, str]:
-        calls["postgres"] = {"api_key": api_key, "owner_id": owner_id, "region": region, "plan": plan}
+    def fake_ensure_postgres(
+        api_key: str,
+        owner_id: str,
+        region: str,
+        *,
+        plan: str,
+        ip_allowlist: str | None = None,
+    ) -> dict[str, str]:
+        calls["postgres"] = {
+            "api_key": api_key,
+            "owner_id": owner_id,
+            "region": region,
+            "plan": plan,
+            "ip_allowlist": str(ip_allowlist or ""),
+        }
         return {"id": "pg_1"}
 
     def fake_ensure_keyvalue(
@@ -2421,6 +2482,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
         "owner_id": "owner_from_env_file",
         "region": "frankfurt",
         "plan": "pro",
+        "ip_allowlist": "203.0.113.0/24",
     }
     assert calls["keyvalue"]["ip_allowlist"] == "203.0.113.10/32"
     assert calls["service"]["plan"] == "professional"
@@ -2464,6 +2526,7 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
                 "RENDER_POSTGRES_PLAN=pro",
                 "RENDER_KEYVALUE_PLAN=pro",
                 "RENDER_SERVICE_PLAN=professional",
+                "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
                 "RENDER_BRANCH=main",
                 "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
@@ -2500,8 +2563,15 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
     )
     smoke_calls: list[dict[str, object]] = []
 
-    def fake_ensure_postgres(api_key: str, owner_id: str, region: str, *, plan: str) -> dict[str, str]:
-        return {"id": "pg_1"}
+    def fake_ensure_postgres(
+        api_key: str,
+        owner_id: str,
+        region: str,
+        *,
+        plan: str,
+        ip_allowlist: str | None = None,
+    ) -> dict[str, str]:
+        return {"id": "pg_1", "ip_allowlist": str(ip_allowlist or "")}
 
     def fake_ensure_keyvalue(
         api_key: str,

@@ -37,6 +37,16 @@ def test_inference_market_quotes_discounted_route_and_openai_proxy() -> None:
     response = service.proxy_chat_completion({"model": "flow-local-small", "messages": []})
     assert response["object"] == "chat.completion"
     assert response["flow_memory"]["dry_run_only"] is True
+    response_api = service.proxy_response({"model": "flow-local-small", "input": "hello"})
+    assert response_api["object"] == "response"
+    assert response_api["flow_memory"]["dry_run_only"] is True
+
+    embeddings = service.proxy_embeddings({"model": "flow-local-embedding", "input": ["hello", "world"]})
+    assert embeddings["object"] == "list"
+    assert len(embeddings["data"]) == 2
+    assert len(embeddings["data"][0]["embedding"]) == 16
+    assert embeddings["flow_memory"]["funds_moved"] is False
+
 
     anthropic = service.proxy_anthropic_message(
         {"model": "claude-3-5-haiku", "messages": [{"role": "user", "content": "hello"}]}
@@ -275,6 +285,13 @@ def test_router_exposes_inference_capacity_and_futures_endpoints() -> None:
 
     proxy = router.dispatch("POST", "/v1/chat/completions", {"model": "flow-local-small", "messages": []})
     assert proxy["object"] == "chat.completion"
+    response_api = router.dispatch("POST", "/v1/responses", {"model": "flow-local-small", "input": "hello"})
+    assert response_api["object"] == "response"
+
+    embeddings = router.dispatch("POST", "/v1/embeddings", {"model": "flow-local-embedding", "input": "hello"})
+    assert embeddings["object"] == "list"
+    assert embeddings["data"][0]["object"] == "embedding"
+
 
     anthropic = router.dispatch(
         "POST",
@@ -370,6 +387,8 @@ def test_new_market_scope_mapping() -> None:
     assert required_scopes_for("POST", "/inference/credits/sell") == ("inference:sell",)
     assert required_scopes_for("POST", "/inference/proxy") == ("inference:proxy",)
     assert required_scopes_for("POST", "/anthropic/v1/messages") == ("inference:proxy",)
+    assert required_scopes_for("POST", "/v1/responses") == ("inference:proxy",)
+    assert required_scopes_for("POST", "/v1/embeddings") == ("inference:proxy",)
     assert required_scopes_for("GET", "/inference/demand/summary") == ("inference:read",)
     assert required_scopes_for("POST", "/inference/prices/forecast") == ("inference:read",)
     assert required_scopes_for("POST", "/capacity/forwards/simulate") == ("compute:settlement-admin",)

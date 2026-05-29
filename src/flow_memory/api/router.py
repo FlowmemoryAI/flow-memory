@@ -1305,6 +1305,8 @@ def create_default_router() -> LocalApiRouter:
         market_handler("openai_chat_completions"),
         "openai_chat_completions",
     )
+    router.register("POST", "/v1/responses", market_handler("openai_responses"), "openai_responses")
+    router.register("POST", "/v1/embeddings", market_handler("openai_embeddings"), "openai_embeddings")
     router.register("GET", "/anthropic/v1/models", market_handler("anthropic_models"), "anthropic_models")
     router.register(
         "POST",

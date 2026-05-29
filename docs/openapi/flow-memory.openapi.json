@@ -10322,6 +10322,61 @@
         ]
       }
     },
+    "/v1/embeddings": {
+      "post": {
+        "operationId": "openai_embeddings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "flow_memory": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "OpenAI-compatible dry-run embeddings proxy",
+        "tags": [
+          "v1"
+        ]
+      }
+    },
     "/v1/models": {
       "get": {
         "operationId": "openai_models",
@@ -10347,6 +10402,61 @@
           }
         },
         "summary": "OpenAI-compatible model list",
+        "tags": [
+          "v1"
+        ]
+      }
+    },
+    "/v1/responses": {
+      "post": {
+        "operationId": "openai_responses",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "flow_memory": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "output": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "OpenAI-compatible dry-run Responses API proxy",
         "tags": [
           "v1"
         ]

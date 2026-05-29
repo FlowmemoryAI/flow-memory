@@ -1,7 +1,7 @@
 {
-  "endpoint_count": 257,
-  "manifest_hash": "14f7c3eb34d25e3d1aca3a69254c8723c815dbd49e7b7851ede540abc0edae2a",
-  "openapi_hash": "1507bddaf3099e2eac2d9d44de2199ffc5acb341f25a1ee6354e71def6d4d94d",
+  "endpoint_count": 259,
+  "manifest_hash": "9590aa87aca09e48c15fc4e0d4b5378449340179d96c344647a7455fe87ffeec",
+  "openapi_hash": "492e4dde5825ec59700aa08282a2fe91b723da761f882df14a7b9ee8de1fe00a",
   "operations": [
     "GET /admin/audit/export",
     "GET /admin/reconciliation",
@@ -257,11 +257,13 @@
     "POST /runtime/tick",
     "POST /swarm/delegate",
     "POST /v1/chat/completions",
+    "POST /v1/embeddings",
+    "POST /v1/responses",
     "POST /verification/submit",
     "POST /verification/{contract_id}",
     "POST /visual/replay/start"
   ],
-  "path_count": 240,
+  "path_count": 242,
   "paths": [
     "/admin/audit/export",
     "/admin/compute/otlp/export",
@@ -494,7 +496,9 @@
     "/swarm/agents",
     "/swarm/delegate",
     "/v1/chat/completions",
+    "/v1/embeddings",
     "/v1/models",
+    "/v1/responses",
     "/verification/result",
     "/verification/submit",
     "/verification/{contract_id}",

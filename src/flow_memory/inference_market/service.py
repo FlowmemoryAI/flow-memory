@@ -1217,6 +1217,85 @@ class InferenceMarketService:
             },
         }
 
+    def proxy_response(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        model = str(payload.get("model") or "flow-local-small")
+        input_text = _proxy_input_text(payload.get("input", payload.get("messages", "")))
+        route = self.route({"model": model, "unit_type": CreditUnit.REQUEST.value, "estimated_units": 1})
+        if not route.get("ok"):
+            return route
+        usage = self._record_proxy_usage({**dict(payload), "messages": input_text}, model=model, route_result=route, provider_api="openai_responses")
+        response_id = _stable_id("resp", model, input_text)
+        warnings = ("streaming_not_implemented",) if bool(payload.get("stream", False)) else ()
+        return {
+            "id": response_id,
+            "object": "response",
+            "created_at": 1_779_753_600,
+            "status": "completed",
+            "model": model,
+            "request_id": str(payload.get("request_id") or _stable_id("req", "responses", response_id)),
+            "output": (
+                {
+                    "id": _stable_id("msg", response_id),
+                    "type": "message",
+                    "role": "assistant",
+                    "content": (
+                        {
+                            "type": "output_text",
+                            "text": "Flow Memory fake provider response. External providers are disabled by default.",
+                        },
+                    ),
+                },
+            ),
+            "usage": {"input_tokens": 0, "output_tokens": 10, "total_tokens": 10},
+            "flow_memory": {
+                "route_decision": route.get("route_decision", {}),
+                "usage_record": usage.as_record(),
+                "dry_run_only": True,
+                "funds_moved": False,
+                "broadcast_allowed": False,
+                "private_key_required": False,
+                "warnings": warnings,
+            },
+        }
+
+    def proxy_embeddings(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        model = str(payload.get("model") or "flow-local-embedding")
+        inputs = _proxy_embedding_inputs(payload.get("input", ""))
+        route = self.route({"model": "flow-local-small", "unit_type": CreditUnit.REQUEST.value, "estimated_units": len(inputs) or 1})
+        if not route.get("ok"):
+            return route
+        usage = self._record_proxy_usage(
+            {**dict(payload), "messages": " ".join(inputs)},
+            model=model,
+            route_result=route,
+            provider_api="openai_embeddings",
+        )
+        return {
+            "object": "list",
+            "model": model,
+            "request_id": str(payload.get("request_id") or _stable_id("req", "embeddings", model, " ".join(inputs))),
+            "data": tuple(
+                {
+                    "object": "embedding",
+                    "index": index,
+                    "embedding": _deterministic_embedding_vector(item),
+                }
+                for index, item in enumerate(inputs)
+            ),
+            "usage": {"prompt_tokens": 0, "total_tokens": max(1, len(inputs))},
+            "flow_memory": {
+                "route_decision": route.get("route_decision", {}),
+                "usage_record": usage.as_record(),
+                "dry_run_only": True,
+                "funds_moved": False,
+                "broadcast_allowed": False,
+                "private_key_required": False,
+            },
+        }
+
+
     def proxy_anthropic_message(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         self._assert_safe_payload(payload)
         model = str(payload.get("model") or "claude-3-5-haiku")
@@ -1516,6 +1595,28 @@ def _flatten_payload(value: Any) -> str:
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
 
+
+def _proxy_input_text(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, Mapping):
+        return _flatten_payload(value)
+    if isinstance(value, (list, tuple)):
+        return " ".join(_proxy_input_text(item) for item in value)
+    return str(value)
+
+
+def _proxy_embedding_inputs(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (list, tuple)):
+        return tuple(_proxy_input_text(item) for item in value) or ("",)
+    return (_proxy_input_text(value),)
+
+
+def _deterministic_embedding_vector(value: str) -> tuple[float, ...]:
+    digest = sha256(value.encode("utf-8")).digest()
+    return tuple(round((byte / 255.0) * 2.0 - 1.0, 6) for byte in digest[:16])
 
 def _tuple_str(value: Any, default: tuple[str, ...]) -> tuple[str, ...]:
     if value in (None, ""):

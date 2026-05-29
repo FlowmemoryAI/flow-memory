@@ -184,6 +184,14 @@ def openai_models(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 def openai_chat_completions(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return _ensure_mapping(_inference_service().proxy_chat_completion(payload))
 
+def openai_responses(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().proxy_response(payload))
+
+
+def openai_embeddings(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().proxy_embeddings(payload))
+
+
 
 def anthropic_models(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return _ensure_mapping(_inference_service().anthropic_models(payload))

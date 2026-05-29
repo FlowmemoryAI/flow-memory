@@ -18,6 +18,8 @@ flowchart TD
 
 - `GET /v1/models`
 - `POST /v1/chat/completions`
+- `POST /v1/responses`
+- `POST /v1/embeddings`
 - `GET /anthropic/v1/models`
 - `POST /anthropic/v1/messages`
 - `POST /inference/proxy`
@@ -48,4 +50,33 @@ curl -s http://127.0.0.1:8765/anthropic/v1/messages \
   -H "x-flow-memory-api-key: dev" \
   -H "x-flow-memory-scopes: inference:proxy" \
   -d '{"model":"claude-3-5-haiku","messages":[{"role":"user","content":"hello"}]}'
+```
+
+OpenAI-compatible Responses and Embeddings smoke:
+
+```bash
+curl -s http://127.0.0.1:8765/v1/responses \
+  -H "content-type: application/json" \
+  -H "x-flow-memory-api-key: dev" \
+  -H "x-flow-memory-scopes: inference:proxy" \
+  -d '{"model":"flow-local-small","input":"hello"}'
+
+curl -s http://127.0.0.1:8765/v1/embeddings \
+  -H "content-type: application/json" \
+  -H "x-flow-memory-api-key: dev" \
+  -H "x-flow-memory-scopes: inference:proxy" \
+  -d '{"model":"flow-local-embedding","input":["hello","world"]}'
+```
+
+```mermaid
+flowchart TD
+    Client[OpenAI-compatible client] --> Models[v1 models]
+    Client --> Chat[v1 chat completions]
+    Client --> Responses[v1 responses]
+    Client --> Embeddings[v1 embeddings]
+    Chat --> Policy[Inference proxy policy]
+    Responses --> Policy
+    Embeddings --> Policy
+    Policy --> Fake[Deterministic fake provider]
+    Fake --> Usage[Usage ledger and audit]
 ```

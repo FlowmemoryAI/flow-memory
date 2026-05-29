@@ -15,6 +15,7 @@ from flow_memory.compute_market.storage import (
     ComputeMarketStore,
     deterministic_id,
     migration_plan,
+    RecordPage,
 )
 from flow_memory.compute_market.storage_backends import (
     _POSTGRES_TABLES,
@@ -252,6 +253,51 @@ def test_postgres_schema_verification_rejects_nonunique_idempotency_indexes() ->
     assert verification["required_unique_idempotency_index_count"] == len(COMPUTE_RECORD_TYPES)
     assert verification["idempotency_nonunique_indexes"] == (target_index,)
 
+
+def test_postgres_audit_chain_helpers_page_past_single_record_page() -> None:
+    events = tuple(
+        {
+            "audit_event_id": f"audit-{index:04d}",
+            "record_id": f"audit-{index:04d}",
+            "chain_id": "compute-market-audit:global",
+            "sequence_number": index,
+            "event_hash": f"hash-{index:04d}",
+            "created_at": f"2099-01-01T00:{index // 60:02d}:{index % 60:02d}Z",
+        }
+        for index in range(1, 521)
+    )
+    calls: list[str] = []
+
+    class _Store(PostgresComputeMarketStore):
+        def list_records(
+            self,
+            record_type: str,
+            *,
+            filters: Mapping[str, Any] | None = None,
+            limit: int = 100,
+            cursor: str = "",
+            include_archived: bool = False,
+        ) -> RecordPage:
+            assert record_type == "audit_event"
+            assert filters == {"chain_id": "compute-market-audit:global"}
+            assert include_archived is True
+            offset = int(cursor or "0")
+            page_records = events[offset : offset + limit]
+            next_cursor = str(offset + limit) if offset + limit < len(events) else ""
+            calls.append(cursor)
+            return RecordPage(records=page_records, next_cursor=next_cursor, limit=limit)
+
+    store = _Store("postgresql://flow-memory.example/db", connect=False)
+    chain_events = store._audit_events_for_chain("compute-market-audit:global")
+    latest = store._latest_audit_event("compute-market-audit:global")
+
+    assert len(chain_events) == 520
+    assert chain_events[0]["sequence_number"] == 1
+    assert chain_events[-1]["sequence_number"] == 520
+    assert latest is not None
+    assert latest["sequence_number"] == 520
+    assert calls.count("") == 2
+    assert calls.count("500") == 2
 
 def test_production_can_require_managed_sql() -> None:
     errors = ComputeMarketConfig(

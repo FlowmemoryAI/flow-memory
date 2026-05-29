@@ -709,19 +709,45 @@ class PostgresComputeMarketStore:
         return tuple(sorted({str(record.get("chain_id", "")) for record in records if record.get("chain_id")}))
 
     def _latest_audit_event(self, chain_id: str) -> Mapping[str, Any] | None:
-        page = self.list_records("audit_event", filters={"chain_id": chain_id}, limit=500, include_archived=True)
-        records = sorted(page.records, key=lambda event: int(event.get("sequence_number", 0) or 0), reverse=True)
+        records = sorted(
+            self._records_matching(
+                "audit_event",
+                filters={"chain_id": chain_id},
+                include_archived=True,
+            ),
+            key=lambda event: (int(event.get("sequence_number", 0) or 0), str(event.get("created_at", "")), str(event.get("record_id", ""))),
+            reverse=True,
+        )
         return records[0] if records else None
 
     def _audit_events_for_chain(self, chain_id: str) -> tuple[Mapping[str, Any], ...]:
-        records = self.list_records("audit_event", filters={"chain_id": chain_id}, limit=500, include_archived=True).records
+        records = self._records_matching(
+            "audit_event",
+            filters={"chain_id": chain_id},
+            include_archived=True,
+        )
         return tuple(sorted(records, key=lambda event: (int(event.get("sequence_number", 0) or 0), str(event.get("created_at", "")), str(event.get("record_id", "")))))
 
     def _all_records(self, record_type: str) -> tuple[Mapping[str, Any], ...]:
+        return self._records_matching(record_type, include_archived=True)
+
+    def _records_matching(
+        self,
+        record_type: str,
+        *,
+        filters: Mapping[str, Any] | None = None,
+        include_archived: bool = False,
+    ) -> tuple[Mapping[str, Any], ...]:
         records: list[Mapping[str, Any]] = []
         cursor = ""
         while True:
-            page = self.list_records(record_type, limit=500, cursor=cursor, include_archived=True)
+            page = self.list_records(
+                record_type,
+                filters=filters,
+                limit=500,
+                cursor=cursor,
+                include_archived=include_archived,
+            )
             records.extend(page.records)
             if not page.next_cursor:
                 break

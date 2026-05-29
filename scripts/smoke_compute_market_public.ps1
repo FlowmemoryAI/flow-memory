@@ -377,6 +377,7 @@ $redisSchemeAllowed = ($redisUrlScheme -eq 'rediss') -or (($redisUrlScheme -eq '
 Assert-True $redisSchemeAllowed "readiness Redis URL scheme was '$redisUrlScheme', expected rediss or explicitly allowed Render internal redis."
 
 $planBody = @{
+    idempotency_key = "public-smoke-plan-$([Guid]::NewGuid().ToString('N'))"
     task = 'public live Level 1 Flow Memory Compute Market smoke test'
     dry_run = $true
 }
@@ -388,6 +389,14 @@ Assert-True ($computePlan.dry_run_only -eq $true) 'plan did not return dry_run_o
 Assert-True ($computePlan.funds_moved -eq $false) 'plan did not return funds_moved=false.'
 Assert-True ($computePlan.broadcast_allowed -eq $false) 'plan did not return broadcast_allowed=false.'
 Assert-True ($computePlan.private_key_required -eq $false) 'plan did not return private_key_required=false.'
+$planReplay = Invoke-ComputeMarketRequest -Method POST -Path '/compute/plan' -Scopes 'compute:plan' -Body @{
+    task = 'public live Level 1 Flow Memory Compute Market smoke replay'
+    idempotency_key = $planBody.idempotency_key
+    dry_run = $true
+}
+Assert-Status -Response $planReplay -Expected 200 -Name 'plan replay'
+Assert-True ($planReplay.Json.data.idempotent_replay -eq $true) 'plan replay did not return idempotent_replay=true.'
+Assert-True ($planReplay.Json.data.compute_plan.decision_id -eq $computePlan.decision_id) 'plan replay decision_id did not match the original plan.'
 
 $marketAlphaStatuses = [ordered]@{}
 if ($IncludeMarketAlpha) {
@@ -598,6 +607,7 @@ $result = [ordered]@{
     redis_url_scheme = $redisUrlScheme
     allow_internal_redis_in_production = [bool]$allowInternalRedis
     plan = $plan.StatusCode
+    plan_idempotent_replay = [bool]$planReplay.Json.data.idempotent_replay
     audit_verify = $auditVerify.StatusCode
     metrics = [int]$metrics.StatusCode
     alerts = $alerts.StatusCode

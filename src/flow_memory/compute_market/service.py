@@ -3907,6 +3907,12 @@ class ComputeMarketService:
                     reservation_transaction_id=str(job.get("credit_reservation_id", "")),
                 )
                 if str(credit_debit.get("status", "")) == "insufficient_credit":
+                    credit_release = _release_credit_reservation(
+                        self.store,
+                        job,
+                        request_id=request_id,
+                        reason="job_completed_debit_insufficient_credit",
+                    )
                     self.telemetry.increment(
                         "billing_insufficient_credit_total",
                         {
@@ -4193,6 +4199,13 @@ class ComputeMarketService:
                     usage_charge_id=str(usage_charge["usage_charge_id"]),
                     reservation_transaction_id=str(job.get("credit_reservation_id", "")),
                 )
+                if str(credit_debit.get("status", "")) == "insufficient_credit":
+                    credit_release = _release_credit_reservation(
+                        self.store,
+                        job,
+                        request_id=request_id,
+                        reason="job_completed_debit_insufficient_credit",
+                    )
                 if str(credit_debit.get("status", "")) == "posted":
                     provider_payout = _accrue_provider_payout(
                         self.store,

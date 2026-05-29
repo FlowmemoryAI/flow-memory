@@ -3513,6 +3513,77 @@ def test_completed_job_replay_recovers_missing_financial_side_effects() -> None:
     assert service.store.count_records("provider_payout") == 1
 
 
+def test_completed_job_replay_releases_credit_hold_when_debit_is_insufficient() -> None:
+    service = _service()
+    account_id = "acct_complete_recovery_insufficient"
+    _credit_account(service, account_id, 0.1, event_id="evt_complete_recovery_insufficient")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_complete_recovery_insufficient",
+                "account_id": account_id,
+                "estimated_total_cost": 0.1,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    crashed_job = dict(service.get_job(job_id)["job"])
+    crashed_job.update(
+        {
+            "status": "succeeded",
+            "completed_at": "2026-05-26T00:00:00Z",
+            "updated_at": "2026-05-26T00:00:00Z",
+            "actual_units": 2.0,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 900.0,
+            "completion_request_id": "req_insufficient_original_completion",
+            "lifecycle": (*tuple(crashed_job.get("lifecycle", ())), "succeeded"),
+            "lease_expires_at": "",
+        }
+    )
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        crashed_job,
+        provider_id=str(crashed_job["provider_id"]),
+        route_id=str(crashed_job["route_id"]),
+        task_type=str(crashed_job["task_type"]),
+        status="succeeded",
+        request_id="crash-after-insufficient-status",
+        tenant_id=str(crashed_job.get("tenant_id", "")),
+        workspace_id=str(crashed_job.get("workspace_id", "")),
+    )
+
+    recovered = service.complete_job(
+        job_id,
+        {
+            "account_id": account_id,
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "request_id": "req_insufficient_retry_completion",
+        },
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    reservation = service.store.get_record(
+        "credit_transaction",
+        str(dispatched["job"]["credit_reservation_id"]),
+    )
+
+    assert recovered["ok"] is True
+    assert recovered["credit_debit"]["status"] == "insufficient_credit"
+    assert recovered["credit_release"]["status"] == "posted"
+    assert recovered["provider_payout"] == {}
+    assert reservation is not None
+    assert reservation["status"] == "released"
+    assert reservation["release_reason"] == "job_completed_debit_insufficient_credit"
+    assert balance["available_credits"] == 0.1
+    assert balance["reserved_credits"] == 0.0
+    assert service.store.count_records("provider_payout") == 0
+
+
 def test_completed_job_replay_rejects_conflicting_cost_without_debit() -> None:
     service = _service()
     account_id = "acct_complete_replay_conflict"
@@ -7654,14 +7725,41 @@ def test_prepaid_credit_debit_insufficient_balance_does_not_overdraw() -> None:
     signature = hmac.new(secret.encode("utf-8"), content_hash(raw_event).encode("utf-8"), "sha256").hexdigest()
     service.billing_webhook_stripe({"raw_event": raw_event, "webhook_secret": secret, "stripe_signature": signature})
 
-    job_id = str(service.create_job({**_job_payload(), "job_id": "job_paid_compute_insufficient"})["job"]["job_id"])
-    service.dispatch_job(job_id, {})
-    completed = service.complete_job(job_id, {"account_id": "acct_tiny", "actual_units": 2, "actual_total_cost": 0.18, "currency": "USD"})
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_paid_compute_insufficient",
+                "account_id": "acct_tiny",
+                "estimated_total_cost": 0.1,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {})
+    reservation_id = str(dispatched["credit_reservation"]["credit_transaction_id"])
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": "acct_tiny",
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+        },
+    )
+    balance = service.billing_balance({"account_id": "acct_tiny"})["balance"]
+    reservation = service.store.get_record("credit_transaction", reservation_id)
 
+    assert dispatched["credit_reservation"]["status"] == "reserved"
     assert completed["credit_debit"]["status"] == "insufficient_credit"
+    assert completed["credit_release"]["status"] == "posted"
+    assert reservation is not None
+    assert reservation["status"] == "released"
+    assert reservation["release_reason"] == "job_completed_debit_insufficient_credit"
     assert completed["provider_payout"] == {}
     assert service.store.count_records("provider_payout") == 0
-    assert service.billing_balance({"account_id": "acct_tiny"})["balance"]["available_credits"] == 0.1
+    assert balance["available_credits"] == 0.1
+    assert balance["reserved_credits"] == 0.0
     assert (
         _metric_total(
             service,

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `a2083b6 Align migration plan with marketplace schemas`
+Latest inspected commit: `43f5f3b Gate public smoke on schema coverage`
 
 ## Current architecture
 
@@ -1036,4 +1036,38 @@ flowchart TD
     TableMap --> SchemaSQL[Generated Postgres DDL]
     MigrationPlan --> DeploymentAudit[Deployment readiness evidence]
     SchemaSQL --> LiveMigrations[Managed Postgres migrations]
+```
+
+## Checkpoint 2026-05-26 Public smoke schema coverage gates
+
+Files changed:
+
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_public_smoke_script_validates_gateway_jwt_when_configured tests/test_compute_market_live_deployment.py::test_render_smoke_validates_gateway_jwt_when_configured tests/test_compute_market_live_deployment.py::test_render_smoke_rejects_runtime_missing_managed_sql_requirement -q` — 3 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 429 passed, 2 skipped
+- `git diff --check -- scripts/smoke_compute_market_public.ps1 scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — clean, with expected CRLF warning for the PowerShell file
+
+Commit: `43f5f3b Gate public smoke on schema coverage`.
+
+Implementation:
+
+- Public smoke now fails if live Postgres schema verification under-reports the marketplace table or index coverage expected by the current production schema.
+- Both PowerShell and Render Python smoke results surface `postgres_required_table_count` and `postgres_required_index_count`.
+- The gate keeps `/admin/storage/diagnostics` from reporting a superficially clean schema that is missing marketplace record-family migrations.
+
+```mermaid
+flowchart TD
+    Smoke[Public smoke] --> StorageDiag[/admin/storage/diagnostics]
+    StorageDiag --> Counts[Required table and index counts]
+    Counts --> Gate{Meets current schema floor?}
+    Gate -->|Yes| Continue[Continue production smoke]
+    Gate -->|No| Fail[Fail deployment validation]
 ```

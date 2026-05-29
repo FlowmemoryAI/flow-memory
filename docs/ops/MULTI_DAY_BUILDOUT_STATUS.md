@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `95a63b2 Document full mypy evidence`
+Latest inspected commit: `8d9c685 Update full mypy evidence commit`
 
 ## Current architecture
 
@@ -648,4 +648,37 @@ flowchart TD
     Code[Current checkout] --> Mypy[Full mypy src tests scripts]
     Mypy --> Pass[No type errors observed]
     Pass --> Evidence[Quality evidence checkpoint]
+```
+
+## Checkpoint 2026-05-26 Render marketplace alpha smoke parity
+
+Files changed:
+
+- `scripts/deploy_compute_market_render_level1.py`
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+
+Commit: pending.
+
+Implementation:
+
+- Render deployment helper gained optional marketplace-alpha public smoke checks through `--include-market-alpha-smoke` or `FLOW_MEMORY_PUBLIC_SMOKE_INCLUDE_MARKET_ALPHA=true`.
+- The optional smoke gate validates inference opportunity planning, inference order book, OpenAI-compatible proxy, capacity inventory, and futures markets without changing the default compute-only Level 1 gate.
+- Optional checks assert dry-run, no-funds, and non-live futures safety fields.
+
+```mermaid
+flowchart TD
+    RenderDeploy[Render deploy helper] --> ComputeSmoke[Compute Level 1 smoke]
+    RenderDeploy --> OptionalFlag[include market alpha smoke]
+    OptionalFlag --> Inference[Inference dry-run]
+    OptionalFlag --> Proxy[Proxy dry-run]
+    OptionalFlag --> Capacity[Capacity inventory]
+    OptionalFlag --> Futures[Futures non-live]
+    Futures --> Safety[Safety fields required]
 ```

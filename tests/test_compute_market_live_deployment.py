@@ -449,6 +449,30 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     "circuit_breaker_fail_closed": True,
                 },
             }
+        if url.endswith("/inference/opportunity-cost"):
+            return 200, {"ok": True, "data": {"ok": True, "dry_run_only": True, "funds_moved": False}}
+        if url.endswith("/inference/market/order-book"):
+            return 200, {"ok": True, "data": {"ok": True, "dry_run_only": True, "funds_moved": False}}
+        if url.endswith("/v1/chat/completions"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "object": "chat.completion",
+                    "flow_memory": {"dry_run_only": True, "funds_moved": False},
+                },
+            }
+        if url.endswith("/capacity/inventory"):
+            return 200, {"ok": True, "data": {"ok": True, "dry_run_only": True, "funds_moved": False}}
+        if url.endswith("/futures/markets"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "dry_run_only": True,
+                    "funds_moved": False,
+                    "live_trading_enabled": False,
+                },
+            }
         if url.endswith("/compute/alerts") or url.endswith("/compute/telemetry"):
             return 200, {"ok": True, "data": {}}
         raise AssertionError(f"unexpected JSON call: {method} {url}")
@@ -521,6 +545,20 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     )
     assert strict_s3_result["ok"] is True
     assert strict_s3_result["audit_export_s3_object_lock"] is True
+    market_alpha_result = render_deploy.smoke_public(
+        "https://api.flowmemory.ai",
+        "fmk_live_smoke_secret",
+        include_market_alpha=True,
+    )
+    assert market_alpha_result["ok"] is True
+    assert market_alpha_result["include_market_alpha"] is True
+    assert market_alpha_result["market_alpha_statuses"] == {
+        "inference_opportunity_cost": 200,
+        "inference_order_book": 200,
+        "openai_proxy": 200,
+        "capacity_inventory": 200,
+        "futures_markets": 200,
+    }
 
 
 def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1736,12 +1774,14 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
         gateway_jwt: Mapping[str, str] | None = None,
         *,
         require_immutable_audit: bool = False,
+        include_market_alpha: bool = False,
     ) -> dict[str, object]:
         calls["smoke"] = {
             "url": url,
             "api_key": api_key,
             "gateway_jwt": gateway_jwt,
             "require_immutable_audit": require_immutable_audit,
+            "include_market_alpha": include_market_alpha,
         }
         return {"ok": True}
 
@@ -1777,6 +1817,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert calls["smoke"]["api_key"] == "fmk_existing_render_service_key"
     assert calls["smoke"]["url"] == "https://flow-memory-api.onrender.com"
     assert calls["smoke"]["require_immutable_audit"] is True
+    assert calls["smoke"]["include_market_alpha"] is False
 
 
 

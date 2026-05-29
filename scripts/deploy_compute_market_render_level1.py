@@ -1147,6 +1147,7 @@ def smoke_public(
     gateway_jwt: dict[str, str] | None = None,
     *,
     require_immutable_audit: bool = False,
+    include_market_alpha: bool = False,
 ) -> dict[str, Any]:
     base = base_url.rstrip("/")
     if not base.startswith("https://"):
@@ -1188,6 +1189,34 @@ def smoke_public(
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "redis-diagnostics"))
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:read", "wrong-scope"), plan_body)
+    if include_market_alpha:
+        checks["inference_opportunity_cost"] = call_json(
+            "POST",
+            f"{base}/inference/opportunity-cost",
+            _smoke_api_headers(api_key_value, "inference:plan", "inference-opportunity"),
+            {"task": "public market alpha inference opportunity smoke", "estimated_value": 25, "budget": 5},
+        )
+        checks["inference_order_book"] = call_json(
+            "GET",
+            f"{base}/inference/market/order-book",
+            _smoke_api_headers(api_key_value, "inference:read", "inference-order-book"),
+        )
+        checks["openai_proxy"] = call_json(
+            "POST",
+            f"{base}/v1/chat/completions",
+            _smoke_api_headers(api_key_value, "inference:proxy", "openai-proxy"),
+            {"model": "flow-local-small", "messages": [{"role": "user", "content": "public alpha proxy smoke"}]},
+        )
+        checks["capacity_inventory"] = call_json(
+            "GET",
+            f"{base}/capacity/inventory",
+            _smoke_api_headers(api_key_value, "compute:read", "capacity-inventory"),
+        )
+        checks["futures_markets"] = call_json(
+            "GET",
+            f"{base}/futures/markets",
+            _smoke_api_headers(api_key_value, "compute:read", "futures-markets"),
+        )
     jwt_secret = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_HS256_SECRET", ""))
     if jwt_secret:
         jwt_issuer = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_ISSUER", ""))
@@ -1231,6 +1260,50 @@ def smoke_public(
     schema_verification = storage_diag.get("schema_verification", {}) if isinstance(storage_diag, dict) else {}
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {}) if isinstance(schema_verification, dict) else {}
     redis_diag = checks["admin_redis_diagnostics"][1].get("data", {}) if isinstance(checks["admin_redis_diagnostics"][1], dict) else {}
+    market_alpha_ok = True
+    market_alpha_statuses: dict[str, int] = {}
+    if include_market_alpha:
+        inference_opportunity = checks["inference_opportunity_cost"][1].get("data", {}) if isinstance(checks["inference_opportunity_cost"][1], dict) else {}
+        inference_order_book = checks["inference_order_book"][1].get("data", {}) if isinstance(checks["inference_order_book"][1], dict) else {}
+        proxy_payload = checks["openai_proxy"][1].get("data", {}) if isinstance(checks["openai_proxy"][1], dict) else {}
+        proxy_flow_memory = proxy_payload.get("flow_memory", {}) if isinstance(proxy_payload, dict) else {}
+        capacity_inventory = checks["capacity_inventory"][1].get("data", {}) if isinstance(checks["capacity_inventory"][1], dict) else {}
+        futures_markets = checks["futures_markets"][1].get("data", {}) if isinstance(checks["futures_markets"][1], dict) else {}
+        market_alpha_statuses = {
+            name: checks[name][0]
+            for name in (
+                "inference_opportunity_cost",
+                "inference_order_book",
+                "openai_proxy",
+                "capacity_inventory",
+                "futures_markets",
+            )
+        }
+        market_alpha_ok = all(
+            (
+                checks["inference_opportunity_cost"][0] == 200,
+                inference_opportunity.get("ok") is True,
+                inference_opportunity.get("dry_run_only") is True,
+                inference_opportunity.get("funds_moved") is False,
+                checks["inference_order_book"][0] == 200,
+                inference_order_book.get("ok") is True,
+                inference_order_book.get("dry_run_only") is True,
+                inference_order_book.get("funds_moved") is False,
+                checks["openai_proxy"][0] == 200,
+                proxy_payload.get("object") == "chat.completion",
+                proxy_flow_memory.get("dry_run_only") is True,
+                proxy_flow_memory.get("funds_moved") is False,
+                checks["capacity_inventory"][0] == 200,
+                capacity_inventory.get("ok") is True,
+                capacity_inventory.get("dry_run_only") is True,
+                capacity_inventory.get("funds_moved") is False,
+                checks["futures_markets"][0] == 200,
+                futures_markets.get("ok") is True,
+                futures_markets.get("dry_run_only") is True,
+                futures_markets.get("funds_moved") is False,
+                futures_markets.get("live_trading_enabled") is False,
+            )
+        )
     ok = all(
         (
             checks["root"][0] == 200,
@@ -1289,6 +1362,7 @@ def smoke_public(
             audit_export_ready,
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
+            market_alpha_ok,
         )
     )
     return {
@@ -1304,6 +1378,8 @@ def smoke_public(
         "audit_export_immutable": audit_export_payload.get("immutable"),
         "audit_exporter": audit_exporter,
         "require_immutable_audit": require_immutable_audit,
+        "include_market_alpha": include_market_alpha,
+        "market_alpha_statuses": market_alpha_statuses,
         "audit_export_s3_object_lock": audit_export_is_s3_object_lock,
         "audit_export_write": checks["audit_export_write"][0],
         "audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash")),
@@ -1352,6 +1428,7 @@ def main() -> int:
     parser.add_argument("--region", default=os.environ.get("RENDER_REGION", ""))
     parser.add_argument("--branch", default=os.environ.get("RENDER_BRANCH", ""))
     parser.add_argument("--repo-url", default=os.environ.get("RENDER_REPO_URL", ""))
+    parser.add_argument("--include-market-alpha-smoke", action="store_true", default=False)
     args = parser.parse_args()
     env_values = parse_env(Path(args.env_file))
     render_api_key = args.api_key or env_values.get("RENDER_API_KEY", "")
@@ -1371,6 +1448,7 @@ def main() -> int:
         render_keyvalue_ip_allowlist = DEFAULT_KEYVALUE_IP_ALLOWLIST
     render_enable_disk = _bool_setting(env_values, "RENDER_ENABLE_DISK", ENABLE_RENDER_DISK)
     render_allow_free_plans = args.allow_free_plans or _bool_setting(env_values, "RENDER_ALLOW_FREE_PLANS", ALLOW_FREE_RENDER_PLANS)
+    include_market_alpha_smoke = args.include_market_alpha_smoke or _bool_setting(env_values, "FLOW_MEMORY_PUBLIC_SMOKE_INCLUDE_MARKET_ALPHA", False)
 
     if not render_api_key or has_placeholder(render_api_key):
         emit("blocked_missing_render_auth", 20, missing_values=["RENDER_API_KEY"])
@@ -1540,6 +1618,7 @@ def main() -> int:
                 api_key_value,
                 gateway_jwt,
                 require_immutable_audit=audit_export_uri.startswith("s3://"),
+                include_market_alpha=include_market_alpha_smoke,
             )
             if last_smoke.get("ok") is True:
                 emit(

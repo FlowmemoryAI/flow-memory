@@ -1608,6 +1608,7 @@ def smoke_public(
         if isinstance(checks["audit_chain_monitor"][1], dict)
         else {}
     )
+    audit_chain_monitor_export = audit_chain_monitor_payload.get("export_verification", {})
     audit_exporter_status = audit_export_payload.get("audit_exporter_status", {})
     audit_exporter = audit_exporter_status.get("exporter") if isinstance(audit_exporter_status, dict) else ""
     audit_export_is_immutable = audit_export_payload.get("immutable") is True
@@ -1761,6 +1762,9 @@ def smoke_public(
             audit_chain_monitor_payload.get("ok") is True,
             int(audit_chain_monitor_payload.get("checkpoint_count", 0) or 0) >= 1,
             bool(audit_chain_monitor_payload.get("latest_checkpoint", {}).get("checkpoint_id")),
+            isinstance(audit_chain_monitor_export, dict),
+            audit_chain_monitor_export.get("ok") is True,
+            int(audit_chain_monitor_export.get("event_count", 0) or 0) >= 1,
             checks["admin_storage_diagnostics"][0] == 200,
             isinstance(schema_verification, dict),
             schema_verification.get("ok") is True,
@@ -1815,6 +1819,8 @@ def smoke_public(
         "audit_chain_monitor": checks["audit_chain_monitor"][0],
         "audit_chain_monitor_ok": audit_chain_monitor_payload.get("ok"),
         "audit_checkpoint_count": audit_chain_monitor_payload.get("checkpoint_count"),
+        "audit_chain_monitor_export_ok": audit_chain_monitor_export.get("ok") if isinstance(audit_chain_monitor_export, dict) else None,
+        "audit_chain_monitor_export_event_count": audit_chain_monitor_export.get("event_count") if isinstance(audit_chain_monitor_export, dict) else None,
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],
         "postgres_required_table_count": schema_required_table_count,
         "postgres_required_index_count": schema_required_index_count,

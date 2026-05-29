@@ -611,6 +611,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     "ok": True,
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-render-schedule"},
+                    "export_verification": {"ok": True, "event_count": 3},
                 },
             }
         if url.endswith("/admin/audit/export"):
@@ -722,6 +723,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_wrong_tenant"] == 403
     assert result["statuses"]["jwt_role_health"] == 200
     assert result["statuses"]["legacy_tenant_header"] == 403
+    assert result["audit_chain_monitor_export_ok"] is True
+    assert result["audit_chain_monitor_export_event_count"] == 3
     assert result["postgres_required_table_count"] == 110
     assert result["postgres_required_index_count"] == 1311
     assert result["plan_idempotent_replay"] is True
@@ -775,6 +778,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert strict_s3_result["audit_chain_monitor"] == 200
     assert strict_s3_result["audit_chain_monitor_ok"] is True
     assert strict_s3_result["audit_checkpoint_count"] == 1
+    assert strict_s3_result["audit_chain_monitor_export_ok"] is True
+    assert strict_s3_result["audit_chain_monitor_export_event_count"] == 3
     market_alpha_result = render_deploy.smoke_public(
         "https://api.flowmemory.ai",
         "fmk_live_smoke_secret",
@@ -883,6 +888,7 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                     "ok": True,
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-render-schedule"},
+                    "export_verification": {"ok": True, "event_count": 3},
                 },
             }
         if url.endswith("/admin/audit/export"):

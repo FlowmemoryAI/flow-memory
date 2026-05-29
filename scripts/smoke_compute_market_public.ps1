@@ -573,6 +573,8 @@ $auditChainMonitorData = $auditChainMonitor.Json.data
 Assert-True (($auditChainMonitor.Json.ok -eq $true) -and ($auditChainMonitorData.ok -eq $true)) 'audit chain monitor did not return ok=true.'
 Assert-True ([int]$auditChainMonitorData.checkpoint_count -ge 1) 'audit chain monitor did not report checkpoint coverage.'
 Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditChainMonitorData.latest_checkpoint.checkpoint_id)) 'audit chain monitor did not return a latest checkpoint_id.'
+Assert-True ($auditChainMonitorData.export_verification.ok -eq $true) 'audit chain monitor did not verify the latest audit export.'
+Assert-True ([int]$auditChainMonitorData.export_verification.event_count -ge 1) 'audit chain monitor export verification did not report exported events.'
 
 
 $storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
@@ -716,6 +718,8 @@ $result = [ordered]@{
     audit_chain_monitor = $auditChainMonitor.StatusCode
     audit_chain_monitor_ok = [bool]$auditChainMonitorData.ok
     audit_checkpoint_count = [int]$auditChainMonitorData.checkpoint_count
+    audit_chain_monitor_export_ok = [bool]$auditChainMonitorData.export_verification.ok
+    audit_chain_monitor_export_event_count = [int]$auditChainMonitorData.export_verification.event_count
     admin_storage_diagnostics = $storageDiagnostics.StatusCode
     postgres_required_table_count = $requiredSchemaTableCount
     postgres_required_index_count = $requiredSchemaIndexCount

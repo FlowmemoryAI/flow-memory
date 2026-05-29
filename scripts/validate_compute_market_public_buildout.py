@@ -936,6 +936,7 @@ def validate(
     audit_export_verify = data(checks["audit_export_verify"][1])
     audit_checkpoint_schedule = data(checks["audit_checkpoint_schedule"][1])
     audit_chain_monitor = data(checks["audit_chain_monitor"][1])
+    audit_chain_monitor_export = audit_chain_monitor.get("export_verification", {})
     audit_exporter_status = audit_export_status.get("audit_exporter_status", {})
     audit_exporter_status_map = audit_exporter_status if isinstance(audit_exporter_status, Mapping) else {}
     audit_exporter_name = str(audit_exporter_status_map.get("exporter", ""))
@@ -1096,7 +1097,10 @@ def validate(
         and audit_chain_monitor.get("ok") is True
         and int(audit_chain_monitor.get("checkpoint_count", 0) or 0) >= 1
         and isinstance(audit_chain_monitor.get("latest_checkpoint", {}), Mapping)
-        and bool(audit_chain_monitor.get("latest_checkpoint", {}).get("checkpoint_id")),
+        and bool(audit_chain_monitor.get("latest_checkpoint", {}).get("checkpoint_id"))
+        and isinstance(audit_chain_monitor_export, Mapping)
+        and audit_chain_monitor_export.get("ok") is True
+        and int(audit_chain_monitor_export.get("event_count", 0) or 0) >= 1,
         "audit chain monitor failed",
     )
     if require_immutable_audit:
@@ -1165,6 +1169,8 @@ def validate(
         ),
         "audit_chain_monitor_ok": audit_chain_monitor.get("ok"),
         "audit_checkpoint_count": audit_chain_monitor.get("checkpoint_count"),
+        "audit_chain_monitor_export_ok": audit_chain_monitor_export.get("ok") if isinstance(audit_chain_monitor_export, Mapping) else None,
+        "audit_chain_monitor_export_event_count": audit_chain_monitor_export.get("event_count") if isinstance(audit_chain_monitor_export, Mapping) else None,
         "provider_reputation_status": provider_reputation_map.get("status"),
         "provider_reputation_quote_accuracy_score": provider_reputation_map.get("quote_accuracy_score"),
         "provider_reputation_execution_success_rate": provider_reputation_map.get("execution_success_rate"),

@@ -1003,6 +1003,7 @@ def _passing_public_buildout_call_json(
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-public-schedule"},
                     "chains": [{"ok": True, "chain_id": "all"}],
+                    "export_verification": {"ok": True, "event_count": 2},
                 },
             }
         if url.endswith("/compute/providers/external/quote"):
@@ -1379,6 +1380,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-public-schedule"},
                     "chains": [{"ok": True, "chain_id": "all"}],
+                    "export_verification": {"ok": True, "event_count": 2},
                 },
             }
         if url.endswith("/market/capacity/reserve"):
@@ -1557,6 +1559,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_checkpoint_schedule_checkpoint_id"] == "checkpoint-public-schedule"
     assert result["audit_chain_monitor_ok"] is True
     assert result["audit_checkpoint_count"] == 1
+    assert result["audit_chain_monitor_export_ok"] is True
+    assert result["audit_chain_monitor_export_event_count"] == 2
     assert result["missing_metrics"] == ()
     assert result["checks"]["provider_reputation"] == 200
     assert result["checks"]["prices_history"] == 200

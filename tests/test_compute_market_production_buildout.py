@@ -586,7 +586,7 @@ def test_provider_onboarding_rejects_placeholder_public_endpoints_in_production_
     assert accepted["provider_application"]["provider_id"] == "provider_non_placeholder_endpoint"
 
 
-def test_provider_listing_includes_global_and_filters_cross_tenant_catalog_records() -> None:
+def test_provider_listing_filters_tenantless_and_cross_tenant_catalog_records() -> None:
     service = _service()
     service.create_provider({"provider_id": "global-provider", "provider_name": "Global Provider", "provider_type": "catalog_test"})
     service.create_provider(
@@ -609,17 +609,99 @@ def test_provider_listing_includes_global_and_filters_cross_tenant_catalog_recor
     tenant_a = service.list_providers({"tenant_id": "tenant_provider_a", "provider_type": "catalog_test"})
     tenant_b = service.list_providers({"tenant_id": "tenant_provider_b", "provider_type": "catalog_test"})
     active_tenant_a = service.list_providers({"tenant_id": "tenant_provider_a", "provider_type": "catalog_test", "status": "active"})
+    admin = service.list_providers({"provider_type": "catalog_test"})
 
-    assert {provider["provider_id"] for provider in tenant_a["providers"]} == {"global-provider", "tenant-provider-a"}
-    assert {provider["provider_id"] for provider in tenant_b["providers"]} == {"global-provider", "tenant-provider-b"}
-    assert {provider["provider_id"] for provider in active_tenant_a["providers"]} == {"global-provider", "tenant-provider-a"}
-    assert service.get_provider("global-provider", {"tenant_id": "tenant_provider_a"})["provider"]["provider_id"] == "global-provider"
-    try:
-        service.get_provider("tenant-provider-b", {"tenant_id": "tenant_provider_a"})
-    except KeyError as exc:
-        assert "Unknown compute provider" in str(exc)
-    else:  # pragma: no cover
-        raise AssertionError("cross-tenant provider lookup succeeded")
+    assert {provider["provider_id"] for provider in tenant_a["providers"]} == {"tenant-provider-a"}
+    assert {provider["provider_id"] for provider in tenant_b["providers"]} == {"tenant-provider-b"}
+    assert {provider["provider_id"] for provider in active_tenant_a["providers"]} == {"tenant-provider-a"}
+    assert {provider["provider_id"] for provider in admin["providers"]} == {
+        "global-provider",
+        "tenant-provider-a",
+        "tenant-provider-b",
+    }
+    assert service.get_provider("global-provider")["provider"]["provider_id"] == "global-provider"
+    for provider_id in ("global-provider", "tenant-provider-b"):
+        try:
+            service.get_provider(provider_id, {"tenant_id": "tenant_provider_a"})
+        except KeyError as exc:
+            assert "Unknown compute provider" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError(f"tenant provider lookup escaped isolation: {provider_id}")
+
+
+def test_routes_policies_and_price_history_filter_tenantless_records() -> None:
+    service = _service()
+    service.create_route(
+        {
+            "route_id": "tenant-route-a",
+            "provider_id": "tenant-provider-a",
+            "tenant_id": "tenant_a",
+            "status": "enabled",
+        }
+    )
+    service.create_route(
+        {
+            "route_id": "global-route",
+            "provider_id": "global-provider",
+            "status": "enabled",
+        }
+    )
+    service.create_policy({"policy_id": "tenant-policy-a", "tenant_id": "tenant_a", "status": "active"})
+    service.create_policy({"policy_id": "global-policy", "status": "active"})
+    service.store.put_record(
+        "compute_price_snapshot",
+        "tenant-price-a",
+        {
+            "price_snapshot_id": "tenant-price-a",
+            "provider_id": "tenant-provider-a",
+            "route_id": "tenant-route-a",
+            "tenant_id": "tenant_a",
+            "unit_type": "gpu_minute",
+            "task_type": "gpu_minute",
+        },
+        tenant_id="tenant_a",
+        provider_id="tenant-provider-a",
+        route_id="tenant-route-a",
+        task_type="gpu_minute",
+    )
+    service.store.put_record(
+        "compute_price_snapshot",
+        "global-price",
+        {
+            "price_snapshot_id": "global-price",
+            "provider_id": "global-provider",
+            "route_id": "global-route",
+            "unit_type": "gpu_minute",
+            "task_type": "gpu_minute",
+        },
+        provider_id="global-provider",
+        route_id="global-route",
+        task_type="gpu_minute",
+    )
+
+    tenant_payload = {"tenant_id": "tenant_a"}
+    assert {route["route_id"] for route in service.list_routes(tenant_payload)["routes"]} == {"tenant-route-a"}
+    assert {policy["policy_id"] for policy in service.list_policies(tenant_payload)["policies"]} == {"tenant-policy-a"}
+    assert {price["price_snapshot_id"] for price in service.compute_price_history(tenant_payload)["price_history"]} == {"tenant-price-a"}
+    assert service.get_route("tenant-route-a", tenant_payload)["route"]["route_id"] == "tenant-route-a"
+    assert service.get_policy("tenant-policy-a", tenant_payload)["policy"]["policy_id"] == "tenant-policy-a"
+
+    for getter, record_id in ((service.get_route, "global-route"), (service.get_policy, "global-policy")):
+        try:
+            getter(record_id, tenant_payload)
+        except KeyError as exc:
+            assert "Unknown compute" in str(exc)
+        else:  # pragma: no cover
+            raise AssertionError(f"tenant catalog lookup escaped isolation: {record_id}")
+
+    assert {route["route_id"] for route in service.list_routes({"provider_id": "tenant-provider-a"})["routes"]} == {"tenant-route-a"}
+    assert {route["route_id"] for route in service.list_routes({"provider_id": "global-provider"})["routes"]} == {"global-route"}
+    assert service.get_policy("tenant-policy-a")["policy"]["policy_id"] == "tenant-policy-a"
+    assert service.get_policy("global-policy")["policy"]["policy_id"] == "global-policy"
+    assert {price["price_snapshot_id"] for price in service.compute_price_history({"task_type": "gpu_minute"})["price_history"]} >= {
+        "tenant-price-a",
+        "global-price",
+    }
 
 
 def test_provider_conformance_and_quote_ingest_verify_signed_quotes() -> None:

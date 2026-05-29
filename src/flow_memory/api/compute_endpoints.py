@@ -183,8 +183,8 @@ def compute_routes(payload: Mapping[str, Any] | None = None) -> Mapping[str, Any
     return default_service().list_routes(payload or {})
 
 
-def compute_route_get(route_id: str) -> Mapping[str, Any]:
-    return default_service().get_route(route_id)
+def compute_route_get(route_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().get_route(route_id, payload or {})
 
 
 def compute_route_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -208,8 +208,8 @@ def compute_policies(payload: Mapping[str, Any] | None = None) -> Mapping[str, A
     }
 
 
-def compute_policy(policy_id: str) -> Mapping[str, Any]:
-    return default_service().get_policy(policy_id)
+def compute_policy(policy_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
+    return default_service().get_policy(policy_id, payload or {})
 
 
 def compute_policy_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:

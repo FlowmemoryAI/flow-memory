@@ -655,8 +655,8 @@ class LocalApiRouter:
     def _compute_routes(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_routes(payload)
 
-    def _compute_route_get(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_route_get(params["route_id"])
+    def _compute_route_get(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_route_get(params["route_id"], payload)
 
     def _compute_route_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_route_create(payload)
@@ -670,8 +670,8 @@ class LocalApiRouter:
     def _compute_policies(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_policies(payload)
 
-    def _compute_policy(self, params: Mapping[str, str], _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        return compute_policy(params["policy_id"])
+    def _compute_policy(self, params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        return compute_policy(params["policy_id"], payload)
 
     def _compute_policy_create(self, _params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
         return compute_policy_create(payload)

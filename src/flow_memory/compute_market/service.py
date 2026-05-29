@@ -377,10 +377,12 @@ class ComputeMarketService:
         return {"ok": True, "prices": route_indexes, "provider_prices": provider_indexes, "snapshot_count": len(snapshots)}
 
     def compute_price_history(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        filters = dict(payload or {})
-        limit = int(filters.get("limit", 100) or 100)
-        page = self.store.list_records("compute_price_snapshot", filters=filters, limit=limit, cursor=str(filters.get("cursor", "")))
-        return {"ok": True, "price_history": page.records, "next_cursor": page.next_cursor}
+        request = dict(payload or {})
+        filters = _price_filters(request)
+        limit = int(request.get("limit", 100) or 100)
+        page = self.store.list_records("compute_price_snapshot", filters=filters, limit=limit, cursor=str(request.get("cursor", "")))
+        records = tuple(record for record in page.records if _tenant_can_access_record(request, record))
+        return {"ok": True, "price_history": records, "next_cursor": page.next_cursor}
 
     def compute_price_anomalies(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         filters = dict(payload or {})
@@ -1120,12 +1122,19 @@ class ComputeMarketService:
         )
 
     def list_routes(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        page = self.store.list_records("compute_route", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
-        return {"ok": True, "routes": page.records, "next_cursor": page.next_cursor}
+        request = dict(payload or {})
+        filters = {
+            key: value
+            for key, value in request.items()
+            if key not in {"limit", "cursor", "tenant_id", "workspace_id"} and value not in (None, "")
+        }
+        page = self.store.list_records("compute_route", filters=filters, limit=int(request.get("limit", 100)), cursor=str(request.get("cursor", "")))
+        routes = tuple(route for route in page.records if _tenant_can_access_catalog_record(request, route))
+        return {"ok": True, "routes": routes, "next_cursor": page.next_cursor}
 
-    def get_route(self, route_id: str) -> Mapping[str, Any]:
+    def get_route(self, route_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         route = self.store.get_record("compute_route", route_id)
-        if route is None:
+        if route is None or not _tenant_can_access_catalog_record(payload or {}, route):
             raise KeyError(f"Unknown compute route: {route_id}")
         return {"ok": True, "route": route}
 
@@ -1145,7 +1154,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "PATCH /compute/routes/{route_id}", request_id=_request_id(payload), route_id=route_id)
         if limited is not None:
             return limited
-        current = dict(self.get_route(route_id)["route"])
+        current = dict(self.get_route(route_id, payload)["route"])
         updated = {**current, **dict(payload), "route_id": route_id}
         self.store.put_record("compute_route", route_id, updated, provider_id=str(updated.get("provider_id", "")), route_id=route_id, status="enabled" if updated.get("enabled", True) else "disabled")
         self._audit("compute.route.updated", payload, result="updated", route_id=route_id)
@@ -1157,7 +1166,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "POST /compute/routes/{route_id}/disable", request_id=request_id, route_id=route_id)
         if limited is not None:
             return limited
-        current = dict(self.get_route(route_id)["route"])
+        current = dict(self.get_route(route_id, payload)["route"])
         current["enabled"] = False
         current["disabled_at"] = utc_now_iso()
         self.store.put_record("compute_route", route_id, current, provider_id=str(current.get("provider_id", "")), route_id=route_id, status="disabled", request_id=request_id)
@@ -1166,12 +1175,19 @@ class ComputeMarketService:
         return {"ok": True, "route": current, "invalidated_quote_cache_entries": invalidated_cache}
 
     def list_policies(self, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
-        page = self.store.list_records("compute_market_policy", filters=payload or {}, limit=int((payload or {}).get("limit", 100)), cursor=str((payload or {}).get("cursor", "")))
-        return {"ok": True, "policies": page.records, "next_cursor": page.next_cursor, "default_market_policy": ComputeMarketPolicy().as_record()}
+        request = dict(payload or {})
+        filters = {
+            key: value
+            for key, value in request.items()
+            if key not in {"limit", "cursor", "tenant_id", "workspace_id"} and value not in (None, "")
+        }
+        page = self.store.list_records("compute_market_policy", filters=filters, limit=int(request.get("limit", 100)), cursor=str(request.get("cursor", "")))
+        policies = tuple(policy for policy in page.records if _tenant_can_access_catalog_record(request, policy))
+        return {"ok": True, "policies": policies, "next_cursor": page.next_cursor, "default_market_policy": ComputeMarketPolicy().as_record()}
 
-    def get_policy(self, policy_id: str) -> Mapping[str, Any]:
+    def get_policy(self, policy_id: str, payload: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
         policy = self.store.get_record("compute_market_policy", policy_id)
-        if policy is None:
+        if policy is None or not _tenant_can_access_catalog_record(payload or {}, policy):
             raise KeyError(f"Unknown compute policy: {policy_id}")
         return {"ok": True, "policy": policy}
 
@@ -1191,7 +1207,7 @@ class ComputeMarketService:
         limited = self._rate_limit_response(payload, "PATCH /compute/policies/{policy_id}", request_id=_request_id(payload))
         if limited is not None:
             return limited
-        current = dict(self.get_policy(policy_id)["policy"])
+        current = dict(self.get_policy(policy_id, payload)["policy"])
         updated = {**current, **dict(payload), "policy_id": policy_id}
         self.store.put_record("compute_market_policy", policy_id, updated, status=str(updated.get("status", "active")))
         self._audit("compute.policy.updated", payload, result="updated", policy_id=policy_id)
@@ -1206,7 +1222,7 @@ class ComputeMarketService:
         validation = self.validate_policy(policy_id, payload)
         if validation.get("ok") is not True:
             return validation
-        current = dict(self.get_policy(policy_id)["policy"])
+        current = dict(self.get_policy(policy_id, payload)["policy"])
         published_at = utc_now_iso()
         updated = {
             **current,
@@ -1221,7 +1237,7 @@ class ComputeMarketService:
         return {"ok": True, "policy": updated, "validation": validation}
 
     def validate_policy(self, policy_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
-        policy = self.get_policy(policy_id)["policy"]
+        policy = self.get_policy(policy_id, payload)["policy"]
         try:
             ComputeMarketPolicy(**{key: value for key, value in policy.items() if key in ComputeMarketPolicy().__dict__})
         except TypeError as exc:
@@ -9904,17 +9920,7 @@ def _tenant_can_access_record(payload: Mapping[str, Any], record: Mapping[str, A
 
 
 def _tenant_can_access_catalog_record(payload: Mapping[str, Any], record: Mapping[str, Any]) -> bool:
-    tenant_id = _payload_tenant_id(payload)
-    if tenant_id:
-        record_tenant_id = str(record.get("tenant_id", "")).strip()
-        if record_tenant_id and record_tenant_id != tenant_id:
-            return False
-    workspace_id = _payload_workspace_id(payload)
-    if workspace_id:
-        record_workspace_id = str(record.get("workspace_id", "")).strip()
-        if record_workspace_id and record_workspace_id != workspace_id:
-            return False
-    return True
+    return _tenant_can_access_record(payload, record)
 
 
 def _record_matches_filters(record: Mapping[str, Any], filters: Mapping[str, Any]) -> bool:

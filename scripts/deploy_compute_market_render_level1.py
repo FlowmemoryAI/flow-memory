@@ -392,11 +392,17 @@ def normalized_bool_text(value: str) -> str:
 
 
 def assert_level1_safety_settings(values: dict[str, str]) -> None:
-    invalid = [
-        {"key": key, "expected": expected, "actual": values[key]}
-        for key, expected in LEVEL1_EXPECTED_BOOLEAN_SETTINGS.items()
-        if key in values and values[key].strip() and normalized_bool_text(values[key]) != expected
-    ]
+    invalid: list[dict[str, str]] = []
+    for key, expected in LEVEL1_EXPECTED_BOOLEAN_SETTINGS.items():
+        actual = values.get(key)
+        if actual is None:
+            invalid.append({"key": key, "expected": expected, "actual": "missing"})
+            continue
+        if not actual.strip():
+            invalid.append({"key": key, "expected": expected, "actual": "empty"})
+            continue
+        if normalized_bool_text(actual) != expected:
+            invalid.append({"key": key, "expected": expected, "actual": actual})
     invalid.extend(
         {"key": key, "expected": "empty_for_level1", "actual": "configured"}
         for key in LEVEL1_FORBIDDEN_CONFIGURED_KEYS

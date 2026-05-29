@@ -45,6 +45,15 @@ def _render_blueprint_env_values() -> dict[str, str]:
     return values
 
 
+def _level1_safety_env(**overrides: str) -> dict[str, str]:
+    values = dict(render_deploy.LEVEL1_EXPECTED_BOOLEAN_SETTINGS)
+    values.update(overrides)
+    return values
+
+
+def _level1_safety_env_lines(**overrides: str) -> list[str]:
+    return [f"{key}={value}" for key, value in _level1_safety_env(**overrides).items()]
+
 
 def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
     template = (ROOT / "deployments" / "compute-market" / "live.env.example").read_text(encoding="utf-8")
@@ -422,26 +431,39 @@ def test_render_deploy_requires_https_public_url_before_smoke() -> None:
 def test_render_deploy_blocks_unsafe_level1_env_overrides() -> None:
     with pytest.raises(SystemExit) as blocked:
         render_deploy.assert_level1_safety_settings(
-            {
-                "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED": "false",
-                "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED": "true",
-                "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "true",
-            }
+            _level1_safety_env(
+                FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED="false",
+                FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED="true",
+                FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED="true",
+            )
         )
 
     assert blocked.value.code == 38
 
 
+def test_render_deploy_requires_explicit_level1_safety_settings(capsys: Any) -> None:
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.assert_level1_safety_settings({})
+
+    payload = json.loads(capsys.readouterr().out)
+    invalid = {item["key"]: item for item in payload["invalid_values"]}
+
+    assert blocked.value.code == 38
+    assert set(render_deploy.LEVEL1_EXPECTED_BOOLEAN_SETTINGS).issubset(invalid)
+    assert invalid["FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED"]["actual"] == "missing"
+    assert invalid["FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED"]["expected"] == "true"
+
+
 def test_render_deploy_blocks_level1_billing_and_settlement_material(capsys: Any) -> None:
     with pytest.raises(SystemExit) as blocked:
         render_deploy.assert_level1_safety_settings(
-            {
-                "FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY": "sk_live_forbidden",
-                "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET": "whsec_forbidden",
-                "FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL": "https://billing.example.test/success",
-                "FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT": "mainnet",
-                "FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID": "review-123",
-            }
+            _level1_safety_env(
+                FLOW_MEMORY_BILLING_STRIPE_SECRET_KEY="sk_live_forbidden",
+                FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET="whsec_forbidden",
+                FLOW_MEMORY_BILLING_STRIPE_SUCCESS_URL="https://billing.example.test/success",
+                FLOW_MEMORY_COMPUTE_SETTLEMENT_ENVIRONMENT="mainnet",
+                FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID="review-123",
+            )
         )
 
     payload = json.loads(capsys.readouterr().out)
@@ -486,12 +508,12 @@ def test_render_deploy_requires_redis_operational_evidence(monkeypatch: pytest.M
 def test_render_deploy_blocks_disabled_level1_control_planes(capsys: Any) -> None:
     with pytest.raises(SystemExit) as blocked:
         render_deploy.assert_level1_safety_settings(
-            {
-                "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED": "false",
-                "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED": "false",
-                "FLOW_MEMORY_COMPUTE_METRICS_ENABLED": "false",
-                "FLOW_MEMORY_COMPUTE_TRACING_ENABLED": "false",
-            }
+            _level1_safety_env(
+                FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED="false",
+                FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED="false",
+                FLOW_MEMORY_COMPUTE_METRICS_ENABLED="false",
+                FLOW_MEMORY_COMPUTE_TRACING_ENABLED="false",
+            )
         )
 
     payload = json.loads(capsys.readouterr().out)
@@ -2172,6 +2194,7 @@ def test_render_deploy_main_blocks_missing_public_observability_sinks_before_ren
                 "RENDER_SERVICE_PLAN=professional",
                 "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                *_level1_safety_env_lines(),
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
@@ -2229,6 +2252,7 @@ def test_render_deploy_main_blocks_missing_postgres_operational_evidence_before_
                 "RENDER_SERVICE_PLAN=professional",
                 "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                *_level1_safety_env_lines(),
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
@@ -2285,6 +2309,7 @@ def test_render_deploy_main_blocks_invalid_postgres_operational_evidence_before_
                 "RENDER_SERVICE_PLAN=professional",
                 "RENDER_POSTGRES_IP_ALLOWLIST=203.0.113.0/24",
                 "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                *_level1_safety_env_lines(),
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
@@ -2350,6 +2375,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "RENDER_BRANCH=main",
                 "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
                 "RENDER_ENABLE_DISK=true",
+                *_level1_safety_env_lines(),
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",
                 "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
@@ -2577,6 +2603,7 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
                 "RENDER_BRANCH=main",
                 "RENDER_REPO_URL=https://github.com/FlowmemoryAI/flow-memory",
                 "RENDER_ENABLE_DISK=true",
+                *_level1_safety_env_lines(),
                 "FLOW_MEMORY_API_KEY=fmk_live_test_secret",
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION=true",

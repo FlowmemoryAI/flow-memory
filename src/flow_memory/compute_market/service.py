@@ -1459,11 +1459,15 @@ class ComputeMarketService:
             self._audit("market.quote.rejected", payload, request_id=request_id, result="rejected", reason_codes=validation.error_codes, provider_id=provider_id, route_id=route_id)
             return {"ok": False, "validation": validation.as_record(), "quote_id": quote_id, "fraud_signals": validation_fraud_signals}
         signed_quote_valid = verify_provider_quote_signature(quote, public_key, signature_context=QUOTE_SIGNATURE_CONTEXT) if public_key else False
+        task_hash = str(payload.get("task_hash", quote.get("task_hash", "")))
+        policy_hash = str(payload.get("policy_hash", quote.get("policy_hash", "")))
         record = {
             **_normalized_provider_quote(quote, quote_id=quote_id, quote_hash=quote_hash, signed_quote_valid=signed_quote_valid),
             "record_id": quote_record_id,
             "tenant_id": tenant_id,
             "workspace_id": workspace_id,
+            "task_hash": task_hash,
+            "policy_hash": policy_hash,
         }
         quote_filters = {"provider_id": provider_id, "route_id": route_id}
         if _payload_tenant_id(payload):
@@ -1535,7 +1539,7 @@ class ComputeMarketService:
                         telemetry=self.telemetry,
                     ),
                 )
-        cache_key = _quote_cache_key(self.store, provider_id, route_id, str(record.get("task_hash", "")), str(record.get("policy_hash", "")), tenant_id)
+        cache_key = _quote_cache_key(self.store, provider_id, route_id, task_hash, policy_hash, tenant_id)
         self.store.put_record(
             "quote_cache_entry",
             cache_key,
@@ -1543,8 +1547,8 @@ class ComputeMarketService:
                 "cache_key": cache_key,
                 "provider_id": provider_id,
                 "route_id": route_id,
-                "task_hash": str(record.get("task_hash", "")),
-                "policy_hash": str(record.get("policy_hash", "")),
+                "task_hash": task_hash,
+                "policy_hash": policy_hash,
                 "quote": record,
                 "source": "live_provider",
                 "created_at": utc_now_iso(),
@@ -1557,7 +1561,7 @@ class ComputeMarketService:
             },
             provider_id=provider_id,
             route_id=route_id,
-            task_hash=str(record.get("task_hash", "")),
+            task_hash=task_hash,
             status=str(record.get("status", "valid")),
             expires_at=str(record.get("expires_at", "")),
             request_id=request_id,
@@ -2561,46 +2565,51 @@ class ComputeMarketService:
             filters["task_hash"] = task_hash
         if _payload_tenant_id(payload):
             filters["tenant_id"] = _payload_tenant_id(payload)
-        page = self.store.list_records("quote_cache_entry", filters=filters, limit=500)
         now = utc_now_iso()
         invalidated: list[Mapping[str, Any]] = []
         reason = str(payload.get("reason", "manual_invalidation"))
-        for current in page.records:
-            current_cache_key = str(current.get("cache_key", current.get("record_id", "")))
-            if cache_key and current_cache_key != cache_key:
-                continue
-            if policy_hash and str(current.get("policy_hash", "")) != policy_hash:
-                continue
-            cached_quote = current.get("quote", {})
-            if quote_id and (not isinstance(cached_quote, Mapping) or str(cached_quote.get("quote_id", "")) != quote_id):
-                continue
-            if str(current.get("status", "")) == "invalidated":
-                continue
-            updated = {
-                **dict(current),
-                "status": "invalidated",
-                "invalidated_at": now,
-                "invalidation_reason": reason,
-                "updated_at": now,
-            }
-            self.store.put_record(
-                "quote_cache_entry",
-                current_cache_key,
-                updated,
-                provider_id=str(updated.get("provider_id", "")),
-                route_id=str(updated.get("route_id", "")),
-                task_hash=str(updated.get("task_hash", "")),
-                status="invalidated",
-                expires_at=now,
-                request_id=request_id,
-                tenant_id=str(updated.get("tenant_id", "")),
-                workspace_id=str(updated.get("workspace_id", "")),
-            )
-            self.telemetry.increment(
-                "quote_cache_invalidated_total",
-                {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
-            )
-            invalidated.append(updated)
+        cursor = ""
+        while True:
+            page = self.store.list_records("quote_cache_entry", filters=filters, limit=500, cursor=cursor)
+            for current in page.records:
+                current_cache_key = str(current.get("cache_key", current.get("record_id", "")))
+                if cache_key and current_cache_key != cache_key:
+                    continue
+                if policy_hash and str(current.get("policy_hash", "")) != policy_hash:
+                    continue
+                cached_quote = current.get("quote", {})
+                if quote_id and (not isinstance(cached_quote, Mapping) or str(cached_quote.get("quote_id", "")) != quote_id):
+                    continue
+                if str(current.get("status", "")) == "invalidated":
+                    continue
+                updated = {
+                    **dict(current),
+                    "status": "invalidated",
+                    "invalidated_at": now,
+                    "invalidation_reason": reason,
+                    "updated_at": now,
+                }
+                self.store.put_record(
+                    "quote_cache_entry",
+                    current_cache_key,
+                    updated,
+                    provider_id=str(updated.get("provider_id", "")),
+                    route_id=str(updated.get("route_id", "")),
+                    task_hash=str(updated.get("task_hash", "")),
+                    status="invalidated",
+                    expires_at=now,
+                    request_id=request_id,
+                    tenant_id=str(updated.get("tenant_id", "")),
+                    workspace_id=str(updated.get("workspace_id", "")),
+                )
+                self.telemetry.increment(
+                    "quote_cache_invalidated_total",
+                    {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))},
+                )
+                invalidated.append(updated)
+            if not page.next_cursor:
+                break
+            cursor = page.next_cursor
         return tuple(invalidated)
 
     def create_job(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:

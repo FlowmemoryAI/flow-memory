@@ -1098,11 +1098,31 @@ def test_cross_provider_quote_replay_detection_paginates_all_guards() -> None:
 def test_quote_broker_validates_replay_cache_and_drift() -> None:
     service = _service()
 
-    accepted = service.broker_quote({"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
+    accepted = service.broker_quote(
+        {
+            "quote": _quote(),
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+            "task_hash": "task-live-gpu",
+            "policy_hash": "policy-live-gpu",
+        }
+    )
     assert accepted["ok"] is True
     assert accepted["quote"]["source"] == "live_provider"
     assert service.store.count_records("quote_replay_guard") == 1
     assert service.store.count_records("quote_cache_entry") == 1
+    cache_key = service.store.quote_cache_key(
+        "provider_live_gpu_1",
+        "route_live_gpu_1",
+        "task-live-gpu",
+        "policy-live-gpu",
+    )
+    cache_entry = service.store.get_record("quote_cache_entry", cache_key)
+    assert cache_entry is not None
+    assert cache_entry["task_hash"] == "task-live-gpu"
+    assert cache_entry["policy_hash"] == "policy-live-gpu"
+    assert accepted["quote"]["task_hash"] == "task-live-gpu"
+    assert accepted["quote"]["policy_hash"] == "policy-live-gpu"
 
     replayed_same = service.broker_quote(
         {"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]}
@@ -1223,6 +1243,44 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert reputation["quote_replay_count"] == 1
     assert reputation["quote_price_manipulation_count"] == 1
     assert reputation["fraud_signal_count"] == 2
+
+
+def test_quote_cache_invalidation_paginates_beyond_storage_page_limit() -> None:
+    service = _service()
+    provider_id = "provider_live_gpu_1"
+    route_id = "route_live_gpu_1"
+    for index in range(503):
+        cache_key = f"quote-cache-pagination-{index:04d}"
+        service.store.put_record(
+            "quote_cache_entry",
+            cache_key,
+            {
+                "cache_key": cache_key,
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "task_hash": f"task-{index:04d}",
+                "policy_hash": "policy",
+                "quote": {"quote_id": f"quote-{index:04d}"},
+                "status": "valid",
+                "source": "test",
+            },
+            provider_id=provider_id,
+            route_id=route_id,
+            task_hash=f"task-{index:04d}",
+            status="valid",
+        )
+
+    invalidated = service.invalidate_quote_cache(
+        {
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "reason": "provider_refresh",
+        }
+    )
+
+    assert invalidated["invalidated_count"] == 503
+    assert service.store.get_record("quote_cache_entry", "quote-cache-pagination-0502")["status"] == "invalidated"
+    assert _metric_total(service, "quote_cache_invalidated_total", {"provider_id": provider_id, "route_id": route_id}) == 503.0
 
 
 def test_mark_expired_quotes_stale_paginates_beyond_storage_page_limit() -> None:

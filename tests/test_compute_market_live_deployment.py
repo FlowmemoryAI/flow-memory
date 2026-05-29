@@ -1313,6 +1313,9 @@ def test_public_buildout_validator_requires_observability_endpoints() -> None:
     assert "OTLP telemetry export delivery failed" in validator_script
     assert "missing_metrics = tuple(" in validator_script
     assert "Prometheus metrics missing required Compute Market metrics" in validator_script
+    assert 'checks["provider_reputation"] = call_json(' in validator_script
+    assert 'checks["prices_history"] = call_json(' in validator_script
+    assert "provider reputation metrics failed" in validator_script
     assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
     assert "nonce_headers(headers or {}, label=f\"{method}-json\")" in validator_script
 

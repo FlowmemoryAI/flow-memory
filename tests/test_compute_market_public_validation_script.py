@@ -873,6 +873,17 @@ def _public_metrics_text() -> str:
     return "\n".join(f"{name} 1" for name in validator._PUBLIC_REQUIRED_PROMETHEUS_METRICS) + "\n"
 
 
+def _public_provider_reputation(provider_id: str = "provider_public_buildout") -> dict[str, object]:
+    return {
+        "provider_id": provider_id,
+        "status": "active",
+        "quote_accuracy_score": 1.0,
+        "execution_success_rate": 1.0,
+        "capacity_fulfillment_rate": 1.0,
+        "stale_quote_rate": 0.0,
+    }
+
+
 def _passing_public_buildout_call_text(
     method: str,
     url: str,
@@ -906,6 +917,9 @@ def _passing_public_buildout_call_json(
             return 401, {"ok": False, "error": {"code": "auth.required"}}
         if url.endswith("/compute/health"):
             return 200, {"ok": True, "data": {"ok": True}}
+        if "/market/providers/" in url and url.endswith("/reputation"):
+            provider_id = url.rsplit("/market/providers/", 1)[1].split("/", 1)[0]
+            return 200, {"ok": True, "data": {"reputation": _public_provider_reputation(provider_id)}}
         if url.endswith("/compute/readiness"):
             return 200, {
                 "ok": True,
@@ -1263,6 +1277,9 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             return 401, {"ok": False, "error": {"code": "auth.required"}}
         if url.endswith("/compute/health"):
             return 200, {"ok": True, "data": {"ok": True}}
+        if "/market/providers/" in url and url.endswith("/reputation"):
+            provider_id = url.rsplit("/market/providers/", 1)[1].split("/", 1)[0]
+            return 200, {"ok": True, "data": {"reputation": _public_provider_reputation(provider_id)}}
         if url.endswith("/compute/readiness"):
             return 200, {
                 "ok": True,
@@ -1529,6 +1546,13 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_chain_monitor_ok"] is True
     assert result["audit_checkpoint_count"] == 1
     assert result["missing_metrics"] == ()
+    assert result["checks"]["provider_reputation"] == 200
+    assert result["checks"]["prices_history"] == 200
+    assert result["provider_reputation_status"] == "active"
+    assert result["provider_reputation_quote_accuracy_score"] == 1.0
+    assert result["provider_reputation_execution_success_rate"] == 1.0
+    assert result["provider_reputation_capacity_fulfillment_rate"] == 1.0
+    assert result["provider_reputation_stale_quote_rate"] == 0.0
     assert "audit_chain_verify_fail_total" in result["required_prometheus_metrics"]
     assert result["plan_idempotent_replay"] is True
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT

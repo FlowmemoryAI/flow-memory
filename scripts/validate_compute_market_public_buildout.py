@@ -725,6 +725,7 @@ def validate(
     checks["provider_verify"] = call_json("POST", f"{base}/market/providers/{provider_id}/verify", headers_provider, {})
     checks["provider_conformance"] = call_json("POST", f"{base}/market/providers/{provider_id}/conformance", headers_provider, {"sample_quote": quote, "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
     checks["provider_get"] = call_json("GET", f"{base}/market/providers/{provider_id}", headers_read)
+    checks["provider_reputation"] = call_json("GET", f"{base}/market/providers/{provider_id}/reputation", headers_read)
     checks["capacity_list"] = call_json(
         "POST",
         f"{base}/market/capacity/list",
@@ -747,6 +748,7 @@ def validate(
     checks["quote_ingest"] = call_json("POST", f"{base}/market/quotes/ingest", headers_provider, {"quote": quote, "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
     checks["external_quote_disabled"] = call_json("POST", f"{base}/compute/providers/external/quote", headers_provider, {"provider_id": provider_id, "task": PUBLIC_TASK, "allowed_assets": ["USDC"], "allowed_networks": ["solana"]})
     checks["prices"] = call_json("GET", f"{base}/market/prices", headers_read)
+    checks["prices_history"] = call_json("GET", f"{base}/market/prices/history?provider_id={provider_id}", headers_read)
     checks["job_create"] = call_json(
         "POST",
         f"{base}/compute/jobs",
@@ -908,6 +910,8 @@ def validate(
     alert_route = data(checks["alerts_route"][1])
     error_tracking = data(checks["error_tracking"][1])
     otlp_export = data(checks["otlp_export"][1])
+    provider_reputation = data(checks["provider_reputation"][1]).get("reputation", {})
+    provider_reputation_map = provider_reputation if isinstance(provider_reputation, Mapping) else {}
     schema_verification = storage_diag.get("schema_verification", {})
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {})
     schema_count_evidence = postgres_schema_count_evidence(schema_verification)
@@ -993,7 +997,15 @@ def validate(
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
-    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "alerts", "alerts_route", "error_tracking", "otlp_export", "billing_provider_payouts", "billing_provider_payout_settle"):
+    require(
+        provider_reputation_map.get("provider_id") == provider_id
+        and "quote_accuracy_score" in provider_reputation_map
+        and "execution_success_rate" in provider_reputation_map
+        and "capacity_fulfillment_rate" in provider_reputation_map
+        and "stale_quote_rate" in provider_reputation_map,
+        "provider reputation metrics failed",
+    )
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "provider_reputation", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "prices_history", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "alerts", "alerts_route", "error_tracking", "otlp_export", "billing_provider_payouts", "billing_provider_payout_settle"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     missing_metrics = tuple(metric for metric in _PUBLIC_REQUIRED_PROMETHEUS_METRICS if metric not in checks["metrics"][1])
     require(
@@ -1146,6 +1158,11 @@ def validate(
         ),
         "audit_chain_monitor_ok": audit_chain_monitor.get("ok"),
         "audit_checkpoint_count": audit_chain_monitor.get("checkpoint_count"),
+        "provider_reputation_status": provider_reputation_map.get("status"),
+        "provider_reputation_quote_accuracy_score": provider_reputation_map.get("quote_accuracy_score"),
+        "provider_reputation_execution_success_rate": provider_reputation_map.get("execution_success_rate"),
+        "provider_reputation_capacity_fulfillment_rate": provider_reputation_map.get("capacity_fulfillment_rate"),
+        "provider_reputation_stale_quote_rate": provider_reputation_map.get("stale_quote_rate"),
         "postgres_required_table_count": schema_count_evidence.get("required_table_count"),
         "postgres_minimum_table_count": schema_count_evidence.get("minimum_table_count"),
         "postgres_required_index_count": schema_count_evidence.get("required_index_count"),

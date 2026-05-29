@@ -75,6 +75,7 @@ _UNSAFE_KEYS = frozenset(
         "settle",
         "settlement_broadcast",
         "settlement_mode",
+        "settlement_modes",
     }
 )
 _SAFE_DRY_RUN_SETTLEMENT_MODES = frozenset(
@@ -4567,7 +4568,12 @@ class ComputeMarketService:
         lease_expires_at = _future_utc_iso(ttl_seconds)
         requested_job_id = str(payload.get("job_id", "")).strip()
         self._expire_job_leases(payload, request_id=request_id)
-        candidates = _claim_candidates(self.store, requested_job_id=requested_job_id, tenant_id=_payload_tenant_id(payload))
+        candidates = _claim_candidates(
+            self.store,
+            requested_job_id=requested_job_id,
+            tenant_id=_payload_tenant_id(payload),
+            workspace_id=_payload_workspace_id(payload),
+        )
         for candidate in candidates:
             job = dict(candidate)
             job_id = str(job.get("job_id", job.get("record_id", "")))
@@ -9606,11 +9612,13 @@ def _claim_candidates(
     *,
     requested_job_id: str = "",
     tenant_id: str = "",
+    workspace_id: str = "",
 ) -> tuple[Mapping[str, Any], ...]:
     tenant_filter = tenant_id.strip()
+    workspace_filter = workspace_id.strip()
     if requested_job_id:
         job = store.get_record("compute_job", requested_job_id)
-        if job is None or not _tenant_can_access_record({"tenant_id": tenant_filter}, job):
+        if job is None or not _tenant_can_access_record({"tenant_id": tenant_filter, "workspace_id": workspace_filter}, job):
             return ()
         return (job,)
     now = utc_now_iso()
@@ -9619,6 +9627,9 @@ def _claim_candidates(
     if tenant_filter:
         queued_filters["tenant_id"] = tenant_filter
         dispatched_filters["tenant_id"] = tenant_filter
+    if workspace_filter:
+        queued_filters["workspace_id"] = workspace_filter
+        dispatched_filters["workspace_id"] = workspace_filter
     queued = store.list_records("compute_job", filters=queued_filters, limit=100).records
     dispatched = tuple(
         job
@@ -11704,6 +11715,10 @@ def _non_negative_float(value: object, name: str) -> float:
 def _assert_no_unsafe(payload: Mapping[str, Any]) -> None:
     for key, value in _walk(payload):
         if key == "settlement_mode" and str(value) in _SAFE_DRY_RUN_SETTLEMENT_MODES:
+            continue
+        if key == "settlement_modes" and isinstance(value, (list, tuple)) and all(
+            str(mode) in _SAFE_DRY_RUN_SETTLEMENT_MODES for mode in value
+        ):
             continue
         if key in _UNSAFE_KEYS or (isinstance(value, str) and "seed phrase" in value.lower()):
             raise ValueError(f"Unsafe compute market payload rejected: {key}")

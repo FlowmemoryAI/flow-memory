@@ -51,7 +51,17 @@ _UNSAFE_FIELDS = (
     "mainnet settlement",
 )
 _SAFE_SETTLEMENT_MODES = frozenset(
-    ("dry_run", "generic_dry_run", "invoice", "external_checkout", "prepaid_credits")
+    (
+        "dry_run",
+        "generic_dry_run",
+        "http_402_dry_run",
+        "solana_usdc_dry_run",
+        "base_sepolia_erc4337_dry_run",
+        "no_payment",
+        "invoice",
+        "external_checkout",
+        "prepaid_credits",
+    )
 )
 
 

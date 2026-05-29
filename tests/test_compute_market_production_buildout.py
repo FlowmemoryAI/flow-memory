@@ -457,6 +457,24 @@ def test_provider_onboarding_rejects_inline_credentials() -> None:
         assert "settlement_mode" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("unsafe settlement_mode quote was accepted")
+    try:
+        service.broker_quote({"quote": {**_quote(), "settlement_modes": ["solana_usdc_live"]}})
+    except ValueError as exc:
+        assert "settlement_modes" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("unsafe settlement_modes quote was accepted")
+    safe_plural_modes = service.broker_quote(
+        {
+            "quote": {
+                **_quote(),
+                "quote_id": "quote_safe_plural_settlement_modes",
+                "settlement_modes": ["generic_dry_run", "solana_usdc_dry_run"],
+            },
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+    assert safe_plural_modes["ok"] is True
 
 
 def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only() -> None:
@@ -4420,6 +4438,56 @@ def test_compute_job_retry_and_cancel_remain_dry_run_safe() -> None:
     assert len(tenant_jobs) == 1
     assert tenant_jobs[0]["status"] == "cancelled"
     assert {event["event_type"] for event in tenant_events} == {"job.queued", "job.retry_queued", "job.cancelled"}
+
+
+def test_compute_job_claims_are_workspace_isolated_within_tenant() -> None:
+    service = _service()
+    tenant_id = "tenant_claim_workspace"
+    job_a_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_claim_workspace_a",
+                "tenant_id": tenant_id,
+                "workspace_id": "workspace_a",
+            }
+        )["job"]["job_id"]
+    )
+    job_b_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_claim_workspace_b",
+                "tenant_id": tenant_id,
+                "workspace_id": "workspace_b",
+            }
+        )["job"]["job_id"]
+    )
+
+    claimed_a = service.claim_job(
+        {
+            "tenant_id": tenant_id,
+            "workspace_id": "workspace_a",
+            "worker_id": "worker_workspace_a",
+        }
+    )
+    stored_b = service.get_job(job_b_id, {"tenant_id": tenant_id, "workspace_id": "workspace_b"})["job"]
+
+    assert claimed_a["ok"] is True
+    assert claimed_a["job"]["job_id"] == job_a_id
+    assert claimed_a["job"]["workspace_id"] == "workspace_a"
+    assert stored_b["status"] == "queued"
+    with pytest.raises(ValueError, match=f"compute job is not available to claim: {job_b_id}"):
+        service.claim_job(
+            {
+                "job_id": job_b_id,
+                "tenant_id": tenant_id,
+                "workspace_id": "workspace_a",
+                "worker_id": "worker_workspace_a",
+            }
+        )
+    reloaded_b = service.get_job(job_b_id, {"tenant_id": tenant_id, "workspace_id": "workspace_b"})["job"]
+    assert reloaded_b["status"] == "queued"
 
 
 def test_compute_job_retry_respects_max_retries() -> None:

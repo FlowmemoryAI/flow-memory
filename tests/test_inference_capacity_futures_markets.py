@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from flow_memory.capacity_market.service import CapacityMarketService
+from flow_memory.compute_market.config import ComputeMarketConfig
+from flow_memory.compute_market.service import ComputeMarketService, reset_default_service
 from flow_memory.compute_market.storage import COMPUTE_RECORD_TYPES, ComputeMarketStore
 from flow_memory.compute_market.storage_backends import PostgresComputeMarketStore, _POSTGRES_TABLES
 from flow_memory.futures_market.service import FuturesMarketService
@@ -164,6 +166,43 @@ def test_router_exposes_inference_capacity_and_futures_endpoints() -> None:
 
     proxy = router.dispatch("POST", "/v1/chat/completions", {"model": "flow-local-small", "messages": []})
     assert proxy["object"] == "chat.completion"
+
+
+
+def test_marketplace_api_endpoints_persist_through_compute_store(tmp_path: Path) -> None:
+    db_path = tmp_path / "marketplace-api-store.sqlite3"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(f"sqlite:///{db_path}"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"),
+    )
+    reset_default_service(service)
+    router = create_default_router()
+    try:
+        source = router.dispatch(
+            "POST",
+            "/inference/admin/sources",
+            {
+                "source_id": "src-api-persist",
+                "source_name": "Persisted API source",
+                "credential_ref": "secret://inference/src-api-persist",
+            },
+        )
+        reservation = router.dispatch(
+            "POST",
+            "/capacity/reserve",
+            {"gpu_class": "H100", "region": "us-east", "hours": 2},
+        )
+        order = router.dispatch(
+            "POST",
+            "/futures/orders/simulate",
+            {"symbol": "FM-H100-USEAST-Q3-2027", "side": "buy", "quantity": 1},
+        )
+    finally:
+        reset_default_service(None)
+
+    assert service.store.get_record("inference_credit_source", str(source["source"]["source_id"])) is not None
+    assert service.store.get_record("capacity_reservation", str(reservation["reservation"]["reservation_id"])) is not None
+    assert service.store.get_record("futures_order_simulated", str(order["order"]["order_id"])) is not None
 
 
 def test_new_market_scope_mapping() -> None:

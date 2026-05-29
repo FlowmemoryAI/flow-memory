@@ -6807,6 +6807,11 @@ class ComputeMarketService:
             latest_checkpoint if isinstance(latest_checkpoint, Mapping) else {},
             self.config.audit_checkpoint_interval_seconds,
         )
+        if not checkpoint_stale and not checkpoint_page.records:
+            checkpoint_stale = _initial_checkpoint_interval_due(
+                self._audit_events_for_chain(requested_chain or "all"),
+                self.config.audit_checkpoint_interval_seconds,
+            )
         chain_ok = all(bool(chain.get("ok")) for chain in chains)
         exporter_status = self.audit_exporter.get_status()
         export_verification = self.audit_exporter.verify_export().as_record()
@@ -7052,6 +7057,11 @@ class ComputeMarketService:
             latest_checkpoint if isinstance(latest_checkpoint, Mapping) else {},
             self.config.audit_checkpoint_interval_seconds,
         )
+        if not checkpoint_stale and not checkpoint_page.records:
+            checkpoint_stale = _initial_checkpoint_interval_due(
+                self._all_audit_events(),
+                self.config.audit_checkpoint_interval_seconds,
+            )
         if self.config.audit_export_required and (
             not self.config.audit_export_uri
             or not isinstance(audit_exporter_status, Mapping)

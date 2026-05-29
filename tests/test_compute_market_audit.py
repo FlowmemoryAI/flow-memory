@@ -772,6 +772,34 @@ def test_audit_checkpoint_schedule_initial_interval_uses_oldest_pending_event() 
     assert scheduled["scheduled_result"]["checkpoint_record"]["checkpoint_id"]
 
 
+def test_audit_monitor_and_readiness_detect_stale_zero_checkpoint_state(tmp_path: Any, monkeypatch: Any) -> None:
+    out = tmp_path / "zero-checkpoint.ndjson"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="test",
+            audit_export_uri=str(out),
+            audit_export_required=True,
+            audit_checkpoint_interval_seconds=1,
+        ),
+    )
+    monkeypatch.setattr("flow_memory.compute_market.service.utc_now_iso", lambda: "2000-01-01T00:00:00Z")
+    service.plan({"task": "zero checkpoint stale event", "request_id": "zero-checkpoint-stale"})
+
+    monitor = service.audit_chain_monitor({})
+    metric_totals = service.telemetry.summary()["metric_totals"]
+    readiness = service.readiness()
+
+    assert service.store.count_records("audit_checkpoint_manifest") == 0
+    assert monitor["checkpoint_stale"] is True
+    assert monitor["stale_checkpoint_warning"]
+    assert isinstance(metric_totals, dict)
+    assert metric_totals.get("audit_checkpoint_stale_total", 0.0) == 1.0
+    assert readiness["audit_checkpoint_stale"] is True
+    assert "audit_checkpoint_stale" in readiness["readiness_failures"]
+
+
 def test_audit_forensic_replay_from_store_and_export_file(tmp_path: Any) -> None:
     service = _service()
     service.plan({"task": "replay source", "request_id": "replay-1"})

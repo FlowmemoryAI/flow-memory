@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `1e5e68e Document market CLI aliases`
+Latest inspected commit: `5cd3f98 Add Anthropic-compatible inference proxy`
 
 ## Current architecture
 
@@ -320,4 +320,49 @@ flowchart TD
     Futures --> Store
     Store --> SQLite[SQLite local]
     Store --> Postgres[Managed Postgres path]
+```
+
+## Checkpoint 2026-05-26 Anthropic-compatible proxy
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/api/marketplace_endpoints.py`
+- `src/flow_memory/api/router.py`
+- `src/flow_memory/api/manifest.py`
+- `docs/API_SNAPSHOT.json`
+- `docs/openapi/flow-memory.openapi.json`
+- `docs/INFERENCE_PROXY.md`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py tests/test_api_openapi_snapshot.py tests/test_api_snapshot.py tests/test_compute_market_naming.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py src/flow_memory/api/router.py src/flow_memory/api/manifest.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/api/marketplace_endpoints.py src/flow_memory/api/manifest.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commit:
+
+- `5cd3f98 Add Anthropic-compatible inference proxy`
+
+Implementation:
+
+- Added a seeded Anthropic-compatible credit source, balance, and listing for the local dry-run marketplace.
+- Added `GET /anthropic/v1/models` and `POST /anthropic/v1/messages`.
+- OpenAI and Anthropic proxy responses now attach an inference usage record and persist it through the active compute-market store.
+- External provider credentials remain disabled by default; the proxy still uses deterministic fake provider output.
+
+```mermaid
+sequenceDiagram
+    participant SDK as Anthropic SDK
+    participant API as Flow Memory API
+    participant Market as Inference Market
+    participant Store as ComputeMarketStore
+    SDK->>API: POST /anthropic/v1/messages
+    API->>Market: Route under inference proxy policy
+    Market->>Market: Select dry-run compatible listing
+    Market->>Store: Persist route quote and usage
+    Market-->>API: Anthropic-compatible fake message
+    API-->>SDK: dry_run_only response
 ```

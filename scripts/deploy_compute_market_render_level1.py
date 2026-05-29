@@ -1073,18 +1073,22 @@ def ensure_keyvalue(
     ip_allow_list = keyvalue_ip_allow_list(ip_allowlist)
     existing = find_named(api_key, "/key-value", "keyValue", owner_id, KEYVALUE_NAME)
     if existing is not None:
-        if _requires_paid_plan_update(existing, plan):
+        requires_plan_update = _requires_paid_plan_update(existing, plan)
+        requires_ip_update = not _render_ip_allow_lists_equal(existing.get("ipAllowList"), ip_allow_list)
+        if requires_plan_update or requires_ip_update:
+            patch_body: dict[str, object] = {
+                "maxmemoryPolicy": "noeviction",
+                "ipAllowList": ip_allow_list,
+            }
+            if requires_plan_update:
+                patch_body["plan"] = plan
+                patch_body["persistenceMode"] = "journal_snapshot"
             return _expect_dict(
                 render_request(
                     api_key,
                     "PATCH",
                     f"/key-value/{urllib.parse.quote(str(existing['id']))}",
-                    {
-                        "plan": plan,
-                        "maxmemoryPolicy": "noeviction",
-                        "persistenceMode": "journal_snapshot",
-                        "ipAllowList": ip_allow_list,
-                    },
+                    patch_body,
                 ),
                 "key_value",
             )

@@ -1998,6 +1998,68 @@ def test_render_keyvalue_creation_defaults_to_non_world_open_external_tls_allowl
         {"cidrBlock": "198.51.100.0/24", "description": "flow-memory-compute-market-redis-tls"},
     ]
 
+def test_render_keyvalue_existing_updates_external_allowlist_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[str, str, Mapping[str, object] | None]] = []
+
+    def fake_find_named(
+        api_key: str,
+        path: str,
+        envelope: str,
+        owner_id: str,
+        name: str,
+    ) -> dict[str, object] | None:
+        assert (api_key, envelope, owner_id, name) == (
+            "render-key",
+            "keyValue",
+            "owner",
+            render_deploy.KEYVALUE_NAME,
+        )
+        if path == "/key-value":
+            return {
+                "id": "kv_existing",
+                "name": name,
+                "plan": "starter",
+                "ipAllowList": [{"cidrBlock": "198.51.100.0/24", "description": "old-egress"}],
+            }
+        return None
+
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> dict[str, object]:
+        calls.append((method, path, body))
+        assert api_key == "render-key"
+        assert method == "PATCH"
+        assert path == "/key-value/kv_existing"
+        assert body is not None
+        assert body["maxmemoryPolicy"] == "noeviction"
+        assert "plan" not in body
+        assert body["ipAllowList"] == [
+            {"cidrBlock": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"}
+        ]
+        return {"id": "kv_existing", "plan": "starter", **dict(body)}
+
+    monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+
+    updated = render_deploy.ensure_keyvalue(
+        "render-key",
+        "owner",
+        "oregon",
+        plan="starter",
+        ip_allowlist="203.0.113.10/32",
+    )
+
+    assert calls
+    assert updated["ipAllowList"] == [
+        {"cidrBlock": "203.0.113.10/32", "description": "flow-memory-compute-market-redis-tls"}
+    ]
+
+
 def test_render_deploy_upgrades_existing_free_resources_and_attaches_audit_disk(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -8077,7 +8077,24 @@ def _enrich_provider(provider: ComputeProvider) -> ComputeProvider:
         verified=provider.verified or provider.provider_type == "local",
     )
 
-_CREDENTIAL_VALUE_KEYS = frozenset({"api_key", "token", "access_token", "refresh_token", "password", "secret", "secret_key", "private_key"})
+_CREDENTIAL_VALUE_KEYS = frozenset(
+    {
+        "api_key",
+        "token",
+        "access_token",
+        "refresh_token",
+        "password",
+        "secret",
+        "secret_key",
+        "private_key",
+        "seed",
+        "seed_phrase",
+        "seedPhrase",
+        "seed phrase",
+        "mnemonic",
+        "wallet_private_key",
+    }
+)
 _ERROR_DETAIL_KEY_FRAGMENTS = ("api_key", "token", "password", "secret", "private_key", "seed", "mnemonic")
 _PROVIDER_PLACEHOLDER_HOST_SUFFIXES = frozenset(
     ("example.com", "example.test", "example.invalid", "test", "invalid", "yourdomain.com")

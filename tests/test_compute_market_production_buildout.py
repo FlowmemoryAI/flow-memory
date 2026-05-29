@@ -488,6 +488,18 @@ def test_provider_admin_rejects_inline_credentials_and_stores_secret_refs_only()
         assert "external secret references" in str(exc)
     else:  # pragma: no cover
         raise AssertionError("inline provider admin credential was accepted")
+    try:
+        service.create_provider(
+            {
+                "provider_id": "admin-provider",
+                "provider_name": "Admin Provider",
+                "seed": "do-not-store-seed",
+            }
+        )
+    except ValueError as exc:
+        assert "external secret references" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("inline provider seed credential was accepted")
 
     created = service.create_provider(
         {

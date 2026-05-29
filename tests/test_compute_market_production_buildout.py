@@ -2503,6 +2503,81 @@ def test_expire_capacity_transitions_elapsed_confirmed_reservations() -> None:
         {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
     ) == 0.0
 
+def test_expired_partially_consumed_capacity_reports_remaining_units() -> None:
+    service = _service()
+    provider_id = "provider_capacity_expired_partial"
+    route_id = "route_capacity_expired_partial"
+    service.list_capacity(
+        {
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "resource_type": "gpu_hour",
+            "gpu_type": "H100",
+            "available_units": 5,
+            "region": "us-east",
+            "starts_at": "2099-01-01T00:00:00Z",
+            "ends_at": "2099-01-01T01:00:00Z",
+            "price_floor": 2.4,
+        }
+    )
+    held = service.reserve_capacity({"provider_id": provider_id, "route_id": route_id, "capacity_units": 5})[
+        "reservation"
+    ]
+    confirmed = service.confirm_capacity({"reservation_id": held["reservation_id"]})["reservation"]
+    reservation_id = str(confirmed["reservation_id"])
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_expired_partial_capacity",
+                "provider_id": provider_id,
+                "route_id": route_id,
+                "capacity_reservation_id": reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+    service.dispatch_job(job_id, {})
+    service.complete_job(
+        job_id,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "capacity_units_consumed": 2,
+        },
+    )
+    partially_consumed = service.store.get_record("compute_reservation", reservation_id)
+    assert partially_consumed is not None
+    elapsed = {
+        **dict(partially_consumed),
+        "reserved_until": "2000-01-01T00:00:00Z",
+        "updated_at": "2000-01-01T00:00:00Z",
+    }
+    service.store.put_record(
+        "compute_reservation",
+        reservation_id,
+        elapsed,
+        provider_id=provider_id,
+        route_id=route_id,
+        status="confirmed",
+    )
+
+    expired = service.expire_capacity({"provider_id": provider_id, "route_id": route_id})
+    summary = service.capacity_order_book({"provider_id": provider_id, "route_id": route_id})["summary"]
+
+    assert expired["expired_count"] == 1
+    assert expired["expired_reservations"][0]["consumed_capacity_units"] == 2
+    assert expired["expired_reservations"][0]["remaining_capacity_units"] == 3
+    assert summary["expired_capacity_units"] == 3
+    assert summary["consumed_capacity_units"] == 2
+    assert summary["available_capacity_units"] == 3
+    assert summary["utilization_by_provider"][provider_id]["expired_capacity_units"] == 3
+    assert _metric_total(
+        service,
+        "capacity_reservation_expired_total",
+        {"provider_id": provider_id, "route_id": route_id},
+    ) == 3.0
+
 def test_capacity_auction_clears_highest_bids_without_mutating_reservations() -> None:
     service = _service()
     service.list_capacity(

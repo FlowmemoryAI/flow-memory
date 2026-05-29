@@ -2118,7 +2118,7 @@ class ComputeMarketService:
                 workspace_id=str(updated.get("workspace_id", "")),
             )
             expiration_labels = {"provider_id": str(updated.get("provider_id", "")), "route_id": str(updated.get("route_id", ""))}
-            expired_units = float(updated.get("capacity_units", 0.0) or 0.0)
+            expired_units = _capacity_reservation_remaining_units(updated)
             self.telemetry.increment(
                 "capacity_reservation_expired_total",
                 expiration_labels,
@@ -9561,7 +9561,7 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
     held_units = sum(_capacity_reservation_reserved_units(item, now) for item in active_reservations if str(item.get("status", "")) == "held")
     confirmed_units = sum(_capacity_reservation_reserved_units(item, now) for item in active_reservations if str(item.get("status", "")) == "confirmed")
     consumed_units = sum(_capacity_consumed_units(item) for item in consumed_reservations)
-    expired_units = sum(_capacity_reservation_units(item) for item in expired_reservations)
+    expired_units = sum(_capacity_reservation_remaining_units(item) for item in expired_reservations)
     utilization_by_provider: dict[str, dict[str, float]] = {}
     for window in active_windows:
         provider_id = str(window.get("provider_id", ""))
@@ -9620,9 +9620,7 @@ def _capacity_summary(windows: tuple[Mapping[str, Any], ...], reservations: tupl
                 "utilization_ratio": 0.0,
             },
         )
-        provider["expired_capacity_units"] += float(
-            reservation.get("capacity_units", reservation.get("units_reserved", 0.0)) or 0.0
-        )
+        provider["expired_capacity_units"] += _capacity_reservation_remaining_units(reservation)
     for reservation in consumed_reservations:
         provider_id = str(reservation.get("provider_id", ""))
         if not provider_id:

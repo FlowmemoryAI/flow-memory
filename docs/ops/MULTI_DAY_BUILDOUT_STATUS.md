@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `15f5820 Add inference intelligence CLI commands`
+Latest inspected commit: `3fd7cd7 Harden inference credit accounting`
 
 ## Current architecture
 
@@ -513,4 +513,43 @@ flowchart TD
     CLI --> PriceForecast[price-forecast]
     DemandSummary --> AgentDecision[Agent economic decision]
     PriceForecast --> AgentDecision
+```
+
+## Checkpoint 2026-05-26 Inference credit accounting
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/compute_market/storage.py`
+- `src/flow_memory/compute_market/storage_backends.py`
+- `docs/INFERENCE_MARKET.md`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commit:
+
+- `3fd7cd7 Harden inference credit accounting`
+
+Implementation:
+
+- Inference credit buys now enforce `max_unit_price`, reject zero-fill listings, decrement listing inventory, and mark fully consumed listings filled.
+- Seller inference credit balances now decrement when a matching balance exists.
+- Buyer debit and seller credit ledger entries persist under the new `inference_credit_ledger_entry` record family.
+- Seeded marketplace records no longer overwrite existing persisted records when a service is reconstructed against a store.
+
+```mermaid
+flowchart TD
+    Buy[Buy request] --> Price[Max price guard]
+    Price --> Fill[Fill calculation]
+    Fill --> Inventory[Listing inventory update]
+    Fill --> Balance[Seller balance update]
+    Fill --> Ledger[Buyer and seller ledger entries]
+    Ledger --> Store[ComputeMarketStore]
+    Ledger --> Audit[Inference audit chain]
 ```

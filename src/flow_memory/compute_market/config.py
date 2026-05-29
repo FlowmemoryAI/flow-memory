@@ -234,6 +234,12 @@ class ComputeMarketConfig:
                 errors.append("stripe_checkout_enabled requires https stripe_checkout_success_url")
             if not self.stripe_checkout_cancel_url.startswith("https://"):
                 errors.append("stripe_checkout_enabled requires https stripe_checkout_cancel_url")
+        if (
+            self.compute_market_mode == "production_planning"
+            and self.stripe_webhook_secret
+            and not self.stripe_checkout_enabled
+        ):
+            errors.append("production_planning stripe_webhook_secret requires stripe_checkout_enabled")
         if self.stripe_checkout_timeout_ms < 1_000:
             errors.append("stripe_checkout_timeout_ms must be at least 1000")
         if self.stripe_api_base_url != "https://api.stripe.com" and self.compute_market_mode != "test":

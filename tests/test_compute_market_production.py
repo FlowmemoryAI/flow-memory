@@ -214,3 +214,21 @@ def test_stripe_webhook_tolerance_config_from_env_and_validation() -> None:
     assert config.stripe_webhook_tolerance_seconds == 600
     assert config.as_record()["stripe_webhook_tolerance_seconds"] == 600
     assert "stripe_webhook_tolerance_seconds must be positive" in invalid.validate()
+
+
+def test_production_rejects_stripe_webhook_secret_without_checkout() -> None:
+    production_errors = ComputeMarketConfig(
+        database_url=":memory:",
+        compute_market_mode="production_planning",
+        stripe_webhook_secret="whsec_should_not_be_bound_without_checkout",
+        stripe_checkout_enabled=False,
+    ).validate()
+    test_errors = ComputeMarketConfig(
+        database_url=":memory:",
+        compute_market_mode="test",
+        stripe_webhook_secret="whsec_local_test_webhook",
+        stripe_checkout_enabled=False,
+    ).validate()
+
+    assert "production_planning stripe_webhook_secret requires stripe_checkout_enabled" in production_errors
+    assert "production_planning stripe_webhook_secret requires stripe_checkout_enabled" not in test_errors

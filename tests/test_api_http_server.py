@@ -1587,7 +1587,7 @@ def test_http_gateway_accepts_direct_stripe_webhook_body_with_signature_header()
         store=ComputeMarketStore(":memory:"),
         config=ComputeMarketConfig(
             database_url=":memory:",
-            compute_market_mode="production_planning",
+            compute_market_mode="test",
             rate_limits_enabled=False,
             stripe_webhook_secret=secret,
         ),
@@ -1626,7 +1626,7 @@ def test_http_gateway_accepts_stripe_signature_auth_when_scopes_required() -> No
         store=ComputeMarketStore(":memory:"),
         config=ComputeMarketConfig(
             database_url=":memory:",
-            compute_market_mode="production_planning",
+            compute_market_mode="test",
             rate_limits_enabled=False,
             stripe_webhook_secret=secret,
         ),

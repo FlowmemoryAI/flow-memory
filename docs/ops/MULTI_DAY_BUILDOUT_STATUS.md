@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `b9e8371 Test public Redis fail closed validation`
+Latest inspected commit: `2b310cd Test immutable audit public validation`
 
 ## Current architecture
 
@@ -1418,4 +1418,35 @@ flowchart TD
     Breaker -->|false| Reject
     Limiter -->|true| Continue[Continue Level 1 gates]
     Breaker -->|true| Continue
+```
+
+## Checkpoint 2026-05-26 Public immutable audit validator coverage
+
+Files changed:
+
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py::test_public_buildout_validation_requires_immutable_s3_audit_when_requested -q` — 1 passed
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 16 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 440 passed, 2 skipped
+- `git diff --check -- tests/test_compute_market_public_validation_script.py` — clean
+
+Commit: `2b310cd Test immutable audit public validation`.
+
+Implementation:
+
+- The public buildout validator test suite now rejects non-immutable audit export status when `--require-immutable-audit` is in effect.
+- The fake public buildout helper can now override audit exporter status, enabling focused negative tests without external S3 or Render credentials.
+- The test proves a local-file or non-immutable exporter cannot satisfy the public Level 1 immutable audit gate.
+
+```mermaid
+flowchart TD
+    Validator[Public buildout validator] --> AuditStatus[/admin/audit/export]
+    AuditStatus --> Immutable{immutable S3 Object Lock?}
+    Immutable -->|No| Reject[Fail public validation]
+    Immutable -->|Yes| ExportWrite[Run audit export write probe]
 ```

@@ -298,6 +298,11 @@ def test_live_infra_validator_exercises_redis_shared_state_with_injected_client(
     assert result["rate_limit_denial_reason"] == "rate_limited"
     assert result["circuit_open_reason"] == "circuit_open"
     assert result["circuit_recovered"] is True
+    assert result["rate_limit_shared_state"] is True
+    assert result["circuit_breaker_shared_state"] is True
+    assert result["rate_limit_fail_closed"] is True
+    assert result["circuit_breaker_fail_closed"] is True
+    assert result["fail_closed"] is True
     assert result["diagnostics"]["ok"] is True
     assert result["fail_closed_probe"]["ok"] is True
 

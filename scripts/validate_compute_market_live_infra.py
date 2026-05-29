@@ -289,15 +289,23 @@ def validate_redis(redis_url: str, *, require_tls: bool = True) -> Mapping[str, 
                 fail_closed_probe.get("ok") is True,
             )
         )
+        rate_limit_shared_state = first.ok is True and second.ok is False and second.reason_code == "rate_limited"
+        circuit_breaker_shared_state = opened.ok is False and opened.reason_code == "circuit_open"
+        circuit_breaker_recovered = recovered.ok is True and recovered.state == "closed"
         return {
             "ok": ok,
             "backend": "redis",
             "redis_url_scheme": url_scheme(redis_url),
             "rate_limit_denial_reason": second.reason_code,
+            "rate_limit_shared_state": rate_limit_shared_state,
             "circuit_open_reason": opened.reason_code,
-            "circuit_recovered": recovered.ok is True and recovered.state == "closed",
+            "circuit_breaker_shared_state": circuit_breaker_shared_state,
+            "circuit_recovered": circuit_breaker_recovered,
+            "rate_limit_fail_closed": diagnostics.get("rate_limit_fail_closed") is True,
+            "circuit_breaker_fail_closed": diagnostics.get("circuit_breaker_fail_closed") is True,
             "diagnostics": diagnostics,
             "fail_closed_probe": fail_closed_probe,
+            "fail_closed": fail_closed_probe.get("ok") is True,
         }
     except Exception as exc:
         return {"ok": False, "backend": "redis", "error_code": type(exc).__name__, "message": str(exc)}

@@ -1,10 +1,10 @@
-# PRODUCTION: change every `plan: free` below to a paid Render plan before public deployment.
-# Free plans require RENDER_ALLOW_FREE_PLANS=true and are accepted only for non-production smoke tests.
+# PRODUCTION: this blueprint defaults to paid Render plans for public Level 1.
+# Use RENDER_ALLOW_FREE_PLANS=true only with the deploy script for non-production smoke tests.
 services:
   - type: web
     name: flow-memory-compute-market-api
     runtime: docker
-    plan: free
+    plan: starter
     region: oregon
     dockerfilePath: ./Dockerfile.compute-market
     dockerContext: .
@@ -221,7 +221,7 @@ services:
 
   - type: keyvalue
     name: flow-memory-compute-market-redis
-    plan: free
+    plan: starter
     region: oregon
     # Direct blueprint deploys cannot infer public egress CIDRs for the external TLS Redis endpoint.
     # Prefer scripts/deploy_compute_market_render_level1.py with RENDER_KEYVALUE_IP_ALLOWLIST set,
@@ -236,6 +236,6 @@ databases:
   - name: flow-memory-compute-market-postgres
     databaseName: flow_memory
     user: flow_memory
-    plan: free
+    plan: basic_256mb
     region: oregon
     ipAllowList: []

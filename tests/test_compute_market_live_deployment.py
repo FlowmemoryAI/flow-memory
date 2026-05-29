@@ -200,7 +200,9 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_NONCE_REQUIRE_TLS\n        value: true" in blueprint
     assert "FLOW_MEMORY_API_NONCE_VERIFY_TLS\n        value: true" in blueprint
     assert "FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_SIGNING_REQUIRED\n        value: true" in blueprint
-    assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
+    assert "plan: free" not in blueprint
+    assert "plan: starter" in blueprint
+    assert "plan: basic_256mb" in blueprint
     assert "inference:proxy" in blueprint
 
 def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:

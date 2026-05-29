@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `2b310cd Test immutable audit public validation`
+Latest inspected commit: `b083ce6 Expose live Redis validation evidence`
 
 ## Current architecture
 
@@ -1449,4 +1449,38 @@ flowchart TD
     AuditStatus --> Immutable{immutable S3 Object Lock?}
     Immutable -->|No| Reject[Fail public validation]
     Immutable -->|Yes| ExportWrite[Run audit export write probe]
+```
+
+## Checkpoint 2026-05-26 Live Redis validation evidence fields
+
+Files changed:
+
+- `scripts/validate_compute_market_live_infra.py`
+- `tests/test_compute_market_live_infra_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_infra_script.py::test_live_infra_validator_exercises_redis_shared_state_with_injected_client -q` — 1 passed
+- `python -m pytest tests/test_compute_market_live_infra_script.py -q` — 14 passed
+- `python -m ruff check scripts/validate_compute_market_live_infra.py tests/test_compute_market_live_infra_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_live_infra.py tests/test_compute_market_live_infra_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 440 passed, 2 skipped
+- `git diff --check -- scripts/validate_compute_market_live_infra.py tests/test_compute_market_live_infra_script.py` — clean
+
+Commit: `b083ce6 Expose live Redis validation evidence`.
+
+Implementation:
+
+- The live Redis validator now returns explicit evidence for shared limiter state, shared circuit-breaker state, recovery, diagnostics fail-closed flags, and the unavailable-backend fail-closed probe.
+- The injected-client live-infra test now asserts the structured evidence fields, not only the raw reason strings.
+- This improves managed Redis acceptance evidence without requiring real Redis credentials in local CI.
+
+```mermaid
+flowchart TD
+    RedisA[Limiter or breaker A] --> RedisState[Shared Redis state]
+    RedisB[Limiter or breaker B] --> RedisState
+    RedisState --> Evidence[Validation JSON evidence]
+    Evidence --> SharedLimiter[rate_limit_shared_state]
+    Evidence --> SharedBreaker[circuit_breaker_shared_state]
+    Evidence --> FailClosed[fail_closed]
 ```

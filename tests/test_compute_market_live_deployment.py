@@ -50,6 +50,7 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_API_JWT_ISSUER=",
         "FLOW_MEMORY_API_JWT_AUDIENCE=",
         "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS=60",
+        "FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true",
         "FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true",
         "FLOW_MEMORY_API_MAX_REQUEST_AGE_SECONDS=300",
         "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=redis",
@@ -184,6 +185,7 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_JWT_ISSUER\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_AUDIENCE\n        value: \"\"" in blueprint
     assert "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS\n        value: 60" in blueprint
+    assert "FLOW_MEMORY_API_JWT_REQUIRE_TENANT\n        value: true" in blueprint
     assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK\n        value: true" in blueprint
     assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND\n        value: redis" in blueprint
     assert "FLOW_MEMORY_API_NONCE_REDIS_PREFIX\n        value: flow-memory:api" in blueprint
@@ -199,6 +201,8 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "$GatewayJwtHs256Secret = $env:FLOW_MEMORY_API_JWT_HS256_SECRET",
         "$GatewayJwtIssuer = $env:FLOW_MEMORY_API_JWT_ISSUER",
         "$GatewayJwtAudience = $env:FLOW_MEMORY_API_JWT_AUDIENCE",
+        "$GatewayJwtTenantId = 'tenant_public_smoke'",
+        "$GatewayJwtWorkspaceId = 'workspace_public_smoke'",
         "function New-GatewayJwt",
         "System.Security.Cryptography.HMACSHA256",
         "Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health'",
@@ -206,6 +210,8 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "Assert-Status -Response $jwtWrongAudience -Expected 401",
         "jwt_health = $jwtHealthStatus",
         "jwt_wrong_audience = $jwtWrongAudienceStatus",
+        "jwt_missing_tenant = $jwtMissingTenantStatus",
+        "jwt_wrong_tenant = $jwtWrongTenantStatus",
         "flow_memory_roles",
         "-Roles 'inference-admin'",
         "Invoke-GatewayJwtRequest -Token $jwtRoleToken -Path '/inference/market/order-book'",
@@ -222,6 +228,12 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "Assert-True ($planReplay.Json.data.compute_plan.decision_id -eq $computePlan.decision_id)",
         "plan_idempotent_replay = [bool]$planReplay.Json.data.idempotent_replay",
         "Gateway JWT secret must be a real high-entropy secret",
+        "$claims['tenant_id'] = $TenantId",
+        "$claims['workspace_id'] = $WorkspaceId",
+        "Invoke-GatewayJwtRequest -Token $missingTenantJwtToken -Path '/compute/health'",
+        "Assert-Status -Response $jwtMissingTenant -Expected 401",
+        "Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-wrong-tenant' -TenantHeader",
+        "Assert-Status -Response $jwtWrongTenant -Expected 403",
         "must be configured together when JWT smoke is configured",
         "[switch]$IncludeMarketAlpha",
         "if ($IncludeMarketAlpha)",
@@ -508,6 +520,10 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             payload = _jwt_payload(request_headers["authorization"])
             if str(payload.get("aud", "")).endswith("-wrong"):
                 return 401, {"ok": False, "error": {"code": "auth.invalid"}}
+            if not payload.get("tenant_id"):
+                return 401, {"ok": False, "error": {"code": "auth.tenant_required"}}
+            if request_headers.get("x-flow-memory-tenant"):
+                return 403, {"ok": False, "error": {"code": "auth.tenant_mismatch"}}
             return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/health") and not request_headers.get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
@@ -671,6 +687,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["ok"] is True
     assert result["statuses"]["jwt_health"] == 200
     assert result["statuses"]["jwt_wrong_audience"] == 401
+    assert result["statuses"]["jwt_missing_tenant"] == 401
+    assert result["statuses"]["jwt_wrong_tenant"] == 403
     assert result["statuses"]["jwt_role_health"] == 200
     assert result["postgres_required_table_count"] == 110
     assert result["postgres_required_index_count"] == 1311
@@ -684,7 +702,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["stripe_checkout_enabled"] is False
     assert result["external_provider_quotes_enabled"] is False
     assert result["external_provider_execution_enabled"] is False
-    assert len(jwt_headers) == 3
+    assert len(jwt_headers) == 5
     role_payloads = [_jwt_payload(headers["authorization"]) for headers in jwt_headers if headers is not None]
     assert any(payload.get("flow_memory_roles") == ["inference-admin"] for payload in role_payloads)
     assert jwt_headers[0]["x-flow-memory-scopes"] == "compute:read"
@@ -699,7 +717,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 17
+    assert len(authenticated_headers) == 19
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(
@@ -1056,6 +1074,7 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "blocked_weak_gateway_jwt_secret" in deploy_script
     assert "blocked_insecure_gateway_jwt_issuer" in deploy_script
     assert "blocked_invalid_gateway_jwt_leeway" in deploy_script
+    assert "FLOW_MEMORY_API_JWT_REQUIRE_TENANT = 'true'" in deploy_script
     assert "'-RequireImmutableAudit'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'" in deploy_script
@@ -1447,6 +1466,7 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
     assert s3_env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == ""
     assert s3_env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == ""
     assert s3_env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "60"
+    assert s3_env_vars["FLOW_MEMORY_API_JWT_REQUIRE_TENANT"] == "true"
     assert s3_env_vars["FLOW_MEMORY_API_ENABLE_NONCE_CHECK"] == "true"
     assert s3_env_vars["FLOW_MEMORY_API_NONCE_REPLAY_BACKEND"] == "redis"
     assert s3_env_vars["FLOW_MEMORY_API_NONCE_FAIL_CLOSED"] == "true"
@@ -1579,6 +1599,7 @@ def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: py
     monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_ISSUER", "")
     monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_AUDIENCE", "")
     monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_LEEWAY_SECONDS", "")
+    monkeypatch.setattr(render_deploy, "DEFAULT_API_JWT_REQUIRE_TENANT", "")
 
     jwt_secret = "gateway-jwt-secret-with-at-least-32-characters"
     env_vars = {
@@ -1593,6 +1614,7 @@ def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: py
             jwt_issuer="https://issuer.example",
             jwt_audience="flow-memory-api",
             jwt_leeway_seconds="45",
+            jwt_require_tenant="true",
         )
     }
     parsed = render_deploy.gateway_jwt_config_from_env(
@@ -1601,6 +1623,7 @@ def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: py
             "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
             "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
             "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": "45",
+            "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": "true",
         }
     )
 
@@ -1608,7 +1631,9 @@ def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: py
     assert env_vars["FLOW_MEMORY_API_JWT_ISSUER"] == "https://issuer.example"
     assert env_vars["FLOW_MEMORY_API_JWT_AUDIENCE"] == "flow-memory-api"
     assert env_vars["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"] == "45"
+    assert env_vars["FLOW_MEMORY_API_JWT_REQUIRE_TENANT"] == "true"
     assert parsed["FLOW_MEMORY_API_JWT_HS256_SECRET"] == jwt_secret
+    assert parsed["FLOW_MEMORY_API_JWT_REQUIRE_TENANT"] == "true"
     with pytest.raises(SystemExit) as missing:
         render_deploy.gateway_jwt_config_from_env(
             {
@@ -1641,11 +1666,22 @@ def test_render_env_builder_propagates_and_validates_gateway_jwt(monkeypatch: py
                 "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": "-1",
             }
         )
+    with pytest.raises(SystemExit) as tenant_not_required:
+        render_deploy.gateway_jwt_config_from_env(
+            {
+                "FLOW_MEMORY_API_JWT_HS256_SECRET": jwt_secret,
+                "FLOW_MEMORY_API_JWT_ISSUER": "https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE": "flow-memory-api",
+                "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": "false",
+            }
+        )
+
 
     assert missing.value.code == 32
     assert weak.value.code == 32
     assert insecure_issuer.value.code == 32
     assert invalid_leeway.value.code == 32
+    assert tenant_not_required.value.code == 32
 
 def test_render_deploy_blocks_free_plans_unless_explicitly_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_POSTGRES_PLAN", "free")

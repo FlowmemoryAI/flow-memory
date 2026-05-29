@@ -25,7 +25,15 @@ param(
 
     [Parameter()]
     [ValidateRange(30, 3600)]
-    [int]$GatewayJwtTtlSeconds = 300
+    [int]$GatewayJwtTtlSeconds = 300,
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$GatewayJwtTenantId = 'tenant_public_smoke',
+
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string]$GatewayJwtWorkspaceId = 'workspace_public_smoke'
 
 )
 Set-StrictMode -Version Latest
@@ -132,7 +140,9 @@ function New-GatewayJwt {
         [Parameter(Mandatory = $true)] [string]$Audience,
         [Parameter(Mandatory = $true)] [string]$Scopes,
         [Parameter(Mandatory = $true)] [int]$TtlSeconds,
-        [string]$Roles = ''
+        [string]$Roles = '',
+        [string]$TenantId = '',
+        [string]$WorkspaceId = ''
     )
 
     if ($Secret.Length -lt 32) {
@@ -155,6 +165,12 @@ function New-GatewayJwt {
         iat = $now
         nbf = $now
         exp = $now + $TtlSeconds
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TenantId)) {
+        $claims['tenant_id'] = $TenantId
+    }
+    if (-not [string]::IsNullOrWhiteSpace($WorkspaceId)) {
+        $claims['workspace_id'] = $WorkspaceId
     }
     if (-not [string]::IsNullOrWhiteSpace($Roles)) {
         $claims['flow_memory_roles'] = @($Roles -split '\s+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -181,13 +197,18 @@ function Invoke-GatewayJwtRequest {
         [Parameter(Mandatory = $true)] [string]$Token,
         [Parameter(Mandatory = $true)] [string]$Path,
         [Parameter(Mandatory = $true)] [string]$Scopes,
-        [Parameter(Mandatory = $true)] [string]$Label
+        [Parameter(Mandatory = $true)] [string]$Label,
+        [string]$TenantHeader = ''
     )
 
-    $headers = Add-NonceHeaders -Headers @{
+    $authHeaders = @{
         authorization = "Bearer $Token"
         'x-flow-memory-scopes' = $Scopes
-    } -Label $Label
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TenantHeader)) {
+        $authHeaders['x-flow-memory-tenant'] = $TenantHeader
+    }
+    $headers = Add-NonceHeaders -Headers $authHeaders -Label $Label
 
     try {
         $response = Invoke-WebRequest -Uri "$baseUrl$Path" -Method GET -Headers $headers -TimeoutSec 90
@@ -554,8 +575,14 @@ Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 
 $jwtHealth = $null
 $jwtWrongAudience = $null
+$jwtMissingTenant = $null
+$jwtWrongTenant = $null
 $jwtRoleHealth = $null
 $jwtRoleInference = $null
+$jwtHealthStatus = 0
+$jwtWrongAudienceStatus = 0
+$jwtMissingTenantStatus = 0
+$jwtWrongTenantStatus = 0
 $jwtRoleHealthStatus = 0
 $jwtRoleInferenceStatus = 0
 if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
@@ -565,11 +592,21 @@ if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
         -Issuer $GatewayJwtIssuer `
         -Audience $GatewayJwtAudience `
         -Scopes $jwtScopes `
-        -TtlSeconds $GatewayJwtTtlSeconds
+        -TtlSeconds $GatewayJwtTtlSeconds `
+        -TenantId $GatewayJwtTenantId `
+        -WorkspaceId $GatewayJwtWorkspaceId
     $badJwtToken = New-GatewayJwt `
         -Secret $GatewayJwtHs256Secret `
         -Issuer $GatewayJwtIssuer `
         -Audience "$GatewayJwtAudience-wrong" `
+        -Scopes $jwtScopes `
+        -TtlSeconds $GatewayJwtTtlSeconds `
+        -TenantId $GatewayJwtTenantId `
+        -WorkspaceId $GatewayJwtWorkspaceId
+    $missingTenantJwtToken = New-GatewayJwt `
+        -Secret $GatewayJwtHs256Secret `
+        -Issuer $GatewayJwtIssuer `
+        -Audience $GatewayJwtAudience `
         -Scopes $jwtScopes `
         -TtlSeconds $GatewayJwtTtlSeconds
     $jwtRoleToken = New-GatewayJwt `
@@ -578,7 +615,9 @@ if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
         -Audience $GatewayJwtAudience `
         -Scopes 'compute:read' `
         -Roles 'inference-admin' `
-        -TtlSeconds $GatewayJwtTtlSeconds
+        -TtlSeconds $GatewayJwtTtlSeconds `
+        -TenantId $GatewayJwtTenantId `
+        -WorkspaceId $GatewayJwtWorkspaceId
 
     $jwtHealth = Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-health'
     Assert-Status -Response $jwtHealth -Expected 200 -Name 'jwt health'
@@ -586,6 +625,12 @@ if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
 
     $jwtWrongAudience = Invoke-GatewayJwtRequest -Token $badJwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-wrong-audience'
     Assert-Status -Response $jwtWrongAudience -Expected 401 -Name 'jwt wrong-audience health'
+
+    $jwtMissingTenant = Invoke-GatewayJwtRequest -Token $missingTenantJwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-missing-tenant'
+    Assert-Status -Response $jwtMissingTenant -Expected 401 -Name 'jwt missing-tenant health'
+
+    $jwtWrongTenant = Invoke-GatewayJwtRequest -Token $jwtToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-wrong-tenant' -TenantHeader "$GatewayJwtTenantId-wrong"
+    Assert-Status -Response $jwtWrongTenant -Expected 403 -Name 'jwt wrong-tenant health'
 
     $jwtRoleHealth = Invoke-GatewayJwtRequest -Token $jwtRoleToken -Path '/compute/health' -Scopes 'compute:read' -Label 'jwt-role-health'
     Assert-Status -Response $jwtRoleHealth -Expected 200 -Name 'jwt role health'
@@ -599,11 +644,9 @@ if (-not [string]::IsNullOrWhiteSpace($GatewayJwtHs256Secret)) {
 
     $jwtHealthStatus = [int]$jwtHealth.StatusCode
     $jwtWrongAudienceStatus = [int]$jwtWrongAudience.StatusCode
+    $jwtMissingTenantStatus = [int]$jwtMissingTenant.StatusCode
+    $jwtWrongTenantStatus = [int]$jwtWrongTenant.StatusCode
     $jwtRoleHealthStatus = [int]$jwtRoleHealth.StatusCode
-}
-else {
-    $jwtHealthStatus = 0
-    $jwtWrongAudienceStatus = 0
 }
 
 $result = [ordered]@{
@@ -634,6 +677,8 @@ $result = [ordered]@{
     wrong_scope = $wrongScope.StatusCode
     jwt_health = $jwtHealthStatus
     jwt_wrong_audience = $jwtWrongAudienceStatus
+    jwt_missing_tenant = $jwtMissingTenantStatus
+    jwt_wrong_tenant = $jwtWrongTenantStatus
     jwt_role_health = $jwtRoleHealthStatus
     jwt_role_inference_order_book = $jwtRoleInferenceStatus
     market_alpha = [bool]$IncludeMarketAlpha

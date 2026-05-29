@@ -467,6 +467,7 @@ if ($gatewayJwtConfigured) {
 
 $safetyExpectations = @{
     FLOW_MEMORY_API_REQUIRE_SCOPES = 'true'
+    FLOW_MEMORY_API_JWT_REQUIRE_TENANT = 'true'
     FLOW_MEMORY_API_ENABLE_NONCE_CHECK = 'true'
     FLOW_MEMORY_API_NONCE_REPLAY_BACKEND = 'redis'
     FLOW_MEMORY_API_NONCE_FAIL_CLOSED = 'true'

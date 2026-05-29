@@ -32,6 +32,8 @@ services:
         value: ""
       - key: FLOW_MEMORY_API_JWT_LEEWAY_SECONDS
         value: 60
+      - key: FLOW_MEMORY_API_JWT_REQUIRE_TENANT
+        value: true
       - key: FLOW_MEMORY_API_RATE_LIMIT
         value: 120
       - key: FLOW_MEMORY_API_RATE_LIMIT_WINDOW_SECONDS

@@ -66,6 +66,7 @@ MIN_POSTGRES_SCHEMA_INDEX_COUNT = 1311
 
 LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
+    "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": "true",
     "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
     "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
     "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
@@ -100,6 +101,7 @@ DEFAULT_API_JWT_HS256_SECRET = os.environ.get("FLOW_MEMORY_API_JWT_HS256_SECRET"
 DEFAULT_API_JWT_ISSUER = os.environ.get("FLOW_MEMORY_API_JWT_ISSUER", "").strip()
 DEFAULT_API_JWT_AUDIENCE = os.environ.get("FLOW_MEMORY_API_JWT_AUDIENCE", "").strip()
 DEFAULT_API_JWT_LEEWAY_SECONDS = os.environ.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS", "").strip()
+DEFAULT_API_JWT_REQUIRE_TENANT = os.environ.get("FLOW_MEMORY_API_JWT_REQUIRE_TENANT", "").strip()
 DEPLOY_PATHS = (
     "Dockerfile.compute-market",
     "render.yaml",
@@ -474,7 +476,13 @@ def provider_callback_ip_allowlist_from_env(values: dict[str, str]) -> str:
     return allowlist
 
 
-def validate_gateway_jwt_config(secret: str, issuer: str, audience: str, leeway_seconds: str) -> None:
+def validate_gateway_jwt_config(
+    secret: str,
+    issuer: str,
+    audience: str,
+    leeway_seconds: str,
+    require_tenant: str = "true",
+) -> None:
     configured = any((secret, issuer, audience))
     if not configured:
         return
@@ -495,6 +503,14 @@ def validate_gateway_jwt_config(secret: str, issuer: str, audience: str, leeway_
                 "configure FLOW_MEMORY_API_JWT_HS256_SECRET, FLOW_MEMORY_API_JWT_ISSUER, "
                 "and FLOW_MEMORY_API_JWT_AUDIENCE together for public gateway JWT auth"
             ),
+        )
+
+    if normalized_bool_text(require_tenant) != "true":
+        emit(
+            "blocked_gateway_jwt_tenant_not_required",
+            32,
+            invalid_value="FLOW_MEMORY_API_JWT_REQUIRE_TENANT",
+            required_action="set FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true for public tenant-bound gateway JWT auth",
         )
 
     if len(secret) < 32:
@@ -531,21 +547,25 @@ def validate_gateway_jwt_config(secret: str, issuer: str, audience: str, leeway_
         )
 
 
+
 def gateway_jwt_config_from_env(values: dict[str, str]) -> dict[str, str]:
     secret = DEFAULT_API_JWT_HS256_SECRET or values.get("FLOW_MEMORY_API_JWT_HS256_SECRET", "")
     issuer = DEFAULT_API_JWT_ISSUER or values.get("FLOW_MEMORY_API_JWT_ISSUER", "")
     audience = DEFAULT_API_JWT_AUDIENCE or values.get("FLOW_MEMORY_API_JWT_AUDIENCE", "")
     leeway_seconds = DEFAULT_API_JWT_LEEWAY_SECONDS or values.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS", "60")
+    require_tenant = DEFAULT_API_JWT_REQUIRE_TENANT or values.get("FLOW_MEMORY_API_JWT_REQUIRE_TENANT", "true")
     secret = secret.strip()
     issuer = issuer.strip()
     audience = audience.strip()
     leeway_seconds = leeway_seconds.strip() or "60"
-    validate_gateway_jwt_config(secret, issuer, audience, leeway_seconds)
+    require_tenant = require_tenant.strip() or "true"
+    validate_gateway_jwt_config(secret, issuer, audience, leeway_seconds, require_tenant)
     return {
         "FLOW_MEMORY_API_JWT_HS256_SECRET": secret,
         "FLOW_MEMORY_API_JWT_ISSUER": issuer,
         "FLOW_MEMORY_API_JWT_AUDIENCE": audience,
         "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": leeway_seconds,
+        "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": normalized_bool_text(require_tenant) or "true",
     }
 
 
@@ -991,6 +1011,7 @@ def build_env_vars(
     jwt_issuer: str = "",
     jwt_audience: str = "",
     jwt_leeway_seconds: str = "60",
+    jwt_require_tenant: str = "true",
     alert_webhook_url: str = "",
     alert_webhook_secret: str = "",
     alert_webhook_timeout_ms: str = "2000",
@@ -1029,7 +1050,7 @@ def build_env_vars(
     provider_callback_ip_allowlist_from_env(
         {"FLOW_MEMORY_COMPUTE_PROVIDER_CALLBACK_IP_ALLOWLIST": provider_callback_ip_allowlist}
     )
-    validate_gateway_jwt_config(jwt_hs256_secret, jwt_issuer, jwt_audience, jwt_leeway_seconds)
+    validate_gateway_jwt_config(jwt_hs256_secret, jwt_issuer, jwt_audience, jwt_leeway_seconds, jwt_require_tenant)
     validate_audit_export_immutable_settings(
         audit_export_uri,
         audit_export_object_lock_mode,
@@ -1048,6 +1069,7 @@ def build_env_vars(
         "FLOW_MEMORY_API_JWT_ISSUER": jwt_issuer,
         "FLOW_MEMORY_API_JWT_AUDIENCE": jwt_audience,
         "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS": jwt_leeway_seconds,
+        "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": normalized_bool_text(jwt_require_tenant) or "true",
         "FLOW_MEMORY_API_RATE_LIMIT": "120",
         "FLOW_MEMORY_API_RATE_LIMIT_WINDOW_SECONDS": "60",
         "FLOW_MEMORY_API_MAX_BODY_BYTES": "1048576",
@@ -1279,6 +1301,8 @@ def gateway_jwt_bearer_token(
     audience: str,
     scopes: str,
     roles: str | None = None,
+    tenant_id: str = "tenant_render_public_smoke",
+    workspace_id: str = "workspace_render_public_smoke",
 ) -> str:
     now = int(time.time())
     header = {"alg": "HS256", "typ": "JWT"}
@@ -1290,6 +1314,10 @@ def gateway_jwt_bearer_token(
         "exp": now + 300,
         "scope": scopes,
     }
+    if tenant_id:
+        claims["tenant_id"] = tenant_id
+    if workspace_id:
+        claims["workspace_id"] = workspace_id
     if roles:
         claims["flow_memory_roles"] = roles.split()
     signing_input = ".".join(
@@ -1411,14 +1439,40 @@ def smoke_public(
         jwt_issuer = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_ISSUER", ""))
         jwt_audience = str((gateway_jwt or {}).get("FLOW_MEMORY_API_JWT_AUDIENCE", ""))
         jwt_scopes = "compute:read compute:plan compute:audit compute:admin"
-        jwt_token = gateway_jwt_bearer_token(jwt_secret, jwt_issuer, jwt_audience, jwt_scopes)
-        bad_jwt_token = gateway_jwt_bearer_token(jwt_secret, jwt_issuer, f"{jwt_audience}-wrong", jwt_scopes)
+        jwt_tenant_id = "tenant_render_public_smoke"
+        jwt_workspace_id = "workspace_render_public_smoke"
+        jwt_token = gateway_jwt_bearer_token(
+            jwt_secret,
+            jwt_issuer,
+            jwt_audience,
+            jwt_scopes,
+            tenant_id=jwt_tenant_id,
+            workspace_id=jwt_workspace_id,
+        )
+        bad_jwt_token = gateway_jwt_bearer_token(
+            jwt_secret,
+            jwt_issuer,
+            f"{jwt_audience}-wrong",
+            jwt_scopes,
+            tenant_id=jwt_tenant_id,
+            workspace_id=jwt_workspace_id,
+        )
+        missing_tenant_jwt_token = gateway_jwt_bearer_token(
+            jwt_secret,
+            jwt_issuer,
+            jwt_audience,
+            jwt_scopes,
+            tenant_id="",
+            workspace_id="",
+        )
         role_jwt_token = gateway_jwt_bearer_token(
             jwt_secret,
             jwt_issuer,
             jwt_audience,
             "compute:read",
             roles="inference-admin",
+            tenant_id=jwt_tenant_id,
+            workspace_id=jwt_workspace_id,
         )
         checks["jwt_health"] = call_json(
             "GET",
@@ -1434,6 +1488,26 @@ def smoke_public(
             _smoke_nonce_headers(
                 {"authorization": f"Bearer {bad_jwt_token}", "x-flow-memory-scopes": "compute:read"},
                 "jwt-wrong-audience",
+            ),
+        )
+        checks["jwt_missing_tenant"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            _smoke_nonce_headers(
+                {"authorization": f"Bearer {missing_tenant_jwt_token}", "x-flow-memory-scopes": "compute:read"},
+                "jwt-missing-tenant",
+            ),
+        )
+        checks["jwt_wrong_tenant"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            _smoke_nonce_headers(
+                {
+                    "authorization": f"Bearer {jwt_token}",
+                    "x-flow-memory-scopes": "compute:read",
+                    "x-flow-memory-tenant": f"{jwt_tenant_id}-wrong",
+                },
+                "jwt-wrong-tenant",
             ),
         )
         checks["jwt_role_health"] = call_json(
@@ -1585,6 +1659,8 @@ def smoke_public(
             (not jwt_secret or checks["jwt_health"][0] == 200),
             (not jwt_secret or checks["jwt_health"][1].get("ok") is True),
             (not jwt_secret or checks["jwt_wrong_audience"][0] == 401),
+            (not jwt_secret or checks["jwt_missing_tenant"][0] == 401),
+            (not jwt_secret or checks["jwt_wrong_tenant"][0] == 403),
             (not jwt_secret or checks["jwt_role_health"][0] == 200),
             (
                 not jwt_secret
@@ -1852,6 +1928,7 @@ def main() -> int:
             jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
             jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],
             jwt_leeway_seconds=gateway_jwt["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"],
+            jwt_require_tenant=gateway_jwt["FLOW_MEMORY_API_JWT_REQUIRE_TENANT"],
             alert_webhook_url=alert_webhook_url,
             alert_webhook_secret=alert_webhook_secret,
             alert_webhook_timeout_ms=alert_webhook_timeout_ms,
@@ -1908,6 +1985,7 @@ def main() -> int:
             jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
             jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],
             jwt_leeway_seconds=gateway_jwt["FLOW_MEMORY_API_JWT_LEEWAY_SECONDS"],
+            jwt_require_tenant=gateway_jwt["FLOW_MEMORY_API_JWT_REQUIRE_TENANT"],
             alert_webhook_url=alert_webhook_url,
             alert_webhook_secret=alert_webhook_secret,
             alert_webhook_timeout_ms=alert_webhook_timeout_ms,

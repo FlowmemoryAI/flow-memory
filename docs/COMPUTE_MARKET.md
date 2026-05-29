@@ -312,6 +312,22 @@ flowchart TD
 `flow-memory compute provider-contract validate <quote.json> --json` validates provider quote samples before onboarding. Contract checks reject missing/negative/unknown prices, expired or stale quotes, provider spoofing, policy override attempts, live-settlement demands, private-key requirements, broadcast requirements, oversized responses, and disallowed assets/networks.
 
 
+## Public auth and tenant isolation
+
+Public Level 1 keeps API-key scope enforcement and nonce replay checks enabled, and the gateway JWT bridge is tenant-bound. Public deployment envs must set `FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true`; smoke and buildout validation mint JWTs with `tenant_id` and `workspace_id`, then prove missing-tenant bearer tokens return 401 and tenant-mismatched requests return 403. This is a gateway bridge for a trusted upstream issuer, not a full OIDC provider implementation.
+
+```mermaid
+flowchart TD
+    Gateway[Trusted API gateway] --> JWT[HS256 bearer JWT]
+    JWT --> Tenant[tenant_id and workspace_id claims]
+    Tenant --> API[Flow Memory API]
+    API --> Missing{tenant claim present?}
+    Missing -->|no| Reject401[401 rejected]
+    API --> Match{request tenant matches?}
+    Match -->|no| Reject403[403 rejected]
+    Match -->|yes| Scoped[scope enforcement]
+```
+
 ## Observability
 
 Metrics:

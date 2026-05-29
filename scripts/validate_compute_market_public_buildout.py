@@ -43,6 +43,8 @@ _WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", 
 _MIN_POSTGRES_SCHEMA_TABLE_COUNT_FALLBACK = 110
 _MIN_POSTGRES_SCHEMA_INDEX_COUNT_FALLBACK = 1311
 _MIN_AUDIT_EXPORT_RETENTION_DAYS = 365
+_PUBLIC_GATEWAY_TENANT_ID = "tenant_public_buildout"
+_PUBLIC_GATEWAY_WORKSPACE_ID = "workspace_public_buildout"
 _REQUIRED_PRODUCTION_SCOPES = (
     "compute:read",
     "compute:plan",
@@ -55,6 +57,7 @@ _REQUIRED_PRODUCTION_SCOPES = (
 )
 _LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
+    "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": "true",
     "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
     "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
     "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
@@ -515,6 +518,7 @@ def gateway_jwt_config_from_env(values: Mapping[str, str]) -> dict[str, str] | N
     issuer = values.get("FLOW_MEMORY_API_JWT_ISSUER", "").strip()
     audience = values.get("FLOW_MEMORY_API_JWT_AUDIENCE", "").strip()
     leeway = values.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS", "60").strip() or "60"
+    require_tenant = _bool_env(values.get("FLOW_MEMORY_API_JWT_REQUIRE_TENANT", ""), False)
     configured = bool(secret or issuer or audience)
     if not configured:
         return None
@@ -530,6 +534,10 @@ def gateway_jwt_config_from_env(values: Mapping[str, str]) -> dict[str, str] | N
         raise SystemExit(
             "Gateway JWT auth must configure real FLOW_MEMORY_API_JWT_HS256_SECRET, "
             f"FLOW_MEMORY_API_JWT_ISSUER, and FLOW_MEMORY_API_JWT_AUDIENCE together: {', '.join(missing)}"
+        )
+    if not require_tenant:
+        raise SystemExit(
+            "Gateway JWT auth must require tenant-bound tokens: FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true"
         )
     if len(secret) < 32:
         raise SystemExit("FLOW_MEMORY_API_JWT_HS256_SECRET must be at least 32 characters")
@@ -547,10 +555,21 @@ def gateway_jwt_config_from_env(values: Mapping[str, str]) -> dict[str, str] | N
         "issuer": issuer,
         "audience": audience,
         "leeway_seconds": str(parsed_leeway),
+        "tenant_id": _PUBLIC_GATEWAY_TENANT_ID,
+        "workspace_id": _PUBLIC_GATEWAY_WORKSPACE_ID,
     }
 
 
-def gateway_jwt_headers(config: Mapping[str, str], scopes: str, *, audience: str | None = None) -> dict[str, str]:
+def gateway_jwt_headers(
+    config: Mapping[str, str],
+    scopes: str,
+    *,
+    audience: str | None = None,
+    tenant_id: str | None = _PUBLIC_GATEWAY_TENANT_ID,
+    workspace_id: str | None = _PUBLIC_GATEWAY_WORKSPACE_ID,
+    request_tenant_id: str = "",
+    request_workspace_id: str = "",
+) -> dict[str, str]:
     now = int(time.time())
     claims = {
         "iss": config["issuer"],
@@ -561,13 +580,22 @@ def gateway_jwt_headers(config: Mapping[str, str], scopes: str, *, audience: str
         "nbf": now,
         "exp": now + 300,
     }
+    if tenant_id:
+        claims["tenant_id"] = tenant_id
+    if workspace_id:
+        claims["workspace_id"] = workspace_id
     header = {"alg": "HS256", "typ": "JWT"}
     signing_input = f"{base64url_json(header)}.{base64url_json(claims)}"
     signature = hmac.new(config["secret"].encode("utf-8"), signing_input.encode("ascii"), hashlib.sha256).digest()
-    return {
+    headers = {
         "authorization": f"Bearer {signing_input}.{base64.urlsafe_b64encode(signature).decode('ascii').rstrip('=')}",
         "x-flow-memory-scopes": scopes,
     }
+    if request_tenant_id:
+        headers["x-flow-memory-tenant"] = request_tenant_id
+    if request_workspace_id:
+        headers["x-flow-memory-workspace"] = request_workspace_id
+    return headers
 
 
 
@@ -613,6 +641,20 @@ def validate(
                 gateway_jwt_config,
                 "compute:read",
                 audience=f"{gateway_jwt_config['audience']}-wrong",
+            ),
+        )
+        checks["jwt_missing_tenant"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            gateway_jwt_headers(gateway_jwt_config, "compute:read", tenant_id="", workspace_id=""),
+        )
+        checks["jwt_wrong_tenant"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            gateway_jwt_headers(
+                gateway_jwt_config,
+                "compute:read",
+                request_tenant_id=f"{_PUBLIC_GATEWAY_TENANT_ID}_wrong",
             ),
         )
         checks["jwt_wrong_scope"] = call_json(
@@ -910,6 +952,8 @@ def validate(
     if gateway_jwt_config is not None:
         require(checks["jwt_health"][0] == 200, "gateway JWT health check failed")
         require(checks["jwt_wrong_audience"][0] == 401, "gateway JWT wrong-audience check did not fail")
+        require(checks["jwt_missing_tenant"][0] == 401, "gateway JWT missing-tenant check did not fail")
+        require(checks["jwt_wrong_tenant"][0] == 403, "gateway JWT wrong-tenant check did not fail")
         require(checks["jwt_wrong_scope"][0] == 403, "gateway JWT wrong-scope check did not fail")
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")

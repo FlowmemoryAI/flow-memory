@@ -49,7 +49,7 @@ flowchart TD
 - Real compute execution against external providers and artifact storage.
 - External billing/prepaid credits with webhook credentials.
 - Immutable object-lock audit storage binding.
-- JWT/OIDC/API gateway production integration beyond API key and scope headers.
+- External OIDC/API gateway issuer integration remains; public JWT bridge now requires tenant-bound tokens beyond API key and scope headers.
 - Public Level 1 deployment and smoke tests against a managed Postgres and managed Redis URL.
 - Legal/compliance/security review for any future live settlement, forward-capacity, or futures path.
 
@@ -2190,4 +2190,47 @@ flowchart TD
     MinDays -->|no| Reject
     Compliance -->|yes| PublicGate[public immutable audit gate]
     MinDays -->|yes| PublicGate
+```
+
+## Checkpoint 2026-05-26 Public gateway JWT tenant gate
+
+Files changed:
+
+- `deployments/compute-market/live.env.example`
+- `docs/COMPUTE_MARKET.md`
+- `render.yaml`
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py::test_public_buildout_main_blocks_gateway_jwt_without_tenant_requirement_before_network tests/test_compute_market_public_validation_script.py::test_public_buildout_validation_checks_unsigned_provider_receipts tests/test_compute_market_live_deployment.py::test_public_smoke_script_validates_gateway_jwt_when_configured tests/test_compute_market_live_deployment.py::test_render_smoke_validates_gateway_jwt_when_configured tests/test_compute_market_live_deployment.py::test_render_env_builder_propagates_and_validates_gateway_jwt tests/test_compute_market_live_deployment.py::test_render_blueprint_and_env_builder_match_level1_safety_contract -q` — 6 passed
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 91 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 466 passed, 2 skipped
+
+Commit: pending.
+
+Implementation:
+
+- Public Level 1 env templates and Render automation now require `FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true`.
+- Python and PowerShell public smoke paths mint tenant/workspace-bound gateway JWTs, verify a valid tenant-bound token succeeds, verify missing-tenant bearer tokens return 401, and verify tenant-mismatched requests return 403.
+- Public buildout validation rejects configured gateway JWT auth unless tenant-bound token enforcement is enabled before any network calls.
+
+```mermaid
+flowchart TD
+    Env[Public JWT env] --> RequireTenant[JWT_REQUIRE_TENANT true]
+    Smoke[Public smoke] --> Token[tenant/workspace JWT]
+    Token --> API[Flow Memory API]
+    Smoke --> MissingTenant[missing tenant JWT]
+    Smoke --> WrongTenant[wrong request tenant]
+    RequireTenant --> Gate[public preflight gate]
+    MissingTenant --> Reject401[401]
+    WrongTenant --> Reject403[403]
+    Token --> Accept[200 health]
 ```

@@ -12,6 +12,7 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 f"FLOW_MEMORY_API_KEY={api_key}",
                 "FLOW_MEMORY_API_KEY_SCOPES=compute:read compute:plan compute:execute compute:admin compute:audit compute:provider-admin compute:billing compute:settlement-admin",
                 "FLOW_MEMORY_API_REQUIRE_SCOPES=true",
+                "FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true",
                 "FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true",
                 "FLOW_MEMORY_API_NONCE_FAIL_CLOSED=true",
                 "FLOW_MEMORY_API_NONCE_REQUIRE_TLS=true",
@@ -665,6 +666,48 @@ def test_public_buildout_main_blocks_incomplete_gateway_jwt_before_network(tmp_p
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted incomplete gateway JWT config")
 
+def test_public_buildout_main_blocks_gateway_jwt_without_tenant_requirement_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        + "\n".join(
+            (
+                "FLOW_MEMORY_API_JWT_HS256_SECRET=gateway-jwt-secret-with-at-least-32-characters",
+                "FLOW_MEMORY_API_JWT_ISSUER=https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE=flow-memory-api",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    env_file.write_text(
+        env_file.read_text(encoding="utf-8").replace(
+            "FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true",
+            "FLOW_MEMORY_API_JWT_REQUIRE_TENANT=false",
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(
+        base_url: str,
+        api_key: str,
+        *,
+        require_immutable_audit: bool = False,
+        gateway_jwt_config: Mapping[str, str] | None = None,
+    ) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        assert "FLOW_MEMORY_API_JWT_REQUIRE_TENANT=true" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted tenantless gateway JWT config")
+
 
 def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
@@ -1155,6 +1198,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
         if url.endswith("/compute/health") and (headers or {}).get("authorization"):
             jwt_health_calls += 1
+            if (headers or {}).get("x-flow-memory-tenant"):
+                return 403, {"ok": False, "error": {"code": "auth.tenant_mismatch"}}
             if jwt_health_calls == 1:
                 return 200, {"ok": True, "data": {"ok": True}}
             return 401, {"ok": False, "error": {"code": "auth.invalid"}}
@@ -1436,6 +1481,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["metrics"] == 200
     assert result["checks"]["jwt_health"] == 200
     assert result["checks"]["jwt_wrong_audience"] == 401
+    assert result["checks"]["jwt_missing_tenant"] == 401
+    assert result["checks"]["jwt_wrong_tenant"] == 403
     assert result["checks"]["jwt_wrong_scope"] == 403
     assert result["checks"]["alerts"] == 200
     assert result["checks"]["alerts_route"] == 200
@@ -1460,7 +1507,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert audit_export_write_calls[0][2]["x-flow-memory-scopes"] == "compute:audit"
     assert audit_export_write_calls[0][3] == {"chain_id": "all"}
     jwt_calls = [call for call in calls if call[2] and "authorization" in call[2]]
-    assert len(jwt_calls) == 3
+    assert len(jwt_calls) == 5
     assert all(call[2] is not None and call[2].get("x-flow-memory-scopes") == "compute:read" for call in jwt_calls)
     assert any(call[0] == "POST" and call[1] == "https://api.example.test/compute/plan" for call in jwt_calls)
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]

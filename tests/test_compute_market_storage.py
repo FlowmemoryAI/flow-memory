@@ -299,10 +299,13 @@ def test_unsafe_runtime_configs_are_rejected_before_readiness() -> None:
 def test_idempotency_key_returns_original_decision() -> None:
     service = ComputeMarketService(store=ComputeMarketStore(":memory:"), config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"))
     first = service.plan({"task": "first", "idempotency_key": "idem-duplicate"})
+    audit_count_after_first = service.store.count_records("audit_event")
     second = service.plan({"task": "second", "idempotency_key": "idem-duplicate"})
+    audit_count_after_replay = service.store.count_records("audit_event")
 
     assert second["idempotent_replay"] is True
     assert second["compute_plan"]["decision_id"] == first["compute_plan"]["decision_id"]
+    assert audit_count_after_replay == audit_count_after_first
 
 
 def test_quote_cache_key_is_retry_safe_and_deterministic() -> None:

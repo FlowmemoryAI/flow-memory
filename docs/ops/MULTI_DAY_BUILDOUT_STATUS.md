@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `f1ebd35 Document OpenAI proxy expansion`
+Latest inspected commit: `f95c4d5 Extend public proxy smoke coverage`
 
 ## Current architecture
 
@@ -724,4 +724,39 @@ flowchart TD
     Policy --> Fake[Deterministic fake provider]
     Fake --> Usage[Usage ledger]
     Usage --> Audit[Inference audit chain]
+```
+
+## Checkpoint 2026-05-26 Proxy smoke parity
+
+Files changed:
+
+- `scripts/smoke_compute_market_public.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `tests/test_compute_market_live_deployment.py`
+- `docs/ops/PUBLIC_DEPLOYMENT_BLOCKERS.md`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 49 passed
+- `python -m ruff check scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- scripts/smoke_compute_market_public.ps1 scripts/deploy_compute_market_render_level1.py tests/test_compute_market_live_deployment.py docs/ops/PUBLIC_DEPLOYMENT_BLOCKERS.md` — clean except Git line-ending warning for the PowerShell file
+
+Commit: `f95c4d5 Extend public proxy smoke coverage`.
+
+Implementation:
+
+- Optional public marketplace-alpha smoke now exercises OpenAI-compatible chat, Responses, and Embeddings paths.
+- Render deployment smoke parity now checks the same proxy surface when `--include-market-alpha-smoke` is enabled.
+- All optional proxy smoke checks assert dry-run and no-funds safety fields.
+
+```mermaid
+flowchart TD
+    PublicSmoke[Public marketplace alpha smoke] --> Chat[v1 chat completions]
+    PublicSmoke --> Responses[v1 responses]
+    PublicSmoke --> Embeddings[v1 embeddings]
+    Chat --> Safety[Dry-run no-funds assertions]
+    Responses --> Safety
+    Embeddings --> Safety
 ```

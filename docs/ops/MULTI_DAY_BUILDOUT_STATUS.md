@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `e3e2830 Validate public Postgres tuning evidence`
+Latest inspected commit: `f6f4763 Validate public Postgres migration evidence`
 
 ## Current architecture
 
@@ -1657,4 +1657,36 @@ flowchart TD
     Pool --> PublicGate
     Timeouts --> PublicGate
     Migrations --> PublicGate
+```
+
+## Checkpoint 2026-05-26 Public Postgres migration evidence gate
+
+Files changed:
+
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 22 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 447 passed, 2 skipped
+
+Commit: `f6f4763 Validate public Postgres migration evidence`.
+
+Implementation:
+
+- Public buildout validation now requires admin storage diagnostics to prove the migration status is current, the schema version table has current history, and the Postgres advisory migration lock is the recorded migration lock.
+- The validator fails if migration history is empty, stale, or not protected by the Postgres advisory lock.
+- Public validation output now includes migration version, expected version, history count, and migration lock evidence.
+
+```mermaid
+flowchart TD
+    AdminStorage[/admin/storage/diagnostics] --> MigrationStatus[migration_status current]
+    AdminStorage --> MigrationHistory[migration_history rows]
+    MigrationHistory --> Lock[postgres_advisory_lock]
+    MigrationStatus --> Gate[Public validation gate]
+    MigrationHistory --> Gate
+    Lock --> Gate
 ```

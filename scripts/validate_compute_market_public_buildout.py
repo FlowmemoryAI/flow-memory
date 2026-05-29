@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import ipaddress
 import json
 import secrets
@@ -128,9 +131,85 @@ def api_key_block_reason(api_key: str) -> str:
     return ""
 
 
+def has_placeholder(value: str) -> bool:
+    raw = value.strip().lower()
+    return any(fragment in raw for fragment in _PLACEHOLDER_API_KEY_FRAGMENTS)
 
 
-def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+def base64url_json(payload: Mapping[str, Any]) -> str:
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def gateway_jwt_config_from_env(values: Mapping[str, str]) -> dict[str, str] | None:
+    secret = values.get("FLOW_MEMORY_API_JWT_HS256_SECRET", "").strip()
+    issuer = values.get("FLOW_MEMORY_API_JWT_ISSUER", "").strip()
+    audience = values.get("FLOW_MEMORY_API_JWT_AUDIENCE", "").strip()
+    leeway = values.get("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS", "60").strip() or "60"
+    configured = bool(secret or issuer or audience)
+    if not configured:
+        return None
+
+    missing = []
+    if not secret or has_placeholder(secret):
+        missing.append("FLOW_MEMORY_API_JWT_HS256_SECRET")
+    if not issuer or has_placeholder(issuer):
+        missing.append("FLOW_MEMORY_API_JWT_ISSUER")
+    if not audience or has_placeholder(audience):
+        missing.append("FLOW_MEMORY_API_JWT_AUDIENCE")
+    if missing:
+        raise SystemExit(
+            "Gateway JWT auth must configure real FLOW_MEMORY_API_JWT_HS256_SECRET, "
+            f"FLOW_MEMORY_API_JWT_ISSUER, and FLOW_MEMORY_API_JWT_AUDIENCE together: {', '.join(missing)}"
+        )
+    if len(secret) < 32:
+        raise SystemExit("FLOW_MEMORY_API_JWT_HS256_SECRET must be at least 32 characters")
+    if not issuer.startswith("https://"):
+        raise SystemExit("FLOW_MEMORY_API_JWT_ISSUER must be an https:// URL")
+    try:
+        parsed_leeway = int(leeway)
+    except ValueError as exc:
+        raise SystemExit("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS must be a non-negative integer") from exc
+    if parsed_leeway < 0:
+        raise SystemExit("FLOW_MEMORY_API_JWT_LEEWAY_SECONDS must be a non-negative integer")
+
+    return {
+        "secret": secret,
+        "issuer": issuer,
+        "audience": audience,
+        "leeway_seconds": str(parsed_leeway),
+    }
+
+
+def gateway_jwt_headers(config: Mapping[str, str], scopes: str, *, audience: str | None = None) -> dict[str, str]:
+    now = int(time.time())
+    claims = {
+        "iss": config["issuer"],
+        "aud": audience or config["audience"],
+        "sub": "flow-memory-public-buildout-validator",
+        "scope": scopes,
+        "iat": now,
+        "nbf": now,
+        "exp": now + 300,
+    }
+    header = {"alg": "HS256", "typ": "JWT"}
+    signing_input = f"{base64url_json(header)}.{base64url_json(claims)}"
+    signature = hmac.new(config["secret"].encode("utf-8"), signing_input.encode("ascii"), hashlib.sha256).digest()
+    return {
+        "authorization": f"Bearer {signing_input}.{base64.urlsafe_b64encode(signature).decode('ascii').rstrip('=')}",
+        "x-flow-memory-scopes": scopes,
+    }
+
+
+
+
+def validate(
+    base_url: str,
+    api_key: str,
+    *,
+    require_immutable_audit: bool = False,
+    gateway_jwt_config: Mapping[str, str] | None = None,
+) -> Mapping[str, Any]:
     base = base_url.rstrip("/")
     headers_read = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:read"}
     headers_plan = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:plan"}
@@ -149,6 +228,21 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, {"task": PUBLIC_TASK, "dry_run": True})
+    if gateway_jwt_config is not None:
+        checks["jwt_health"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            gateway_jwt_headers(gateway_jwt_config, "compute:read"),
+        )
+        checks["jwt_wrong_audience"] = call_json(
+            "GET",
+            f"{base}/compute/health",
+            gateway_jwt_headers(
+                gateway_jwt_config,
+                "compute:read",
+                audience=f"{gateway_jwt_config['audience']}-wrong",
+            ),
+        )
 
     suffix = str(int(time.time()))
     provider_id = f"provider_public_buildout_{suffix}"
@@ -369,6 +463,9 @@ def validate(base_url: str, api_key: str, *, require_immutable_audit: bool = Fal
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
+    if gateway_jwt_config is not None:
+        require(checks["jwt_health"][0] == 200, "gateway JWT health check failed")
+        require(checks["jwt_wrong_audience"][0] == 401, "gateway JWT wrong-audience check did not fail")
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
@@ -478,7 +575,16 @@ def main(argv: list[str] | None = None) -> int:
         env_values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", ""),
         False,
     )
-    result = validate(api_url, api_key, require_immutable_audit=require_immutable_audit)
+    gateway_jwt_config = gateway_jwt_config_from_env(env_values)
+    if gateway_jwt_config is not None:
+        result = validate(
+            api_url,
+            api_key,
+            require_immutable_audit=require_immutable_audit,
+            gateway_jwt_config=gateway_jwt_config,
+        )
+    else:
+        result = validate(api_url, api_key, require_immutable_audit=require_immutable_audit)
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 

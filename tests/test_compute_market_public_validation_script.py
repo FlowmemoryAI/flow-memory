@@ -77,6 +77,39 @@ def test_public_buildout_main_blocks_weak_api_key_before_network(tmp_path: Any, 
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted a weak API key")
 
+def test_public_buildout_main_blocks_incomplete_gateway_jwt_before_network(tmp_path: Any, monkeypatch: Any) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        "\n".join(
+            (
+                "FLOW_MEMORY_API_KEY=fmk_live_test_secret",
+                "FLOW_MEMORY_API_JWT_ISSUER=https://issuer.example",
+                "FLOW_MEMORY_API_JWT_AUDIENCE=flow-memory-api",
+            )
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_validate(
+        base_url: str,
+        api_key: str,
+        *,
+        require_immutable_audit: bool = False,
+        gateway_jwt_config: Mapping[str, str] | None = None,
+    ) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        assert "FLOW_MEMORY_API_JWT_HS256_SECRET" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted incomplete gateway JWT config")
+
+
 def test_public_buildout_main_accepts_require_immutable_audit_flag(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
     env_file.write_text("FLOW_MEMORY_API_KEY=fmk_live_test_secret\n", encoding="utf-8")
@@ -142,6 +175,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0
     text_calls: list[tuple[str, str, Mapping[str, str] | None]] = []
+    jwt_health_calls = 0
 
     def fake_call_json(
         method: str,
@@ -149,11 +183,16 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
         headers: Mapping[str, str] | None = None,
         body: Mapping[str, Any] | None = None,
     ) -> tuple[int, Mapping[str, Any]]:
-        nonlocal job_counter
+        nonlocal job_counter, jwt_health_calls
         calls.append((method, url, headers, body))
         scopes = (headers or {}).get("x-flow-memory-scopes", "")
         if url == "https://api.example.test/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
+        if url.endswith("/compute/health") and (headers or {}).get("authorization"):
+            jwt_health_calls += 1
+            if jwt_health_calls == 1:
+                return 200, {"ok": True, "data": {"ok": True}}
+            return 401, {"ok": False, "error": {"code": "auth.invalid"}}
         if url.endswith("/compute/health") and not (headers or {}).get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
         if url.endswith("/compute/health"):
@@ -324,7 +363,17 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     monkeypatch.setattr(validator, "call_json", fake_call_json)
     monkeypatch.setattr(validator, "call_text", fake_call_text)
 
-    result = validator.validate("https://api.example.test", "prod-key", require_immutable_audit=True)
+    result = validator.validate(
+        "https://api.example.test",
+        "prod-key",
+        require_immutable_audit=True,
+        gateway_jwt_config={
+            "secret": "gateway-jwt-secret-with-at-least-32-characters",
+            "issuer": "https://issuer.example",
+            "audience": "flow-memory-api",
+            "leeway_seconds": "60",
+        },
+    )
 
     receipt_calls = [call for call in calls if call[1].endswith("/receipt")]
     assert result["status"] == "passed"
@@ -346,6 +395,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_export_immutable_required"] is True
     assert result["stripe_checkout_enabled"] is False
     assert result["checks"]["metrics"] == 200
+    assert result["checks"]["jwt_health"] == 200
+    assert result["checks"]["jwt_wrong_audience"] == 401
     assert result["checks"]["alerts"] == 200
     assert text_calls == [
         (
@@ -365,6 +416,9 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert audit_export_write_calls[0][2] is not None
     assert audit_export_write_calls[0][2]["x-flow-memory-scopes"] == "compute:audit"
     assert audit_export_write_calls[0][3] == {"chain_id": "all"}
+    jwt_calls = [call for call in calls if call[1].endswith("/compute/health") and call[2] and "authorization" in call[2]]
+    assert len(jwt_calls) == 2
+    assert all(call[2] is not None and call[2].get("x-flow-memory-scopes") == "compute:read" for call in jwt_calls)
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
     assert len(refund_calls) == 1
     assert refund_calls[0][2] is not None and refund_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"

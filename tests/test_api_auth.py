@@ -593,6 +593,57 @@ class ApiAuthTests(unittest.TestCase):
         self.assertFalse(wrong_audience_decision.ok)
         self.assertIn("jwt audience mismatch", wrong_audience_decision.reasons)
 
+
+    def test_authorize_request_rejects_wrong_issuer_jwt(self) -> None:
+        now = time.time()
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-wrong-issuer",
+                "aud": "flow-memory-api",
+                "iss": "https://issuer.invalid",
+                "iat": now,
+                "exp": now + 300,
+            },
+        )
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(
+                jwt_hs256_secret="jwt-secret",
+                jwt_issuer="https://issuer.example",
+                jwt_audience="flow-memory-api",
+            ),
+        )
+
+        self.assertFalse(decision.ok)
+        self.assertIn("jwt issuer mismatch", decision.reasons)
+
+    def test_authorize_request_rejects_future_not_before_jwt(self) -> None:
+        now = time.time()
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "user-future-nbf",
+                "aud": "flow-memory-api",
+                "iat": now,
+                "nbf": now + 300,
+                "exp": now + 600,
+            },
+        )
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(
+                jwt_hs256_secret="jwt-secret",
+                jwt_audience="flow-memory-api",
+                jwt_leeway_seconds=0,
+            ),
+        )
+
+        self.assertFalse(decision.ok)
+        self.assertIn("bearer token not yet valid", decision.reasons)
+
     def test_authorize_request_rejects_missing_or_future_iat_jwt(self) -> None:
         now = time.time()
         missing_iat = _jwt("jwt-secret", {"sub": "user-123", "aud": "flow-memory-api", "exp": now + 300})

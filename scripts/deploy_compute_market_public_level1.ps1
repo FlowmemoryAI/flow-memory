@@ -566,6 +566,30 @@ if ($missingObservabilitySinks.Count -gt 0) {
     }
     exit 17
 }
+$observabilityCredentialKeys = @(
+    'FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET',
+    'FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET',
+    'FLOW_MEMORY_COMPUTE_OTLP_HEADERS'
+)
+$missingObservabilityCredentials = New-Object System.Collections.Generic.List[string]
+$placeholderObservabilityCredentials = New-Object System.Collections.Generic.List[string]
+foreach ($key in $observabilityCredentialKeys) {
+    if (-not $envValues.Contains($key) -or [string]::IsNullOrWhiteSpace([string]$envValues[$key])) {
+        $missingObservabilityCredentials.Add($key)
+    }
+    elseif ([string]$envValues[$key] -match $placeholderPattern) {
+        $placeholderObservabilityCredentials.Add($key)
+    }
+}
+if ($missingObservabilityCredentials.Count -gt 0 -or $placeholderObservabilityCredentials.Count -gt 0) {
+    Write-Status -Status 'blocked_missing_observability_credentials' -Fields @{
+        public_url = ''
+        missing_values = @($missingObservabilityCredentials)
+        placeholder_values = @($placeholderObservabilityCredentials)
+        required_action = 'Configure real alert webhook secret, error tracking webhook secret, and OTLP auth headers before public Level 1 deployment.'
+    }
+    exit 17
+}
 
 Set-EnvForProcess -Values $envValues
 

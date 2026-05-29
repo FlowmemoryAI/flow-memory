@@ -2234,3 +2234,41 @@ flowchart TD
     WrongTenant --> Reject403[403]
     Token --> Accept[200 health]
 ```
+
+## Checkpoint 2026-05-26 Authenticated observability sink gate
+
+Files changed:
+
+- `docs/COMPUTE_MARKET.md`
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py::test_public_buildout_main_blocks_placeholder_observability_credentials_before_network tests/test_compute_market_public_validation_script.py::test_public_buildout_validation_checks_unsigned_provider_receipts tests/test_compute_market_live_deployment.py::test_render_env_builder_binds_https_observability_sinks tests/test_compute_market_live_deployment.py::test_render_deploy_main_blocks_missing_public_observability_sinks_before_render_calls -q` — 4 passed
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 92 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 467 passed, 2 skipped
+
+Commit: pending.
+
+Implementation:
+
+- Public buildout validation now requires alert webhook, error-tracking webhook, and OTLP collector credentials in addition to HTTPS sink URLs.
+- Runtime public readiness validation now requires `alert_webhook_secret_configured`, `error_tracking_secret_configured`, and `otlp_headers_configured` before observability can satisfy the public gate.
+- Render and PowerShell deployment preflights reject missing or placeholder observability sink credentials before provisioning or smoke calls.
+
+```mermaid
+flowchart TD
+    Env[Public observability env] --> Urls[HTTPS sink URLs]
+    Env --> Creds[webhook secrets and OTLP headers]
+    Urls --> Preflight[deployment preflight]
+    Creds --> Preflight
+    Preflight -->|missing or placeholder| Reject[blocked before deploy]
+    Preflight -->|configured| Readiness[/compute/readiness]
+    Readiness --> PublicGate[public Level 1 gate]
+```

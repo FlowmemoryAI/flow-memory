@@ -404,13 +404,19 @@ def require_public_observability_sinks(
     alert_webhook_url: str,
     error_tracking_webhook_url: str,
     otlp_endpoint_url: str,
+    alert_webhook_secret: str,
+    error_tracking_webhook_secret: str,
+    otlp_headers: str,
 ) -> None:
     missing = [
         key
         for key, value in (
             ("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL", alert_webhook_url),
+            ("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET", alert_webhook_secret),
             ("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL", error_tracking_webhook_url),
+            ("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET", error_tracking_webhook_secret),
             ("FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL", otlp_endpoint_url),
+            ("FLOW_MEMORY_COMPUTE_OTLP_HEADERS", otlp_headers),
         )
         if not value.strip()
     ]
@@ -420,11 +426,26 @@ def require_public_observability_sinks(
             29,
             missing_values=missing,
             required_action=(
-                "configure HTTPS alert webhook, error tracking webhook, and OTLP collector sinks before "
-                "public Level 1 deployment"
+                "configure authenticated HTTPS alert webhook, error tracking webhook, and OTLP collector "
+                "sinks before public Level 1 deployment"
             ),
         )
-
+    placeholders = [
+        key
+        for key, value in (
+            ("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET", alert_webhook_secret),
+            ("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET", error_tracking_webhook_secret),
+            ("FLOW_MEMORY_COMPUTE_OTLP_HEADERS", otlp_headers),
+        )
+        if value.strip() and has_placeholder(value)
+    ]
+    if placeholders:
+        emit(
+            "blocked_placeholder_observability_credentials",
+            29,
+            placeholder_values=placeholders,
+            required_action="replace public observability sink credentials with real secrets before deployment",
+        )
 
 
 def provider_callback_ip_allowlist_from_env(values: dict[str, str]) -> str:
@@ -1844,10 +1865,17 @@ def main() -> int:
         "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
         "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED",
     )
-    require_public_observability_sinks(alert_webhook_url, error_tracking_webhook_url, otlp_endpoint_url)
     alert_webhook_secret = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET")
     error_tracking_webhook_secret = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET")
     otlp_headers = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_OTLP_HEADERS")
+    require_public_observability_sinks(
+        alert_webhook_url,
+        error_tracking_webhook_url,
+        otlp_endpoint_url,
+        alert_webhook_secret,
+        error_tracking_webhook_secret,
+        otlp_headers,
+    )
     alert_webhook_timeout_ms = _env_setting(env_values, "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS", "2000")
     error_tracking_timeout_ms = _env_setting(
         env_values,

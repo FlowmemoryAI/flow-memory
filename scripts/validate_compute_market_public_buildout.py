@@ -88,6 +88,11 @@ _OBSERVABILITY_HTTPS_URL_KEYS = (
     "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
 )
+_OBSERVABILITY_SECRET_KEYS = (
+    "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET",
+    "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET",
+    "FLOW_MEMORY_COMPUTE_OTLP_HEADERS",
+)
 _POSTGRES_EVIDENCE_URI_KEYS = (
     "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI",
     "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI",
@@ -123,6 +128,7 @@ _PRODUCTION_ENV_REQUIRED_KEYS = (
     "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+    *_OBSERVABILITY_SECRET_KEYS,
     *_POSTGRES_EVIDENCE_URI_KEYS,
     *_REDIS_EVIDENCE_URI_KEYS,
     *_LEVEL1_EXPECTED_BOOLEAN_SETTINGS.keys(),
@@ -926,18 +932,21 @@ def validate(
     require(safety_defaults.get("stripe_checkout_enabled") is False, "Stripe Checkout must remain disabled for Level 1")
     require(
         safety_defaults.get("alert_routing_enabled") is True
-        and safety_defaults.get("alert_webhook_configured") is True,
-        "alert routing sink is not enabled and configured",
+        and safety_defaults.get("alert_webhook_configured") is True
+        and safety_defaults.get("alert_webhook_secret_configured") is True,
+        "alert routing sink is not enabled and authenticated",
     )
     require(
         safety_defaults.get("error_tracking_enabled") is True
-        and safety_defaults.get("error_tracking_webhook_configured") is True,
-        "error tracking sink is not enabled and configured",
+        and safety_defaults.get("error_tracking_webhook_configured") is True
+        and safety_defaults.get("error_tracking_secret_configured") is True,
+        "error tracking sink is not enabled and authenticated",
     )
     require(
         safety_defaults.get("telemetry_export_enabled") is True
-        and safety_defaults.get("otlp_endpoint_configured") is True,
-        "OTLP telemetry export sink is not enabled and configured",
+        and safety_defaults.get("otlp_endpoint_configured") is True
+        and safety_defaults.get("otlp_headers_configured") is True,
+        "OTLP telemetry export sink is not enabled and authenticated",
     )
     require(plan.get("dry_run_only") is True and plan.get("funds_moved") is False and plan.get("broadcast_allowed") is False and plan.get("private_key_required") is False, "plan safety flags failed")
     require(
@@ -1061,10 +1070,13 @@ def validate(
         "external_provider_execution_enabled": safety_defaults.get("external_provider_execution_enabled"),
         "alert_routing_enabled": safety_defaults.get("alert_routing_enabled"),
         "alert_webhook_configured": safety_defaults.get("alert_webhook_configured"),
+        "alert_webhook_secret_configured": safety_defaults.get("alert_webhook_secret_configured"),
         "error_tracking_enabled": safety_defaults.get("error_tracking_enabled"),
         "error_tracking_webhook_configured": safety_defaults.get("error_tracking_webhook_configured"),
+        "error_tracking_secret_configured": safety_defaults.get("error_tracking_secret_configured"),
         "telemetry_export_enabled": safety_defaults.get("telemetry_export_enabled"),
         "otlp_endpoint_configured": safety_defaults.get("otlp_endpoint_configured"),
+        "otlp_headers_configured": safety_defaults.get("otlp_headers_configured"),
         "alert_route_delivery_count": alert_route.get("delivery_count"),
         "error_tracking_status": error_tracking.get("status"),
         "otlp_export_status": otlp_export.get("status"),

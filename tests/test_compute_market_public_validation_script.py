@@ -29,10 +29,13 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.ai/compute-market",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET=alert-routing-secret",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.ai/compute-market",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET=error-tracking-secret",
                 "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.ai/v1/traces",
+                "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer otlp-secret",
                 "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
                 "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://db.example.com:5432/flow_memory",
@@ -633,6 +636,32 @@ def test_public_buildout_main_blocks_http_observability_sink_before_network(
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted insecure observability sink")
 
+def test_public_buildout_main_blocks_placeholder_observability_credentials_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace(
+            "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer otlp-secret",
+            "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer CHANGEME-otlp-token",
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_OTLP_HEADERS" in message
+        assert "placeholder_values" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted placeholder observability credentials")
+
 
 def test_public_buildout_main_blocks_incomplete_gateway_jwt_before_network(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
@@ -899,10 +928,13 @@ def _passing_public_buildout_call_json(
                         "external_provider_execution_enabled": False,
                         "alert_routing_enabled": True,
                         "alert_webhook_configured": True,
+                        "alert_webhook_secret_configured": True,
                         "error_tracking_enabled": True,
                         "error_tracking_webhook_configured": True,
+                        "error_tracking_secret_configured": True,
                         "telemetry_export_enabled": True,
                         "otlp_endpoint_configured": True,
+                        "otlp_headers_configured": True,
                     },
                 },
             }
@@ -1233,10 +1265,13 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "external_provider_execution_enabled": False,
                         "alert_routing_enabled": True,
                         "alert_webhook_configured": True,
+                        "alert_webhook_secret_configured": True,
                         "error_tracking_enabled": True,
                         "error_tracking_webhook_configured": True,
+                        "error_tracking_secret_configured": True,
                         "telemetry_export_enabled": True,
                         "otlp_endpoint_configured": True,
+                        "otlp_headers_configured": True,
                     },
                 },
             }
@@ -1471,10 +1506,13 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["external_provider_execution_enabled"] is False
     assert result["alert_routing_enabled"] is True
     assert result["alert_webhook_configured"] is True
+    assert result["alert_webhook_secret_configured"] is True
     assert result["error_tracking_enabled"] is True
     assert result["error_tracking_webhook_configured"] is True
+    assert result["error_tracking_secret_configured"] is True
     assert result["telemetry_export_enabled"] is True
     assert result["otlp_endpoint_configured"] is True
+    assert result["otlp_headers_configured"] is True
     assert result["alert_route_delivery_count"] == 1
     assert result["error_tracking_status"] == "delivered"
     assert result["otlp_export_status"] == "delivered"

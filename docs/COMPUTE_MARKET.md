@@ -367,6 +367,8 @@ Trace spans:
 
 Structured logs include request ID, decision ID, agent ID, goal ID, provider ID, route ID, policy ID, strategy, result, rejected reason codes, latency, estimated cost, and dry-run flag.
 
+Public Level 1 does not accept unauthenticated observability sinks. The public env and Render deploy preflights require `FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET`, `FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET`, and `FLOW_MEMORY_COMPUTE_OTLP_HEADERS` alongside HTTPS sink URLs, and readiness validation requires those bindings to report configured before `/compute/readiness` can satisfy the public gate.
+
 ## Audit integrity
 
 Compute audit events include `chain_id`, `sequence_number`, `previous_hash`, `canonical_payload_hash`, `event_hash`, and `hash_algorithm`. The chain scope is tenant/workspace when present, otherwise a global compute-market audit chain. `GET /compute/audit/verify` and `flow-memory compute audit verify --json` verify the chain from genesis to latest and report the first broken sequence.

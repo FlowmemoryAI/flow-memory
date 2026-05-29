@@ -1075,6 +1075,7 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "blocked_insecure_gateway_jwt_issuer" in deploy_script
     assert "blocked_invalid_gateway_jwt_leeway" in deploy_script
     assert "FLOW_MEMORY_API_JWT_REQUIRE_TENANT = 'true'" in deploy_script
+    assert "blocked_missing_observability_credentials" in deploy_script
     assert "'-RequireImmutableAudit'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'" in deploy_script
@@ -1194,6 +1195,12 @@ def test_public_powershell_preflight_rejects_placeholder_gateway_jwt_secret(tmp_
             redis_circuit_breaker_test_uri="https://ops.flowmemory.ai/redis/circuit-breaker-test",
             redis_multi_instance_test_uri="https://ops.flowmemory.ai/redis/multi-instance-test",
             redis_dashboard_uri="https://ops.flowmemory.ai/redis/dashboard",
+            alert_webhook_url="https://alerts.flowmemory.ai/compute-market",
+            alert_webhook_secret="alert-routing-secret",
+            error_tracking_webhook_url="https://errors.flowmemory.ai/compute-market",
+            error_tracking_webhook_secret="error-tracking-secret",
+            otlp_endpoint_url="https://otel.flowmemory.ai/v1/traces",
+            otlp_headers="authorization: Bearer otlp-secret",
         )
     }
     env_values["FLOW_MEMORY_API_JWT_HS256_SECRET"] = "CHANGEME-gateway-jwt-secret-with-at-least-32-characters"
@@ -1241,7 +1248,7 @@ def test_public_buildout_validator_requires_observability_endpoints() -> None:
     assert 'checks["alerts_route"] = call_json(' in validator_script
     assert 'checks["error_tracking"] = call_json(' in validator_script
     assert 'checks["otlp_export"] = call_json(' in validator_script
-    assert "alert routing sink is not enabled and configured" in validator_script
+    assert "alert routing sink is not enabled and authenticated" in validator_script
     assert "OTLP telemetry export delivery failed" in validator_script
     assert '"compute_plan_requests_total" in checks["metrics"][1]' in validator_script
     assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
@@ -1540,9 +1547,30 @@ def test_render_env_builder_binds_https_observability_sinks() -> None:
             "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
             "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED",
         )
+    with pytest.raises(SystemExit) as missing_credentials:
+        render_deploy.require_public_observability_sinks(
+            "https://alerts.example.test/flow-memory",
+            "https://errors.example.test/flow-memory",
+            "https://otel.example.test/v1/traces",
+            "",
+            "",
+            "",
+        )
+    with pytest.raises(SystemExit) as placeholder_credentials:
+        render_deploy.require_public_observability_sinks(
+            "https://alerts.example.test/flow-memory",
+            "https://errors.example.test/flow-memory",
+            "https://otel.example.test/v1/traces",
+            "CHANGEME-alert-secret",
+            "error-secret",
+            "authorization: Bearer otlp-secret",
+        )
+
 
     assert missing.value.code == 29
     assert insecure.value.code == 29
+    assert missing_credentials.value.code == 29
+    assert placeholder_credentials.value.code == 29
 
 def test_render_env_builder_propagates_and_validates_provider_callback_ip_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(render_deploy, "DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST", "")
@@ -1955,8 +1983,11 @@ def test_render_deploy_main_blocks_missing_public_observability_sinks_before_ren
     assert payload["status"] == "blocked_missing_observability_sink"
     assert payload["missing_values"] == [
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET",
         "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET",
         "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+        "FLOW_MEMORY_COMPUTE_OTLP_HEADERS",
     ]
 
 
@@ -1984,6 +2015,9 @@ def test_render_deploy_main_blocks_missing_postgres_operational_evidence_before_
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET=alert-routing-secret",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET=error-tracking-secret",
+                "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer otlp-secret",
             ]
         )
         + "\n",
@@ -2039,6 +2073,9 @@ def test_render_deploy_main_blocks_invalid_postgres_operational_evidence_before_
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET=alert-routing-secret",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET=error-tracking-secret",
+                "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer otlp-secret",
             ]
         )
         + "\n",
@@ -2107,6 +2144,9 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET=alert-routing-secret",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET=error-tracking-secret",
+                "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer otlp-secret",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
@@ -2317,6 +2357,9 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_SECRET=alert-routing-secret",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_SECRET=error-tracking-secret",
+                "FLOW_MEMORY_COMPUTE_OTLP_HEADERS=authorization: Bearer otlp-secret",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",

@@ -1622,6 +1622,23 @@ def smoke_public(
     audit_export_is_immutable = audit_export_payload.get("immutable") is True
     audit_export_is_local_file = audit_exporter == "local_file"
     audit_export_is_s3_object_lock = audit_export_is_immutable and audit_exporter == "s3_object_lock"
+    audit_export_readback_warnings = tuple(audit_export_verify_payload.get("warnings") or ())
+    audit_chain_monitor_export_warnings = (
+        tuple(audit_chain_monitor_export.get("warnings") or ())
+        if isinstance(audit_chain_monitor_export, dict)
+        else ("missing_audit_chain_monitor_export",)
+    )
+    audit_export_readback_immutable = audit_export_verify_payload.get("immutable_evidence") is True
+    audit_chain_monitor_export_immutable = (
+        isinstance(audit_chain_monitor_export, dict)
+        and audit_chain_monitor_export.get("immutable_evidence") is True
+    )
+    audit_export_immutable_readback_ready = (
+        audit_export_readback_immutable
+        and not audit_export_readback_warnings
+        and audit_chain_monitor_export_immutable
+        and not audit_chain_monitor_export_warnings
+    )
     audit_export_ready = (
         audit_export_is_s3_object_lock
         if require_immutable_audit
@@ -1796,6 +1813,7 @@ def smoke_public(
             redis_diag.get("rate_limit_fail_closed") is True,
             redis_diag.get("circuit_breaker_fail_closed") is True,
             audit_export_ready,
+            (audit_export_immutable_readback_ready if require_immutable_audit else True),
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
             checks["legacy_tenant_header"][0] == 403,
@@ -1823,6 +1841,7 @@ def smoke_public(
         "audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash")),
         "audit_export_readback": checks["audit_export_verify"][0],
         "audit_export_readback_checkpoint_hash_present": bool(audit_export_verify_payload.get("checkpoint_hash")),
+        "audit_export_readback_immutable_evidence": audit_export_verify_payload.get("immutable_evidence"),
         "audit_checkpoint_schedule": checks["audit_checkpoint_schedule"][0],
         "audit_checkpoint_schedule_due": audit_checkpoint_schedule_payload.get("due"),
         "audit_checkpoint_schedule_checkpoint_id": (
@@ -1835,6 +1854,7 @@ def smoke_public(
         "audit_checkpoint_count": audit_chain_monitor_payload.get("checkpoint_count"),
         "audit_chain_monitor_export_ok": audit_chain_monitor_export.get("ok") if isinstance(audit_chain_monitor_export, dict) else None,
         "audit_chain_monitor_export_event_count": audit_chain_monitor_export.get("event_count") if isinstance(audit_chain_monitor_export, dict) else None,
+        "audit_chain_monitor_export_immutable_evidence": audit_chain_monitor_export.get("immutable_evidence") if isinstance(audit_chain_monitor_export, dict) else None,
         "postgres_idempotency_nonunique_indexes": tuple(schema_verification.get("idempotency_nonunique_indexes", ())) if isinstance(schema_verification, dict) else (),
         "postgres_required_unique_idempotency_index_count": schema_verification.get("required_unique_idempotency_index_count") if isinstance(schema_verification, dict) else None,
         "admin_storage_diagnostics": checks["admin_storage_diagnostics"][0],

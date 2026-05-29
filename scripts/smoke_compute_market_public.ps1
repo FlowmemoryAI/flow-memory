@@ -569,6 +569,14 @@ $auditExportReadbackData = $auditExportReadback.Json.data
 Assert-True (($auditExportReadback.Json.ok -eq $true) -and ($auditExportReadbackData.ok -eq $true)) 'audit export readback did not return ok=true.'
 Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditExportReadbackData.checkpoint_hash)) 'audit export readback did not return a checkpoint_hash.'
 Assert-True ([int]$auditExportReadbackData.event_count -ge 1) 'audit export readback did not verify any audit events.'
+if ($RequireImmutableAudit) {
+    $auditExportReadbackWarnings = @()
+    if ($null -ne $auditExportReadbackData.warnings) {
+        $auditExportReadbackWarnings = @($auditExportReadbackData.warnings)
+    }
+    Assert-True ($auditExportReadbackData.immutable_evidence -eq $true) 'audit export readback did not report immutable Object Lock evidence.'
+    Assert-True ($auditExportReadbackWarnings.Count -eq 0) 'audit export readback reported immutable audit warnings.'
+}
 $auditCheckpointSchedule = Invoke-ComputeMarketRequest -Method POST -Path '/compute/audit/checkpoint-schedule' -Scopes 'compute:audit' -Body @{ chain_id = 'all'; min_events = 1; force = $true; export = $true }
 Assert-Status -Response $auditCheckpointSchedule -Expected 200 -Name 'audit checkpoint schedule'
 $auditCheckpointScheduleData = $auditCheckpointSchedule.Json.data
@@ -584,6 +592,14 @@ Assert-True ([int]$auditChainMonitorData.checkpoint_count -ge 1) 'audit chain mo
 Assert-True (-not [string]::IsNullOrWhiteSpace([string]$auditChainMonitorData.latest_checkpoint.checkpoint_id)) 'audit chain monitor did not return a latest checkpoint_id.'
 Assert-True ($auditChainMonitorData.export_verification.ok -eq $true) 'audit chain monitor did not verify the latest audit export.'
 Assert-True ([int]$auditChainMonitorData.export_verification.event_count -ge 1) 'audit chain monitor export verification did not report exported events.'
+if ($RequireImmutableAudit) {
+    $auditChainMonitorWarnings = @()
+    if ($null -ne $auditChainMonitorData.export_verification.warnings) {
+        $auditChainMonitorWarnings = @($auditChainMonitorData.export_verification.warnings)
+    }
+    Assert-True ($auditChainMonitorData.export_verification.immutable_evidence -eq $true) 'audit chain monitor export verification did not report immutable Object Lock evidence.'
+    Assert-True ($auditChainMonitorWarnings.Count -eq 0) 'audit chain monitor export verification reported immutable audit warnings.'
+}
 
 
 $storageDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/storage/diagnostics' -Scopes 'compute:admin'
@@ -725,9 +741,11 @@ $result = [ordered]@{
     audit_export_write_manifest_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportWriteData.manifest_hash)
     audit_export_readback = $auditExportReadback.StatusCode
     audit_export_readback_checkpoint_hash_present = -not [string]::IsNullOrWhiteSpace([string]$auditExportReadbackData.checkpoint_hash)
+    audit_export_readback_immutable_evidence = [bool]$auditExportReadbackData.immutable_evidence
     audit_checkpoint_schedule = $auditCheckpointSchedule.StatusCode
     audit_checkpoint_schedule_due = [bool]$auditCheckpointScheduleData.due
     audit_checkpoint_schedule_checkpoint_id = [string]$auditCheckpointScheduleData.scheduled_result.checkpoint_record.checkpoint_id
+    audit_chain_monitor_export_immutable_evidence = [bool]$auditChainMonitorData.export_verification.immutable_evidence
     audit_chain_monitor = $auditChainMonitor.StatusCode
     audit_chain_monitor_ok = [bool]$auditChainMonitorData.ok
     audit_checkpoint_count = [int]$auditChainMonitorData.checkpoint_count

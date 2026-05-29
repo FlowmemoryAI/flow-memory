@@ -1112,6 +1112,23 @@ def validate(
             "admin audit export is not immutable S3 Object Lock storage",
         )
         require(safety_defaults.get("audit_export_immutable_required") is True, "immutable audit export requirement is not enabled")
+        require(
+            audit_export_verify.get("immutable_evidence") is True,
+            "audit export readback did not report immutable Object Lock evidence",
+        )
+        require(
+            not audit_export_verify.get("warnings", ()),
+            "audit export readback reported immutable audit warnings",
+        )
+        require(
+            isinstance(audit_chain_monitor_export, Mapping)
+            and audit_chain_monitor_export.get("immutable_evidence") is True,
+            "audit chain monitor export verification did not report immutable Object Lock evidence",
+        )
+        require(
+            not audit_chain_monitor_export.get("warnings", ()),
+            "audit chain monitor export verification reported immutable audit warnings",
+        )
     else:
         require(
             audit_export_is_immutable or audit_exporter_name in {"s3_object_lock", "local_file"},
@@ -1164,6 +1181,7 @@ def validate(
         "audit_export_write_event_count": audit_export_write.get("event_count"),
         "audit_export_readback_checkpoint_hash_present": bool(audit_export_verify.get("checkpoint_hash")),
         "audit_export_readback_event_count": audit_export_verify.get("event_count"),
+        "audit_export_readback_immutable_evidence": audit_export_verify.get("immutable_evidence"),
         "audit_checkpoint_schedule_due": audit_checkpoint_schedule.get("due"),
         "audit_checkpoint_schedule_checkpoint_id": (
             audit_checkpoint_schedule.get("scheduled_result", {})
@@ -1173,6 +1191,7 @@ def validate(
         "audit_chain_monitor_ok": audit_chain_monitor.get("ok"),
         "audit_checkpoint_count": audit_chain_monitor.get("checkpoint_count"),
         "audit_chain_monitor_export_ok": audit_chain_monitor_export.get("ok") if isinstance(audit_chain_monitor_export, Mapping) else None,
+        "audit_chain_monitor_export_immutable_evidence": audit_chain_monitor_export.get("immutable_evidence") if isinstance(audit_chain_monitor_export, Mapping) else None,
         "postgres_idempotency_nonunique_indexes": tuple(schema_verification.get("idempotency_nonunique_indexes", ())),
         "postgres_required_unique_idempotency_index_count": schema_verification.get("required_unique_idempotency_index_count"),
         "audit_chain_monitor_export_event_count": audit_chain_monitor_export.get("event_count") if isinstance(audit_chain_monitor_export, Mapping) else None,

@@ -985,7 +985,16 @@ def _passing_public_buildout_call_json(
         if url.endswith("/compute/audit/export"):
             return 200, {"ok": True, "data": {"ok": True, "manifest_hash": "manifest-hash", "event_count": 2}}
         if url.endswith("/compute/audit/verify-export"):
-            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_hash": "checkpoint-hash",
+                    "event_count": 2,
+                    "immutable_evidence": True,
+                    "warnings": [],
+                },
+            }
         if url.endswith("/compute/audit/checkpoint-schedule"):
             return 200, {
                 "ok": True,
@@ -1004,7 +1013,12 @@ def _passing_public_buildout_call_json(
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-public-schedule"},
                     "chains": [{"ok": True, "chain_id": "all"}],
-                    "export_verification": {"ok": True, "event_count": 2},
+                    "export_verification": {
+                        "ok": True,
+                        "event_count": 2,
+                        "immutable_evidence": True,
+                        "warnings": [],
+                    },
                 },
             }
         if url.endswith("/compute/providers/external/quote"):
@@ -1324,6 +1338,39 @@ def test_public_buildout_validation_requires_immutable_s3_audit_when_requested(m
         raise AssertionError("public buildout validator accepted non-immutable audit storage")
 
 
+def test_public_buildout_validation_requires_immutable_audit_readback_evidence(monkeypatch: Any) -> None:
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+    passing_call_json = _passing_public_buildout_call_json()
+
+    def call_json(
+        method: str,
+        url: str,
+        headers: Mapping[str, str] | None = None,
+        body: Mapping[str, Any] | None = None,
+    ) -> Any:
+        status, payload = passing_call_json(method, url, headers, body)
+        if url.endswith("/compute/audit/verify-export"):
+            data = dict(payload.get("data", {}))
+            data["immutable_evidence"] = False
+            data["warnings"] = ["missing_immutable_evidence"]
+            return status, {**dict(payload), "data": data}
+        return status, payload
+
+    monkeypatch.setattr(validator, "call_json", call_json)
+
+    try:
+        validator.validate(
+            "https://api.example.test",
+            "prod-key",
+            require_immutable_audit=True,
+        )
+    except AssertionError as exc:
+        assert "audit export readback did not report immutable Object Lock evidence" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted mutable audit readback")
+
+
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0
@@ -1430,7 +1477,16 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             assert method == "POST"
             assert scopes == "compute:audit"
             assert body == {}
-            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_hash": "checkpoint-hash",
+                    "event_count": 2,
+                    "immutable_evidence": True,
+                    "warnings": [],
+                },
+            }
         if url.endswith("/compute/audit/checkpoint-schedule"):
             assert method == "POST"
             assert scopes == "compute:audit"
@@ -1453,7 +1509,12 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-public-schedule"},
                     "chains": [{"ok": True, "chain_id": "all"}],
-                    "export_verification": {"ok": True, "event_count": 2},
+                    "export_verification": {
+                        "ok": True,
+                        "event_count": 2,
+                        "immutable_evidence": True,
+                        "warnings": [],
+                    },
                 },
             }
         if url.endswith("/market/capacity/reserve"):
@@ -1593,7 +1654,16 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                 },
             }
         if url.endswith("/compute/audit/verify-export"):
-            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 2}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_hash": "checkpoint-hash",
+                    "event_count": 2,
+                    "immutable_evidence": True,
+                    "warnings": [],
+                },
+            }
         return 200, {"ok": True, "data": {}}
 
     def fake_call_text(

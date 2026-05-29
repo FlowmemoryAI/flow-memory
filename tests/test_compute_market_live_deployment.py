@@ -591,7 +591,16 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         if url.endswith("/compute/audit/verify-export"):
             assert method == "POST"
             assert body == {}
-            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 3}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_hash": "checkpoint-hash",
+                    "event_count": 3,
+                    "immutable_evidence": True,
+                    "warnings": [],
+                },
+            }
         if url.endswith("/compute/audit/checkpoint-schedule"):
             assert method == "POST"
             assert body == {"chain_id": "all", "min_events": 1, "force": True, "export": True}
@@ -611,7 +620,12 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     "ok": True,
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-render-schedule"},
-                    "export_verification": {"ok": True, "event_count": 3},
+                    "export_verification": {
+                        "ok": True,
+                        "event_count": 3,
+                        "immutable_evidence": True,
+                        "warnings": [],
+                    },
                 },
             }
         if url.endswith("/admin/audit/export"):
@@ -876,7 +890,16 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
         if url.endswith("/compute/audit/verify-export"):
             assert method == "POST"
             assert body == {}
-            return 200, {"ok": True, "data": {"ok": True, "checkpoint_hash": "checkpoint-hash", "event_count": 1}}
+            return 200, {
+                "ok": True,
+                "data": {
+                    "ok": True,
+                    "checkpoint_hash": "checkpoint-hash",
+                    "event_count": 1,
+                    "immutable_evidence": True,
+                    "warnings": [],
+                },
+            }
         if url.endswith("/compute/audit/checkpoint-schedule"):
             assert method == "POST"
             assert body == {"chain_id": "all", "min_events": 1, "force": True, "export": True}
@@ -896,7 +919,12 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                     "ok": True,
                     "checkpoint_count": 1,
                     "latest_checkpoint": {"checkpoint_id": "checkpoint-render-schedule"},
-                    "export_verification": {"ok": True, "event_count": 3},
+                    "export_verification": {
+                        "ok": True,
+                        "event_count": 3,
+                        "immutable_evidence": True,
+                        "warnings": [],
+                    },
                 },
             }
         if url.endswith("/admin/audit/export"):
@@ -1007,6 +1035,7 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert "audit_export_write_manifest_hash_present" in smoke_script
     assert "Path '/compute/audit/verify-export'" in smoke_script
     assert "audit export readback did not return ok=true" in smoke_script
+    assert "audit export readback did not report immutable Object Lock evidence" in smoke_script
     assert "Path '/compute/audit/checkpoint-schedule'" in smoke_script
     assert "audit checkpoint schedule did not return ok=true" in smoke_script
     assert "Path '/compute/audit/chain/monitor'" in smoke_script
@@ -1021,8 +1050,10 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
     assert '"audit_export_write_manifest_hash_present": bool(audit_export_write_payload.get("manifest_hash"))' in render_script
     assert '"audit_export_readback": checks["audit_export_verify"][0]' in render_script
     assert '"audit_export_readback_checkpoint_hash_present": bool(audit_export_verify_payload.get("checkpoint_hash"))' in render_script
+    assert '"audit_export_readback_immutable_evidence": audit_export_verify_payload.get("immutable_evidence")' in render_script
     assert '"audit_checkpoint_schedule": checks["audit_checkpoint_schedule"][0]' in render_script
     assert '"audit_chain_monitor": checks["audit_chain_monitor"][0]' in render_script
+    assert '"audit_chain_monitor_export_immutable_evidence": audit_chain_monitor_export.get("immutable_evidence")' in render_script
     assert "Get-PublicUrlBlockReason" in smoke_script
     assert "public_url_placeholder_not_allowed" in smoke_script
     assert "example\\.test" in smoke_script

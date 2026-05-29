@@ -6099,6 +6099,33 @@ class ComputeMarketService:
                 }
             )
             payout_adjustment = self._adjust_provider_payout_for_sla_penalty(penalty, request_id=request_id)
+            payout_adjustment_failed = _provider_payout_adjustment_failed(payout_adjustment)
+            payout_adjustment_error: Mapping[str, Any] = {}
+            if payout_adjustment_failed:
+                payout_adjustment_failure_reason = str(
+                    payout_adjustment.get("reason")
+                    or payout_adjustment.get("status")
+                    or "unknown"
+                )
+                payout_adjustment_error = compute_error(
+                    "billing.provider_payout.adjustment_failed",
+                    "Provider payout could not be adjusted for SLA penalty reconciliation.",
+                    details={
+                        "provider_sla_penalty_id": penalty_id,
+                        "provider_payout_adjustment": payout_adjustment,
+                        "reason": payout_adjustment_failure_reason,
+                    },
+                    request_id=request_id,
+                ).as_record()
+                self.telemetry.increment(
+                    "billing_payout_adjustment_failed_total",
+                    {
+                        "provider_id": str(penalty.get("provider_id", "")),
+                        "route_id": str(penalty.get("route_id", "")),
+                        "reason": payout_adjustment_failure_reason,
+                    },
+                    value=amount,
+                )
             refund = refund_result.get("refund", {}) if isinstance(refund_result, Mapping) else {}
             credit_transaction = (
                 refund_result.get("credit_transaction", {})
@@ -6108,7 +6135,7 @@ class ComputeMarketService:
             reconciled_at = utc_now_iso()
             updated = {
                 **dict(penalty),
-                "status": "reconciled_dry_run",
+                "status": "payout_adjustment_failed" if payout_adjustment_failed else "reconciled_dry_run",
                 "reconciled_at": reconciled_at,
                 "updated_at": reconciled_at,
                 "refund_id": str(refund.get("refund_id", "")) if isinstance(refund, Mapping) else "",
@@ -6118,6 +6145,7 @@ class ComputeMarketService:
                     else ""
                 ),
                 "provider_payout_adjustment": payout_adjustment,
+                "provider_payout_adjustment_error": payout_adjustment_error,
                 "funds_moved": False,
             }
             self.store.put_record(
@@ -6131,15 +6159,26 @@ class ComputeMarketService:
                 request_id=request_id,
                 idempotency_key=penalty_id,
             )
-            self._audit(
-                "billing.provider_sla_penalty.reconciled",
-                {**dict(payload), "provider_sla_penalty_id": penalty_id},
-                request_id=request_id,
-                result=str(updated["status"]),
-                provider_id=str(updated.get("provider_id", "")),
-                route_id=str(updated.get("route_id", "")),
-            )
-            reconciled.append(updated)
+            if payout_adjustment_failed:
+                self._audit(
+                    "billing.provider_sla_penalty.payout_adjustment_failed",
+                    {**dict(payload), "provider_sla_penalty_id": penalty_id},
+                    request_id=request_id,
+                    result="payout_adjustment_failed",
+                    reason_codes=("billing.provider_payout.adjustment_failed",),
+                    provider_id=str(updated.get("provider_id", "")),
+                    route_id=str(updated.get("route_id", "")),
+                )
+            else:
+                self._audit(
+                    "billing.provider_sla_penalty.reconciled",
+                    {**dict(payload), "provider_sla_penalty_id": penalty_id},
+                    request_id=request_id,
+                    result=str(updated["status"]),
+                    provider_id=str(updated.get("provider_id", "")),
+                    route_id=str(updated.get("route_id", "")),
+                )
+                reconciled.append(updated)
         return tuple(reconciled)
 
     def _adjust_provider_payout_for_sla_penalty(

@@ -3665,6 +3665,63 @@ def test_reconciliation_applies_provider_sla_credit_and_payout_adjustment_withou
     assert payout["funds_moved"] is False
 
 
+def test_reconciliation_surfaces_sla_payout_adjustment_failure_after_settlement() -> None:
+    service = _service()
+    service.apply_market_provider(_provider_application())
+    service.verify_market_provider("provider_live_gpu_1", {})
+    account_id = "acct_sla_settled"
+    _credit_account(service, account_id, 1.0, event_id="evt_sla_settled_credit")
+
+    job_id = str(service.create_job({**_job_payload(), "job_id": "job_sla_settled_payout"})["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    completed = service.complete_job(
+        job_id,
+        {
+            "account_id": account_id,
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "actual_latency_ms": 1500,
+            "currency": "USD",
+        },
+    )
+    payout_id = str(completed["provider_payout"]["provider_payout_id"])
+    penalty_id = str(completed["provider_sla_penalty"]["sla_penalty_id"])
+    service.settle_provider_payout(
+        payout_id,
+        {"external_payout_reference": "stripe_transfer_sla_settled", "settled_by": "ops"},
+    )
+
+    reconciliation = service.reconciliation({})["reconciliation"]
+    penalty = service.store.get_record("provider_sla_penalty", penalty_id)
+    payout = service.store.get_record("provider_payout", payout_id)
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    audit_actions = tuple(event["action"] for event in service.store.list_records("audit_event", limit=100).records)
+
+    assert reconciliation["provider_sla_penalty_reconciled_this_run"] == 0
+    assert reconciliation["provider_sla_penalty_reconciled_count"] == 0
+    assert reconciliation["ledger_balanced"] is False
+    assert penalty is not None
+    assert penalty["status"] == "payout_adjustment_failed"
+    assert penalty["refund_id"]
+    assert penalty["credit_transaction_id"]
+    assert penalty["provider_payout_adjustment"]["adjusted"] is False
+    assert penalty["provider_payout_adjustment"]["status"] == "settled"
+    assert penalty["provider_payout_adjustment_error"]["error_code"] == "billing.provider_payout.adjustment_failed"
+    assert payout is not None
+    assert payout["status"] == "settled"
+    assert payout["amount"] == 0.18
+    assert balance["available_credits"] == 1.0
+    assert "billing.provider_sla_penalty.payout_adjustment_failed" in audit_actions
+    assert (
+        _metric_total(
+            service,
+            "billing_payout_adjustment_failed_total",
+            {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "reason": "settled"},
+        )
+        == 0.18
+    )
+
+
 def test_reconciliation_skips_sla_refund_when_credit_debit_did_not_post() -> None:
     service = _service()
     service.apply_market_provider(_provider_application())

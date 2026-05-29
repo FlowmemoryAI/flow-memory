@@ -16,6 +16,20 @@ flowchart TD
     Route --> Audit[Audit event]
 ```
 
+## Demand and price intelligence
+
+```mermaid
+flowchart TD
+    Demand[Buyer and agent demand] --> Snapshots[Demand snapshots]
+    Snapshots --> Summary[Demand summary]
+    Summary --> Forecast[Demand forecast]
+    Listings[Active listings] --> Prices[Price snapshots]
+    Prices --> History[Price history]
+    History --> Spreads[Spread summary]
+    History --> Anomalies[Anomaly scan]
+    History --> PriceForecast[Price forecast]
+```
+
 ## Safety
 
 All behavior is simulation-only until real provider, billing, legal, compliance, and security gates are satisfied.
@@ -33,6 +47,8 @@ All behavior is simulation-only until real provider, billing, legal, compliance,
 - API adapters: `src/flow_memory/api/marketplace_endpoints.py`
 - CLI: `flow-memory inference ...`, including `flow-memory inference credits list`, `flow-memory inference credits buy`, and `flow-memory inference credits sell`
 - Tests: `tests/test_inference_capacity_futures_markets.py`
+- Demand intelligence: `GET /inference/demand`, `GET /inference/demand/summary`, `POST /inference/demand/forecast`
+- Price intelligence: `GET /inference/prices`, `GET /inference/prices/history`, `GET /inference/prices/spreads`, `GET /inference/prices/anomalies`, `POST /inference/prices/forecast`
 
 ## Core objects
 

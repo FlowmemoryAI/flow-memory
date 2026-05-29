@@ -185,6 +185,12 @@ def test_router_exposes_inference_capacity_and_futures_endpoints() -> None:
     )
     assert anthropic["type"] == "message"
 
+    demand = router.dispatch("GET", "/inference/demand/summary", {"model": "gpt-4o-mini", "estimated_units": 100})
+    assert demand["summary"]["snapshot_count"] >= 1
+
+    forecast = router.dispatch("POST", "/inference/prices/forecast", {"model": "gpt-4o-mini"})
+    assert forecast["forecast"]["confidence"] == "simulated"
+
 
 
 def test_marketplace_api_endpoints_persist_through_compute_store(tmp_path: Path) -> None:
@@ -266,6 +272,8 @@ def test_new_market_scope_mapping() -> None:
     assert required_scopes_for("POST", "/inference/credits/sell") == ("inference:sell",)
     assert required_scopes_for("POST", "/inference/proxy") == ("inference:proxy",)
     assert required_scopes_for("POST", "/anthropic/v1/messages") == ("inference:proxy",)
+    assert required_scopes_for("GET", "/inference/demand/summary") == ("inference:read",)
+    assert required_scopes_for("POST", "/inference/prices/forecast") == ("inference:read",)
     assert required_scopes_for("POST", "/capacity/forwards/simulate") == ("compute:settlement-admin",)
     assert required_scopes_for("POST", "/futures/orders/simulate") == ("compute:settlement-admin",)
 

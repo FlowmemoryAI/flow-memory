@@ -7475,6 +7475,118 @@
         ]
       }
     },
+    "/inference/demand": {
+      "get": {
+        "operationId": "inference_demand_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "demand": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference demand snapshots",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/demand/forecast": {
+      "post": {
+        "operationId": "inference_demand_forecast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "estimated_units": {
+                    "type": "string"
+                  },
+                  "horizon_seconds": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "forecast": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate inference demand forecast",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/demand/summary": {
+      "get": {
+        "operationId": "inference_demand_summary",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize inference demand by model and agent",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
     "/inference/market/demand": {
       "get": {
         "operationId": "inference_demand",
@@ -7742,6 +7854,175 @@
           }
         },
         "summary": "Plan inference route and agent economic action",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/prices": {
+      "get": {
+        "operationId": "inference_prices_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "prices": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference price snapshots",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/prices/anomalies": {
+      "get": {
+        "operationId": "inference_price_anomalies",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "anomalies": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Detect simulated inference price anomalies",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/prices/forecast": {
+      "post": {
+        "operationId": "inference_price_forecast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "horizon_seconds": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "forecast": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate inference price forecast",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/prices/history": {
+      "get": {
+        "operationId": "inference_price_history",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "price_history": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference price history snapshots",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/prices/spreads": {
+      "get": {
+        "operationId": "inference_price_spreads",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "spreads": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Summarize inference price spreads",
         "tags": [
           "inference"
         ]

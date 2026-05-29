@@ -103,8 +103,32 @@ def inference_spreads(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return {**dict(prices), "spreads": prices.get("prices", ())}
 
 
+def inference_price_history(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().price_history(payload))
+
+
+def inference_price_spreads(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().price_spreads(payload))
+
+
+def inference_price_anomalies(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().price_anomalies(payload))
+
+
+def inference_price_forecast(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().price_forecast(payload))
+
+
 def inference_demand(payload: Mapping[str, Any]) -> Mapping[str, Any]:
     return _ensure_mapping(_inference_service().demand(payload))
+
+
+def inference_demand_summary(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().demand_summary(payload))
+
+
+def inference_demand_forecast(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_inference_service().demand_forecast(payload))
 
 
 def inference_usage(payload: Mapping[str, Any]) -> Mapping[str, Any]:

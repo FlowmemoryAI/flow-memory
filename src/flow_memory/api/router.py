@@ -1244,6 +1244,14 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/inference/market/prices", market_handler("inference_prices"), "inference_prices")
     router.register("GET", "/inference/market/spreads", market_handler("inference_spreads"), "inference_spreads")
     router.register("GET", "/inference/market/demand", market_handler("inference_demand"), "inference_demand")
+    router.register("GET", "/inference/demand", market_handler("inference_demand"), "inference_demand_list")
+    router.register("GET", "/inference/demand/summary", market_handler("inference_demand_summary"), "inference_demand_summary")
+    router.register("POST", "/inference/demand/forecast", market_handler("inference_demand_forecast"), "inference_demand_forecast")
+    router.register("GET", "/inference/prices", market_handler("inference_prices"), "inference_prices_list")
+    router.register("GET", "/inference/prices/history", market_handler("inference_price_history"), "inference_price_history")
+    router.register("GET", "/inference/prices/spreads", market_handler("inference_price_spreads"), "inference_price_spreads")
+    router.register("GET", "/inference/prices/anomalies", market_handler("inference_price_anomalies"), "inference_price_anomalies")
+    router.register("POST", "/inference/prices/forecast", market_handler("inference_price_forecast"), "inference_price_forecast")
     router.register("GET", "/inference/usage", market_handler("inference_usage"), "inference_usage")
     router.register(
         "GET",

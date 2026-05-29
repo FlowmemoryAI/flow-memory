@@ -517,6 +517,53 @@ class InferenceMarketService:
             "funds_moved": False,
         }
 
+    def demand_summary(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        data = payload or {}
+        self._assert_safe_payload(data)
+        if not self.demand_snapshots and data:
+            self.demand(data)
+        snapshots = tuple(snapshot.as_record() for snapshot in self.demand_snapshots.values())
+        by_model: dict[str, float] = {}
+        by_agent: dict[str, float] = {}
+        for snapshot in snapshots:
+            model = str(snapshot.get("requested_model", ""))
+            agent_id = str(snapshot.get("agent_id", ""))
+            units = float(snapshot.get("units_requested", 0.0) or 0.0)
+            by_model[model] = by_model.get(model, 0.0) + units
+            by_agent[agent_id] = by_agent.get(agent_id, 0.0) + units
+        return {
+            "ok": True,
+            "summary": {
+                "snapshot_count": len(snapshots),
+                "total_units_requested": round(sum(by_model.values()), 8),
+                "models": tuple({"model": model, "units_requested": units} for model, units in sorted(by_model.items())),
+                "agents": tuple({"agent_id": agent_id, "units_requested": units} for agent_id, units in sorted(by_agent.items())),
+                "deferred_due_to_price_count": sum(1 for item in snapshots if str(item.get("rejected_reason", ""))),
+            },
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
+
+    def demand_forecast(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        data = payload or {}
+        self._assert_safe_payload(data)
+        if data:
+            self.demand(data)
+        summary = self.demand_summary(data)["summary"]
+        total_units = float(summary.get("total_units_requested", 0.0) or 0.0)
+        return {
+            "ok": True,
+            "forecast": {
+                "forecast_id": _stable_id("infdemf", str(data), str(total_units)),
+                "horizon_seconds": int(data.get("horizon_seconds", 86_400) or 86_400),
+                "expected_units_requested": round(total_units * 1.1 if total_units else 1_000.0, 8),
+                "recommended_next_action": "onboard_more_supply" if total_units > 0 else "collect_more_demand",
+                "confidence": "simulated",
+            },
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
+
     def credits(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         data = payload or {}
         self._assert_safe_payload(data)
@@ -967,6 +1014,61 @@ class InferenceMarketService:
                 status="recorded",
             )
         return {"ok": True, "prices": tuple(snapshots), "dry_run_only": True, "funds_moved": False}
+
+    def price_history(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        data = payload or {}
+        self._assert_safe_payload(data)
+        self.prices(data)
+        model = str(data.get("model") or "")
+        records = tuple(
+            snapshot.as_record()
+            for snapshot in self.price_snapshots.values()
+            if not model or snapshot.model == model
+        )
+        return {"ok": True, "price_history": records, "dry_run_only": True, "funds_moved": False}
+
+    def price_spreads(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        history = self.price_history(payload)
+        records = tuple(item for item in history.get("price_history", ()) if isinstance(item, Mapping))
+        spreads = []
+        for model in sorted({str(item.get("model", "")) for item in records}):
+            model_records = tuple(item for item in records if str(item.get("model", "")) == model)
+            prices = sorted(float(item.get("unit_price", 0.0) or 0.0) for item in model_records)
+            if not prices:
+                continue
+            best = prices[0]
+            worst = prices[-1]
+            spread_bps = int(((worst - best) / best) * 10_000) if best else 0
+            spreads.append({"model": model, "best_unit_price": best, "worst_unit_price": worst, "spread_bps": spread_bps})
+        return {"ok": True, "spreads": tuple(spreads), "dry_run_only": True, "funds_moved": False}
+
+    def price_anomalies(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        history = self.price_history(payload)
+        records = tuple(item for item in history.get("price_history", ()) if isinstance(item, Mapping))
+        anomalies = []
+        for item in records:
+            unit_price = float(item.get("unit_price", 0.0) or 0.0)
+            reference_price = float(item.get("reference_price", 0.0) or 0.0)
+            if reference_price and unit_price > reference_price * 1.2:
+                anomalies.append({"snapshot_id": item.get("snapshot_id", ""), "code": "above_reference_price"})
+        return {"ok": True, "anomalies": tuple(anomalies), "dry_run_only": True, "funds_moved": False}
+
+    def price_forecast(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        history = self.price_history(payload)
+        records = tuple(item for item in history.get("price_history", ()) if isinstance(item, Mapping))
+        prices = sorted(float(item.get("unit_price", 0.0) or 0.0) for item in records)
+        best = prices[0] if prices else 0.0
+        return {
+            "ok": True,
+            "forecast": {
+                "forecast_id": _stable_id("infpf", str(payload or {}), str(best)),
+                "forecast_unit_price": best,
+                "direction": "flat_simulated",
+                "confidence": "simulated",
+            },
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
 
     def proxy_chat_completion(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         self._assert_safe_payload(payload)

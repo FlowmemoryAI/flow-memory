@@ -10,8 +10,14 @@ Latest inspected commit: `51fe87e Harden inference market admin endpoints`
 flowchart TD
     Agent[Agent or operator] --> API[Flow Memory API router]
     API --> Compute[Compute Market service]
+    API --> Inference[Inference Market service]
+    API --> Capacity[Capacity Market service]
+    API --> Futures[GPU Futures simulator]
     Compute --> Planner[Planner and policy engine]
     Compute --> Store[Compute market storage]
+    Inference --> Store
+    Capacity --> Store
+    Futures --> Store
     Compute --> Audit[Tamper-evident audit chain]
     Compute --> Controls[Rate limits and circuit breakers]
     Store --> SQLite[Local SQLite]
@@ -25,29 +31,27 @@ flowchart TD
 ## What exists
 
 - Compute Market planning, routing, dry-run payment planning, settlement simulation, audit, provider onboarding, quote validation, quote cache, quote drift, price history, price forecast, usage statements, jobs, billing ledger, capacity reservations, provider reputation, health/readiness, telemetry, alerts, Render deployment automation, Postgres path, and Redis path.
-- Capacity reservations exist under `/market/capacity/*` and `flow-memory compute capacity ...`.
-- Compute intelligence planning exists under `/compute/intelligence-plan` and `flow-memory compute intelligence-plan`.
-- Safety defaults and live-settlement gates are implemented in Compute Market code and deployment validation.
+- Flow Memory Inference Market models, deterministic resale fixtures, run-vs-sell opportunity planner, OpenAI-compatible fake proxy path, demand snapshots, usage records, API endpoints, CLI commands, and persistence-backed record families.
+- Flow Memory Capacity Market and Forward Capacity simulators exist with dry-run inventory, quotes, holds, reservations, delivery schedules, settlement simulation records, CLI commands, APIs, and persistence-backed record families.
+- Flow Memory GPU Futures Simulator exists with simulated contracts, orders, positions, mark/index prices, risk checks, delivery/expiry/settlement simulations, CLI commands, APIs, and persistence-backed record families.
+- Safety defaults and live-settlement gates are implemented in Compute Market code, market simulators, docs, and deployment validation.
 
 ## Partial areas
 
-- Agent opportunity planning is currently buy-side/run-side; it lacks explicit inference resale and run-vs-sell decisions.
-- Price forecasting exists, but forward capacity contracts and GPU futures simulation do not exist as first-class modules.
-- Compute routes include inference-like units, but there is no Flow Memory Inference Market package, API family, or one-line compatible proxy yet.
+- The new inference, capacity, forward-capacity, and futures services are simulator-grade and local by default; real provider credentials, real provider execution, and real billing providers are not bound.
+- New market services can persist through the compute-market store when attached, while the default local API singleton still runs as a dry-run simulator process.
 - Deployment automation exists, but no real public managed Postgres, managed Redis, domain, TLS URL, production API key, object-lock audit storage, or Render API credentials are present in the environment.
 
 ## Missing buildout blocks
 
-- Flow Memory Inference Market models and deterministic simulation fixtures.
-- Agent treasury and run-vs-sell planner.
-- `/inference/*` API surface and CLI commands.
-- OpenAI-compatible base URL proxy path with fake provider default.
-- Dedicated demand aggregation and inference price history.
-- Dedicated capacity market package above existing Compute Market reservations.
-- Forward capacity agreement simulator.
-- GPU futures simulator with no live trading, margin, leverage, funds movement, or private keys.
-- Standalone research notes, product thesis, and gap analysis for the interview reference pattern.
-- Public deployment blocker document.
+- Real external inference credit seller onboarding and provider credential operations.
+- Real provider quote ingestion with production credentials and allowlists.
+- Real compute execution against external providers and artifact storage.
+- External billing/prepaid credits with webhook credentials.
+- Immutable object-lock audit storage binding.
+- JWT/OIDC/API gateway production integration beyond API key and scope headers.
+- Public Level 1 deployment and smoke tests against a managed Postgres and managed Redis URL.
+- Legal/compliance/security review for any future live settlement, forward-capacity, or futures path.
 
 ## Active blockers
 

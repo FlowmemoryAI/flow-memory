@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `4676df4 Gate live infra validation on schema counts`
+Latest inspected commit: `2315f86 Exercise signed provider quote conformance`
 
 ## Current architecture
 
@@ -1103,4 +1103,39 @@ flowchart TD
     Evidence --> Validator{Counts meet floor?}
     Validator -->|Yes| Pass[Live infra validation can pass]
     Validator -->|No| Fail[Live infra validation fails]
+```
+
+## Checkpoint 2026-05-26 Signed provider quote conformance
+
+Files changed:
+
+- `scripts/validate_compute_market_provider_conformance.py`
+- `tests/test_compute_market_provider_conformance_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_provider_conformance_script.py -q` — 2 passed
+- `python -m ruff check scripts/validate_compute_market_provider_conformance.py tests/test_compute_market_provider_conformance_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_provider_conformance.py tests/test_compute_market_provider_conformance_script.py --config-file pyproject.toml` — OK
+- `python -m pytest tests/test_compute_market_provider_conformance_script.py tests/test_compute_market_provider_adapters.py tests/test_compute_market_provider_contracts.py -q` — 33 passed
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 430 passed, 2 skipped
+- `git diff --check -- scripts/validate_compute_market_provider_conformance.py tests/test_compute_market_provider_conformance_script.py` — clean
+
+Commit: `2315f86 Exercise signed provider quote conformance`.
+
+Implementation:
+
+- Provider sandbox validation now signs its contract sample quote with a local deterministic provider quote key and verifies `signed_quote_valid=true`.
+- The conformance script now explicitly proves stale/expired quote rejection and unsafe live-settlement quote rejection.
+- Provider conformance output surfaces `signed_quote_valid`, `stale_quote_rejected`, and `unsafe_live_settlement_rejected`.
+
+```mermaid
+flowchart TD
+    SandboxQuote[Provider sandbox quote] --> Sign[Local quote signature]
+    Sign --> Conformance[Provider conformance]
+    Conformance --> SignedOK[signed_quote_valid true]
+    SandboxQuote --> Stale[Stale expired variant]
+    SandboxQuote --> Unsafe[Live-settlement variant]
+    Stale --> RejectStale[stale and expired rejected]
+    Unsafe --> RejectUnsafe[live settlement rejected]
 ```

@@ -173,6 +173,8 @@ def test_public_smoke_script_validates_gateway_jwt_when_configured() -> None:
         "Invoke-ComputeMarketRequest -Method POST -Path '/inference/opportunity-cost' -Scopes 'inference:plan'",
         "Invoke-ComputeMarketRequest -Method GET -Path '/inference/market/order-book' -Scopes 'inference:read'",
         "Invoke-ComputeMarketRequest -Method POST -Path '/v1/chat/completions' -Scopes 'inference:proxy'",
+        "Invoke-ComputeMarketRequest -Method POST -Path '/v1/responses' -Scopes 'inference:proxy'",
+        "Invoke-ComputeMarketRequest -Method POST -Path '/v1/embeddings' -Scopes 'inference:proxy'",
         "Invoke-ComputeMarketRequest -Method GET -Path '/capacity/inventory' -Scopes 'compute:read'",
         "Invoke-ComputeMarketRequest -Method GET -Path '/futures/markets' -Scopes 'compute:read'",
         "Assert-DataFlag -Response $futuresMarkets -Field 'live_trading_enabled' -Expected $false",
@@ -461,6 +463,22 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                     "flow_memory": {"dry_run_only": True, "funds_moved": False},
                 },
             }
+        if url.endswith("/v1/responses"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "object": "response",
+                    "flow_memory": {"dry_run_only": True, "funds_moved": False},
+                },
+            }
+        if url.endswith("/v1/embeddings"):
+            return 200, {
+                "ok": True,
+                "data": {
+                    "object": "list",
+                    "flow_memory": {"dry_run_only": True, "funds_moved": False},
+                },
+            }
         if url.endswith("/capacity/inventory"):
             return 200, {"ok": True, "data": {"ok": True, "dry_run_only": True, "funds_moved": False}}
         if url.endswith("/futures/markets"):
@@ -556,6 +574,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         "inference_opportunity_cost": 200,
         "inference_order_book": 200,
         "openai_proxy": 200,
+        "openai_responses": 200,
+        "openai_embeddings": 200,
         "capacity_inventory": 200,
         "futures_markets": 200,
     }

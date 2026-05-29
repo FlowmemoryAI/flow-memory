@@ -413,6 +413,29 @@ if ($IncludeMarketAlpha) {
     Assert-True ($proxyData.flow_memory.dry_run_only -eq $true) 'OpenAI-compatible proxy did not return dry_run_only=true.'
     Assert-True ($proxyData.flow_memory.funds_moved -eq $false) 'OpenAI-compatible proxy did not return funds_moved=false.'
     $marketAlphaStatuses['openai_proxy'] = $proxyChat.StatusCode
+    $responsesBody = @{
+        model = 'flow-local-small'
+        input = 'public alpha responses smoke'
+    }
+    $proxyResponses = Invoke-ComputeMarketRequest -Method POST -Path '/v1/responses' -Scopes 'inference:proxy' -Body $responsesBody
+    Assert-Status -Response $proxyResponses -Expected 200 -Name 'OpenAI-compatible responses proxy'
+    $responsesData = $proxyResponses.Json.data
+    Assert-True ($responsesData.object -eq 'response') 'OpenAI-compatible responses proxy did not return response.'
+    Assert-True ($responsesData.flow_memory.dry_run_only -eq $true) 'OpenAI-compatible responses proxy did not return dry_run_only=true.'
+    Assert-True ($responsesData.flow_memory.funds_moved -eq $false) 'OpenAI-compatible responses proxy did not return funds_moved=false.'
+    $marketAlphaStatuses['openai_responses'] = $proxyResponses.StatusCode
+
+    $embeddingsBody = @{
+        model = 'flow-local-embedding'
+        input = @('public', 'alpha', 'embeddings')
+    }
+    $proxyEmbeddings = Invoke-ComputeMarketRequest -Method POST -Path '/v1/embeddings' -Scopes 'inference:proxy' -Body $embeddingsBody
+    Assert-Status -Response $proxyEmbeddings -Expected 200 -Name 'OpenAI-compatible embeddings proxy'
+    $embeddingsData = $proxyEmbeddings.Json.data
+    Assert-True ($embeddingsData.object -eq 'list') 'OpenAI-compatible embeddings proxy did not return list.'
+    Assert-True ($embeddingsData.flow_memory.dry_run_only -eq $true) 'OpenAI-compatible embeddings proxy did not return dry_run_only=true.'
+    Assert-True ($embeddingsData.flow_memory.funds_moved -eq $false) 'OpenAI-compatible embeddings proxy did not return funds_moved=false.'
+    $marketAlphaStatuses['openai_embeddings'] = $proxyEmbeddings.StatusCode
 
     $capacityInventory = Invoke-ComputeMarketRequest -Method GET -Path '/capacity/inventory' -Scopes 'compute:read'
     Assert-Status -Response $capacityInventory -Expected 200 -Name 'capacity inventory'

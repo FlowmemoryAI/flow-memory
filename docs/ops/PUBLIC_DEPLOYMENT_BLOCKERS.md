@@ -46,14 +46,14 @@ Do not claim public deployment until public smoke tests pass against the public 
 
 ## Optional marketplace alpha smoke
 
-When Level 1 compute deployment is live, run the same smoke script with `-IncludeMarketAlpha` to verify the Flow Memory Inference Market, one-line proxy path, Capacity Market inventory, and GPU Futures simulator remain simulation-only behind the public gateway.
+When Level 1 compute deployment is live, run the same smoke script with `-IncludeMarketAlpha` to verify the Flow Memory Inference Market, OpenAI-compatible chat/responses/embeddings proxy paths, Capacity Market inventory, and GPU Futures simulator remain simulation-only behind the public gateway.
 
 ```mermaid
 flowchart TD
     PublicURL[Public HTTPS URL] --> ComputeSmoke[Compute Level 1 smoke]
     ComputeSmoke --> MarketFlag[IncludeMarketAlpha]
     MarketFlag --> Inference[Inference opportunity and order book]
-    MarketFlag --> Proxy[OpenAI-compatible proxy]
+    MarketFlag --> Proxy[OpenAI chat responses embeddings proxy]
     MarketFlag --> Capacity[Capacity inventory]
     MarketFlag --> Futures[Futures markets]
     Inference --> Safety[Dry-run safety fields]

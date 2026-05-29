@@ -1207,6 +1207,18 @@ def smoke_public(
             _smoke_api_headers(api_key_value, "inference:proxy", "openai-proxy"),
             {"model": "flow-local-small", "messages": [{"role": "user", "content": "public alpha proxy smoke"}]},
         )
+        checks["openai_responses"] = call_json(
+            "POST",
+            f"{base}/v1/responses",
+            _smoke_api_headers(api_key_value, "inference:proxy", "openai-responses"),
+            {"model": "flow-local-small", "input": "public alpha responses smoke"},
+        )
+        checks["openai_embeddings"] = call_json(
+            "POST",
+            f"{base}/v1/embeddings",
+            _smoke_api_headers(api_key_value, "inference:proxy", "openai-embeddings"),
+            {"model": "flow-local-embedding", "input": ["public", "alpha", "embeddings"]},
+        )
         checks["capacity_inventory"] = call_json(
             "GET",
             f"{base}/capacity/inventory",
@@ -1267,6 +1279,10 @@ def smoke_public(
         inference_order_book = checks["inference_order_book"][1].get("data", {}) if isinstance(checks["inference_order_book"][1], dict) else {}
         proxy_payload = checks["openai_proxy"][1].get("data", {}) if isinstance(checks["openai_proxy"][1], dict) else {}
         proxy_flow_memory = proxy_payload.get("flow_memory", {}) if isinstance(proxy_payload, dict) else {}
+        responses_payload = checks["openai_responses"][1].get("data", {}) if isinstance(checks["openai_responses"][1], dict) else {}
+        responses_flow_memory = responses_payload.get("flow_memory", {}) if isinstance(responses_payload, dict) else {}
+        embeddings_payload = checks["openai_embeddings"][1].get("data", {}) if isinstance(checks["openai_embeddings"][1], dict) else {}
+        embeddings_flow_memory = embeddings_payload.get("flow_memory", {}) if isinstance(embeddings_payload, dict) else {}
         capacity_inventory = checks["capacity_inventory"][1].get("data", {}) if isinstance(checks["capacity_inventory"][1], dict) else {}
         futures_markets = checks["futures_markets"][1].get("data", {}) if isinstance(checks["futures_markets"][1], dict) else {}
         market_alpha_statuses = {
@@ -1275,6 +1291,8 @@ def smoke_public(
                 "inference_opportunity_cost",
                 "inference_order_book",
                 "openai_proxy",
+                "openai_responses",
+                "openai_embeddings",
                 "capacity_inventory",
                 "futures_markets",
             )
@@ -1293,6 +1311,14 @@ def smoke_public(
                 proxy_payload.get("object") == "chat.completion",
                 proxy_flow_memory.get("dry_run_only") is True,
                 proxy_flow_memory.get("funds_moved") is False,
+                checks["openai_responses"][0] == 200,
+                responses_payload.get("object") == "response",
+                responses_flow_memory.get("dry_run_only") is True,
+                responses_flow_memory.get("funds_moved") is False,
+                checks["openai_embeddings"][0] == 200,
+                embeddings_payload.get("object") == "list",
+                embeddings_flow_memory.get("dry_run_only") is True,
+                embeddings_flow_memory.get("funds_moved") is False,
                 checks["capacity_inventory"][0] == 200,
                 capacity_inventory.get("ok") is True,
                 capacity_inventory.get("dry_run_only") is True,

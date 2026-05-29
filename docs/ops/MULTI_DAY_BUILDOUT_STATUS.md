@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `45cf026 Document deployment inference scopes`
+Latest inspected commit: `74f3dea Add inference marketplace auth roles`
 
 ## Current architecture
 
@@ -931,4 +931,40 @@ flowchart TD
     Naming --> PublicSurface[No reference branding in public surface]
     Safety --> DryRun[Dry-run simulation only]
     DryRun --> Blockers[External infra blockers remain]
+```
+
+## Checkpoint 2026-05-26 Inference marketplace auth roles
+
+Files changed:
+
+- `src/flow_memory/api/auth.py`
+- `tests/test_api_auth.py`
+- `docs/INFERENCE_MARKET.md`
+
+Tests run:
+
+- `python -m pytest tests/test_api_auth.py tests/test_api_auth_scopes.py -q` — 39 passed
+- `python -m ruff check src/flow_memory/api/auth.py tests/test_api_auth.py` — OK
+- `python -m mypy src/flow_memory/api/auth.py tests/test_api_auth.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 429 passed, 2 skipped
+- `git diff --check -- src/flow_memory/api/auth.py tests/test_api_auth.py docs/INFERENCE_MARKET.md` — clean
+
+Commit: `74f3dea Add inference marketplace auth roles`.
+
+Implementation:
+
+- Added least-privilege inference marketplace roles for API key records and gateway JWT role expansion.
+- New roles cover viewer, planner, proxy, buyer, seller, auditor, and admin flows without broadening existing `member`, `provider`, or `admin` roles.
+- Documented role-to-scope mapping in `docs/INFERENCE_MARKET.md`.
+
+```mermaid
+flowchart TD
+    Credential[API key or JWT] --> Role[Inference role]
+    Role --> Read[inference read]
+    Role --> Plan[inference plan]
+    Role --> Proxy[inference proxy]
+    Role --> Buy[inference buy]
+    Role --> Sell[inference sell]
+    Role --> Audit[inference audit]
+    Role --> Admin[inference admin]
 ```

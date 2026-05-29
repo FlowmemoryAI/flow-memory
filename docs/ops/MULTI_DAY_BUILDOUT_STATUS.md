@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `ef8d505 Keep external providers disabled for Level 1`
+Latest inspected commit: `b5d52eb Assert idempotent plan replay avoids duplicate audit`
 
 ## Current architecture
 
@@ -1891,4 +1891,33 @@ flowchart TD
     ProviderGate --> ExternalQuotes[external quotes enabled=false]
     ExternalQuotes --> PublicValidation[Public validation]
     PublicValidation --> FailClosed[external quote endpoint fails closed]
+```
+
+## Checkpoint 2026-05-26 Idempotent plan audit replay evidence
+
+Files changed:
+
+- `tests/test_compute_market_storage.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_storage.py::test_idempotency_key_returns_original_decision -q` — 1 passed
+- `python -m pytest tests/test_compute_market_storage.py -q` — 14 passed
+- `python -m ruff check tests/test_compute_market_storage.py` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 455 passed, 2 skipped
+- `git diff --check` — no whitespace errors
+
+Commit: `b5d52eb Assert idempotent plan replay avoids duplicate audit`.
+
+Implementation:
+
+- The storage idempotency regression now proves that replaying a compute plan with the same `idempotency_key` returns the original route decision without appending additional audit events.
+- This backs the public Level 1 requirement that idempotent writes must not duplicate route decisions or audit records.
+
+```mermaid
+flowchart TD
+    FirstPlan[First plan request] --> Decision[route_decision persisted]
+    FirstPlan --> Audit[plan audit events]
+    Replay[Same idempotency_key replay] --> Decision
+    Replay --> AuditCount[audit count unchanged]
 ```

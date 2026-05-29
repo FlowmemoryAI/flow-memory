@@ -1185,6 +1185,8 @@ def test_api_server_cli_builds_redis_nonce_guard_from_public_env() -> None:
             "FLOW_MEMORY_COMPUTE_REDIS_URL": "rediss://cache.example:6379/0",
             "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
             "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
+            "FLOW_MEMORY_API_NONCE_VERIFY_TLS": "true",
+            "FLOW_MEMORY_API_NONCE_REDIS_PREFIX": "flow-memory:api",
         },
     )
 
@@ -1193,6 +1195,8 @@ def test_api_server_cli_builds_redis_nonce_guard_from_public_env() -> None:
     assert config.nonce_redis_url == "rediss://cache.example:6379/0"
     assert config.nonce_require_tls is True
     assert config.nonce_fail_closed is True
+    assert config.nonce_verify_tls is True
+    assert config.nonce_redis_prefix == "flow-memory:api"
 
 
 def test_api_server_cli_builds_provider_callback_ip_allowlist_from_env_and_cli() -> None:

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `43f5f3b Gate public smoke on schema coverage`
+Latest inspected commit: `4676df4 Gate live infra validation on schema counts`
 
 ## Current architecture
 
@@ -1070,4 +1070,37 @@ flowchart TD
     Counts --> Gate{Meets current schema floor?}
     Gate -->|Yes| Continue[Continue production smoke]
     Gate -->|No| Fail[Fail deployment validation]
+```
+
+## Checkpoint 2026-05-26 Live infra schema count validation
+
+Files changed:
+
+- `scripts/validate_compute_market_live_infra.py`
+- `tests/test_compute_market_live_infra_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_infra_script.py -q` — 14 passed
+- `python -m ruff check scripts/validate_compute_market_live_infra.py tests/test_compute_market_live_infra_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_live_infra.py tests/test_compute_market_live_infra_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 430 passed, 2 skipped
+- `git diff --check -- scripts/validate_compute_market_live_infra.py tests/test_compute_market_live_infra_script.py` — clean
+
+Commit: `4676df4 Gate live infra validation on schema counts`.
+
+Implementation:
+
+- Live Postgres validation now derives minimum table and index counts from the migration plan and fails if schema verification under-reports them.
+- The validator reports structured `required_schema_count_evidence` alongside required index-group evidence.
+- Tests pin the table floor to all Postgres record tables plus `compute_migrations`, and the index floor to the generated per-record index plan.
+
+```mermaid
+flowchart TD
+    MigrationPlan[Migration plan] --> Floors[Table and index count floors]
+    LiveSchema[Live Postgres schema verification] --> Evidence[Schema count evidence]
+    Floors --> Evidence
+    Evidence --> Validator{Counts meet floor?}
+    Validator -->|Yes| Pass[Live infra validation can pass]
+    Validator -->|No| Fail[Live infra validation fails]
 ```

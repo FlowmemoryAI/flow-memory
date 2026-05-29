@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `7de355f Add Render marketplace alpha smoke gate`
+Latest inspected commit: `ab5b2cf Expand OpenAI-compatible inference proxy`
 
 ## Current architecture
 
@@ -681,4 +681,47 @@ flowchart TD
     OptionalFlag --> Capacity[Capacity inventory]
     OptionalFlag --> Futures[Futures non-live]
     Futures --> Safety[Safety fields required]
+```
+
+## Checkpoint 2026-05-26 OpenAI-compatible proxy expansion
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/api/marketplace_endpoints.py`
+- `src/flow_memory/api/router.py`
+- `src/flow_memory/api/manifest.py`
+- `tests/test_inference_capacity_futures_markets.py`
+- `docs/INFERENCE_PROXY.md`
+- `docs/API_SNAPSHOT.json`
+- `docs/openapi/flow-memory.openapi.json`
+
+Tests run:
+
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py src/flow_memory/api/router.py src/flow_memory/api/manifest.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q` — 16 passed
+- `python -m pytest tests/test_api_snapshot.py tests/test_api_openapi_snapshot.py -q` — 5 passed
+- `python -m mypy src tests scripts --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py src/flow_memory/api/router.py src/flow_memory/api/manifest.py tests/test_inference_capacity_futures_markets.py docs/INFERENCE_PROXY.md docs/API_SNAPSHOT.json docs/openapi/flow-memory.openapi.json` — clean except Git line-ending warnings for regenerated JSON snapshots
+
+Commit: `ab5b2cf Expand OpenAI-compatible inference proxy`.
+
+Implementation:
+
+- OpenAI-compatible `/v1/responses` and `/v1/embeddings` now route through the deterministic fake provider path.
+- Responses and embeddings write inference usage records and preserve dry-run, no-funds, no-broadcast, and no-private-key safety fields.
+- API manifest, OpenAPI snapshot, API snapshot, docs, and router tests were updated.
+
+```mermaid
+flowchart TD
+    Client[OpenAI-compatible client] --> Chat[v1 chat completions]
+    Client --> Responses[v1 responses]
+    Client --> Embeddings[v1 embeddings]
+    Chat --> Policy[Inference proxy policy]
+    Responses --> Policy
+    Embeddings --> Policy
+    Policy --> Fake[Deterministic fake provider]
+    Fake --> Usage[Usage ledger]
+    Usage --> Audit[Inference audit chain]
 ```

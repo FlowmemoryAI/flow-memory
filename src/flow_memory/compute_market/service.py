@@ -2392,6 +2392,7 @@ class ComputeMarketService:
             "ok": True,
             "reservation_id": reservation_id,
             "reservation": updated,
+            "reservation_before": reservation,
             "capacity_consumption": {
                 "reservation_id": reservation_id,
                 "capacity_units": consumed_now,
@@ -2404,6 +2405,89 @@ class ComputeMarketService:
             },
         }
 
+    def _rollback_job_capacity_consumption(
+        self,
+        job: Mapping[str, Any],
+        payload: Mapping[str, Any],
+        capacity_consumption_result: Mapping[str, Any],
+        *,
+        request_id: str,
+        reason: str,
+    ) -> Mapping[str, Any]:
+        reservation_id = str(capacity_consumption_result.get("reservation_id", "")).strip()
+        if not reservation_id:
+            return {}
+        reservation_before = capacity_consumption_result.get("reservation_before", {})
+        reservation_after = capacity_consumption_result.get("reservation", {})
+        if not isinstance(reservation_before, Mapping) or not isinstance(reservation_after, Mapping):
+            return {}
+        current = self.store.get_record("compute_reservation", reservation_id)
+        if not isinstance(current, Mapping) or not current:
+            return {}
+        job_id = str(job.get("job_id", ""))
+        if str(current.get("last_consumed_job_id", "")) != job_id:
+            return {}
+        if abs(_capacity_consumed_units(current) - _capacity_consumed_units(reservation_after)) > 1e-9:
+            return {}
+        raw_before_job_ids = reservation_before.get("consumed_job_ids", ())
+        restored_job_ids = (
+            tuple(str(item) for item in raw_before_job_ids if str(item))
+            if isinstance(raw_before_job_ids, (list, tuple))
+            else ()
+        )
+        rolled_back_units = _safe_non_negative_float(
+            cast(Mapping[str, Any], capacity_consumption_result.get("capacity_consumption", {})).get("capacity_units", 0.0)
+        )
+        now = utc_now_iso()
+        restored = {
+            **dict(current),
+            "status": str(reservation_before.get("status", "confirmed")),
+            "consumed_capacity_units": _capacity_consumed_units(reservation_before),
+            "remaining_capacity_units": _capacity_reservation_remaining_units(reservation_before),
+            "last_consumed_capacity_units": _safe_non_negative_float(
+                reservation_before.get("last_consumed_capacity_units", 0.0)
+            ),
+            "last_consumed_job_id": str(reservation_before.get("last_consumed_job_id", "")),
+            "last_consumed_at": str(reservation_before.get("last_consumed_at", "")),
+            "consumed_at": str(reservation_before.get("consumed_at", "")),
+            "consumed_job_ids": restored_job_ids,
+            "rollback_reason": reason,
+            "rolled_back_job_id": job_id,
+            "updated_at": now,
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
+        self.store.put_record(
+            "compute_reservation",
+            reservation_id,
+            restored,
+            provider_id=str(restored.get("provider_id", "")),
+            route_id=str(restored.get("route_id", "")),
+            status=str(restored.get("status", "")),
+            request_id=request_id,
+            tenant_id=str(restored.get("tenant_id", "")),
+            workspace_id=str(restored.get("workspace_id", "")),
+        )
+        self.telemetry.increment(
+            "capacity_consumption_rolled_back_total",
+            {"provider_id": str(restored.get("provider_id", "")), "route_id": str(restored.get("route_id", ""))},
+            value=rolled_back_units,
+        )
+        self._audit(
+            "market.capacity.consumption_rolled_back",
+            {**dict(payload), "job_id": job_id, "reservation_id": reservation_id},
+            request_id=request_id,
+            result=str(restored.get("status", "")),
+            provider_id=str(restored.get("provider_id", "")),
+            route_id=str(restored.get("route_id", "")),
+        )
+        return {
+            "ok": True,
+            "reservation_id": reservation_id,
+            "reservation": restored,
+            "rolled_back_capacity_units": rolled_back_units,
+            "reason": reason,
+        }
     def _release_job_capacity_reservation(
         self,
         job: Mapping[str, Any],
@@ -3652,12 +3736,19 @@ class ComputeMarketService:
                 },
                 request_id=request_id,
             )
+            capacity_rollback = self._rollback_job_capacity_consumption(
+                job,
+                payload,
+                capacity_consumption_result,
+                request_id=request_id,
+                reason="job_complete_status_changed",
+            )
             event = _job_event(
                 job_id,
                 "job.complete_status_changed",
                 status=str(current.get("status", job.get("status", "running"))),
                 request_id=request_id,
-                details={"error": error.as_record(), "funds_moved": False},
+                details={"error": error.as_record(), "funds_moved": False, "capacity_rollback": capacity_rollback},
             )
             self.store.put_record(
                 "compute_job_event",
@@ -3671,7 +3762,13 @@ class ComputeMarketService:
                 tenant_id=str(job.get("tenant_id", "")),
                 workspace_id=str(job.get("workspace_id", "")),
             )
-            return {"ok": False, "job": current or job, "event": event, "error": error.as_record()}
+            return {
+                "ok": False,
+                "job": current or job,
+                "event": event,
+                "error": error.as_record(),
+                "capacity_rollback": capacity_rollback,
+            }
         self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
         artifact = _job_artifact(job, payload, request_id=request_id)
         if artifact:

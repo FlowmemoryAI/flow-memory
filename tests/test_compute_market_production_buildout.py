@@ -3337,6 +3337,78 @@ def test_complete_job_status_race_does_not_record_usage_or_debit(monkeypatch: An
     assert balance["reserved_credits"] == 0.18
     assert not any(event["event_type"] == "job.completed" for event in service.job_events(job_id)["events"])
 
+def test_complete_job_status_race_rolls_back_capacity_consumption(monkeypatch: Any) -> None:
+    service = _service()
+    reservation = _confirmed_capacity_reservation(
+        service,
+        reservation_id="reservation_complete_status_race_capacity",
+        capacity_units=2,
+    )
+    reservation_id = str(reservation["reservation_id"])
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_complete_status_race_capacity",
+                "capacity_reservation_id": reservation_id,
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {})
+    original_put_record_if_state = service.store.put_record_if_state
+
+    def fail_completion_transition(
+        record_type: str,
+        record_id: str,
+        expected_statuses: tuple[str, ...],
+        payload: Mapping[str, Any],
+        **kwargs: Any,
+    ) -> bool:
+        if record_type == "compute_job" and record_id == job_id and expected_statuses == ("running",):
+            return False
+        return original_put_record_if_state(record_type, record_id, expected_statuses, payload, **kwargs)
+
+    monkeypatch.setattr(service.store, "put_record_if_state", fail_completion_transition)
+
+    completed = service.complete_job(
+        job_id,
+        {
+            "actual_units": 1,
+            "actual_total_cost": 0.09,
+            "currency": "USD",
+            "capacity_units_consumed": 2,
+        },
+    )
+    stored_reservation = service.store.get_record("compute_reservation", reservation_id)
+    summary = service.capacity_order_book({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"})[
+        "summary"
+    ]
+
+    assert dispatched["ok"] is True
+    assert completed["ok"] is False
+    assert completed["error"]["error_code"] == "job.status_changed"
+    assert completed["capacity_rollback"]["ok"] is True
+    assert completed["capacity_rollback"]["rolled_back_capacity_units"] == 2
+    assert stored_reservation is not None
+    assert stored_reservation["status"] == "confirmed"
+    assert stored_reservation["consumed_capacity_units"] == 0.0
+    assert stored_reservation["remaining_capacity_units"] == 2
+    assert not stored_reservation["consumed_job_ids"]
+    assert summary["confirmed_capacity_units"] == 2
+    assert summary["consumed_capacity_units"] == 0
+    assert summary["available_capacity_units"] == 0
+    assert service.store.count_records("usage_charge") == 0
+    assert _metric_total(
+        service,
+        "capacity_consumed_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 2.0
+    assert _metric_total(
+        service,
+        "capacity_consumption_rolled_back_total",
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1"},
+    ) == 2.0
+
 def test_completed_job_replay_recovers_missing_financial_side_effects() -> None:
     service = _service()
     account_id = "acct_complete_recovery"

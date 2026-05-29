@@ -2005,6 +2005,707 @@
         ]
       }
     },
+    "/capacity/forward-curve": {
+      "get": {
+        "operationId": "capacity_forward_curve",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "forward_curve": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return simulated capacity forward curve",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forward-curve/simulate": {
+      "post": {
+        "operationId": "capacity_forward_curve_simulate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "forward_curve": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate capacity forward curve",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards": {
+      "get": {
+        "operationId": "capacity_forward_list",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contracts": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List forward capacity contracts",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/draft": {
+      "post": {
+        "operationId": "capacity_forward_draft",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contract": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Draft non-binding forward capacity contract",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/quote": {
+      "post": {
+        "operationId": "capacity_forward_quote",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "forward_quote": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Quote non-binding forward capacity",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/simulate": {
+      "post": {
+        "operationId": "capacity_forward_simulate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contract": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "risk_assessment": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate forward capacity contract risk and settlement",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/{contract_id}": {
+      "get": {
+        "operationId": "capacity_forward_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contract": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Get forward capacity contract",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/{contract_id}/cancel": {
+      "post": {
+        "operationId": "capacity_forward_cancel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contract": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Cancel simulated forward capacity contract",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/{contract_id}/simulate-delivery": {
+      "post": {
+        "operationId": "capacity_forward_simulate_delivery",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "delivery_schedule": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate forward capacity delivery",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/forwards/{contract_id}/simulate-settlement": {
+      "post": {
+        "operationId": "capacity_forward_simulate_settlement",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "settlement_plan": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate forward capacity settlement",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/hold": {
+      "post": {
+        "operationId": "capacity_hold",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "gpu_class": {
+                    "type": "string"
+                  },
+                  "hours": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "hold": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Hold simulated capacity",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/indexes": {
+      "get": {
+        "operationId": "capacity_indexes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "capacity_index": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "spot_index": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return simulated capacity indexes",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/inventory": {
+      "get": {
+        "operationId": "capacity_inventory",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "inventory": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List Flow Memory capacity inventory",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/order-book": {
+      "get": {
+        "operationId": "capacity_order_book",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "capacity_windows": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "reservations": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return simulated capacity order book",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/quote": {
+      "post": {
+        "operationId": "capacity_quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "gpu_class": {
+                    "type": "string"
+                  },
+                  "hours": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "quote": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Quote simulated capacity",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/release": {
+      "post": {
+        "operationId": "capacity_release",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "reservation_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "reservation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Release simulated capacity reservation",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/reservations": {
+      "get": {
+        "operationId": "capacity_reservations",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "reservations": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List simulated capacity reservations",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/reserve": {
+      "post": {
+        "operationId": "capacity_reserve",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "gpu_class": {
+                    "type": "string"
+                  },
+                  "hours": {
+                    "type": "string"
+                  },
+                  "region": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "reservation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Reserve simulated capacity without moving funds",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
+    "/capacity/utilization": {
+      "get": {
+        "operationId": "capacity_utilization",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "utilization": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List simulated capacity utilization",
+        "tags": [
+          "capacity"
+        ]
+      }
+    },
     "/compute/alerts": {
       "get": {
         "operationId": "compute_alerts",
@@ -5648,6 +6349,490 @@
         ]
       }
     },
+    "/futures/contracts": {
+      "get": {
+        "operationId": "futures_contracts",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contracts": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List GPU futures simulator contracts",
+        "tags": [
+          "futures"
+        ]
+      },
+      "post": {
+        "operationId": "futures_contract_create",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "contract": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create simulated GPU futures contract",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/delivery/simulate": {
+      "post": {
+        "operationId": "futures_delivery_simulate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "delivery_notice": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate GPU futures delivery",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/expiry/simulate": {
+      "post": {
+        "operationId": "futures_expiry",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "expiry": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate GPU futures expiry",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/index-price": {
+      "post": {
+        "operationId": "futures_index_price",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "index_price": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate GPU futures index price",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/indexes": {
+      "get": {
+        "operationId": "futures_indexes",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "capacity_index": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "spot_index": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return futures simulator indexes",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/mark-price": {
+      "post": {
+        "operationId": "futures_mark_price",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "mark_price": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate GPU futures mark price",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/mark-prices": {
+      "get": {
+        "operationId": "futures_mark_prices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "mark_price": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return simulated futures mark prices",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/markets": {
+      "get": {
+        "operationId": "futures_markets",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "markets": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List GPU futures simulator markets",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/markets/simulate": {
+      "post": {
+        "operationId": "futures_markets_simulate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "markets": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate GPU futures market state",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/order-book": {
+      "get": {
+        "operationId": "futures_order_book",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "order_book": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return simulated GPU futures order book",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/orders/cancel": {
+      "post": {
+        "operationId": "futures_order_cancel",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "order": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Cancel simulated GPU futures order",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/orders/simulate": {
+      "post": {
+        "operationId": "futures_order_simulate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "order": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate a GPU futures order",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/positions": {
+      "get": {
+        "operationId": "futures_positions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "positions": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List simulated GPU futures positions",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/risk-check": {
+      "post": {
+        "operationId": "futures_risk_check",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "risk_check": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Run GPU futures simulation risk check",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
+    "/futures/settlement/simulate": {
+      "post": {
+        "operationId": "futures_settlement_simulate",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "settlement_simulation": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate GPU futures settlement",
+        "tags": [
+          "futures"
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health",
@@ -5675,6 +6860,1146 @@
         "summary": "Router health check",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/inference/admin/sources": {
+      "get": {
+        "operationId": "inference_admin_sources",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "sources": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Admin list inference sources",
+        "tags": [
+          "inference"
+        ]
+      },
+      "post": {
+        "operationId": "inference_admin_source_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "source_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Admin create simulated inference source",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/admin/sources/{source_id}": {
+      "patch": {
+        "operationId": "inference_admin_source_update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "status": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Admin update inference source",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/admin/sources/{source_id}/disable": {
+      "post": {
+        "operationId": "inference_admin_source_disable",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "source": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Admin disable inference source",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/admin/sources/{source_id}/health-check": {
+      "post": {
+        "operationId": "inference_admin_source_health",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "health": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Admin simulate source health check",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits": {
+      "get": {
+        "operationId": "inference_credits",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "credit_balances": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference credit balances",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits/accounts": {
+      "post": {
+        "operationId": "inference_credit_account_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "owner_id": {
+                    "type": "string"
+                  },
+                  "source_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "account": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a simulated inference credit account",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits/buy": {
+      "post": {
+        "operationId": "inference_credit_buy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "buyer_id": {
+                    "type": "string"
+                  },
+                  "listing_id": {
+                    "type": "string"
+                  },
+                  "units": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "fill": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "order": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate buying inference credits without moving funds",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits/cancel-listing": {
+      "post": {
+        "operationId": "inference_credit_cancel_listing",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "listing_id": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "listing": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Cancel a simulated inference listing",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits/list": {
+      "post": {
+        "operationId": "inference_credit_list",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "seller_id": {
+                    "type": "string"
+                  },
+                  "unit_price": {
+                    "type": "string"
+                  },
+                  "units": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "listing": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Create a dry-run inference credit listing",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits/sell": {
+      "post": {
+        "operationId": "inference_credit_sell",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "model": {
+                    "type": "string"
+                  },
+                  "seller_id": {
+                    "type": "string"
+                  },
+                  "unit_price": {
+                    "type": "string"
+                  },
+                  "units": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "listing": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Simulate selling unused inference credits",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/credits/sources": {
+      "get": {
+        "operationId": "inference_sources",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "sources": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference credit sources",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/market/demand": {
+      "get": {
+        "operationId": "inference_demand",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "demand": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference demand snapshots",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/market/listings": {
+      "get": {
+        "operationId": "inference_listings",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "listings": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference market listings",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/market/order-book": {
+      "get": {
+        "operationId": "inference_order_book",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "listings": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return inference market order book",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/market/prices": {
+      "get": {
+        "operationId": "inference_prices",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "prices": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference price snapshots",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/market/spreads": {
+      "get": {
+        "operationId": "inference_spreads",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "spreads": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference market spreads",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/opportunity-cost": {
+      "post": {
+        "operationId": "inference_opportunity_cost",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "allow_sell_unused": {
+                    "type": "string"
+                  },
+                  "budget": {
+                    "type": "string"
+                  },
+                  "estimated_value": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "decision": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    },
+                    "usage_record": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Compare run, buy, sell, defer, downgrade, reserve, and simulation actions",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/plan": {
+      "post": {
+        "operationId": "inference_plan",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "agent_id": {
+                    "type": "string"
+                  },
+                  "budget": {
+                    "type": "string"
+                  },
+                  "estimated_value": {
+                    "type": "string"
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "decision": {
+                      "type": "string"
+                    },
+                    "dry_run_only": {
+                      "type": "string"
+                    },
+                    "ok": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Plan inference route and agent economic action",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/proxy": {
+      "post": {
+        "operationId": "inference_proxy",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "messages": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "choices": {
+                      "type": "string"
+                    },
+                    "flow_memory": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "OpenAI-compatible dry-run inference proxy",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/quote": {
+      "post": {
+        "operationId": "inference_quote",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "estimated_units": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "unit_type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "quotes": {
+                      "type": "string"
+                    },
+                    "rejected_routes": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Quote dry-run discounted inference listings",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/roi": {
+      "get": {
+        "operationId": "inference_roi",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "roi": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return inference ROI summary",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/route": {
+      "post": {
+        "operationId": "inference_route",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "estimated_units": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "unit_type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "route_decision": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Select a dry-run inference route",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/statement": {
+      "get": {
+        "operationId": "inference_statement",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "statement": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "Return an intelligence usage statement",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/usage": {
+      "get": {
+        "operationId": "inference_usage",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "usage_records": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference usage records",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/usage/by-agent/{agent_id}": {
+      "get": {
+        "operationId": "inference_usage_by_agent",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "usage_records": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference usage by agent",
+        "tags": [
+          "inference"
+        ]
+      }
+    },
+    "/inference/usage/by-goal/{goal_id}": {
+      "get": {
+        "operationId": "inference_usage_by_goal",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "goal_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "ok": {
+                      "type": "string"
+                    },
+                    "summary": {
+                      "type": "string"
+                    },
+                    "usage_records": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "List inference usage by goal",
+        "tags": [
+          "inference"
         ]
       }
     },
@@ -7579,6 +9904,88 @@
         "summary": "Create and assign a local delegation contract",
         "tags": [
           "swarm"
+        ]
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "openai_chat_completions",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "properties": {
+                  "messages": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "choices": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "usage": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "OpenAI-compatible dry-run chat completions",
+        "tags": [
+          "v1"
+        ]
+      }
+    },
+    "/v1/models": {
+      "get": {
+        "operationId": "openai_models",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "properties": {
+                    "data": {
+                      "type": "string"
+                    },
+                    "object": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Local response"
+          }
+        },
+        "summary": "OpenAI-compatible model list",
+        "tags": [
+          "v1"
         ]
       }
     },

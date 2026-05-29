@@ -36,6 +36,13 @@ COMPUTE_POLICY_ADMIN_SCOPE = "compute:policy-admin"
 COMPUTE_SETTLEMENT_ADMIN_SCOPE = "compute:settlement-admin"
 COMPUTE_EXECUTE_SCOPE = "compute:execute"
 COMPUTE_BILLING_SCOPE = "compute:billing"
+INFERENCE_READ_SCOPE = "inference:read"
+INFERENCE_PLAN_SCOPE = "inference:plan"
+INFERENCE_PROXY_SCOPE = "inference:proxy"
+INFERENCE_BUY_SCOPE = "inference:buy"
+INFERENCE_SELL_SCOPE = "inference:sell"
+INFERENCE_ADMIN_SCOPE = "inference:admin"
+INFERENCE_AUDIT_SCOPE = "inference:audit"
 KNOWN_SCOPES = frozenset({
     READ_SCOPE,
     WRITE_SCOPE,
@@ -64,6 +71,13 @@ KNOWN_SCOPES = frozenset({
     COMPUTE_SETTLEMENT_ADMIN_SCOPE,
     COMPUTE_EXECUTE_SCOPE,
     COMPUTE_BILLING_SCOPE,
+    INFERENCE_READ_SCOPE,
+    INFERENCE_PLAN_SCOPE,
+    INFERENCE_PROXY_SCOPE,
+    INFERENCE_BUY_SCOPE,
+    INFERENCE_SELL_SCOPE,
+    INFERENCE_ADMIN_SCOPE,
+    INFERENCE_AUDIT_SCOPE,
 })
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
@@ -172,6 +186,28 @@ def required_scopes_for(method: str, path: str) -> tuple[str, ...]:
     if path_key == "/events/stream":
         return (VISUAL_STREAM_SCOPE,)
     if path_key == "/metrics":
+        return (COMPUTE_READ_SCOPE,)
+    if path_key.startswith("/inference/admin/"):
+        return (INFERENCE_ADMIN_SCOPE,)
+    if path_key.startswith("/inference/proxy") or path_key.startswith("/v1/") or path_key.startswith("/anthropic/"):
+        return (INFERENCE_PROXY_SCOPE,)
+    if path_key in {"/inference/plan", "/inference/opportunity-cost", "/inference/quote", "/inference/route"}:
+        return (INFERENCE_PLAN_SCOPE,)
+    if path_key.startswith("/inference/credits/buy"):
+        return (INFERENCE_BUY_SCOPE,)
+    if path_key.startswith("/inference/credits/sell") or path_key.startswith("/inference/credits/list"):
+        return (INFERENCE_SELL_SCOPE,)
+    if path_key.startswith("/inference/"):
+        return (INFERENCE_READ_SCOPE,)
+    if path_key.startswith("/capacity/forwards") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_SETTLEMENT_ADMIN_SCOPE,)
+    if path_key.startswith("/capacity/") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_PROVIDER_ADMIN_SCOPE,)
+    if path_key.startswith("/capacity/"):
+        return (COMPUTE_READ_SCOPE,)
+    if path_key.startswith("/futures/") and normalized_method in {"POST", "PATCH", "DELETE"}:
+        return (COMPUTE_SETTLEMENT_ADMIN_SCOPE,)
+    if path_key.startswith("/futures/"):
         return (COMPUTE_READ_SCOPE,)
     if path_key.startswith("/billing/provider-payouts/") and path_key.endswith("/settle"):
         return (COMPUTE_SETTLEMENT_ADMIN_SCOPE,)

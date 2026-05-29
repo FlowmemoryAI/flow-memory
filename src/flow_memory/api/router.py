@@ -23,6 +23,7 @@ from flow_memory.api.auth import (
 )
 from flow_memory.api.errors import forbidden_error
 from flow_memory.api.manifest import API_ENDPOINTS, endpoint_manifest
+from flow_memory.api import marketplace_endpoints as market_api
 from flow_memory.core.types import new_id
 from flow_memory.economy.attestations import Attestation
 from flow_memory.economy.reputation import NonTransferableReputation
@@ -1068,6 +1069,25 @@ class LocalApiRouter:
 
 def create_default_router() -> LocalApiRouter:
     router = LocalApiRouter()
+    def market_handler(name: str) -> Handler:
+        def handle(_params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+            fn = getattr(market_api, name)
+            result = fn(payload)
+            if not isinstance(result, Mapping):
+                raise TypeError("market endpoint returned a non-object response")
+            return result
+
+        return handle
+
+    def market_param_handler(name: str, param_name: str) -> Handler:
+        def handle(params: Mapping[str, str], payload: Mapping[str, Any]) -> Mapping[str, Any]:
+            fn = getattr(market_api, name)
+            result = fn(params[param_name], payload)
+            if not isinstance(result, Mapping):
+                raise TypeError("market endpoint returned a non-object response")
+            return result
+
+        return handle
     router.register("GET", "/health", router._health, "health")
     router.register("GET", "/auth/api-keys", router._auth_api_keys, "auth_api_keys")
     router.register("POST", "/auth/api-keys", router._auth_api_key_create, "auth_api_key_create")
@@ -1188,6 +1208,185 @@ def create_default_router() -> LocalApiRouter:
     router.register("GET", "/market/capacity/order-book", router._market_capacity_order_book, "market_capacity_order_book")
     router.register("GET", "/market/prices", router._market_prices, "market_prices")
     router.register("GET", "/market/prices/history", router._market_prices_history, "market_prices_history")
+    router.register("POST", "/inference/plan", market_handler("inference_plan"), "inference_plan")
+    router.register(
+        "POST",
+        "/inference/opportunity-cost",
+        market_handler("inference_opportunity_cost"),
+        "inference_opportunity_cost",
+    )
+    router.register("POST", "/inference/quote", market_handler("inference_quote"), "inference_quote")
+    router.register("POST", "/inference/route", market_handler("inference_route"), "inference_route")
+    router.register("GET", "/inference/credits", market_handler("inference_credits"), "inference_credits")
+    router.register("GET", "/inference/credits/sources", market_handler("inference_sources"), "inference_sources")
+    router.register(
+        "POST",
+        "/inference/credits/accounts",
+        market_handler("inference_credit_account_create"),
+        "inference_credit_account_create",
+    )
+    router.register("POST", "/inference/credits/list", market_handler("inference_credit_list"), "inference_credit_list")
+    router.register("POST", "/inference/credits/buy", market_handler("inference_credit_buy"), "inference_credit_buy")
+    router.register("POST", "/inference/credits/sell", market_handler("inference_credit_sell"), "inference_credit_sell")
+    router.register(
+        "POST",
+        "/inference/credits/cancel-listing",
+        market_handler("inference_credit_cancel_listing"),
+        "inference_credit_cancel_listing",
+    )
+    router.register(
+        "GET",
+        "/inference/market/order-book",
+        market_handler("inference_order_book"),
+        "inference_order_book",
+    )
+    router.register("GET", "/inference/market/listings", market_handler("inference_listings"), "inference_listings")
+    router.register("GET", "/inference/market/prices", market_handler("inference_prices"), "inference_prices")
+    router.register("GET", "/inference/market/spreads", market_handler("inference_spreads"), "inference_spreads")
+    router.register("GET", "/inference/market/demand", market_handler("inference_demand"), "inference_demand")
+    router.register("GET", "/inference/usage", market_handler("inference_usage"), "inference_usage")
+    router.register(
+        "GET",
+        "/inference/usage/by-agent/{agent_id}",
+        market_param_handler("inference_usage_by_agent", "agent_id"),
+        "inference_usage_by_agent",
+    )
+    router.register(
+        "GET",
+        "/inference/usage/by-goal/{goal_id}",
+        market_param_handler("inference_usage_by_goal", "goal_id"),
+        "inference_usage_by_goal",
+    )
+    router.register("GET", "/inference/statement", market_handler("inference_statement"), "inference_statement")
+    router.register("GET", "/inference/roi", market_handler("inference_roi"), "inference_roi")
+    router.register(
+        "GET",
+        "/inference/admin/sources",
+        market_handler("inference_admin_sources"),
+        "inference_admin_sources",
+    )
+    router.register(
+        "POST",
+        "/inference/admin/sources",
+        market_handler("inference_admin_source_create"),
+        "inference_admin_source_create",
+    )
+    router.register(
+        "PATCH",
+        "/inference/admin/sources/{source_id}",
+        market_param_handler("inference_admin_source_update", "source_id"),
+        "inference_admin_source_update",
+    )
+    router.register(
+        "POST",
+        "/inference/admin/sources/{source_id}/disable",
+        market_param_handler("inference_admin_source_disable", "source_id"),
+        "inference_admin_source_disable",
+    )
+    router.register(
+        "POST",
+        "/inference/admin/sources/{source_id}/health-check",
+        market_param_handler("inference_admin_source_health", "source_id"),
+        "inference_admin_source_health",
+    )
+    router.register("POST", "/inference/proxy", market_handler("inference_proxy"), "inference_proxy")
+    router.register("GET", "/v1/models", market_handler("openai_models"), "openai_models")
+    router.register(
+        "POST",
+        "/v1/chat/completions",
+        market_handler("openai_chat_completions"),
+        "openai_chat_completions",
+    )
+    router.register("GET", "/capacity/inventory", market_handler("capacity_inventory"), "capacity_inventory")
+    router.register("POST", "/capacity/quote", market_handler("capacity_quote"), "capacity_quote")
+    router.register("POST", "/capacity/hold", market_handler("capacity_hold"), "capacity_hold")
+    router.register("POST", "/capacity/reserve", market_handler("capacity_reserve"), "capacity_reserve")
+    router.register("POST", "/capacity/release", market_handler("capacity_release"), "capacity_release")
+    router.register("GET", "/capacity/reservations", market_handler("capacity_reservations"), "capacity_reservations")
+    router.register("GET", "/capacity/utilization", market_handler("capacity_utilization"), "capacity_utilization")
+    router.register("GET", "/capacity/order-book", market_handler("capacity_order_book"), "capacity_order_book")
+    router.register(
+        "POST",
+        "/capacity/forwards/quote",
+        market_handler("capacity_forward_quote"),
+        "capacity_forward_quote",
+    )
+    router.register(
+        "POST",
+        "/capacity/forwards/draft",
+        market_handler("capacity_forward_draft"),
+        "capacity_forward_draft",
+    )
+    router.register(
+        "POST",
+        "/capacity/forwards/simulate",
+        market_handler("capacity_forward_simulate"),
+        "capacity_forward_simulate",
+    )
+    router.register("GET", "/capacity/forwards", market_handler("capacity_forward_list"), "capacity_forward_list")
+    router.register(
+        "GET",
+        "/capacity/forwards/{contract_id}",
+        market_param_handler("capacity_forward_get", "contract_id"),
+        "capacity_forward_get",
+    )
+    router.register(
+        "POST",
+        "/capacity/forwards/{contract_id}/simulate-delivery",
+        market_param_handler("capacity_forward_simulate_delivery", "contract_id"),
+        "capacity_forward_simulate_delivery",
+    )
+    router.register(
+        "POST",
+        "/capacity/forwards/{contract_id}/simulate-settlement",
+        market_param_handler("capacity_forward_simulate_settlement", "contract_id"),
+        "capacity_forward_simulate_settlement",
+    )
+    router.register(
+        "POST",
+        "/capacity/forwards/{contract_id}/cancel",
+        market_param_handler("capacity_forward_cancel", "contract_id"),
+        "capacity_forward_cancel",
+    )
+    router.register("GET", "/capacity/indexes", market_handler("capacity_indexes"), "capacity_indexes")
+    router.register("GET", "/capacity/forward-curve", market_handler("capacity_forward_curve"), "capacity_forward_curve")
+    router.register(
+        "POST",
+        "/capacity/forward-curve/simulate",
+        market_handler("capacity_forward_curve_simulate"),
+        "capacity_forward_curve_simulate",
+    )
+    router.register("GET", "/futures/markets", market_handler("futures_markets"), "futures_markets")
+    router.register(
+        "POST",
+        "/futures/markets/simulate",
+        market_handler("futures_markets_simulate"),
+        "futures_markets_simulate",
+    )
+    router.register("GET", "/futures/contracts", market_handler("futures_contracts"), "futures_contracts")
+    router.register("POST", "/futures/contracts", market_handler("futures_contract_create"), "futures_contract_create")
+    router.register("GET", "/futures/order-book", market_handler("futures_order_book"), "futures_order_book")
+    router.register("POST", "/futures/orders/simulate", market_handler("futures_order_simulate"), "futures_order_simulate")
+    router.register("POST", "/futures/orders/cancel", market_handler("futures_order_cancel"), "futures_order_cancel")
+    router.register("GET", "/futures/positions", market_handler("futures_positions"), "futures_positions")
+    router.register("POST", "/futures/mark-price", market_handler("futures_mark_price"), "futures_mark_price")
+    router.register("POST", "/futures/index-price", market_handler("futures_index_price"), "futures_index_price")
+    router.register("POST", "/futures/risk-check", market_handler("futures_risk_check"), "futures_risk_check")
+    router.register("POST", "/futures/expiry/simulate", market_handler("futures_expiry_simulate"), "futures_expiry")
+    router.register(
+        "POST",
+        "/futures/delivery/simulate",
+        market_handler("futures_delivery_simulate"),
+        "futures_delivery_simulate",
+    )
+    router.register(
+        "POST",
+        "/futures/settlement/simulate",
+        market_handler("futures_settlement_simulate"),
+        "futures_settlement_simulate",
+    )
+    router.register("GET", "/futures/indexes", market_handler("futures_indexes"), "futures_indexes")
+    router.register("GET", "/futures/mark-prices", market_handler("futures_mark_prices"), "futures_mark_prices")
     router.register("GET", "/compute/prices", router._compute_prices, "compute_prices")
     router.register("GET", "/compute/prices/history", router._compute_prices_history, "compute_prices_history")
     router.register("GET", "/compute/prices/anomalies", router._compute_prices_anomalies, "compute_prices_anomalies")

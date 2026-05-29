@@ -16,6 +16,9 @@ from flow_memory.agents.neural_binding import AgentNeuralBinding
 from flow_memory.agents.profile import AgentProfile
 from flow_memory.compute_market.service import default_service
 from flow_memory.compute_market.provider_contracts import validate_provider_contract_file
+from flow_memory.inference_market.service import default_inference_market_service
+from flow_memory.capacity_market.service import default_capacity_market_service
+from flow_memory.futures_market.service import default_futures_market_service
 
 
 def _json_default(value: Any) -> str:
@@ -635,12 +638,282 @@ def _compute_payload(args: Any) -> dict[str, Any]:
     }
 
 
+def _print_cli_output(output: Mapping[str, Any]) -> int:
+    print(json.dumps(output, indent=2, sort_keys=True, default=_json_default))
+    return 0 if bool(output.get("ok", True)) else 1
+
+def _add_inference_cli_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--task", default="research task")
+    parser.add_argument("--agent-id", default="research-agent")
+    parser.add_argument("--goal-id", default="goal-default")
+    parser.add_argument("--model", default="gpt-4o-mini")
+    parser.add_argument("--unit-type", default="token")
+    parser.add_argument("--estimated-units", type=float, default=1000.0)
+    parser.add_argument("--estimated-value", type=float, default=0.0)
+    parser.add_argument("--budget", type=float, default=1.0)
+    parser.add_argument("--market-bid-price", type=float, default=0.0000007)
+    parser.add_argument("--listing-id", default="")
+    parser.add_argument("--units", type=float, default=1000.0)
+    parser.add_argument("--unit-price", type=float, default=0.0000008)
+    parser.add_argument("--allow-sell-unused", action="store_true")
+
+
+def _add_capacity_cli_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--gpu-class", "--gpu-type", dest="gpu_class", default="H100")
+    parser.add_argument("--region", default="us-east")
+    parser.add_argument("--hours", type=float, default=100.0)
+    parser.add_argument("--capacity-units", type=float, default=0.0)
+    parser.add_argument("--unit-price", type=float, default=2.5)
+    parser.add_argument("--reservation-id", default="")
+    parser.add_argument("--contract-id", default="")
+    parser.add_argument("--delivery-window", default="")
+
+
+def _add_futures_cli_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--symbol", default="FM-H100-USEAST-Q3-2027")
+    parser.add_argument("--side", default="buy")
+    parser.add_argument("--quantity", type=float, default=1.0)
+    parser.add_argument("--limit-price", type=float, default=2.5)
+    parser.add_argument("--order-id", default="")
+    parser.add_argument("--gpu-class", default="H100")
+    parser.add_argument("--region", default="us-east")
+
+
+def _inference(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="flow-memory inference",
+        description="Flow Memory Inference Market CLI. Dry-run only; no funds, private keys, or broadcast.",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    for name in (
+        "plan",
+        "opportunity-cost",
+        "quote",
+        "route",
+        "credits",
+        "sources",
+        "market",
+        "prices",
+        "usage",
+        "statement",
+        "buy",
+        "sell",
+        "proxy-smoke",
+    ):
+        _add_inference_cli_args(subparsers.add_parser(name))
+    args = parser.parse_args(argv)
+    service = default_inference_market_service()
+    payload = {
+        "task": args.task,
+        "agent_id": args.agent_id,
+        "goal_id": args.goal_id,
+        "model": args.model,
+        "unit_type": args.unit_type,
+        "estimated_units": args.estimated_units,
+        "estimated_value": args.estimated_value,
+        "budget": args.budget,
+        "market_bid_price": args.market_bid_price,
+        "listing_id": args.listing_id,
+        "units": args.units,
+        "unit_price": args.unit_price,
+        "allow_sell_unused": args.allow_sell_unused,
+    }
+    try:
+        if args.command in {"plan", "opportunity-cost"}:
+            output = service.opportunity_cost(payload)
+        elif args.command == "quote":
+            output = service.quote(payload)
+        elif args.command == "route":
+            output = service.route(payload)
+        elif args.command == "credits":
+            output = service.credits(payload)
+        elif args.command == "sources":
+            output = service.sources_list(payload)
+        elif args.command == "market":
+            output = service.order_book(payload)
+        elif args.command == "prices":
+            output = service.prices(payload)
+        elif args.command == "usage":
+            output = service.usage(payload)
+        elif args.command == "statement":
+            output = service.statement(payload)
+        elif args.command == "buy":
+            output = service.buy(payload)
+        elif args.command == "sell":
+            output = service.sell(payload)
+        else:
+            output = service.proxy_chat_completion(
+                {"model": args.model, "messages": [{"role": "user", "content": args.task}]}
+            )
+    except ValueError as exc:
+        output = {"ok": False, "error": {"message": str(exc), "reason_code": "validation_error"}}
+    return _print_cli_output(output)
+
+
+def _capacity_market(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="flow-memory capacity",
+        description="Flow Memory Capacity Market simulator CLI. Dry-run and non-binding.",
+    )
+    parser.add_argument(
+        "command",
+        choices=(
+            "inventory",
+            "quote",
+            "hold",
+            "reserve",
+            "release",
+            "reservations",
+            "utilization",
+            "order-book",
+            "forward-quote",
+            "forward-draft",
+            "forward-simulate",
+            "forward-simulate-delivery",
+            "forward-list",
+        ),
+    )
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--gpu-class", "--gpu-type", dest="gpu_class", default="H100")
+    parser.add_argument("--region", default="us-east")
+    parser.add_argument("--hours", type=float, default=100.0)
+    parser.add_argument("--capacity-units", type=float, default=0.0)
+    parser.add_argument("--unit-price", type=float, default=2.5)
+    parser.add_argument("--reservation-id", default="")
+    parser.add_argument("--contract-id", default="")
+    parser.add_argument("--delivery-window", default="")
+    args = parser.parse_args(argv)
+    service = default_capacity_market_service()
+    payload = {
+        "gpu_class": args.gpu_class,
+        "region": args.region,
+        "hours": args.hours,
+        "capacity_units": args.capacity_units,
+        "unit_price": args.unit_price,
+        "reservation_id": args.reservation_id,
+        "contract_id": args.contract_id,
+        "delivery_window": args.delivery_window,
+    }
+    try:
+        if args.command == "inventory":
+            output = service.inventory(payload)
+        elif args.command == "quote":
+            output = service.quote(payload)
+        elif args.command == "hold":
+            output = service.hold(payload)
+        elif args.command == "reserve":
+            output = service.reserve(payload)
+        elif args.command == "release":
+            output = service.release(payload)
+        elif args.command == "reservations":
+            output = service.reservations_list(payload)
+        elif args.command == "utilization":
+            output = service.utilization(payload)
+        elif args.command == "order-book":
+            output = service.order_book(payload)
+        elif args.command == "forward-quote":
+            output = service.forward_quote(payload)
+        elif args.command == "forward-draft":
+            output = service.forward_draft(payload)
+        elif args.command == "forward-simulate":
+            output = service.forward_simulate(payload)
+        elif args.command == "forward-simulate-delivery":
+            output = service.forward_simulate_delivery(payload)
+        else:
+            output = {"ok": True, "contracts": (), "dry_run_only": True, "funds_moved": False}
+    except ValueError as exc:
+        output = {"ok": False, "error": {"message": str(exc), "reason_code": "validation_error"}}
+    return _print_cli_output(output)
+
+
+def _futures(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="flow-memory futures",
+        description="Flow Memory GPU Futures Simulator CLI. Simulation only; no live trading.",
+    )
+    parser.add_argument(
+        "command",
+        choices=(
+            "markets",
+            "contracts",
+            "order-book",
+            "simulate-order",
+            "cancel-order",
+            "positions",
+            "risk-check",
+            "simulate-expiry",
+            "simulate-delivery",
+            "simulate-settlement",
+            "mark-prices",
+            "indexes",
+            "forward-curve",
+        ),
+    )
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--symbol", default="FM-H100-USEAST-Q3-2027")
+    parser.add_argument("--side", default="buy")
+    parser.add_argument("--quantity", type=float, default=1.0)
+    parser.add_argument("--limit-price", type=float, default=2.5)
+    parser.add_argument("--order-id", default="")
+    parser.add_argument("--gpu-class", default="H100")
+    parser.add_argument("--region", default="us-east")
+    args = parser.parse_args(argv)
+    service = default_futures_market_service()
+    payload = {
+        "symbol": args.symbol,
+        "side": args.side,
+        "quantity": args.quantity,
+        "limit_price": args.limit_price,
+        "order_id": args.order_id,
+        "gpu_class": args.gpu_class,
+        "region": args.region,
+    }
+    try:
+        if args.command == "markets":
+            output = service.markets(payload)
+        elif args.command == "contracts":
+            output = service.contracts_list(payload)
+        elif args.command == "order-book":
+            output = service.order_book(payload)
+        elif args.command == "simulate-order":
+            output = service.simulate_order(payload)
+        elif args.command == "cancel-order":
+            output = service.cancel_order(payload)
+        elif args.command == "positions":
+            output = service.positions_list(payload)
+        elif args.command == "risk-check":
+            output = service.risk_check(payload)
+        elif args.command == "simulate-expiry":
+            output = service.expiry_simulate(payload)
+        elif args.command == "simulate-delivery":
+            output = service.delivery_simulate(payload)
+        elif args.command == "simulate-settlement":
+            output = service.settlement_simulate(payload)
+        elif args.command == "mark-prices":
+            output = service.mark_price(payload)
+        elif args.command == "indexes":
+            output = service.indexes(payload)
+        else:
+            output = service.forward_curve(payload)
+    except ValueError as exc:
+        output = {"ok": False, "error": {"message": str(exc), "reason_code": "validation_error"}}
+    return _print_cli_output(output)
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv and argv[0] == "manifest":
         return _manifest(argv[1:])
     if argv and argv[0] == "compute":
         return _compute(argv[1:])
+    if argv and argv[0] == "inference":
+        return _inference(argv[1:])
+    if argv and argv[0] == "capacity":
+        return _capacity_market(argv[1:])
+    if argv and argv[0] == "futures":
+        return _futures(argv[1:])
     if argv and argv[0] == "run":
         argv = argv[1:]
 

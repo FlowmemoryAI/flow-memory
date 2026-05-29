@@ -392,8 +392,8 @@ def validate(
         "supported_unit_types": ["gpu_minute", "gpu_hour", "request"],
         "supported_assets": ["USD", "USDC", "CREDITS"],
         "supported_networks": ["offchain", "solana", "base"],
-        "quote_endpoint": "https://provider.example.com/quote",
-        "health_endpoint": "https://provider.example.com/health",
+        "quote_endpoint": "https://providers.flowmemory.ai/public-buildout/quote",
+        "health_endpoint": "https://providers.flowmemory.ai/public-buildout/health",
         "credentials": {"secret_ref": "external/secret/flow-memory-provider-validation"},
         "sla": {"uptime_target": 0.99, "max_latency_ms": 1000, "refund_policy": "credit"},
     }

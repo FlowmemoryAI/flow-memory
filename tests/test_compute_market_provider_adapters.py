@@ -800,7 +800,7 @@ def test_provider_onboarding_blocks_private_endpoint_outside_test_mode() -> None
                     "supported_unit_types": ("gpu_minute",),
                     "supported_assets": ("USDC",),
                     "supported_networks": ("offchain",),
-                    "quote_endpoint": "https://provider.example.com/quote",
+                    "quote_endpoint": "https://providers.flowmemory.ai/private-endpoint-test/quote",
                     "health_endpoint": health_endpoint,
                 }
             )

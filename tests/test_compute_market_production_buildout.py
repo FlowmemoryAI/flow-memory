@@ -487,13 +487,52 @@ def test_provider_admin_status_cannot_bypass_onboarding_in_production_mode() -> 
         }
     )
     updated = service.update_provider("direct-provider", {"status": "active", "provider_name": "Updated Direct Provider"})
-    applied = service.apply_market_provider({**_provider_application(), "provider_id": "verified-provider"})
+    applied = service.apply_market_provider(
+        {
+            **_provider_application(),
+            "provider_id": "verified-provider",
+            "quote_endpoint": "https://providers.flowmemory.ai/verified/quote",
+            "health_endpoint": "https://providers.flowmemory.ai/verified/health",
+        }
+    )
     verified = service.verify_market_provider("verified-provider", {"verified_by": "ops"})
 
     assert created["provider"]["status"] == "probation"
     assert updated["provider"]["status"] == "probation"
     assert applied["provider_application"]["status"] == "pending"
     assert verified["provider"]["status"] == "active"
+
+
+
+def test_provider_onboarding_rejects_placeholder_public_endpoints_in_production_mode() -> None:
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            require_managed_sql_in_production=False,
+            rate_limits_enabled=False,
+        ),
+    )
+
+    try:
+        service.apply_market_provider(_provider_application())
+    except ValueError as exc:
+        assert "provider quote_endpoint must not use placeholder or reserved domains" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("provider onboarding accepted placeholder endpoints in production mode")
+
+    accepted = service.apply_market_provider(
+        {
+            **_provider_application(),
+            "provider_id": "provider_non_placeholder_endpoint",
+            "quote_endpoint": "https://providers.flowmemory.ai/non-placeholder/quote",
+            "health_endpoint": "https://providers.flowmemory.ai/non-placeholder/health",
+        }
+    )
+
+    assert accepted["provider_application"]["provider_id"] == "provider_non_placeholder_endpoint"
+
 
 def test_provider_listing_includes_global_and_filters_cross_tenant_catalog_records() -> None:
     service = _service()

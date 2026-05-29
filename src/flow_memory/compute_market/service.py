@@ -7473,6 +7473,9 @@ def _enrich_provider(provider: ComputeProvider) -> ComputeProvider:
 
 _CREDENTIAL_VALUE_KEYS = frozenset({"api_key", "token", "access_token", "refresh_token", "password", "secret", "secret_key", "private_key"})
 _ERROR_DETAIL_KEY_FRAGMENTS = ("api_key", "token", "password", "secret", "private_key", "seed", "mnemonic")
+_PROVIDER_PLACEHOLDER_HOST_SUFFIXES = frozenset(
+    ("example.com", "example.test", "example.invalid", "test", "invalid", "yourdomain.com")
+)
 
 
 def _assert_no_inline_credentials(payload: Mapping[str, Any]) -> None:
@@ -7505,6 +7508,14 @@ def _provider_class_from_payload(provider_type: str, payload: Mapping[str, Any])
         raise ValueError(f"unsupported provider_class: {provider_class}")
     return provider_class
 
+
+def _provider_endpoint_placeholder_host(host: str) -> bool:
+    normalized = host.strip().strip("[]").lower().rstrip(".")
+    return normalized in _PROVIDER_PLACEHOLDER_HOST_SUFFIXES or any(
+        normalized.endswith(f".{suffix}") for suffix in _PROVIDER_PLACEHOLDER_HOST_SUFFIXES
+    )
+
+
 def _assert_provider_application_endpoint_allowed(
     endpoint_name: str,
     endpoint: str,
@@ -7516,11 +7527,14 @@ def _assert_provider_application_endpoint_allowed(
     parsed = urllib.parse.urlparse(endpoint)
     if parsed.scheme != "https":
         raise ValueError(f"provider {endpoint_name} must be an https:// URL")
-    if not parsed.hostname:
+    host = (parsed.hostname or "").strip().lower().rstrip(".")
+    if not host:
         raise ValueError(f"provider {endpoint_name} must include a host")
     if parsed.username or parsed.password:
         raise ValueError(f"provider {endpoint_name} must not include userinfo")
-    if compute_market_mode != "test" and _provider_health_private_or_local_host(parsed.hostname):
+    if compute_market_mode != "test" and _provider_endpoint_placeholder_host(host):
+        raise ValueError(f"provider {endpoint_name} must not use placeholder or reserved domains")
+    if compute_market_mode != "test" and _provider_health_private_or_local_host(host):
         raise ValueError(f"provider {endpoint_name} must not point to a private or local network")
 
 

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `df0c3bb Add marketplace alpha public smoke option`
+Latest inspected commit: `1be6568 Document marketplace alpha smoke option`
 
 ## Current architecture
 
@@ -624,4 +624,28 @@ flowchart TD
     Optional --> Capacity[Capacity inventory dry-run check]
     Optional --> Futures[Futures simulator non-live check]
     Futures --> Safety[No live trading or funds movement]
+```
+
+## Checkpoint 2026-05-26 Full typing evidence
+
+Files changed:
+
+- `docs/ops/MULTI_DAY_BUILDOUT_STATUS.md`
+
+Tests run:
+
+- `python -m mypy src tests scripts --config-file pyproject.toml` — OK
+
+Commit: pending.
+
+Implementation:
+
+- Full repository Python typing was rechecked after the latest marketplace, deployment smoke, and capacity-accounting commits.
+- This updates the quality evidence from the older "legacy full-repo mypy remains failing" state to an observed passing full-repo mypy run for the current checkout.
+
+```mermaid
+flowchart TD
+    Code[Current checkout] --> Mypy[Full mypy src tests scripts]
+    Mypy --> Pass[No type errors observed]
+    Pass --> Evidence[Quality evidence checkpoint]
 ```

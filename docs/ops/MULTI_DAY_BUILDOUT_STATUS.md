@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `dabba23 Harden inference proxy scope behavior`
+Latest inspected commit: `3babbb1 Add inference demand price intelligence`
 
 ## Current architecture
 
@@ -437,4 +437,45 @@ flowchart TD
     Proxy --> Warning[streaming_not_implemented warning when requested]
     Proxy --> Usage[Usage record]
     Proxy --> Audit[Inference audit chain]
+```
+
+## Checkpoint 2026-05-26 Demand and price intelligence aliases
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/api/marketplace_endpoints.py`
+- `src/flow_memory/api/router.py`
+- `src/flow_memory/api/manifest.py`
+- `docs/API_SNAPSHOT.json`
+- `docs/openapi/flow-memory.openapi.json`
+- `docs/INFERENCE_MARKET.md`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py tests/test_api_openapi_snapshot.py tests/test_api_snapshot.py tests/test_compute_market_naming.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py src/flow_memory/api/router.py src/flow_memory/api/manifest.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/api/marketplace_endpoints.py src/flow_memory/api/manifest.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commit:
+
+- `3babbb1 Add inference demand price intelligence`
+
+Implementation:
+
+- Added demand aggregation endpoints: `GET /inference/demand`, `GET /inference/demand/summary`, and `POST /inference/demand/forecast`.
+- Added price intelligence endpoints: `GET /inference/prices`, `GET /inference/prices/history`, `GET /inference/prices/spreads`, `GET /inference/prices/anomalies`, and `POST /inference/prices/forecast`.
+- Added deterministic summaries and forecasts so agents can inspect demand before deciding whether to buy, sell, defer, or reserve.
+
+```mermaid
+flowchart TD
+    Demand[Demand snapshots] --> Summary[Demand summary]
+    Summary --> DemandForecast[Demand forecast]
+    Listings[Inference listings] --> PriceSnapshots[Price snapshots]
+    PriceSnapshots --> History[Price history]
+    History --> Spreads[Spreads]
+    History --> Anomalies[Anomalies]
+    History --> PriceForecast[Price forecast]
 ```

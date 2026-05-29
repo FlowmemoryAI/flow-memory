@@ -10,6 +10,14 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
         "\n".join(
             (
                 f"FLOW_MEMORY_API_KEY={api_key}",
+                "FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true",
+                "FLOW_MEMORY_API_NONCE_FAIL_CLOSED=true",
+                "FLOW_MEMORY_API_NONCE_REQUIRE_TLS=true",
+                "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_METRICS_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_TRACING_ENABLED=true",
+                "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
                 "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://db.example.com:5432/flow_memory",
                 "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
@@ -151,6 +159,53 @@ def test_public_buildout_main_blocks_insecure_live_prerequisites_before_network(
         raise AssertionError("public buildout validator accepted insecure production prerequisites")
 
 
+def test_public_buildout_main_blocks_missing_nonce_prerequisites_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace("FLOW_MEMORY_API_ENABLE_NONCE_CHECK=true\n", ""),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing nonce prerequisites")
+
+
+def test_public_buildout_main_blocks_http_observability_sink_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text() + "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=http://alerts.example.com/hook\n",
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL" in message
+        assert '"expected": "https"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted insecure observability sink")
+
+
 def test_public_buildout_main_blocks_incomplete_gateway_jwt_before_network(tmp_path: Any, monkeypatch: Any) -> None:
     env_file = tmp_path / "live.env"
     env_file.write_text(
@@ -245,6 +300,19 @@ def test_public_url_block_reason_rejects_private_networks() -> None:
         assert validator.public_url_block_reason(url) == "public_url_must_use_global_host"
 
 
+def test_public_validator_schema_count_evidence_blocks_underreported_schema() -> None:
+    evidence = validator.postgres_schema_count_evidence(
+        {
+            "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT - 1,
+            "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+        }
+    )
+
+    assert evidence["ok"] is False
+    assert evidence["minimum_table_count"] == validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
+    assert evidence["minimum_index_count"] == validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
+
+
 def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatch: Any) -> None:
     calls: list[tuple[str, str, Mapping[str, str] | None, Mapping[str, Any] | None]] = []
     job_counter = 0
@@ -259,6 +327,11 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     ) -> tuple[int, Mapping[str, Any]]:
         nonlocal job_counter, jwt_health_calls
         calls.append((method, url, headers, body))
+        plan_counter = sum(
+            1
+            for _method, called_url, _headers, _body in calls
+            if called_url.endswith("/compute/plan")
+        )
         scopes = (headers or {}).get("x-flow-memory-scopes", "")
         if url == "https://api.example.test/":
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
@@ -299,15 +372,18 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
         if url.endswith("/compute/plan") and scopes == "compute:read":
             return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/compute/plan"):
+            replay = plan_counter >= 2
             return 200, {
                 "ok": True,
                 "data": {
+                    "idempotent_replay": replay,
                     "compute_plan": {
+                        "decision_id": "decision_public_buildout",
                         "dry_run_only": True,
                         "funds_moved": False,
                         "broadcast_allowed": False,
                         "private_key_required": False,
-                    }
+                    },
                 },
             }
         if url.endswith("/compute/audit/verify"):
@@ -401,6 +477,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "missing_tables": [],
                         "missing_indexes": [],
                         "advisory_lock_probe": {"acquired": True},
+                        "required_table_count": validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT,
+                        "required_index_count": validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT,
                     },
                 },
             }
@@ -457,6 +535,10 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["audit_export_write"] == 200
     assert result["audit_export_write_manifest_hash_present"] is True
     assert result["audit_export_write_event_count"] == 2
+    assert result["plan_idempotent_replay"] is True
+    assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
+    assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
+    assert result["audit_exporter"] == "s3_object_lock"
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"
     assert result["require_managed_sql_in_production"] is True
@@ -511,3 +593,13 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert receipt_calls[1][3] is not None
     assert "signature" not in receipt_calls[1][3]
     assert receipt_calls[1][3]["receipt"]["funds_moved"] is False
+    plan_calls = [
+        call
+        for call in calls
+        if call[1].endswith("/compute/plan")
+        and call[2] is not None
+        and call[2].get("x-flow-memory-scopes") == "compute:plan"
+    ]
+    assert len(plan_calls) == 2
+    assert plan_calls[0][3] is not None and plan_calls[1][3] is not None
+    assert plan_calls[0][3]["idempotency_key"] == plan_calls[1][3]["idempotency_key"]

@@ -15,6 +15,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Mapping
 
+from flow_memory.compute_market.storage import migration_plan
+
 
 PUBLIC_TASK = "Flow Memory Compute Market public production buildout validation"
 _PLACEHOLDER_PUBLIC_URL_FRAGMENTS = (
@@ -38,6 +40,23 @@ _PLACEHOLDER_API_KEY_FRAGMENTS = (
     "high-entropy-api-key",
 )
 _WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", "password"))
+_MIN_POSTGRES_SCHEMA_TABLE_COUNT_FALLBACK = 110
+_MIN_POSTGRES_SCHEMA_INDEX_COUNT_FALLBACK = 1311
+_LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
+    "FLOW_MEMORY_API_ENABLE_NONCE_CHECK": "true",
+    "FLOW_MEMORY_API_NONCE_FAIL_CLOSED": "true",
+    "FLOW_MEMORY_API_NONCE_REQUIRE_TLS": "true",
+    "FLOW_MEMORY_COMPUTE_RATE_LIMITS_ENABLED": "true",
+    "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED": "true",
+    "FLOW_MEMORY_COMPUTE_METRICS_ENABLED": "true",
+    "FLOW_MEMORY_COMPUTE_TRACING_ENABLED": "true",
+    "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
+}
+_OBSERVABILITY_HTTPS_URL_KEYS = (
+    "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
+    "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
+    "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+)
 _PRODUCTION_ENV_REQUIRED_KEYS = (
     "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND",
     "FLOW_MEMORY_COMPUTE_DATABASE_URL",
@@ -56,6 +75,7 @@ _PRODUCTION_ENV_REQUIRED_KEYS = (
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION",
+    *_LEVEL1_EXPECTED_BOOLEAN_SETTINGS.keys(),
 )
 _PRODUCTION_ENV_EXPECTED_VALUES = {
     "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND": "postgres",
@@ -69,6 +89,7 @@ _PRODUCTION_ENV_EXPECTED_VALUES = {
     "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED": "false",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED": "true",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED": "true",
+    **_LEVEL1_EXPECTED_BOOLEAN_SETTINGS,
 }
 _PLACEHOLDER_INFRA_FRAGMENTS = _PLACEHOLDER_API_KEY_FRAGMENTS + (
     "yourdomain.com",
@@ -81,6 +102,49 @@ _PLACEHOLDER_INFRA_FRAGMENTS = _PLACEHOLDER_API_KEY_FRAGMENTS + (
     "<audit_export_uri>",
 )
 
+
+def _postgres_schema_floor() -> tuple[int, int]:
+    plan = migration_plan()
+    steps = plan.get("steps", ())
+    step = steps[0] if steps else {}
+    if not isinstance(step, Mapping):
+        return _MIN_POSTGRES_SCHEMA_TABLE_COUNT_FALLBACK, _MIN_POSTGRES_SCHEMA_INDEX_COUNT_FALLBACK
+    table_count = int(step.get("postgres_table_count", 0) or 0) + 1
+    index_count = int(step.get("postgres_index_count", 0) or 0)
+    return (
+        max(table_count, _MIN_POSTGRES_SCHEMA_TABLE_COUNT_FALLBACK),
+        max(index_count, _MIN_POSTGRES_SCHEMA_INDEX_COUNT_FALLBACK),
+    )
+
+
+MIN_POSTGRES_SCHEMA_TABLE_COUNT, MIN_POSTGRES_SCHEMA_INDEX_COUNT = _postgres_schema_floor()
+
+
+def _int_field(value: object) -> int:
+    if value in (None, ""):
+        return 0
+    try:
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            return int(value)
+        return int(str(value))
+    except ValueError:
+        return 0
+
+
+def postgres_schema_count_evidence(schema: Mapping[str, Any]) -> Mapping[str, Any]:
+    table_count = _int_field(schema.get("required_table_count"))
+    index_count = _int_field(schema.get("required_index_count"))
+    return {
+        "ok": table_count >= MIN_POSTGRES_SCHEMA_TABLE_COUNT and index_count >= MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+        "required_table_count": table_count,
+        "minimum_table_count": MIN_POSTGRES_SCHEMA_TABLE_COUNT,
+        "required_index_count": index_count,
+        "minimum_index_count": MIN_POSTGRES_SCHEMA_INDEX_COUNT,
+    }
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -257,6 +321,13 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
                 }
             )
 
+    for key in _OBSERVABILITY_HTTPS_URL_KEYS:
+        sink_url = values.get(key, "").strip()
+        if not sink_url or has_infra_placeholder(sink_url):
+            continue
+        scheme = urllib.parse.urlparse(sink_url).scheme.lower()
+        if scheme != "https":
+            invalid.append({"key": key, "actual": scheme, "expected": "https"})
     if missing or placeholders or invalid:
         raise SystemExit(
             "production environment prerequisites failed: "
@@ -351,11 +422,14 @@ def validate(
     headers_settlement = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:settlement-admin"}
     headers_admin = {"x-flow-memory-api-key": api_key, "x-flow-memory-scopes": "compute:admin"}
 
+    suffix = str(int(time.time()))
+    plan_idempotency_key = f"plan_public_buildout_{suffix}"
     checks: dict[str, Any] = {}
     checks["root"] = call_json("GET", f"{base}/")
     checks["health"] = call_json("GET", f"{base}/compute/health", headers_read)
     checks["readiness"] = call_json("GET", f"{base}/compute/readiness", headers_read)
-    checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, {"task": PUBLIC_TASK, "dry_run": True})
+    checks["plan"] = call_json("POST", f"{base}/compute/plan", headers_plan, {"task": PUBLIC_TASK, "idempotency_key": plan_idempotency_key, "dry_run": True})
+    checks["plan_replay"] = call_json("POST", f"{base}/compute/plan", headers_plan, {"task": f"{PUBLIC_TASK} idempotency replay", "idempotency_key": plan_idempotency_key, "dry_run": True})
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, {"task": PUBLIC_TASK, "dry_run": True})
@@ -381,7 +455,6 @@ def validate(
             {"task": PUBLIC_TASK, "dry_run": True},
         )
 
-    suffix = str(int(time.time()))
     provider_id = f"provider_public_buildout_{suffix}"
     route_id = f"route_public_buildout_{suffix}"
     account_id = f"acct_public_buildout_{suffix}"
@@ -560,6 +633,7 @@ def validate(
     root_data = data(checks["root"][1])
     readiness = data(checks["readiness"][1])
     plan = data(checks["plan"][1]).get("compute_plan", {})
+    plan_replay = data(checks["plan_replay"][1]).get("compute_plan", {})
     job = data(checks["job_create"][1]).get("job", {})
     checkout = data(checks["billing_checkout"][1]).get("checkout", {})
     refund = data(checks["billing_refund"][1]).get("refund", {})
@@ -570,9 +644,14 @@ def validate(
     safety_defaults = readiness.get("production_safety_defaults", {})
     schema_verification = storage_diag.get("schema_verification", {})
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {})
+    schema_count_evidence = postgres_schema_count_evidence(schema_verification)
 
     audit_export_status = data(checks["admin_audit_export"][1])
     audit_export_write = data(checks["audit_export_write"][1])
+    audit_exporter_status = audit_export_status.get("audit_exporter_status", {})
+    audit_exporter_status_map = audit_exporter_status if isinstance(audit_exporter_status, Mapping) else {}
+    audit_exporter_name = str(audit_exporter_status_map.get("exporter", ""))
+    audit_export_is_immutable = audit_export_status.get("immutable") is True or audit_exporter_status_map.get("immutable") is True
     require(checks["root"][0] == 200 and root_data.get("service") == "Flow Memory Compute Market", "root public landing failed")
     require(checks["health"][0] == 200 and data(checks["health"][1]).get("ok") is True, "health failed")
     require(checks["readiness"][0] == 200 and readiness.get("ready") is True, "readiness failed")
@@ -597,6 +676,12 @@ def validate(
     require(safety_defaults.get("audit_export_required") is True, "audit export requirement is not enabled")
     require(safety_defaults.get("stripe_checkout_enabled") is False, "Stripe Checkout must remain disabled for Level 1")
     require(plan.get("dry_run_only") is True and plan.get("funds_moved") is False and plan.get("broadcast_allowed") is False and plan.get("private_key_required") is False, "plan safety flags failed")
+    require(
+        checks["plan_replay"][0] == 200
+        and data(checks["plan_replay"][1]).get("idempotent_replay") is True
+        and plan_replay.get("decision_id") == plan.get("decision_id"),
+        "plan idempotent replay failed",
+    )
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
@@ -631,13 +716,17 @@ def validate(
         and advisory_lock_probe.get("acquired") is True,
         "admin storage schema verification failed",
     )
+    require(
+        schema_count_evidence.get("ok") is True,
+        f"admin storage schema count floor failed: {json.dumps(schema_count_evidence, sort_keys=True)}",
+    )
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
     require(
         redis_diag.get("rate_limit_fail_closed") is True
         and redis_diag.get("circuit_breaker_fail_closed") is True,
         "admin redis diagnostics did not report fail-closed Redis controls",
     )
-    require(checks["admin_audit_export"][0] == 200 and "audit_exporter_status" in audit_export_status, "admin audit export status failed")
+    require(checks["admin_audit_export"][0] == 200 and isinstance(audit_exporter_status, Mapping), "admin audit export status failed")
     require(
         checks["audit_export_write"][0] == 200
         and audit_export_write.get("ok") is True
@@ -647,11 +736,15 @@ def validate(
     )
     if require_immutable_audit:
         require(
-            audit_export_status.get("immutable") is True
-            and audit_export_status.get("audit_exporter_status", {}).get("exporter") == "s3_object_lock",
+            audit_export_is_immutable and audit_exporter_name == "s3_object_lock",
             "admin audit export is not immutable S3 Object Lock storage",
         )
         require(safety_defaults.get("audit_export_immutable_required") is True, "immutable audit export requirement is not enabled")
+    else:
+        require(
+            audit_export_is_immutable or audit_exporter_name in {"s3_object_lock", "local_file"},
+            "admin audit export is neither immutable nor an allowed local/S3 exporter",
+        )
 
     return {
         "status": "passed",
@@ -676,9 +769,15 @@ def validate(
         "funds_moved": False,
         "broadcast_allowed": False,
         "private_key_required": False,
+        "plan_idempotent_replay": data(checks["plan_replay"][1]).get("idempotent_replay"),
         "audit_export_immutable": audit_export_status.get("immutable"),
         "audit_export_write_manifest_hash_present": bool(audit_export_write.get("manifest_hash")),
         "audit_export_write_event_count": audit_export_write.get("event_count"),
+        "postgres_required_table_count": schema_count_evidence.get("required_table_count"),
+        "postgres_minimum_table_count": schema_count_evidence.get("minimum_table_count"),
+        "postgres_required_index_count": schema_count_evidence.get("required_index_count"),
+        "postgres_minimum_index_count": schema_count_evidence.get("minimum_index_count"),
+        "audit_exporter": audit_exporter_name,
     }
 
 

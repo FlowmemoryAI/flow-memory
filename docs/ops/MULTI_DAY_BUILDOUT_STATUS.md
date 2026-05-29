@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `f95c4d5 Extend public proxy smoke coverage`
+Latest inspected commit: `3806d3f Document proxy smoke parity`
 
 ## Current architecture
 

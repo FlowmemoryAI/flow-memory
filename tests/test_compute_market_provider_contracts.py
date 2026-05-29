@@ -150,6 +150,16 @@ def test_provider_contract_rejects_malformed_settlement_modes_and_missing_dry_ru
     assert "dry_run_not_supported" in result.error_codes
 
 
+def test_provider_contract_rejects_live_settlement_modes() -> None:
+    result = validate_provider_quote_contract(
+        _valid_quote(settlement_modes=["generic_dry_run", "mainnet_settlement"]),
+        provider_id="provider-local-gpu",
+    )
+
+    assert result.ok is False
+    assert "unsafe_settlement_mode" in result.error_codes
+
+
 def test_provider_contract_json_fixture_shapes_cover_route_types() -> None:
     fixtures = [
         _valid_quote(quote_id="quote-token", unit_type="token", route_id="route-token"),

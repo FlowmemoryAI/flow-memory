@@ -50,6 +50,9 @@ _UNSAFE_FIELDS = (
     "custody",
     "mainnet settlement",
 )
+_SAFE_SETTLEMENT_MODES = frozenset(
+    ("dry_run", "generic_dry_run", "invoice", "external_checkout", "prepaid_credits")
+)
 
 
 @dataclass(frozen=True)
@@ -129,6 +132,8 @@ class ProviderQuoteContract:
             errors.append("disallowed_network")
         if not isinstance(quote.get("settlement_modes", ()), (tuple, list)):
             errors.append("settlement_modes_malformed")
+        elif any(str(mode).strip() not in _SAFE_SETTLEMENT_MODES for mode in quote.get("settlement_modes", ())):
+            errors.append("unsafe_settlement_mode")
         if "policy" in quote or "policy_override" in quote or "ignore_policy" in quote:
             errors.append("policy_override_attempt")
         signature_present = "signature" in quote or "verification" in quote

@@ -4524,6 +4524,32 @@ def test_compute_job_claims_are_workspace_isolated_within_tenant() -> None:
     reloaded_b = service.get_job(job_b_id, {"tenant_id": tenant_id, "workspace_id": "workspace_b"})["job"]
     assert reloaded_b["status"] == "queued"
 
+def test_compute_job_cancel_and_retry_require_claim_owner() -> None:
+    service = _service()
+    tenant_id = "tenant_claim_owner"
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_claim_owner",
+                "tenant_id": tenant_id,
+            }
+        )["job"]["job_id"]
+    )
+    claimed = service.claim_job({"job_id": job_id, "tenant_id": tenant_id, "worker_id": "worker_a"})
+
+    assert claimed["job"]["claimed_by"] == "worker_a"
+    with pytest.raises(ValueError, match="worker_id does not own claim.*cancel"):
+        service.cancel_job(job_id, {"tenant_id": tenant_id, "worker_id": "worker_b"})
+    with pytest.raises(ValueError, match="Unsafe compute market payload rejected: live_settlement"):
+        service.cancel_job(job_id, {"tenant_id": tenant_id, "worker_id": "worker_a", "live_settlement": True})
+    with pytest.raises(ValueError, match="worker_id does not own claim.*retry"):
+        service.retry_job(job_id, {"tenant_id": tenant_id, "worker_id": "worker_b"})
+
+    cancelled = service.cancel_job(job_id, {"tenant_id": tenant_id, "worker_id": "worker_a"})
+    assert cancelled["ok"] is True
+    assert cancelled["job"]["status"] == "cancelled"
+
 
 def test_compute_job_retry_respects_max_retries() -> None:
     service = _service()

@@ -4292,10 +4292,12 @@ class ComputeMarketService:
         }
 
     def cancel_job(self, job_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
         if str(job.get("status", "")) in {"succeeded", "failed", "cancelled"}:
             return {"ok": True, "job": job, "unchanged": True}
+        _assert_claim_owner(job, payload, "cancel")
         credit_release: Mapping[str, Any] = {}
         capacity_release: Mapping[str, Any] = {}
         cancelled_at = utc_now_iso()
@@ -4403,6 +4405,7 @@ class ComputeMarketService:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
+        _assert_claim_owner(job, payload, "retry")
         current_attempts = int(job.get("attempt", 0) or 0)
         max_retries = _job_max_retries(job)
         if current_attempts >= max_retries:

@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `ab5b2cf Expand OpenAI-compatible inference proxy`
+Latest inspected commit: `f1ebd35 Document OpenAI proxy expansion`
 
 ## Current architecture
 

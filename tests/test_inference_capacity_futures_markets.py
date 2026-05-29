@@ -417,6 +417,13 @@ def test_cli_inference_capacity_and_futures_commands(capsys: pytest.CaptureFixtu
     price_forecast = json.loads(capsys.readouterr().out)
     assert price_forecast["forecast"]["confidence"] == "simulated"
 
+    assert main(["inference", "proxy-smoke", "--api", "all", "--task", "hello"]) == 0
+    proxy_smoke = json.loads(capsys.readouterr().out)
+    assert proxy_smoke["dry_run_only"] is True
+    assert proxy_smoke["chat_completion"]["flow_memory"]["funds_moved"] is False
+    assert proxy_smoke["response"]["flow_memory"]["broadcast_allowed"] is False
+    assert proxy_smoke["embeddings"]["flow_memory"]["private_key_required"] is False
+
     assert main(["capacity", "quote", "--gpu-class", "H100", "--region", "us-east", "--hours", "10"]) == 0
     capacity = json.loads(capsys.readouterr().out)
     assert capacity["quote"]["funds_moved"] is False

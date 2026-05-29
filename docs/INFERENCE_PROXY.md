@@ -40,7 +40,10 @@ Raw provider credentials, private keys, seed phrases, live settlement flags, and
 
 ```bash
 flow-memory inference proxy-smoke --model flow-local-small --task "hello" --json
+flow-memory inference proxy-smoke --api all --model flow-local-small --task "hello" --json
 ```
+
+`--api all` exercises chat completions, Responses, and Embeddings through the deterministic fake provider path and asserts only dry-run, no-funds proxy behavior.
 
 Anthropic-compatible local smoke:
 

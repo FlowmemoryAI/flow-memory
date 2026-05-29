@@ -657,6 +657,12 @@ def _add_inference_cli_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--units", type=float, default=1000.0)
     parser.add_argument("--unit-price", type=float, default=0.0000008)
     parser.add_argument("--allow-sell-unused", action="store_true")
+    parser.add_argument(
+        "--api",
+        choices=("chat", "responses", "embeddings", "all"),
+        default="chat",
+        help="Proxy API surface to smoke-test for proxy-smoke.",
+    )
 
 
 def _add_capacity_cli_args(parser: argparse.ArgumentParser) -> None:
@@ -694,6 +700,7 @@ def _normalize_inference_argv(argv: list[str]) -> list[str]:
 
 def _inference(argv: list[str]) -> int:
     argv = _normalize_inference_argv(argv)
+    model_was_provided = any(arg == "--model" or arg.startswith("--model=") for arg in argv)
     parser = argparse.ArgumentParser(
         prog="flow-memory inference",
         description="Flow Memory Inference Market CLI. Dry-run only; no funds, private keys, or broadcast.",
@@ -738,6 +745,7 @@ def _inference(argv: list[str]) -> int:
         "units": args.units,
         "unit_price": args.unit_price,
         "allow_sell_unused": args.allow_sell_unused,
+        "proxy_api": args.api,
     }
     try:
         if args.command in {"plan", "opportunity-cost"}:
@@ -777,9 +785,36 @@ def _inference(argv: list[str]) -> int:
         elif args.command == "sell":
             output = service.sell(payload)
         else:
-            output = service.proxy_chat_completion(
-                {"model": args.model, "messages": [{"role": "user", "content": args.task}]}
-            )
+            proxy_api = str(args.api)
+            proxy_model = str(args.model if model_was_provided else "flow-local-small")
+            if proxy_api == "chat":
+                output = service.proxy_chat_completion(
+                    {"model": proxy_model, "messages": [{"role": "user", "content": args.task}]}
+                )
+            elif proxy_api == "responses":
+                output = service.proxy_response({"model": proxy_model, "input": args.task})
+            elif proxy_api == "embeddings":
+                output = service.proxy_embeddings({"model": proxy_model, "input": args.task})
+            else:
+                chat = service.proxy_chat_completion(
+                    {"model": proxy_model, "messages": [{"role": "user", "content": args.task}]}
+                )
+                response = service.proxy_response({"model": proxy_model, "input": args.task})
+                embeddings = service.proxy_embeddings({"model": proxy_model, "input": args.task})
+                output = {
+                    "ok": all(
+                        bool(item.get("ok", True))
+                        for item in (chat, response, embeddings)
+                        if isinstance(item, Mapping)
+                    ),
+                    "chat_completion": chat,
+                    "response": response,
+                    "embeddings": embeddings,
+                    "dry_run_only": True,
+                    "funds_moved": False,
+                    "broadcast_allowed": False,
+                    "private_key_required": False,
+                }
     except ValueError as exc:
         output = {"ok": False, "error": {"message": str(exc), "reason_code": "validation_error"}}
     return _print_cli_output(output)

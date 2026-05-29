@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `2315f86 Exercise signed provider quote conformance`
+Latest inspected commit: `b0c7912 Harden HTTP provider quote validation`
 
 ## Current architecture
 
@@ -1138,4 +1138,39 @@ flowchart TD
     SandboxQuote --> Unsafe[Live-settlement variant]
     Stale --> RejectStale[stale and expired rejected]
     Unsafe --> RejectUnsafe[live settlement rejected]
+```
+
+## Checkpoint 2026-05-26 HTTP provider quote validation hardening
+
+Files changed:
+
+- `src/flow_memory/compute_market/adapters.py`
+- `tests/test_compute_market_provider_adapters.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_provider_adapters.py::test_http_provider_rejects_unconfigured_route_and_missing_expiry tests/test_compute_market_provider_adapters.py::test_http_provider_honors_provider_marked_stale_quote tests/test_compute_market_provider_adapters.py::test_external_provider_adapter_verifies_signed_quote_responses -q` — 3 passed
+- `python -m pytest tests/test_compute_market_provider_adapters.py tests/test_compute_market_provider_contracts.py tests/test_compute_market_provider_conformance_script.py -q` — 35 passed
+- `python -m ruff check src/flow_memory/compute_market/adapters.py tests/test_compute_market_provider_adapters.py` — OK
+- `python -m mypy src/flow_memory/compute_market/adapters.py tests/test_compute_market_provider_adapters.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 432 passed, 2 skipped
+- `git diff --check -- src/flow_memory/compute_market/adapters.py tests/test_compute_market_provider_adapters.py` — clean
+
+Commit: `b0c7912 Harden HTTP provider quote validation`.
+
+Implementation:
+
+- HTTP provider quotes must now include `expires_at`; missing expiration is treated as an invalid provider response.
+- HTTP provider quotes are rejected when they claim an unconfigured route for providers with explicit route records.
+- Provider-marked stale quotes now normalize to stale status even when the timestamp itself is still in the future.
+
+```mermaid
+flowchart TD
+    RawQuote[HTTP provider quote] --> Required[Required fields include expires_at]
+    RawQuote --> RouteCheck[Provider route-id check]
+    RawQuote --> StaleFlag[Provider stale flag]
+    Required --> Valid{Valid response?}
+    RouteCheck --> Valid
+    Valid -->|No| Invalid[invalid_response]
+    StaleFlag --> Stale[stale quote status]
 ```

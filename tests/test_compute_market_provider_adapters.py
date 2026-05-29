@@ -9,7 +9,11 @@ from typing import Any, Mapping, cast
 from flow_memory.compute_market.adapters import HTTPQuoteProvider, QuoteCollector, RetryPolicy, build_external_provider_adapter, signed_provider_request_headers
 from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeMarketPolicy
-from flow_memory.compute_market.provider_contracts import EXECUTION_RESULT_SIGNATURE_CONTEXT, QUOTE_SIGNATURE_CONTEXT
+from flow_memory.compute_market.provider_contracts import (
+    EXECUTION_RESULT_SIGNATURE_CONTEXT,
+    QUOTE_SIGNATURE_CONTEXT,
+    validate_provider_quote_contract,
+)
 from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_execute, sandbox_quote, verify_provider_sandbox_request
 from flow_memory.compute_market.service import ComputeMarketService
 from flow_memory.compute_market.storage import ComputeMarketStore
@@ -384,6 +388,22 @@ def test_external_provider_adapter_verifies_signed_quote_responses() -> None:
     assert quotes[0].signed_quote_valid is True
     assert quotes[0].signed_quote
     assert all(quote.status == "invalid_response" for quote in tampered)
+
+
+def test_provider_quote_contract_rejects_empty_public_key_signature_bypass() -> None:
+    signer = LocalTestSigner("provider-response-key", "provider-response-seed")
+    unsigned = _quote()
+    signed = _signed_provider_payload(unsigned, signer, QUOTE_SIGNATURE_CONTEXT)
+    tampered = {**signed, "estimated_total_cost": 9.99}
+
+    validation = validate_provider_quote_contract(
+        tampered,
+        provider_id="market-token-provider",
+        public_key={},
+    )
+
+    assert validation.ok is False
+    assert "invalid_signature" in validation.error_codes
 
 
 def test_service_external_provider_quote_preserves_signed_payload_for_broker_validation() -> None:

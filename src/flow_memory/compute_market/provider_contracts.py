@@ -146,12 +146,13 @@ class ProviderQuoteContract:
             errors.append("unsafe_settlement_mode")
         if "policy" in quote or "policy_override" in quote or "ignore_policy" in quote:
             errors.append("policy_override_attempt")
+        public_key_required = _public_key_required(self.public_key)
         signature_present = "signature" in quote or "verification" in quote
-        if not signature_present and self.public_key:
+        if not signature_present and public_key_required:
             errors.append("missing_signature")
         elif not signature_present:
             warnings.append("unsigned_quote")
-        elif self.public_key and not verify_provider_quote_signature(quote, self.public_key, signature_context=QUOTE_SIGNATURE_CONTEXT):
+        elif public_key_required and not verify_provider_quote_signature(quote, self.public_key, signature_context=QUOTE_SIGNATURE_CONTEXT):
             errors.append("invalid_signature")
         return ProviderContractValidation(ok=not errors, error_codes=tuple(dict.fromkeys(errors)), warnings=tuple(warnings))
 
@@ -228,6 +229,10 @@ def _public_key_record(public_key: str | Mapping[str, Any], envelope: Mapping[st
     if not key_id or not algorithm or not key_value:
         return None
     return PublicKeyRecord(key_id=key_id, algorithm=algorithm, public_key=key_value, local_only=local_only)
+
+
+def _public_key_required(public_key: str | Mapping[str, Any]) -> bool:
+    return isinstance(public_key, Mapping) or bool(str(public_key or "").strip())
 
 def _float_or_none(value: object) -> float | None:
     if value is None or value == "":

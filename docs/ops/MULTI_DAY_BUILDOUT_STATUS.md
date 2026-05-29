@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `e1b93aa Lock nonce TLS deployment templates`
+Latest inspected commit: `03c072c Assert Redis nonce TLS config binding`
 
 ## Current architecture
 
@@ -1548,4 +1548,35 @@ flowchart TD
     Compose[docker-compose] --> NonceTLS
     Render[render.yaml] --> NonceTLS
     NonceTLS --> Validator[Public buildout validation]
+```
+
+## Checkpoint 2026-05-26 API server Redis nonce config binding
+
+Files changed:
+
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_api_server_cli_builds_redis_nonce_guard_from_public_env -q` — 1 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 50 passed
+- `python -m ruff check tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 441 passed, 2 skipped
+- `git diff --check -- tests/test_compute_market_live_deployment.py` — clean
+
+Commit: `03c072c Assert Redis nonce TLS config binding`.
+
+Implementation:
+
+- The API server CLI public-env test now asserts Redis nonce prefix and TLS verification fields are bound into `HttpApiConfig`.
+- This closes the chain from deployment templates through CLI config into the actual nonce replay guard configuration.
+- The public deployment path now has tests covering nonce backend, prefix, fail-closed, TLS-required, and TLS-verify settings.
+
+```mermaid
+flowchart TD
+    Env[Public env vars] --> ServerCLI[build_http_api_config]
+    ServerCLI --> Config[HttpApiConfig]
+    Config --> RedisNonce[Redis nonce replay store]
+    Config --> TLSVerify[nonce_verify_tls true]
 ```

@@ -49,6 +49,8 @@ UNSAFE_PAYLOAD_TOKENS: tuple[str, ...] = (
     "leverage",
     "margin",
 )
+UNSAFE_WORD_TOKENS = frozenset(("transfer", "withdraw", "deposit", "custody", "leverage", "margin"))
+
 
 _T = TypeVar("_T")
 
@@ -1469,8 +1471,9 @@ class InferenceMarketService:
 
     def _assert_safe_payload(self, payload: Mapping[str, Any]) -> None:
         flattened = _flatten_payload(payload).lower()
+        padded_flattened = f" {flattened} "
         for token in UNSAFE_PAYLOAD_TOKENS:
-            if token in flattened:
+            if _contains_unsafe_token(flattened, padded_flattened, token):
                 raise ValueError(f"unsafe inference market payload rejected: {token}")
         if bool(payload.get("broadcast", False)):
             raise ValueError("unsafe inference market payload rejected: broadcast")
@@ -1594,6 +1597,11 @@ def _flatten_payload(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
+
+def _contains_unsafe_token(flattened: str, padded_flattened: str, token: str) -> bool:
+    if token in UNSAFE_WORD_TOKENS:
+        return f" {token} " in padded_flattened
+    return token in flattened
 
 
 def _proxy_input_text(value: Any) -> str:

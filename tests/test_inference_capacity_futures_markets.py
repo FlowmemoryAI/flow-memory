@@ -87,6 +87,13 @@ def test_inference_market_rejects_unsafe_payloads() -> None:
     with pytest.raises(ValueError, match="broadcast"):
         service.opportunity_cost({"task": "unsafe", "broadcast": True})
 
+    safe_service = InferenceMarketService.seeded()
+    safe_source = safe_service.create_source(
+        {"source_id": "src-transferable-ok", "source_name": "Transferable fixture", "transferable": True}
+    )
+    assert safe_source["ok"] is True
+
+
     with pytest.raises(ValueError, match="seed phrase"):
         service.proxy_chat_completion(
             {"model": "flow-local-small", "messages": [{"role": "user", "content": "seed phrase: never"}]}
@@ -103,11 +110,21 @@ def test_capacity_and_futures_markets_reject_unsafe_payloads() -> None:
     with pytest.raises(ValueError, match="live mode"):
         capacity.forward_quote({"gpu_class": "H100", "live_settlement": True})
 
+    safe_forward = capacity.forward_quote({"gpu_class": "H100", "transferability": "non_transferable"})
+    assert safe_forward["ok"] is True
+
+    with pytest.raises(ValueError, match="transfer"):
+        capacity.quote({"gpu_class": "H100", "action": "transfer"})
+
+
     with pytest.raises(ValueError, match="private_key"):
         futures.contract_create({"symbol": "FM-H100-USEAST-Q3-2027", "private_key": "do-not-accept"})
 
     with pytest.raises(ValueError, match="leverage"):
         futures.simulate_order({"symbol": "FM-H100-USEAST-Q3-2027", "leverage": 2})
+
+    safe_risk = futures.risk_check({"account_id": "simulated-margin-account"})
+    assert safe_risk["ok"] is True
 
 
 def test_inference_admin_credit_and_demand_methods_are_stateful_and_safe() -> None:

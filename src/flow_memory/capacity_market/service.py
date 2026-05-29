@@ -39,6 +39,8 @@ UNSAFE_TOKENS: tuple[str, ...] = (
     "leverage",
     "margin",
 )
+UNSAFE_WORD_TOKENS = frozenset(("transfer", "withdraw", "deposit", "custody", "leverage", "margin"))
+
 
 _T = TypeVar("_T")
 
@@ -560,8 +562,9 @@ class CapacityMarketService:
 
     def _assert_safe_payload(self, payload: Mapping[str, Any]) -> None:
         flattened = _flatten_payload(payload).lower()
+        padded_flattened = f" {flattened} "
         for token in UNSAFE_TOKENS:
-            if token in flattened:
+            if _contains_unsafe_token(flattened, padded_flattened, token):
                 raise ValueError(f"unsafe capacity market payload rejected: {token}")
         if bool(payload.get("live_futures", False)) or bool(payload.get("live_settlement", False)):
             raise ValueError("unsafe capacity market payload rejected: live mode")
@@ -591,6 +594,11 @@ def _flatten_payload(value: Any) -> str:
     if isinstance(value, (list, tuple)):
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
+
+def _contains_unsafe_token(flattened: str, padded_flattened: str, token: str) -> bool:
+    if token in UNSAFE_WORD_TOKENS:
+        return f" {token} " in padded_flattened
+    return token in flattened
 
 
 def _dataclass_from_record(model_type: type[_T], record: Mapping[str, Any]) -> _T:

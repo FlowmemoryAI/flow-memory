@@ -868,3 +868,39 @@ flowchart TD
     Futures --> Deny
     Deny --> SafeAction[Return safe denial path]
 ```
+
+## Checkpoint 2026-05-26 Unsafe payload word-boundary hardening
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/capacity_market/service.py`
+- `src/flow_memory/futures_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q` — 17 passed
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/capacity_market src/flow_memory/futures_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py tests/test_inference_capacity_futures_markets.py` — clean
+
+Commit: `4ebde60 Avoid unsafe payload false positives`.
+
+Implementation:
+
+- Unsafe word tokens such as `transfer`, `margin`, and `leverage` now match as standalone request words instead of substring-matching legitimate marketplace fields.
+- Legitimate `transferable`, `non_transferable`, and simulated margin-account identifiers remain accepted where they are part of dry-run models.
+- Explicit transfer, live settlement, wallet-private-key, private-key, and leverage requests are still rejected.
+
+```mermaid
+flowchart TD
+    Payload[Marketplace payload] --> Scanner[Safety scanner]
+    Scanner --> Exact[Exact unsafe fields]
+    Scanner --> Word[Standalone unsafe words]
+    Scanner --> Legit[Legitimate dry-run fields]
+    Exact --> Reject[Reject]
+    Word --> Reject
+    Legit --> Continue[Continue simulation]
+```

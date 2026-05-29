@@ -206,6 +206,12 @@ class CircuitBreaker(Protocol):
     def reset(self, provider_id: str, *, route_id: str = "", adapter_type: str = "") -> None:
         ...
 
+    def open_keys(self) -> tuple[str, ...]:
+        ...
+
+    def open_provider_ids(self) -> tuple[str, ...]:
+        ...
+
 
 @dataclass
 class InMemoryCircuitBreaker:
@@ -323,6 +329,12 @@ class DistributedCircuitBreaker:
 
     def reset(self, provider_id: str, *, route_id: str = "", adapter_type: str = "") -> None:
         raise RuntimeError("distributed circuit breaker is not configured; inject a concrete backend")
+
+    def open_keys(self) -> tuple[str, ...]:
+        return ()
+
+    def open_provider_ids(self) -> tuple[str, ...]:
+        return ()
 @dataclass
 class NoopRateLimiter:
     """Explicitly disabled limiter for tests or gateway-enforced deployments."""
@@ -378,6 +390,12 @@ class NoopCircuitBreaker:
 
     def reset(self, provider_id: str, *, route_id: str = "", adapter_type: str = "") -> None:
         return None
+
+    def open_keys(self) -> tuple[str, ...]:
+        return ()
+
+    def open_provider_ids(self) -> tuple[str, ...]:
+        return ()
 
 
 @dataclass
@@ -591,6 +609,27 @@ class RedisCircuitBreaker:
         except Exception:
             return None
 
+    def open_keys(self) -> tuple[str, ...]:
+        if not self.redis_url:
+            return ()
+        try:
+            redis_client = self._client()
+            prefix = f"{self.prefix}:circuit:"
+            keys: list[str] = []
+            for raw_key in _redis_scan_iter(redis_client, f"{prefix}*"):
+                key = raw_key.decode("utf-8") if isinstance(raw_key, bytes) else str(raw_key)
+                state = _redis_hgetall(redis_client, key)
+                if str(state.get("state", "closed")) != "open":
+                    continue
+                logical_key = key[len(prefix) :] if key.startswith(prefix) else key
+                keys.append(logical_key)
+            return tuple(sorted(keys))
+        except Exception:
+            return ()
+
+    def open_provider_ids(self) -> tuple[str, ...]:
+        return tuple(sorted({key.split("|", 1)[0] for key in self.open_keys() if key}))
+
     def _redis_key(self, provider_id: str, *, route_id: str = "", adapter_type: str = "") -> str:
         return f"{self.prefix}:circuit:{circuit_key(provider_id, route_id=route_id, adapter_type=adapter_type)}"
 
@@ -666,6 +705,15 @@ def _redis_ttl(redis_client: Any, key: str, default_ttl: int) -> int:
 def _redis_hgetall(redis_client: Any, key: str) -> Mapping[str, object]:
     result = redis_client.hgetall(key)
     return result if isinstance(result, Mapping) else {}
+
+def _redis_scan_iter(redis_client: Any, pattern: str) -> tuple[object, ...]:
+    scan_iter = getattr(redis_client, "scan_iter", None)
+    if callable(scan_iter):
+        return tuple(scan_iter(match=pattern))
+    keys = getattr(redis_client, "keys", None)
+    if callable(keys):
+        return tuple(keys(pattern))
+    return ()
 
 
 def _object_to_int(value: object) -> int:

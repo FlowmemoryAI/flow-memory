@@ -143,6 +143,12 @@ class FakeRedis:
         self.values.pop(key, None)
         return 1
 
+    def scan_iter(self, match: str = "*") -> tuple[str, ...]:
+        if self.fail:
+            raise RuntimeError("redis unavailable")
+        prefix = match[:-1] if match.endswith("*") else match
+        return tuple(sorted(key for key in self.hashes if key.startswith(prefix)))
+
 
 def test_redis_rate_limiter_uses_atomic_counter_and_factory() -> None:
     redis = FakeRedis()
@@ -276,6 +282,43 @@ def test_redis_circuit_breaker_opens_and_factory_selects_backend() -> None:
         ),
         RedisCircuitBreaker,
     )
+
+
+def test_redis_circuit_breaker_reports_open_provider_ids() -> None:
+    redis = FakeRedis()
+    breaker = RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=1, reset_after_seconds=60, client=redis)
+
+    breaker.record_failure("redis-open-provider", route_id="route-a", error_class="provider_timeout")
+    breaker.record_failure("redis-closed-provider", route_id="route-b", error_class="provider_timeout")
+    breaker.record_success("redis-closed-provider", route_id="route-b")
+
+    assert breaker.open_keys() == ("redis-open-provider|route-a|adapter:*",)
+    assert breaker.open_provider_ids() == ("redis-open-provider",)
+
+
+def test_planning_denies_open_circuit_provider_with_redis_breaker() -> None:
+    redis = FakeRedis()
+    breaker = RedisCircuitBreaker("redis://localhost:6379/0", failure_threshold=1, reset_after_seconds=60, client=redis)
+    breaker.record_failure("market-token-provider", error_class="provider_timeout")
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test"),
+        circuit_breaker=breaker,
+    )
+
+    result = service.plan(
+        {
+            "task": "redis open circuit provider should not be selected",
+            "provider_constraints": ("market-token-provider",),
+            "policy": {"marketplace_only": True},
+        }
+    )
+
+    plan = result["compute_plan"]
+    assert plan["ok"] is False
+    assert plan["selected_route"] is None
+    assert "provider_denied" in plan["fail_closed_errors"]
+    assert "compute.provider.circuit_open" in tuple(event["action"] for event in service.audit({})["audit_events"])
 
 
 def test_redis_factories_require_tls_when_managed_redis_is_required() -> None:

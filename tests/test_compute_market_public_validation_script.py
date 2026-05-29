@@ -20,6 +20,12 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_METRICS_ENABLED=true",
                 "FLOW_MEMORY_COMPUTE_TRACING_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.ai/compute-market",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.ai/compute-market",
+                "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED=true",
+                "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.ai/v1/traces",
                 "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
                 "FLOW_MEMORY_COMPUTE_DATABASE_URL=postgresql://db.example.com:5432/flow_memory",
@@ -208,6 +214,35 @@ def test_public_buildout_main_blocks_non_redis_nonce_replay_backend_before_netwo
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted non-Redis nonce replay backend")
 
+def test_public_buildout_main_blocks_missing_observability_sinks_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        .replace("FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.ai/compute-market\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.ai/compute-market\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.ai/v1/traces\n", ""),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "production environment prerequisites failed" in message
+        assert "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL" in message
+        assert "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL" in message
+        assert "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing observability sinks")
+
+
 
 def test_public_buildout_main_blocks_http_observability_sink_before_network(
     tmp_path: Any, monkeypatch: Any
@@ -391,6 +426,12 @@ def _passing_public_buildout_call_json(
                         "audit_export_required": True,
                         "audit_export_immutable_required": True,
                         "stripe_checkout_enabled": False,
+                        "alert_routing_enabled": True,
+                        "alert_webhook_configured": True,
+                        "error_tracking_enabled": True,
+                        "error_tracking_webhook_configured": True,
+                        "telemetry_export_enabled": True,
+                        "otlp_endpoint_configured": True,
                     },
                 },
             }
@@ -437,6 +478,12 @@ def _passing_public_buildout_call_json(
             return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/receipt"):
             return 200, {"ok": True, "data": {"ok": False}}
+        if url.endswith("/compute/alerts/route"):
+            return 200, {"ok": True, "data": {"ok": True, "routing_enabled": True, "delivery_count": 1}}
+        if url.endswith("/compute/errors/track"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "event_id": "error_public"}}
+        if url.endswith("/admin/compute/otlp/export"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "export_id": "otlp_public"}}
         if url.endswith("/complete"):
             return 200, {
                 "ok": True,
@@ -609,6 +656,12 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "audit_export_required": True,
                         "audit_export_immutable_required": True,
                         "stripe_checkout_enabled": False,
+                        "alert_routing_enabled": True,
+                        "alert_webhook_configured": True,
+                        "error_tracking_enabled": True,
+                        "error_tracking_webhook_configured": True,
+                        "telemetry_export_enabled": True,
+                        "otlp_endpoint_configured": True,
                     },
                 },
             }
@@ -658,6 +711,12 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             return 403, {"ok": False, "error": {"code": "scope.denied"}}
         if url.endswith("/receipt"):
             return 200, {"ok": True, "data": {"ok": False, "error": {"error_code": "provider_receipt.signing_key_missing"}}}
+        if url.endswith("/compute/alerts/route"):
+            return 200, {"ok": True, "data": {"ok": True, "routing_enabled": True, "delivery_count": 1}}
+        if url.endswith("/compute/errors/track"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "event_id": "error_public"}}
+        if url.endswith("/admin/compute/otlp/export"):
+            return 200, {"ok": True, "data": {"ok": True, "status": "delivered", "export_id": "otlp_public"}}
         if url.endswith("/complete"):
             return 200, {
                 "ok": True,
@@ -793,11 +852,23 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_export_required"] is True
     assert result["audit_export_immutable_required"] is True
     assert result["stripe_checkout_enabled"] is False
+    assert result["alert_routing_enabled"] is True
+    assert result["alert_webhook_configured"] is True
+    assert result["error_tracking_enabled"] is True
+    assert result["error_tracking_webhook_configured"] is True
+    assert result["telemetry_export_enabled"] is True
+    assert result["otlp_endpoint_configured"] is True
+    assert result["alert_route_delivery_count"] == 1
+    assert result["error_tracking_status"] == "delivered"
+    assert result["otlp_export_status"] == "delivered"
     assert result["checks"]["metrics"] == 200
     assert result["checks"]["jwt_health"] == 200
     assert result["checks"]["jwt_wrong_audience"] == 401
     assert result["checks"]["jwt_wrong_scope"] == 403
     assert result["checks"]["alerts"] == 200
+    assert result["checks"]["alerts_route"] == 200
+    assert result["checks"]["error_tracking"] == 200
+    assert result["checks"]["otlp_export"] == 200
     assert text_calls == [
         (
             "GET",

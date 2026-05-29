@@ -51,6 +51,9 @@ _LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_ENABLED": "true",
     "FLOW_MEMORY_COMPUTE_METRICS_ENABLED": "true",
     "FLOW_MEMORY_COMPUTE_TRACING_ENABLED": "true",
+    "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED": "true",
+    "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED": "true",
+    "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED": "true",
     "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED": "false",
 }
 _OBSERVABILITY_HTTPS_URL_KEYS = (
@@ -78,6 +81,9 @@ _PRODUCTION_ENV_REQUIRED_KEYS = (
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED",
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION",
+    "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
+    "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
+    "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
     *_LEVEL1_EXPECTED_BOOLEAN_SETTINGS.keys(),
 )
 _PRODUCTION_ENV_EXPECTED_VALUES = {
@@ -569,6 +575,12 @@ def validate(
     }
     checks["job_receipt_wrong_scope"] = call_json("POST", f"{base}/compute/jobs/{job_id}/receipt", headers_read, {"receipt": unsigned_receipt})
     checks["job_receipt_unsigned"] = call_json("POST", f"{base}/compute/jobs/{job_id}/receipt", headers_execute, {"receipt": unsigned_receipt})
+    checks["alerts_route"] = call_json(
+        "POST",
+        f"{base}/compute/alerts/route",
+        headers_admin,
+        {"request_id": f"public_buildout_alert_route_{suffix}"},
+    )
     checks["job_complete"] = call_json(
         "POST",
         f"{base}/compute/jobs/{job_id}/complete",
@@ -611,9 +623,26 @@ def validate(
     )
     fail_job_id = str(data(checks["job_fail_create"][1]).get("job", {}).get("job_id", ""))
     checks["job_fail"] = call_json("POST", f"{base}/compute/jobs/{fail_job_id}/fail", headers_execute, {"error_code": "public_validation_failure_path"})
+    checks["error_tracking"] = call_json(
+        "POST",
+        f"{base}/compute/errors/track",
+        headers_admin,
+        {
+            "error_code": "public_buildout_validation",
+            "message": "Public buildout validation exercised the production error tracking sink.",
+            "details": {"source": "validate_compute_market_public_buildout"},
+            "request_id": f"public_buildout_error_tracking_{suffix}",
+        },
+    )
     checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)
     checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)
     checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)
+    checks["otlp_export"] = call_json(
+        "POST",
+        f"{base}/admin/compute/otlp/export",
+        headers_admin,
+        {"reset": False, "request_id": f"public_buildout_otlp_export_{suffix}"},
+    )
     checks["billing_checkout"] = call_json("POST", f"{base}/billing/checkout", headers_billing, {"account_id": account_id, "amount": 100, "currency": "USD"})
     checks["billing_balance"] = call_json("GET", f"{base}/billing/balance?account_id={account_id}", headers_billing)
     checks["billing_refund"] = call_json(
@@ -646,6 +675,9 @@ def validate(
     storage_diag = data(checks["admin_storage_diagnostics"][1])
     redis_diag = data(checks["admin_redis_diagnostics"][1])
     safety_defaults = readiness.get("production_safety_defaults", {})
+    alert_route = data(checks["alerts_route"][1])
+    error_tracking = data(checks["error_tracking"][1])
+    otlp_export = data(checks["otlp_export"][1])
     schema_verification = storage_diag.get("schema_verification", {})
     advisory_lock_probe = schema_verification.get("advisory_lock_probe", {})
     schema_count_evidence = postgres_schema_count_evidence(schema_verification)
@@ -679,6 +711,21 @@ def validate(
     require(safety_defaults.get("audit_required") is True, "audit requirement is not enabled")
     require(safety_defaults.get("audit_export_required") is True, "audit export requirement is not enabled")
     require(safety_defaults.get("stripe_checkout_enabled") is False, "Stripe Checkout must remain disabled for Level 1")
+    require(
+        safety_defaults.get("alert_routing_enabled") is True
+        and safety_defaults.get("alert_webhook_configured") is True,
+        "alert routing sink is not enabled and configured",
+    )
+    require(
+        safety_defaults.get("error_tracking_enabled") is True
+        and safety_defaults.get("error_tracking_webhook_configured") is True,
+        "error tracking sink is not enabled and configured",
+    )
+    require(
+        safety_defaults.get("telemetry_export_enabled") is True
+        and safety_defaults.get("otlp_endpoint_configured") is True,
+        "OTLP telemetry export sink is not enabled and configured",
+    )
     require(plan.get("dry_run_only") is True and plan.get("funds_moved") is False and plan.get("broadcast_allowed") is False and plan.get("private_key_required") is False, "plan safety flags failed")
     require(
         checks["plan_replay"][0] == 200
@@ -696,9 +743,12 @@ def validate(
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
-    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "alerts", "billing_provider_payouts", "billing_provider_payout_settle"):
+    for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "alerts", "alerts_route", "error_tracking", "otlp_export", "billing_provider_payouts", "billing_provider_payout_settle"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
     require(checks["metrics"][0] == 200 and "compute_plan_requests_total" in checks["metrics"][1], "Prometheus metrics did not expose compute_plan_requests_total")
+    require(alert_route.get("routing_enabled") is True and int(alert_route.get("delivery_count", 0) or 0) >= 1, "alert routing did not deliver to the configured sink")
+    require(error_tracking.get("status") == "delivered", "error tracking sink delivery failed")
+    require(otlp_export.get("status") == "delivered", "OTLP telemetry export delivery failed")
     require(job.get("dry_run_only") is True and job.get("funds_moved") is False and job.get("broadcast_allowed") is False and job.get("private_key_required") is False, "job safety flags failed")
     require(checks["billing_checkout"][0] == 200 and checkout.get("funds_moved") is False and checkout.get("status") == "requires_external_checkout_provider", "billing checkout safety failed")
     require(checks["billing_balance"][0] == 200 and data(checks["billing_balance"][1]).get("balance", {}).get("account_id") == account_id, "billing balance failed")
@@ -769,6 +819,15 @@ def validate(
         "audit_export_required": safety_defaults.get("audit_export_required"),
         "audit_export_immutable_required": safety_defaults.get("audit_export_immutable_required"),
         "stripe_checkout_enabled": safety_defaults.get("stripe_checkout_enabled"),
+        "alert_routing_enabled": safety_defaults.get("alert_routing_enabled"),
+        "alert_webhook_configured": safety_defaults.get("alert_webhook_configured"),
+        "error_tracking_enabled": safety_defaults.get("error_tracking_enabled"),
+        "error_tracking_webhook_configured": safety_defaults.get("error_tracking_webhook_configured"),
+        "telemetry_export_enabled": safety_defaults.get("telemetry_export_enabled"),
+        "otlp_endpoint_configured": safety_defaults.get("otlp_endpoint_configured"),
+        "alert_route_delivery_count": alert_route.get("delivery_count"),
+        "error_tracking_status": error_tracking.get("status"),
+        "otlp_export_status": otlp_export.get("status"),
         "dry_run_only": True,
         "funds_moved": False,
         "broadcast_allowed": False,

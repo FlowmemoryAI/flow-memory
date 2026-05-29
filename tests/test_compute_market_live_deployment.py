@@ -59,11 +59,14 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED=false",
-        "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=false",
+        "FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED=true",
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://CHANGEME-alerts.example.com/flow-memory",
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_TIMEOUT_MS=2000",
-        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED=false",
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED=true",
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://CHANGEME-errors.example.com/flow-memory",
         "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_TIMEOUT_MS=2000",
-        "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED=false",
+        "FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED=true",
+        "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://CHANGEME-otel.example.com/v1/traces",
         "FLOW_MEMORY_COMPUTE_OTLP_TIMEOUT_MS=5000",
         "FLOW_MEMORY_COMPUTE_METRICS_ENABLED=true",
         "FLOW_MEMORY_COMPUTE_TRACING_ENABLED=true",
@@ -305,6 +308,12 @@ def test_render_blueprint_and_env_builder_match_level1_safety_contract() -> None
     assert blueprint_env["FLOW_MEMORY_COMPUTE_TRACING_ENABLED"] == "true"
     assert deploy_env["FLOW_MEMORY_COMPUTE_METRICS_ENABLED"] == "true"
     assert deploy_env["FLOW_MEMORY_COMPUTE_TRACING_ENABLED"] == "true"
+    assert blueprint_env["FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"] == "true"
+    assert blueprint_env["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED"] == "true"
+    assert blueprint_env["FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED"] == "true"
+    assert "      - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL\n        sync: false" in blueprint
     assert blueprint_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
     assert deploy_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
 
@@ -1079,6 +1088,11 @@ def test_public_buildout_validator_requires_observability_endpoints() -> None:
     assert 'checks["metrics"] = call_text("GET", f"{base}/metrics", headers_read)' in validator_script
     assert 'checks["alerts"] = call_json("GET", f"{base}/compute/alerts", headers_read)' in validator_script
     assert 'checks["telemetry"] = call_json("GET", f"{base}/compute/telemetry", headers_read)' in validator_script
+    assert 'checks["alerts_route"] = call_json(' in validator_script
+    assert 'checks["error_tracking"] = call_json(' in validator_script
+    assert 'checks["otlp_export"] = call_json(' in validator_script
+    assert "alert routing sink is not enabled and configured" in validator_script
+    assert "OTLP telemetry export delivery failed" in validator_script
     assert '"compute_plan_requests_total" in checks["metrics"][1]' in validator_script
     assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
     assert "nonce_headers(headers or {}, label=f\"{method}-json\")" in validator_script
@@ -1707,6 +1721,54 @@ def test_public_powershell_render_placeholder_gate_requires_render_api_key(tmp_p
     assert payload["status"] == "blocked_missing_render_auth"
     assert payload["missing_values"] == ["RENDER_API_KEY"]
 
+def test_render_deploy_main_blocks_missing_public_observability_sinks_before_render_calls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    env_file = tmp_path / "render.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RENDER_API_KEY=render_live_key_from_env_file",
+                "RENDER_OWNER_ID=owner_from_env_file",
+                "RENDER_REGION=frankfurt",
+                "RENDER_POSTGRES_PLAN=pro",
+                "RENDER_KEYVALUE_PLAN=pro",
+                "RENDER_SERVICE_PLAN=professional",
+                "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_render_call(*args: object, **kwargs: object) -> object:
+        raise AssertionError("Render provisioning must not run before observability sinks are configured")
+
+    monkeypatch.setattr(sys, "argv", ["deploy", "--env-file", str(env_file)])
+    monkeypatch.setattr(render_deploy, "ensure_postgres", fail_render_call)
+    monkeypatch.setattr(render_deploy, "ensure_keyvalue", fail_render_call)
+    monkeypatch.setattr(render_deploy, "infer_owner_id", fail_render_call)
+
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.main()
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert blocked.value.code == 29
+    assert payload["status"] == "blocked_missing_observability_sink"
+    assert payload["missing_values"] == [
+        "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
+        "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
+        "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+    ]
+
 
 
 def test_render_deploy_main_uses_env_file_render_provisioning_values(
@@ -1743,6 +1805,9 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
                 "FLOW_MEMORY_PUBLIC_API_URL=https://api.flowmemory.example",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
             ]
         ),
         encoding="utf-8",
@@ -1891,6 +1956,12 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     env_vars_by_key = {item["key"]: item["value"] for item in calls["env_put"]["body"]}
     assert env_vars_by_key["FLOW_MEMORY_PUBLIC_API_URL"] == "https://flow-memory-api.onrender.com"
     assert env_vars_by_key["FLOW_MEMORY_API_KEY"] == "fmk_existing_render_service_key"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED"] == "true"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL"] == "https://alerts.flowmemory.example/compute-market"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED"] == "true"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL"] == "https://errors.flowmemory.example/compute-market"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED"] == "true"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL"] == "https://otel.flowmemory.example/v1/traces"
     assert "compute:read" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert "compute:admin" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert "inference:plan" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
@@ -1937,6 +2008,9 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
                 "FLOW_MEMORY_PUBLIC_API_URL=https://api.flowmemory.example",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
             ]
         ),
         encoding="utf-8",

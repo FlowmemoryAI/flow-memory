@@ -424,9 +424,9 @@ $safetyExpectations = @{
     FLOW_MEMORY_COMPUTE_AUDIT_REQUIRED = 'true'
     FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_REQUIRED = 'true'
     FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED = 'true'
-    FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED = 'false'
-    FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED = 'false'
-    FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED = 'false'
+    FLOW_MEMORY_COMPUTE_ALERT_ROUTING_ENABLED = 'true'
+    FLOW_MEMORY_COMPUTE_ERROR_TRACKING_ENABLED = 'true'
+    FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'
     FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED = 'false'
@@ -445,6 +445,34 @@ if ($badSafety.Count -gt 0) {
         invalid_keys = @($badSafety)
     }
     exit 3
+}
+
+$observabilitySinkKeys = @(
+    'FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL',
+    'FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL',
+    'FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL'
+)
+$missingObservabilitySinks = New-Object System.Collections.Generic.List[string]
+foreach ($key in $observabilitySinkKeys) {
+    if (-not $envValues.Contains($key) -or [string]::IsNullOrWhiteSpace([string]$envValues[$key])) {
+        $missingObservabilitySinks.Add($key)
+    }
+    elseif (-not ([string]$envValues[$key]).StartsWith('https://')) {
+        Write-Status -Status 'blocked_insecure_observability_sink' -Fields @{
+            public_url = ''
+            invalid_value = $key
+            required_scheme = 'https'
+        }
+        exit 17
+    }
+}
+if ($missingObservabilitySinks.Count -gt 0) {
+    Write-Status -Status 'blocked_missing_observability_sink' -Fields @{
+        public_url = ''
+        missing_values = @($missingObservabilitySinks)
+        required_action = 'Configure HTTPS alert webhook, error tracking webhook, and OTLP collector sinks before public Level 1 deployment.'
+    }
+    exit 17
 }
 
 Set-EnvForProcess -Values $envValues

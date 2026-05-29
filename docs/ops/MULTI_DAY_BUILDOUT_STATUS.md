@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `03c072c Assert Redis nonce TLS config binding`
+Latest inspected commit: `46edfc5 Require public observability sinks`
 
 ## Current architecture
 
@@ -1579,4 +1579,47 @@ flowchart TD
     ServerCLI --> Config[HttpApiConfig]
     Config --> RedisNonce[Redis nonce replay store]
     Config --> TLSVerify[nonce_verify_tls true]
+```
+
+## Checkpoint 2026-05-26 Public observability sink gate
+
+Files changed:
+
+- `deployments/compute-market/live.env.example`
+- `render.yaml`
+- `scripts/deploy_compute_market_public_level1.ps1`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 69 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `powershell -NoProfile -ExecutionPolicy Bypass -Command '[System.Management.Automation.Language.Parser]::ParseFile("scripts/deploy_compute_market_public_level1.ps1", [ref]$tokens, [ref]$errors)'` — parsed with no errors
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 443 passed, 2 skipped
+
+Commit: `46edfc5 Require public observability sinks`.
+
+Implementation:
+
+- Public production validation now requires enabled alert routing, error tracking, and OTLP telemetry export with real HTTPS sink URLs before network validation can run.
+- Public validation now exercises `/compute/alerts/route`, `/compute/errors/track`, and `/admin/compute/otlp/export`, and fails if alert delivery, error tracking delivery, or OTLP delivery is not observed.
+- Render API deployment now fails closed before provisioning if the alert webhook, error tracking webhook, or OTLP collector endpoint is missing.
+- The Render blueprint and live env template now model observability sinks as required public Level 1 configuration, not optional local hooks.
+
+```mermaid
+flowchart TD
+    Env[Public env file] --> SinkGate[HTTPS sink prerequisite gate]
+    SinkGate --> Alert[Alert webhook configured]
+    SinkGate --> Error[Error tracking webhook configured]
+    SinkGate --> OTLP[OTLP collector configured]
+    Alert --> PublicValidation[Public buildout validation]
+    Error --> PublicValidation
+    OTLP --> PublicValidation
+    PublicValidation --> RouteAlerts[/compute/alerts/route]
+    PublicValidation --> TrackError[/compute/errors/track]
+    PublicValidation --> ExportOTLP[/admin/compute/otlp/export]
 ```

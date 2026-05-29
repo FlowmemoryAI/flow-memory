@@ -88,6 +88,9 @@ _SAFE_DRY_RUN_SETTLEMENT_MODES = frozenset(
         "dry_run",
     }
 )
+_PROVIDER_PLANNING_BLOCKED_REPUTATION_STATUSES = frozenset(
+    {"banned", "degraded", "disabled", "paused", "suspended"}
+)
 _PROVIDER_STATE_CALLBACK_SIGNATURE_CONTEXT = "flowmemory.provider_state_callback.v1"
 _PROVIDER_STATE_CALLBACK_UNSIGNED_KEYS = frozenset(
     {
@@ -231,14 +234,17 @@ class ComputeMarketService:
         return self.plan({**dict(payload), "marketplace_only": True, "selection_strategy": payload.get("selection_strategy", "marketplace_preferred")})
 
     def _planning_providers(self, payload: Mapping[str, Any]) -> tuple[ComputeProvider, ...]:
+        blocked_provider_ids = _planning_blocked_provider_ids(self.store, payload)
         records = self.store.list_records("compute_provider", filters={"status": "active"}, limit=1_000).records
         return tuple(
             _planning_provider_from_record(record)
             for record in records
             if _tenant_can_access_catalog_record(payload, record)
+            and str(record.get("provider_id", "")) not in blocked_provider_ids
         )
 
     def _planning_routes(self, payload: Mapping[str, Any]) -> tuple[ComputeRoute, ...]:
+        blocked_provider_ids = _planning_blocked_provider_ids(self.store, payload)
         route_records = self.store.list_records("compute_route", filters={"status": "enabled"}, limit=1_000).records
         latest_quotes = _latest_quotes_by_route(
             self.store.list_records("compute_quote", filters={"status": "valid"}, limit=1_000).records,
@@ -248,6 +254,7 @@ class ComputeMarketService:
             _planning_route_from_record(record, latest_quotes.get(str(record.get("route_id", ""))))
             for record in route_records
             if _tenant_can_access_catalog_record(payload, record)
+            and str(record.get("provider_id", "")) not in blocked_provider_ids
         )
 
     def intelligence_plan(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -9643,6 +9650,26 @@ def _claim_candidates(
         )
     )
 
+
+def _planning_blocked_provider_ids(
+    store: ComputeMarketStoreProtocol,
+    payload: Mapping[str, Any],
+) -> frozenset[str]:
+    blocked: set[str] = set()
+    for reputation in store.list_records("provider_reputation", limit=1_000).records:
+        if not _tenant_can_access_catalog_record(payload, reputation):
+            continue
+        status = str(reputation.get("status", "")).strip()
+        provider_id = str(reputation.get("provider_id", "")).strip()
+        if provider_id and status in _PROVIDER_PLANNING_BLOCKED_REPUTATION_STATUSES:
+            blocked.add(provider_id)
+    for signal in store.list_records("provider_fraud_signal", filters={"severity": "critical"}, limit=1_000).records:
+        if not _tenant_can_access_catalog_record(payload, signal):
+            continue
+        provider_id = str(signal.get("provider_id", "")).strip()
+        if provider_id:
+            blocked.add(provider_id)
+    return frozenset(blocked)
 
 def _payload_tenant_id(payload: Mapping[str, Any]) -> str:
     return str(payload.get("tenant_id", "")).strip()

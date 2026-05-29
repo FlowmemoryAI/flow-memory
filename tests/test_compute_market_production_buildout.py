@@ -855,6 +855,41 @@ def test_quote_broker_records_missing_signature_fraud_signal_for_verified_provid
     assert reputation["critical_fraud_signal_count"] == 1
     assert reputation["status"] == "degraded"
 
+def test_marketplace_plan_excludes_degraded_provider_routes() -> None:
+    signer = LocalTestSigner("provider_live_gpu_degraded_key", "provider-live-gpu-degraded-seed")
+    service = _service()
+    application = _provider_application()
+    application["public_key"] = signer.public_record().public_key
+    service.apply_market_provider(application)
+    verified = service.verify_market_provider("provider_live_gpu_1", {})
+    route = next(route for route in verified["routes"] if route["unit_type"] == "gpu_minute")
+    route_id = str(route["route_id"])
+
+    rejected = service.broker_quote(
+        {
+            "quote": {**_quote(), "route_id": route_id},
+            "allowed_assets": ["USDC"],
+            "allowed_networks": ["solana"],
+        }
+    )
+    reputation = service.provider_reputation("provider_live_gpu_1")["reputation"]
+    planned = service.marketplace_plan(
+        {
+            "task": "gpu batch inference with degraded provider",
+            "provider_constraints": ["provider_live_gpu_1"],
+            "estimated_units": {"gpu_minute": 2},
+            "selection_strategy": "lowest_cost",
+        }
+    )
+    compute_plan = planned["compute_plan"]
+
+    assert rejected["ok"] is False
+    assert rejected["fraud_signals"][0]["severity"] == "critical"
+    assert reputation["status"] == "degraded"
+    assert planned["ok"] is False
+    assert compute_plan["route_count"] == 0
+    assert compute_plan["selected_route"] is None
+
 
 
 def test_quote_broker_validates_replay_cache_and_drift() -> None:

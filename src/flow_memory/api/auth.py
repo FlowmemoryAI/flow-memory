@@ -14,7 +14,16 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, Sequence
 
 from flow_memory.api.signed_requests import verify_request
-from flow_memory.api.scopes import KNOWN_SCOPES
+from flow_memory.api.scopes import (
+    INFERENCE_ADMIN_SCOPE,
+    INFERENCE_AUDIT_SCOPE,
+    INFERENCE_BUY_SCOPE,
+    INFERENCE_PLAN_SCOPE,
+    INFERENCE_PROXY_SCOPE,
+    INFERENCE_READ_SCOPE,
+    INFERENCE_SELL_SCOPE,
+    KNOWN_SCOPES,
+)
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import SignatureEnvelope
 
@@ -124,6 +133,13 @@ KNOWN_AUTH_ROLES = frozenset({
     "auditor",
     "billing",
     "member",
+    "inference-admin",
+    "inference-auditor",
+    "inference-buyer",
+    "inference-planner",
+    "inference-proxy",
+    "inference-seller",
+    "inference-viewer",
     "policy-admin",
     "provider",
     "provider-admin",
@@ -135,6 +151,21 @@ ROLE_SCOPE_MAP: Mapping[str, tuple[str, ...]] = {
     "auditor": ("api:audit", "compute:audit", "compute:read"),
     "billing": ("compute:billing", "compute:read"),
     "member": ("api:read", "api:write", "compute:read", "compute:plan", "compute:execute"),
+    "inference-admin": (
+        INFERENCE_ADMIN_SCOPE,
+        INFERENCE_AUDIT_SCOPE,
+        INFERENCE_BUY_SCOPE,
+        INFERENCE_PLAN_SCOPE,
+        INFERENCE_PROXY_SCOPE,
+        INFERENCE_READ_SCOPE,
+        INFERENCE_SELL_SCOPE,
+    ),
+    "inference-auditor": (INFERENCE_AUDIT_SCOPE, INFERENCE_READ_SCOPE),
+    "inference-buyer": (INFERENCE_BUY_SCOPE, INFERENCE_READ_SCOPE),
+    "inference-planner": (INFERENCE_PLAN_SCOPE, INFERENCE_READ_SCOPE),
+    "inference-proxy": (INFERENCE_PROXY_SCOPE, INFERENCE_READ_SCOPE),
+    "inference-seller": (INFERENCE_READ_SCOPE, INFERENCE_SELL_SCOPE),
+    "inference-viewer": (INFERENCE_READ_SCOPE,),
     "policy-admin": ("compute:policy-admin", "compute:read"),
     "provider": ("compute:read",),
     "provider-admin": ("compute:provider-admin", "compute:read"),

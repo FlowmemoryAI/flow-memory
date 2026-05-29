@@ -54,6 +54,32 @@ All behavior is simulation-only until real provider, billing, legal, compliance,
 - raw credentials rejected
 - seller credentials never exposed
 
+## Auth roles
+
+The marketplace can be scoped by API key records or gateway JWT roles without putting every raw scope in every credential.
+
+| Role | Granted scopes |
+|---|---|
+| `inference-viewer` | `inference:read` |
+| `inference-planner` | `inference:read`, `inference:plan` |
+| `inference-proxy` | `inference:read`, `inference:proxy` |
+| `inference-buyer` | `inference:read`, `inference:buy` |
+| `inference-seller` | `inference:read`, `inference:sell` |
+| `inference-auditor` | `inference:read`, `inference:audit` |
+| `inference-admin` | all inference marketplace scopes |
+
+```mermaid
+flowchart TD
+    ApiKey[API key record] --> Roles[Inference roles]
+    Jwt[Gateway JWT] --> Roles
+    Roles --> Read[inference read]
+    Roles --> Plan[inference plan]
+    Roles --> Proxy[inference proxy]
+    Roles --> BuySell[inference buy sell]
+    Roles --> Audit[inference audit]
+    Roles --> Admin[inference admin]
+```
+
 ## Current implementation
 
 - Package: `src/flow_memory/inference_market/`

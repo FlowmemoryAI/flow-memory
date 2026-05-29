@@ -461,6 +461,41 @@ class ApiAuthTests(unittest.TestCase):
             ),
         )
 
+    def test_authorize_request_maps_jwt_inference_admin_role_to_scopes(self) -> None:
+        token = _jwt(
+            "jwt-secret",
+            {
+                "sub": "inference-admin-user",
+                "tenant_id": "tenant_inference_roles",
+                "roles": ["inference-admin"],
+                "aud": "flow-memory-api",
+                "exp": time.time() + 300,
+                "iat": time.time(),
+            },
+            {"kid": "gateway-inference-role-key"},
+        )
+
+        decision = authorize_request(
+            {"authorization": f"Bearer {token}"},
+            ApiAuthConfig(jwt_hs256_secret="jwt-secret", jwt_audience="flow-memory-api"),
+        )
+
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.key_id, "gateway-inference-role-key")
+        self.assertEqual(decision.tenant_id, "tenant_inference_roles")
+        self.assertEqual(
+            decision.scopes,
+            (
+                "inference:admin",
+                "inference:audit",
+                "inference:buy",
+                "inference:plan",
+                "inference:proxy",
+                "inference:read",
+                "inference:sell",
+            ),
+        )
+
     def test_authorize_request_rejects_jwt_unknown_scope_or_role(self) -> None:
         now = time.time()
         unknown_scope = _jwt(
@@ -675,6 +710,37 @@ class ApiAuthTests(unittest.TestCase):
         public = public_api_key_record(record)
         self.assertEqual(public["roles"], ("billing", "provider-admin"))
         self.assertNotIn("key_hash", public)
+
+    def test_api_key_inference_roles_expand_to_marketplace_scopes(self) -> None:
+        issued = issue_api_key_record(
+            {
+                "key_id": "key_inference_roles_v1",
+                "tenant_id": "tenant_inference_roles",
+                "principal": "svc-inference-roles",
+                "roles": ["inference-proxy", "inference-buyer", "inference-seller"],
+                "key_prefix": "fmk_inf_role_",
+            },
+            api_key="fmk_inf_role_secret_v1",
+        )
+        record = issued["record"]
+
+        self.assertEqual(record["roles"], ("inference-buyer", "inference-proxy", "inference-seller"))
+        self.assertEqual(
+            record["scopes"],
+            ("inference:buy", "inference:proxy", "inference:read", "inference:sell"),
+        )
+        decision = authorize_request(
+            {"x-flow-memory-api-key": "fmk_inf_role_secret_v1"},
+            ApiAuthConfig(api_key_records=(record,)),
+        )
+        self.assertTrue(decision.ok, decision.reasons)
+        self.assertEqual(decision.tenant_id, "tenant_inference_roles")
+        self.assertEqual(
+            decision.scopes,
+            ("inference:buy", "inference:proxy", "inference:read", "inference:sell"),
+        )
+        self.assertTrue(is_valid_role("inference-proxy"))
+
 
     def test_api_key_config_records_can_grant_role_scopes_without_precomputed_scopes(self) -> None:
         config = ApiAuthConfig(

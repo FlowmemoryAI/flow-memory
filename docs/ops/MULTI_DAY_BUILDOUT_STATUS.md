@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `6b5be7f Gate compute provider credential bindings`
+Latest inspected commit: `61c943d Document compute provider credential gate`
 
 ## Current architecture
 
@@ -2152,4 +2152,42 @@ flowchart TD
     External -->|configured| Verify[provider verified]
     Verify --> Adapter[outbound adapter reads env]
     Adapter --> NoLeak[secret value never emitted]
+```
+
+## Checkpoint 2026-05-26 Audit Object Lock compliance gate
+
+Files changed:
+
+- `docs/COMPUTE_MARKET.md`
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_live_deployment.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 90 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 465 passed, 2 skipped
+- `git diff --check -- docs/COMPUTE_MARKET.md scripts/deploy_compute_market_render_level1.py scripts/validate_compute_market_public_buildout.py tests/test_compute_market_live_deployment.py tests/test_compute_market_public_validation_script.py docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
+
+Commit: pending.
+
+Implementation:
+
+- Public Level 1 validation now requires S3 Object Lock `COMPLIANCE` mode; `GOVERNANCE` mode is rejected for immutable public audit evidence.
+- Public Level 1 validation and Render deployment preflight now require at least 365 audit-export retention days before immutable audit export can be claimed.
+- Deployment fixtures that exercise unrelated public preflight failures now use compliant audit retention so weaker audit settings cannot mask the intended failure.
+
+```mermaid
+flowchart TD
+    Env[Public audit env] --> Mode[object lock mode]
+    Env --> Retention[retention days]
+    Mode --> Compliance{COMPLIANCE?}
+    Retention --> MinDays{>= 365?}
+    Compliance -->|no| Reject[preflight rejected]
+    MinDays -->|no| Reject
+    Compliance -->|yes| PublicGate[public immutable audit gate]
+    MinDays -->|yes| PublicGate
 ```

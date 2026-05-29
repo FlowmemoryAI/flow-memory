@@ -357,6 +357,19 @@ Compute audit events include `chain_id`, `sequence_number`, `previous_hash`, `ca
 
 This is tamper-evident hash chaining, not WORM storage. `flow-memory compute audit export --chain-id all --out <path> --json` writes newline-delimited canonical JSON with a checkpoint, and `flow-memory compute audit verify-export --path <path> --json` detects tampering or broken chain boundaries. Local exports are not immutable by themselves; production deployments should write exports/checkpoints to object-lock/WORM storage and include export verification in readiness and incident response.
 
+Public Level 1 gates require S3 Object Lock `COMPLIANCE` mode with at least 365 retention days before immutable audit export can be claimed. Governance mode or short retention can still be useful for local drills, but it does not satisfy the public production-planning evidence gate.
+
+```mermaid
+flowchart TD
+    AuditExport[Audit export/checkpoint] --> ObjectLock[S3 Object Lock]
+    ObjectLock --> Mode{mode COMPLIANCE?}
+    ObjectLock --> Retention{retention >= 365 days?}
+    Mode -->|no| Reject[public gate fails]
+    Retention -->|no| Reject
+    Mode -->|yes| Evidence[immutable audit evidence]
+    Retention -->|yes| Evidence
+```
+
 ## Backward compatibility
 
 The existing alpha surfaces are preserved:

@@ -1166,7 +1166,7 @@ def test_public_powershell_preflight_rejects_placeholder_gateway_jwt_secret(tmp_
             audit_export_uri="s3://flow-memory-audit/compute-market",
             audit_export_immutable_required="true",
             audit_export_object_lock_mode="COMPLIANCE",
-            audit_export_retention_days="30",
+            audit_export_retention_days="365",
             audit_export_s3_region="us-east-1",
             postgres_backup_policy_uri="https://ops.flowmemory.ai/postgres/backup-policy",
             postgres_restore_drill_uri="https://ops.flowmemory.ai/postgres/restore-drill",
@@ -1383,6 +1383,14 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
             {"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://flow-memory-audit/compute-market"},
             "s3://flow-memory-audit/compute-market",
         )
+    with pytest.raises(SystemExit) as weak_object_lock:
+        render_deploy.validate_audit_export_immutable_settings(
+            "s3://flow-memory-audit/compute-market",
+            "GOVERNANCE",
+            "30",
+            "true",
+        )
+
     monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_URI", "s3://flow-memory-shell-audit/compute-market")
     monkeypatch.setattr(render_deploy, "DEFAULT_AUDIT_EXPORT_S3_REGION", "us-west-2")
     monkeypatch.setattr(render_deploy, "DEFAULT_PROVIDER_CALLBACK_IP_ALLOWLIST", "")
@@ -1419,6 +1427,7 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
     }
 
     assert missing_region.value.code == 23
+    assert weak_object_lock.value.code == 23
     assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == local_uri
     assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "false"
     assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == ""

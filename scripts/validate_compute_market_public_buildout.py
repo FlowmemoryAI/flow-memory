@@ -42,6 +42,7 @@ _PLACEHOLDER_API_KEY_FRAGMENTS = (
 _WEAK_API_KEYS = frozenset(("api-key", "dev-key", "prod-key", "test", "secret", "password"))
 _MIN_POSTGRES_SCHEMA_TABLE_COUNT_FALLBACK = 110
 _MIN_POSTGRES_SCHEMA_INDEX_COUNT_FALLBACK = 1311
+_MIN_AUDIT_EXPORT_RETENTION_DAYS = 365
 _REQUIRED_PRODUCTION_SCOPES = (
     "compute:read",
     "compute:plan",
@@ -429,12 +430,12 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
             )
 
     object_lock_mode = values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", "").strip().upper()
-    if object_lock_mode and object_lock_mode not in {"COMPLIANCE", "GOVERNANCE"}:
+    if object_lock_mode and object_lock_mode != "COMPLIANCE":
         invalid.append(
             {
                 "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
                 "actual": object_lock_mode,
-                "expected": "COMPLIANCE_or_GOVERNANCE",
+                "expected": "COMPLIANCE",
             }
         )
 
@@ -444,12 +445,15 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
             retention_days_int = int(retention_days)
         except ValueError:
             retention_days_int = 0
-        if retention_days_int < 1:
+        if retention_days_int < _MIN_AUDIT_EXPORT_RETENTION_DAYS:
             invalid.append(
                 {
                     "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
                     "actual": retention_days,
-                    "expected": "positive_integer",
+                    "expected": (
+                        "integer_greater_than_or_equal_to_"
+                        f"{_MIN_AUDIT_EXPORT_RETENTION_DAYS}"
+                    ),
                 }
             )
     raw_scopes = values.get("FLOW_MEMORY_API_KEY_SCOPES", "")

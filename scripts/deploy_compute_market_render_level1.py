@@ -37,6 +37,7 @@ DEFAULT_AUDIT_EXPORT_OBJECT_LOCK_MODE = os.environ.get(
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE", ""
 )
 DEFAULT_AUDIT_EXPORT_RETENTION_DAYS = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS", "0")
+MIN_AUDIT_EXPORT_RETENTION_DAYS = 365
 DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
     "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED", "false"
 )
@@ -219,24 +220,27 @@ def validate_audit_export_immutable_settings(
         return
     normalized_mode = object_lock_mode.strip().upper()
     invalid_values: list[dict[str, str]] = []
-    if normalized_mode not in {"COMPLIANCE", "GOVERNANCE"}:
+    if normalized_mode != "COMPLIANCE":
         invalid_values.append(
             {
                 "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE",
                 "value": object_lock_mode,
-                "reason": "must be COMPLIANCE or GOVERNANCE when immutable audit export is required",
+                "reason": "must be COMPLIANCE when immutable public audit export is required",
             }
         )
     try:
         retention_days_int = int(retention_days)
     except ValueError:
         retention_days_int = 0
-    if retention_days_int < 1:
+    if retention_days_int < MIN_AUDIT_EXPORT_RETENTION_DAYS:
         invalid_values.append(
             {
                 "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS",
                 "value": retention_days,
-                "reason": "must be a positive integer when immutable audit export is required",
+                "reason": (
+                    f"must be at least {MIN_AUDIT_EXPORT_RETENTION_DAYS} days when immutable "
+                    "public audit export is required"
+                ),
             }
         )
     if invalid_values:
@@ -245,8 +249,8 @@ def validate_audit_export_immutable_settings(
             23,
             invalid_values=invalid_values,
             required_action=(
-                "configure S3 Object Lock mode and positive retention before requiring immutable "
-                "public audit export"
+                "configure S3 Object Lock COMPLIANCE mode and at least 365 days of retention before "
+                "requiring immutable public audit export"
             ),
         )
 

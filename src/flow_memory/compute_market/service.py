@@ -9183,12 +9183,18 @@ def _cross_provider_quote_replay(
         and str(existing.get("provider_id", "")) != provider_id
     ):
         return existing
-    for observed in store.list_records("quote_replay_guard", limit=1000).records:
-        if not _tenant_can_access_record(access_payload, observed):
-            continue
-        observed_provider_id = str(observed.get("provider_id", ""))
-        if observed_provider_id and observed_provider_id != provider_id and str(observed.get("quote_hash", "")) == quote_hash:
-            return observed
+    cursor = ""
+    while True:
+        page = store.list_records("quote_replay_guard", limit=500, cursor=cursor)
+        for observed in page.records:
+            if not _tenant_can_access_record(access_payload, observed):
+                continue
+            observed_provider_id = str(observed.get("provider_id", ""))
+            if observed_provider_id and observed_provider_id != provider_id and str(observed.get("quote_hash", "")) == quote_hash:
+                return observed
+        if not page.next_cursor:
+            break
+        cursor = page.next_cursor
     return {}
 
 _STALE_QUOTE_REPLAY_STATUSES = frozenset(("stale", "expired", "invalidated", "disabled"))

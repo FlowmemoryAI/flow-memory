@@ -18,6 +18,7 @@ from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEX
 from flow_memory.compute_market.audit_export import audit_events_from_export_file, verify_exported_chain
 from flow_memory.compute_market.service import (
     ComputeMarketService,
+    _cross_provider_quote_replay,
     _mark_expired_quotes_stale,
     _provider_quote_ingress_callback_signature_payload,
     _provider_state_callback_signature_payload,
@@ -1064,6 +1065,34 @@ def test_marketplace_plan_excludes_degraded_provider_routes() -> None:
     assert compute_plan["route_count"] == 0
     assert compute_plan["selected_route"] is None
 
+
+def test_cross_provider_quote_replay_detection_paginates_all_guards() -> None:
+    store = ComputeMarketStore(":memory:")
+    replay_hash = "quote-hash-replayed-after-first-page"
+    for index in range(501):
+        quote_id = f"quote_replay_guard_{index:04d}"
+        quote_hash = replay_hash if index == 500 else f"quote-hash-{index:04d}"
+        store.put_record(
+            "quote_replay_guard",
+            quote_id,
+            {
+                "quote_id": quote_id,
+                "quote_hash": quote_hash,
+                "provider_id": "provider_original",
+                "created_at": f"2099-01-01T00:{index // 60:02d}:{index % 60:02d}Z",
+            },
+            provider_id="provider_original",
+        )
+
+    replayed = _cross_provider_quote_replay(
+        store,
+        "quote_replay_guard_new",
+        replay_hash,
+        "provider_replayer",
+    )
+
+    assert replayed["quote_id"] == "quote_replay_guard_0500"
+    assert replayed["provider_id"] == "provider_original"
 
 
 def test_quote_broker_validates_replay_cache_and_drift() -> None:

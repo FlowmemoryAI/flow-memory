@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `5cd3f98 Add Anthropic-compatible inference proxy`
+Latest inspected commit: `c89b318 Bind market actions to audit chains`
 
 ## Current architecture
 
@@ -365,4 +365,41 @@ sequenceDiagram
     Market->>Store: Persist route quote and usage
     Market-->>API: Anthropic-compatible fake message
     API-->>SDK: dry_run_only response
+```
+
+## Checkpoint 2026-05-26 Marketplace audit-chain binding
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/capacity_market/service.py`
+- `src/flow_memory/futures_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/capacity_market/service.py src/flow_memory/futures_market/service.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/capacity_market src/flow_memory/futures_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commit:
+
+- `c89b318 Bind market actions to audit chains`
+
+Implementation:
+
+- Inference market buy, sell, opportunity-cost, OpenAI proxy, and Anthropic proxy operations now append tamper-evident audit events when a compute-market store is attached.
+- Capacity hold, reserve, release, forward draft, forward simulation, and delivery simulation now append tamper-evident audit events when a compute-market store is attached.
+- Futures simulated orders, cancellations, risk checks, expiry, delivery, and settlement simulations now append tamper-evident audit events when a compute-market store is attached.
+- Regression tests verify `inference-market`, `capacity-market`, and `futures-simulator` audit chains survive store reopen and pass hash-chain verification.
+
+```mermaid
+flowchart TD
+    InferenceAction[Inference market action] --> AuditWriter[Store audit append]
+    CapacityAction[Capacity market action] --> AuditWriter
+    FuturesAction[Futures simulator action] --> AuditWriter
+    AuditWriter --> Chain[Chain-specific audit hash chain]
+    Chain --> Verify[verify_audit_chain]
+    Verify --> Evidence[Regression evidence]
 ```

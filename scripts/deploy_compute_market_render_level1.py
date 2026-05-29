@@ -77,6 +77,7 @@ PUBLIC_REQUIRED_PROMETHEUS_METRICS = (
     "capacity_reserved_total",
     "capacity_released_total",
     "billing_debit_total",
+    "billing_checkout_created_total",
     "settlement_attempt_total",
     "audit_chain_verify_fail_total",
 )

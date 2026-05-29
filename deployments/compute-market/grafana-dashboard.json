@@ -97,14 +97,15 @@
       "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "multi", "sort": "none"}},
       "targets": [
         {"expr": "sum(rate(billing_debit_total[5m]))", "legendFormat": "usage debits", "refId": "A"},
-        {"expr": "sum(rate(billing_checkout_failed_total[5m]))", "legendFormat": "checkout failures", "refId": "B"},
-        {"expr": "sum(rate(billing_payment_failed_total[5m]))", "legendFormat": "payment failures", "refId": "C"},
-        {"expr": "sum(rate(billing_webhook_failures_total[5m]))", "legendFormat": "webhook failures", "refId": "D"},
-        {"expr": "sum(rate(provider_sla_penalty_total[5m]))", "legendFormat": "SLA penalties", "refId": "E"},
-        {"expr": "sum(rate(billing_insufficient_credit_total[5m]))", "legendFormat": "insufficient credit", "refId": "F"},
-        {"expr": "sum(rate(billing_ledger_mismatch_total[5m]))", "legendFormat": "ledger mismatches", "refId": "G"},
-        {"expr": "sum(rate(billing_payout_settled_total[5m]))", "legendFormat": "payouts settled", "refId": "H"},
-        {"expr": "sum(rate(billing_refund_skipped_no_debit_total[5m]))", "legendFormat": "refund skipped: no debit", "refId": "I"}
+        {"expr": "sum(rate(billing_checkout_created_total[5m]))", "legendFormat": "checkout created", "refId": "B"},
+        {"expr": "sum(rate(billing_checkout_failed_total[5m]))", "legendFormat": "checkout failures", "refId": "C"},
+        {"expr": "sum(rate(billing_payment_failed_total[5m]))", "legendFormat": "payment failures", "refId": "D"},
+        {"expr": "sum(rate(billing_webhook_failures_total[5m]))", "legendFormat": "webhook failures", "refId": "E"},
+        {"expr": "sum(rate(provider_sla_penalty_total[5m]))", "legendFormat": "SLA penalties", "refId": "F"},
+        {"expr": "sum(rate(billing_insufficient_credit_total[5m]))", "legendFormat": "insufficient credit", "refId": "G"},
+        {"expr": "sum(rate(billing_ledger_mismatch_total[5m]))", "legendFormat": "ledger mismatches", "refId": "H"},
+        {"expr": "sum(rate(billing_payout_settled_total[5m]))", "legendFormat": "payouts settled", "refId": "I"},
+        {"expr": "sum(rate(billing_refund_skipped_no_debit_total[5m]))", "legendFormat": "refund skipped: no debit", "refId": "J"}
       ],
       "title": "Billing and prepaid credits",
       "type": "timeseries"

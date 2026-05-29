@@ -1,9 +1,10 @@
 import io
 import json
+import os
 import tempfile
 import unittest
-from pathlib import Path
 from contextlib import redirect_stdout
+from pathlib import Path
 
 from flow_memory.cli import main
 
@@ -125,6 +126,8 @@ class CLITests(unittest.TestCase):
             "credentials": {"secret_ref": "render/env/FLOW_MEMORY_PROVIDER_CLI_TOKEN"},
             "sla": {"uptime_target": 0.99, "max_latency_ms": 1000, "refund_policy": "credit"},
         }
+        original_provider_token = os.environ.get("FLOW_MEMORY_PROVIDER_CLI_TOKEN")
+        os.environ["FLOW_MEMORY_PROVIDER_CLI_TOKEN"] = "cli-secret-token"
         service = ComputeMarketService(
             store=ComputeMarketStore(":memory:"),
             config=ComputeMarketConfig(database_url=":memory:", compute_market_mode="test", rate_limits_enabled=False),
@@ -189,6 +192,10 @@ class CLITests(unittest.TestCase):
                 )
         finally:
             reset_default_service(None)
+            if original_provider_token is None:
+                os.environ.pop("FLOW_MEMORY_PROVIDER_CLI_TOKEN", None)
+            else:
+                os.environ["FLOW_MEMORY_PROVIDER_CLI_TOKEN"] = original_provider_token
 
         applied = json.loads(apply_output)
         verified = json.loads(verify_output)

@@ -671,6 +671,7 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
 
     service.telemetry.increment("redis_unavailable_total")
     service.telemetry.increment("billing_checkout_failed_total")
+    service.telemetry.increment("billing_checkout_created_total")
     service.telemetry.increment("billing_payment_failed_total")
     service.telemetry.increment("billing_ledger_mismatch_total")
     service.telemetry.increment("billing_refund_skipped_no_debit_total")
@@ -702,6 +703,8 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     assert "unexpected-live-settlement-config" in rule_names
     assert "unexpected-settlement-attempt" in rule_names
     assert "external-provider-allowlist-missing" in rule_names
+    metric_totals = cast(dict[str, float], service.telemetry.summary()["metric_totals"])
+    assert metric_totals["billing_checkout_created_total"] == 1.0
 
 def test_provider_fraud_signal_metric_alert_and_route_on_quote_drift() -> None:
     server, url = _alert_webhook_server()
@@ -812,6 +815,7 @@ def test_grafana_dashboard_covers_compute_market_production_metrics() -> None:
         "billing_debit_total",
         "billing_payout_settled_total",
         "billing_insufficient_credit_total",
+        "billing_checkout_created_total",
         "billing_payment_failed_total",
         "billing_webhook_failures_total",
         "billing_ledger_mismatch_total",

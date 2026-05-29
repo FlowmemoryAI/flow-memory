@@ -714,9 +714,7 @@ class ComputeMarketService:
             raise ValueError("provider application must be pending or probation before verification")
         verified_at = utc_now_iso()
         credential_status = _provider_credential_binding_status(application.get("credential_bindings", {}))
-        if (
-            self.config.external_provider_quotes_enabled or self.config.external_provider_execution_enabled
-        ) and _provider_credential_bindings_unresolved(credential_status):
+        if _provider_credential_bindings_unresolved(credential_status):
             unresolved = ", ".join(
                 item["env_key"]
                 for item in credential_status
@@ -2740,6 +2738,7 @@ class ComputeMarketService:
                         "updated_at": now,
                         "lease_expiration_count": int(job.get("lease_expiration_count", 0) or 0) + 1,
                         "provider_dispatch": "worker_queue_claim_expired",
+                        "lifecycle": _append_lifecycle(job, "queued"),
                     }
                 )
             else:
@@ -4447,12 +4446,21 @@ class ComputeMarketService:
                 "claimed_by": "",
                 "lease_expires_at": "",
                 "worker_capabilities": (),
+                "lifecycle": _append_lifecycle(job, "queued"),
             }
         )
         job.pop("credit_reservation_id", None)
         job.pop("credit_reserved_amount", None)
         job.pop("capacity_reservation_id", None)
         job.pop("reserved_capacity_units", None)
+        for stale_key in (
+            "failed_at",
+            "failure_reason",
+            "error_code",
+            "failed_by_worker_id",
+            "last_lease_expires_at",
+        ):
+            job.pop(stale_key, None)
         retry_expected_status = str(original_job_for_release.get("status", ""))
         transitioned_to_retry = self.store.put_record_if_state(
             "compute_job",
@@ -9918,7 +9926,7 @@ def _assert_job_status(job: Mapping[str, Any], allowed: tuple[str, ...], action:
 
 def _append_lifecycle(job: Mapping[str, Any], status: str) -> tuple[str, ...]:
     lifecycle = tuple(str(item) for item in job.get("lifecycle", ()) if str(item))
-    if status in lifecycle:
+    if lifecycle and lifecycle[-1] == status:
         return lifecycle
     return (*lifecycle, status)
 

@@ -9,6 +9,8 @@ from urllib.parse import parse_qs
 from collections.abc import Callable
 from typing import Any, Mapping, cast
 
+import pytest
+
 from flow_memory.api.router import create_default_router
 from flow_memory.api.scopes import required_scopes_for
 from flow_memory.compute_market.config import ComputeMarketConfig
@@ -29,6 +31,10 @@ from flow_memory.crypto.asymmetric import LocalTestSigner
 from flow_memory.crypto.keys import LocalKeyPair
 from flow_memory.crypto.signatures import sign_payload
 
+
+@pytest.fixture(autouse=True)
+def _provider_secret_env(monkeypatch: Any) -> None:
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_GPU_1_TOKEN", "test-provider-token")
 
 def _service() -> ComputeMarketService:
     return ComputeMarketService(
@@ -235,8 +241,9 @@ def _stripe_checkout_service(base_url: str) -> ComputeMarketService:
     )
 
 
-def test_provider_onboarding_verification_and_secret_reference_only() -> None:
+def test_provider_onboarding_verification_and_secret_reference_only(monkeypatch: Any) -> None:
     service = _service()
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_GPU_1_TOKEN", "super-secret-token")
 
     applied = service.apply_market_provider(_provider_application())
     assert applied["ok"] is True
@@ -291,20 +298,9 @@ def test_provider_onboarding_verification_and_secret_reference_only() -> None:
         raise AssertionError("disabled provider application re-verification succeeded")
 
 
-def test_provider_verification_requires_resolved_env_binding_when_external_quotes_enabled(
-    monkeypatch: Any,
-) -> None:
+def test_provider_verification_requires_resolved_env_binding(monkeypatch: Any) -> None:
     monkeypatch.delenv("FLOW_MEMORY_PROVIDER_GPU_1_TOKEN", raising=False)
-    service = ComputeMarketService(
-        store=ComputeMarketStore(":memory:"),
-        config=ComputeMarketConfig(
-            database_url=":memory:",
-            compute_market_mode="test",
-            rate_limits_enabled=False,
-            external_provider_quotes_enabled=True,
-            external_provider_allowlist=("provider.example.com",),
-        ),
-    )
+    service = _service()
 
     applied = service.apply_market_provider(_provider_application())
     credential_status = applied["provider_application"]["credential_status"][0]
@@ -2257,9 +2253,14 @@ def test_retry_clears_released_capacity_reservation_before_redispatch() -> None:
     assert retried["capacity_release"] == {}
     assert not retried_job.get("capacity_reservation_id")
     assert not retried_job.get("reserved_capacity_units")
+    assert retried_job["lifecycle"][-1] == "queued"
+    assert "failed_at" not in retried_job
+    assert "error_code" not in retried_job
+    assert "failure_reason" not in retried_job
     assert retried["event"]["details"]["capacity_release"] == {}
     assert second_dispatch["ok"] is True
     assert second_dispatch["job"]["status"] == "running"
+    assert second_dispatch["job"]["lifecycle"][-1] == "running"
     assert not second_dispatch["job"].get("capacity_reservation_id")
 
 
@@ -3090,10 +3091,12 @@ def test_compute_job_expire_leases_requeues_claims_and_expires_running_jobs() ->
     assert requeued["claimed_by"] == ""
     assert requeued["lease_expires_at"] == ""
     assert requeued["last_expired_lease"]["claimed_by"] == "worker_old"
+    assert requeued["lifecycle"][-1] == "queued"
     assert expired["status"] == "expired"
     assert expired["error_code"] == "worker_heartbeat_timeout"
     assert "expired" in expired["lifecycle"]
     assert reclaimed["job"]["status"] == "dispatched"
+    assert reclaimed["job"]["lifecycle"][-1] == "dispatched"
     assert any(event["event_type"] == "job.lease_expired" for event in service.job_events(running_id)["events"])
     assert any(event["event_type"] == "job.lease_expired_requeued" for event in service.job_events(claimed_id)["events"])
     try:

@@ -1548,7 +1548,8 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
     local_uri = "/var/lib/flow-memory/audit/compute-market.ndjson"
 
     assert render_deploy.audit_export_uri_from_env({}) == local_uri
-    assert render_deploy.audit_export_uri_from_env({"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://changeme-audit/compute-market"}) == local_uri
+    with pytest.raises(SystemExit) as placeholder_audit_uri:
+        render_deploy.audit_export_uri_from_env({"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": "s3://changeme-audit/compute-market"})
     assert render_deploy.audit_export_uri_from_env({"FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI": local_uri}) == local_uri
     with pytest.raises(SystemExit) as missing_region:
         render_deploy.audit_export_s3_region_from_env(
@@ -1600,6 +1601,7 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
 
     assert missing_region.value.code == 23
     assert weak_object_lock.value.code == 23
+    assert placeholder_audit_uri.value.code == 23
     assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI"] == local_uri
     assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED"] == "false"
     assert local_env_vars["FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE"] == ""

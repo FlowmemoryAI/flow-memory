@@ -214,7 +214,23 @@ def parse_env(path: Path) -> dict[str, str]:
 
 def audit_export_uri_from_env(values: dict[str, str]) -> str:
     uri = DEFAULT_AUDIT_EXPORT_URI or values.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI", "")
-    if not uri or has_placeholder(uri):
+    if uri and has_placeholder(uri):
+        emit(
+            "blocked_missing_audit_object_storage",
+            23,
+            invalid_values=[
+                {
+                    "key": "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI",
+                    "value": uri,
+                    "reason": "placeholder_not_allowed",
+                }
+            ],
+            required_action=(
+                "configure FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI to an S3 Object Lock URI "
+                "or remove the placeholder to use the explicit Render disk fallback"
+            ),
+        )
+    if not uri:
         return DEFAULT_LOCAL_AUDIT_EXPORT_URI
     return uri
 

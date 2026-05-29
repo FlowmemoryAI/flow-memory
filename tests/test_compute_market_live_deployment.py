@@ -18,6 +18,14 @@ import scripts.deploy_compute_market_render_level1 as render_deploy
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def _redis_operational_evidence_env_lines() -> list[str]:
+    return [
+        "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI=https://ops.flowmemory.example/redis/limiter-test",
+        "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI=https://ops.flowmemory.example/redis/circuit-breaker-test",
+        "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI=https://ops.flowmemory.example/redis/multi-instance-test",
+        "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI=https://ops.flowmemory.example/redis/dashboard",
+    ]
+
 
 def _render_blueprint_env_values() -> dict[str, str]:
     values: dict[str, str] = {}
@@ -78,6 +86,10 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://CHANGEME-ops.example.com/flow-memory/postgres-blue-green-rehearsal",
         "FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS=86400",
         "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
+        "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI=https://CHANGEME-ops.example.com/flow-memory/redis-limiter-test",
+        "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI=https://CHANGEME-ops.example.com/flow-memory/redis-circuit-breaker-test",
+        "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI=https://CHANGEME-ops.example.com/flow-memory/redis-multi-instance-test",
+        "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI=https://CHANGEME-ops.example.com/flow-memory/redis-dashboard",
         "FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED=false",
         "FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED=false",
         "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
@@ -140,6 +152,16 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE: ${FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE:-COMPLIANCE}" in compose
     assert "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED: ${FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED:-false}" in compose
     assert "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET: ${FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_SECRET:-}" in compose
+    assert "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI: ${FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI:-}" in compose
+    assert (
+        "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI: "
+        "${FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI:-}"
+    ) in compose
+    assert (
+        "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI: "
+        "${FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI:-}"
+    ) in compose
+    assert "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI: ${FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI:-}" in compose
     assert (
         "FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS: "
         "${FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS:-300}"
@@ -324,6 +346,14 @@ def test_render_blueprint_and_env_builder_match_level1_safety_contract() -> None
     assert "      - key: FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI\n        sync: false" in blueprint
+    assert (
+        "      - key: FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI\n        sync: false"
+    ) in blueprint
+    assert (
+        "      - key: FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI\n        sync: false"
+    ) in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI\n        sync: false" in blueprint
     assert blueprint_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
     assert deploy_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
 
@@ -398,6 +428,33 @@ def test_render_deploy_blocks_level1_billing_and_settlement_material(capsys: Any
     assert invalid["FLOW_MEMORY_COMPUTE_SETTLEMENT_SECURITY_REVIEW_ID"]["expected"] == "empty_for_level1"
     assert "sk_live_forbidden" not in json.dumps(payload)
     assert "whsec_forbidden" not in json.dumps(payload)
+
+
+def test_render_deploy_requires_redis_operational_evidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(render_deploy, "DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS", {})
+    with pytest.raises(SystemExit) as missing:
+        render_deploy.redis_operational_evidence_from_env({})
+    with pytest.raises(SystemExit) as invalid:
+        render_deploy.redis_operational_evidence_from_env(
+            {
+                "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI": "https://ops.example.test/redis/limiter",
+                "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI": "s3://ops/redis/circuit",
+                "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI": "https://ops.example.test/redis/multi",
+                "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI": "file:///tmp/redis-dashboard.md",
+            }
+        )
+    valid = render_deploy.redis_operational_evidence_from_env(
+        {
+            "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI": "https://ops.example.test/redis/limiter",
+            "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI": "s3://ops/redis/circuit",
+            "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI": "https://ops.example.test/redis/multi",
+            "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI": "https://grafana.example.test/d/redis",
+        }
+    )
+
+    assert missing.value.code == 42
+    assert invalid.value.code == 42
+    assert valid["FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI"] == "https://grafana.example.test/d/redis"
 
 
 def test_render_deploy_blocks_disabled_level1_control_planes(capsys: Any) -> None:
@@ -1114,6 +1171,10 @@ def test_public_powershell_preflight_rejects_placeholder_gateway_jwt_secret(tmp_
             postgres_backup_policy_uri="https://ops.flowmemory.ai/postgres/backup-policy",
             postgres_restore_drill_uri="https://ops.flowmemory.ai/postgres/restore-drill",
             postgres_blue_green_rehearsal_uri="https://ops.flowmemory.ai/postgres/blue-green-rehearsal",
+            redis_limiter_test_uri="https://ops.flowmemory.ai/redis/limiter-test",
+            redis_circuit_breaker_test_uri="https://ops.flowmemory.ai/redis/circuit-breaker-test",
+            redis_multi_instance_test_uri="https://ops.flowmemory.ai/redis/multi-instance-test",
+            redis_dashboard_uri="https://ops.flowmemory.ai/redis/dashboard",
         )
     }
     env_values["FLOW_MEMORY_API_JWT_HS256_SECRET"] = "CHANGEME-gateway-jwt-secret-with-at-least-32-characters"
@@ -1381,6 +1442,10 @@ def test_render_deploy_supports_render_disk_local_audit_and_s3_object_lock(monke
     assert s3_env_vars["FLOW_MEMORY_API_NONCE_REPLAY_BACKEND"] == "redis"
     assert s3_env_vars["FLOW_MEMORY_API_NONCE_FAIL_CLOSED"] == "true"
     assert s3_env_vars["FLOW_MEMORY_API_NONCE_REQUIRE_TLS"] == "true"
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI"] == ""
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI"] == ""
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI"] == ""
+    assert s3_env_vars["FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI"] == ""
 
 
 def test_render_env_builder_binds_https_observability_sinks() -> None:
@@ -1815,6 +1880,7 @@ def test_render_deploy_main_blocks_missing_public_observability_sinks_before_ren
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
+                *_redis_operational_evidence_env_lines(),
             ]
         )
         + "\n",
@@ -1993,6 +2059,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
+                *_redis_operational_evidence_env_lines(),
             ]
         ),
         encoding="utf-8",
@@ -2202,6 +2269,7 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
+                *_redis_operational_evidence_env_lines(),
             ]
         ),
         encoding="utf-8",

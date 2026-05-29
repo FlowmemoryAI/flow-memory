@@ -200,6 +200,10 @@ $requiredKeys = @(
     'FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI',
     'FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI',
     'FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI'
+    'FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI',
+    'FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI',
+    'FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI',
+    'FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI'
 )
 
 $placeholderPattern = 'CHANGEME|<[^>]*>|<required>|<your-domain>|yourdomain\.com|api\.yourdomain\.com|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host|high-entropy-api-key'
@@ -354,6 +358,36 @@ if ($invalidPostgresEvidenceUris.Count -gt 0) {
         public_url = ''
         invalid_values = @($invalidPostgresEvidenceUris)
         required_action = 'Managed Postgres backup/PITR policy, restore drill, and blue/green migration rehearsal evidence must be stored at https:// or s3:// URIs.'
+    }
+    exit 17
+}
+
+$redisOperationalEvidenceKeys = @(
+    'FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI',
+    'FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI',
+    'FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI',
+    'FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI'
+)
+$invalidRedisEvidenceUris = New-Object System.Collections.Generic.List[hashtable]
+foreach ($key in $redisOperationalEvidenceKeys) {
+    $value = [string]$envValues[$key]
+    if (-not ($value.StartsWith('https://') -or $value.StartsWith('s3://'))) {
+        $scheme = ''
+        if ($value.Contains('://')) {
+            $scheme = $value.Split('://', 2)[0]
+        }
+        $invalidRedisEvidenceUris.Add(@{
+            key = $key
+            actual = $scheme
+            expected = 'https_or_s3'
+        })
+    }
+}
+if ($invalidRedisEvidenceUris.Count -gt 0) {
+    Write-Status -Status 'blocked_invalid_redis_operational_evidence' -Fields @{
+        public_url = ''
+        invalid_values = @($invalidRedisEvidenceUris)
+        required_action = 'Managed Redis limiter, circuit-breaker, multi-instance shared-state, and dashboard evidence must be stored at https:// or s3:// URIs.'
     }
     exit 17
 }
@@ -555,6 +589,10 @@ $composeChecks = @{
     private_key_inputs_false = 'FLOW_MEMORY_COMPUTE_PRIVATE_KEY_INPUTS_ALLOWED:\s+"?false"?'
     external_provider_quotes_false = 'FLOW_MEMORY_COMPUTE_EXTERNAL_QUOTES_ENABLED:\s+"?false"?'
     external_provider_execution_false = 'FLOW_MEMORY_COMPUTE_EXTERNAL_EXECUTION_ENABLED:\s+"?false"?'
+    redis_limiter_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI:\s+\S+'
+    redis_circuit_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI:\s+\S+'
+    redis_multi_instance_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI:\s+\S+'
+    redis_dashboard_evidence_bound = 'FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI:\s+\S+'
 }
 $failedComposeChecks = New-Object System.Collections.Generic.List[string]
 foreach ($name in $composeChecks.Keys) {

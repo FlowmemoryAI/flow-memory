@@ -106,6 +106,14 @@ services:
         sync: false
       - key: FLOW_MEMORY_COMPUTE_REDIS_PREFIX
         value: flow-memory:compute-market
+      - key: FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI
+        sync: false
       - key: FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED
         value: true
       - key: FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_FAIL_CLOSED

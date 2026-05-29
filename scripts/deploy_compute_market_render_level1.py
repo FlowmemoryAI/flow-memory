@@ -51,6 +51,15 @@ POSTGRES_OPERATIONAL_EVIDENCE_URI_KEYS = (
 DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS = {
     key: os.environ.get(key, "").strip() for key in POSTGRES_OPERATIONAL_EVIDENCE_URI_KEYS
 }
+REDIS_OPERATIONAL_EVIDENCE_URI_KEYS = (
+    "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI",
+    "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI",
+    "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI",
+    "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI",
+)
+DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS = {
+    key: os.environ.get(key, "").strip() for key in REDIS_OPERATIONAL_EVIDENCE_URI_KEYS
+}
 MIN_POSTGRES_SCHEMA_TABLE_COUNT = 110
 MIN_POSTGRES_SCHEMA_INDEX_COUNT = 1311
 
@@ -280,6 +289,40 @@ def postgres_operational_evidence_from_env(values: dict[str, str]) -> dict[str, 
             41,
             invalid_values=invalid,
             required_action="Postgres operational evidence URIs must use https:// or s3:// storage.",
+        )
+    return evidence
+
+
+def redis_operational_evidence_from_env(values: dict[str, str]) -> dict[str, str]:
+    evidence: dict[str, str] = {}
+    missing: list[str] = []
+    invalid: list[dict[str, str]] = []
+    for key in REDIS_OPERATIONAL_EVIDENCE_URI_KEYS:
+        value = (values.get(key) or DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS.get(key, "")).strip()
+        if not value or has_placeholder(value):
+            missing.append(key)
+            continue
+        scheme = url_scheme(value)
+        if scheme not in {"https", "s3"}:
+            invalid.append({"key": key, "actual": scheme, "expected": "https_or_s3"})
+            continue
+        evidence[key] = value
+    if missing:
+        emit(
+            "blocked_missing_redis_operational_evidence",
+            42,
+            missing_values=missing,
+            required_action=(
+                "configure managed Redis limiter test, circuit-breaker test, multi-instance shared-state "
+                "test, and dashboard evidence URIs before public Render deployment"
+            ),
+        )
+    if invalid:
+        emit(
+            "blocked_invalid_redis_operational_evidence",
+            42,
+            invalid_values=invalid,
+            required_action="Redis operational evidence URIs must use https:// or s3:// storage.",
         )
     return evidence
 
@@ -926,6 +969,18 @@ def build_env_vars(
     postgres_blue_green_rehearsal_uri: str = DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS[
         "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"
     ],
+    redis_limiter_test_uri: str = DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI"
+    ],
+    redis_circuit_breaker_test_uri: str = DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI"
+    ],
+    redis_multi_instance_test_uri: str = DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI"
+    ],
+    redis_dashboard_uri: str = DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI"
+    ],
     jwt_hs256_secret: str = "",
     jwt_issuer: str = "",
     jwt_audience: str = "",
@@ -1024,6 +1079,10 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND": "redis",
         "FLOW_MEMORY_COMPUTE_REDIS_URL": redis_url,
         "FLOW_MEMORY_COMPUTE_REDIS_PREFIX": "flow-memory:compute-market",
+        "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI": redis_limiter_test_uri,
+        "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI": redis_circuit_breaker_test_uri,
+        "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI": redis_multi_instance_test_uri,
+        "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI": redis_dashboard_uri,
         "FLOW_MEMORY_COMPUTE_RATE_LIMIT_FAIL_CLOSED": "true",
         "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_FAIL_CLOSED": "true",
         "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED": "true",
@@ -1687,6 +1746,7 @@ def main() -> int:
         DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
     )
     postgres_operational_evidence = postgres_operational_evidence_from_env(env_values)
+    redis_operational_evidence = redis_operational_evidence_from_env(env_values)
     alert_webhook_url = observability_sink_url_from_env(
         env_values,
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
@@ -1770,6 +1830,18 @@ def main() -> int:
             postgres_blue_green_rehearsal_uri=postgres_operational_evidence[
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"
             ],
+            redis_limiter_test_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI"
+            ],
+            redis_circuit_breaker_test_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI"
+            ],
+            redis_multi_instance_test_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI"
+            ],
+            redis_dashboard_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI"
+            ],
             jwt_hs256_secret=gateway_jwt["FLOW_MEMORY_API_JWT_HS256_SECRET"],
             jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
             jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],
@@ -1813,6 +1885,18 @@ def main() -> int:
             ],
             postgres_blue_green_rehearsal_uri=postgres_operational_evidence[
                 "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"
+            ],
+            redis_limiter_test_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI"
+            ],
+            redis_circuit_breaker_test_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI"
+            ],
+            redis_multi_instance_test_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI"
+            ],
+            redis_dashboard_uri=redis_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI"
             ],
             jwt_hs256_secret=gateway_jwt["FLOW_MEMORY_API_JWT_HS256_SECRET"],
             jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],

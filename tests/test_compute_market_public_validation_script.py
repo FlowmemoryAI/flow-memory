@@ -40,6 +40,10 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND=redis",
                 "FLOW_MEMORY_COMPUTE_CIRCUIT_BREAKER_BACKEND=redis",
                 "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://redis.example.com:6379/0",
+                "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI=https://ops.flowmemory.ai/redis/limiter-test",
+                "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI=https://ops.flowmemory.ai/redis/circuit-breaker-test",
+                "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI=https://ops.flowmemory.ai/redis/multi-instance-test",
+                "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI=https://ops.flowmemory.ai/redis/dashboard",
                 "FLOW_MEMORY_COMPUTE_DRY_RUN_REQUIRED=true",
                 "FLOW_MEMORY_COMPUTE_LIVE_SETTLEMENT_ENABLED=false",
                 "FLOW_MEMORY_COMPUTE_BROADCAST_ENABLED=false",
@@ -470,6 +474,64 @@ def test_public_buildout_main_blocks_invalid_postgres_operational_evidence_befor
         assert '"expected": "https_or_s3"' in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted local Postgres operational evidence")
+
+
+def test_public_buildout_main_blocks_missing_redis_operational_evidence_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        .replace("FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI=https://ops.flowmemory.ai/redis/limiter-test\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI=https://ops.flowmemory.ai/redis/circuit-breaker-test\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI=https://ops.flowmemory.ai/redis/multi-instance-test\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI=https://ops.flowmemory.ai/redis/dashboard\n", ""),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "production environment prerequisites failed" in message
+        assert "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI" in message
+        assert "FLOW_MEMORY_COMPUTE_REDIS_CIRCUIT_BREAKER_TEST_URI" in message
+        assert "FLOW_MEMORY_COMPUTE_REDIS_MULTI_INSTANCE_TEST_URI" in message
+        assert "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing Redis operational evidence")
+
+
+def test_public_buildout_main_blocks_invalid_redis_operational_evidence_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace(
+            "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI=https://ops.flowmemory.ai/redis/dashboard",
+            "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI=file:///tmp/redis-dashboard.md",
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_REDIS_DASHBOARD_URI" in message
+        assert '"expected": "https_or_s3"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted local Redis operational evidence")
 
 
 

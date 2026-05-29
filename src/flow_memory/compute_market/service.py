@@ -2920,33 +2920,44 @@ class ComputeMarketService:
                 continue
             credit_release: Mapping[str, Any] = {}
             capacity_release: Mapping[str, Any] = {}
-            if next_status == "expired":
+            reservation_references_cleared = False
+            if next_status in {"queued", "expired"}:
+                release_reason = "job_dispatch_lease_expired_requeued" if next_status == "queued" else "job_lease_expired"
                 credit_release = _release_credit_reservation(
                     self.store,
                     job,
                     request_id=request_id,
-                    reason="job_lease_expired",
+                    reason=release_reason,
                 )
                 capacity_release = self._release_job_capacity_reservation(
                     job,
                     payload,
                     request_id=request_id,
-                    reason="job_lease_expired",
+                    reason=release_reason,
                 )
+                if next_status == "queued":
+                    if str(job.get("credit_reservation_id", "")).strip():
+                        job.pop("credit_reservation_id", None)
+                        job.pop("credit_reserved_amount", None)
+                        reservation_references_cleared = True
+                    if str(job.get("capacity_reservation_id", "")).strip():
+                        job.pop("capacity_reservation_id", None)
+                        job.pop("reserved_capacity_units", None)
+                        reservation_references_cleared = True
                 if credit_release:
                     job["credit_release"] = credit_release
                 if capacity_release:
                     job["capacity_release"] = capacity_release
-                if credit_release or capacity_release:
+                if credit_release or capacity_release or reservation_references_cleared:
                     self.store.put_record_if_state(
                         "compute_job",
                         job_id,
-                        ("expired",),
+                        (next_status,),
                         job,
                         provider_id=str(job.get("provider_id", "")),
                         route_id=str(job.get("route_id", "")),
                         task_type=str(job.get("task_type", "")),
-                        status="expired",
+                        status=next_status,
                         expires_at="",
                         request_id=request_id,
                         tenant_id=str(job.get("tenant_id", "")),

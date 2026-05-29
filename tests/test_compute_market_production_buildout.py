@@ -3800,6 +3800,92 @@ def test_running_lease_expiry_releases_credit_and_capacity_reservations() -> Non
     assert lease_event["details"]["capacity_release"]["reservation_id"] == reservation_id
 
 
+def test_dispatched_lease_expiry_requeue_releases_credit_and_capacity_reservations() -> None:
+    service = _service()
+    account_id = "acct_dispatched_lease_release"
+    _credit_account(service, account_id, 1.0, event_id="evt_dispatched_lease_release_credit")
+    reservation_id = str(
+        _confirmed_capacity_reservation(
+            service,
+            reservation_id="reservation_dispatched_lease_release",
+            capacity_units=2,
+        )["reservation_id"]
+    )
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_dispatched_lease_release",
+                "account_id": account_id,
+                "capacity_reservation_id": reservation_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"worker_id": "worker_dispatched_lease"})
+    credit_reservation_id = str(dispatched["job"]["credit_reservation_id"])
+    expired_at = "2000-01-01T00:00:00Z"
+    stale_dispatch = dict(service.store.get_record("compute_job", job_id) or {})
+    stale_dispatch["status"] = "dispatched"
+    stale_dispatch["lease_expires_at"] = expired_at
+    stale_dispatch["claimed_by"] = "worker_dispatched_lease"
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        stale_dispatch,
+        provider_id=str(stale_dispatch.get("provider_id", "")),
+        route_id=str(stale_dispatch.get("route_id", "")),
+        task_type=str(stale_dispatch.get("task_type", "")),
+        status="dispatched",
+        expires_at=expired_at,
+        actor_id="worker_dispatched_lease",
+    )
+
+    expired = service.expire_job_leases({"job_id": job_id})
+    job = service.get_job(job_id)["job"]
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    credit_reservation = service.store.get_record("credit_transaction", credit_reservation_id)
+    capacity_reservation = service.store.get_record("compute_reservation", reservation_id)
+    lease_event = next(
+        event for event in service.job_events(job_id)["events"] if event["event_type"] == "job.lease_expired_requeued"
+    )
+
+    assert expired["expired_count"] == 1
+    assert job["status"] == "queued"
+    assert "credit_reservation_id" not in job
+    assert "capacity_reservation_id" not in job
+    assert job["credit_release"]["transaction_type"] == "reserve_release"
+    assert job["credit_release"]["reason"] == "job_dispatch_lease_expired_requeued"
+    assert job["capacity_release"]["status"] == "released"
+    assert job["capacity_release"]["release_reason"] == "job_dispatch_lease_expired_requeued"
+    assert credit_reservation is not None
+    assert credit_reservation["status"] == "released"
+    assert capacity_reservation is not None
+    assert capacity_reservation["status"] == "released"
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+    assert lease_event["details"]["credit_release"]["reservation_transaction_id"] == credit_reservation_id
+    assert lease_event["details"]["capacity_release"]["reservation_id"] == reservation_id
+
+    redispatched = service.dispatch_job(
+        job_id,
+        {
+            "worker_id": "worker_dispatched_lease_next",
+            "request_id": "redispatch_after_lease_release",
+        },
+    )
+    new_credit_reservation_id = str(redispatched["job"]["credit_reservation_id"])
+    new_credit_reservation = service.store.get_record("credit_transaction", new_credit_reservation_id)
+    redispatched_balance = service.billing_balance({"account_id": account_id})["balance"]
+
+    assert new_credit_reservation_id != credit_reservation_id
+    assert new_credit_reservation is not None
+    assert new_credit_reservation["status"] == "reserved"
+    assert redispatched_balance["available_credits"] == 0.82
+    assert redispatched_balance["reserved_credits"] == 0.18
+
+
 def test_compute_job_expires_after_max_dispatch_attempts() -> None:
     service = _service()
     job_id = str(

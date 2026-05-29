@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `b0c7912 Harden HTTP provider quote validation`
+Latest inspected commit: `d529f31 Preserve signed external provider quotes`
 
 ## Current architecture
 
@@ -1173,4 +1173,43 @@ flowchart TD
     RouteCheck --> Valid
     Valid -->|No| Invalid[invalid_response]
     StaleFlag --> Stale[stale quote status]
+```
+
+## Checkpoint 2026-05-26 Signed external provider quote preservation
+
+Files changed:
+
+- `src/flow_memory/compute_market/service.py`
+- `src/flow_memory/compute_market/provider_sandbox.py`
+- `tests/test_compute_market_provider_adapters.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_provider_adapters.py::test_service_external_provider_quote_preserves_signed_payload_for_broker_validation -q` — 1 passed
+- `python -m pytest tests/test_compute_market_provider_adapters.py::test_service_external_provider_quote_preserves_signed_payload_for_broker_validation tests/test_compute_market_provider_adapters.py::test_provider_sandbox_signed_quote_response_flows_through_service -q` — 2 passed
+- `python -m pytest tests/test_compute_market_provider_adapters.py -q` — 26 passed
+- `python -m pytest tests/test_compute_market_provider_adapters.py tests/test_compute_market_provider_contracts.py tests/test_compute_market_provider_conformance_script.py tests/test_compute_market_production_buildout.py::test_provider_conformance_and_quote_ingest_verify_signed_quotes -q` — 38 passed
+- `python -m ruff check src/flow_memory/compute_market/service.py src/flow_memory/compute_market/provider_sandbox.py tests/test_compute_market_provider_adapters.py` — OK
+- `python -m mypy src/flow_memory/compute_market/provider_sandbox.py tests/test_compute_market_provider_adapters.py` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 434 passed, 2 skipped
+- `git diff --check -- src/flow_memory/compute_market/provider_sandbox.py src/flow_memory/compute_market/service.py tests/test_compute_market_provider_adapters.py` — clean
+
+Commit: `d529f31 Preserve signed external provider quotes`.
+
+Implementation:
+
+- External HTTP provider quotes that already passed adapter-level signature verification are now broker-validated against the provider's original signed payload instead of a normalized/mutated record.
+- Stored broker quote records now serialize provider quote signatures as deterministic JSON, matching adapter cache behavior.
+- Provider sandbox quote responses can optionally be signed with a local deterministic quote signer while stripping contract-unsafe false-only execution fields before signing.
+- Tests prove signed HTTP provider responses and signed sandbox quote responses ingest through the service, remain dry-run-only, and retain `signed_quote_valid=true`.
+
+```mermaid
+flowchart TD
+    Provider[Signed provider quote] --> Adapter[HTTP adapter verifies raw signature]
+    Adapter --> Original[Preserve original signed payload]
+    Original --> Broker[Broker contract validation]
+    Broker --> Store[Stored compute quote]
+    Store --> SignedOK[signed_quote_valid true]
+    Sandbox[Provider sandbox quote signer] --> Adapter
+    Broker --> Safety[dry_run_only and no funds moved]
 ```

@@ -64,6 +64,52 @@ def test_inference_market_rejects_unsafe_payloads() -> None:
         service.opportunity_cost({"task": "unsafe", "broadcast": True})
 
 
+def test_inference_admin_credit_and_demand_methods_are_stateful_and_safe() -> None:
+    service = InferenceMarketService.seeded()
+
+    source = service.create_source(
+        {
+            "source_id": "src-admin-test",
+            "source_name": "Admin test source",
+            "models": ["gpt-4o-mini"],
+            "credential_ref": "secret://inference/src-admin-test",
+            "seller_id": "seller-admin-test",
+        }
+    )
+    assert source["ok"] is True
+    assert service.sources["src-admin-test"].source_name == "Admin test source"
+
+    account = service.create_account(
+        {
+            "account_id": "acct-admin-test",
+            "owner_id": "seller-admin-test",
+            "source_id": "src-admin-test",
+            "sell_enabled": True,
+        }
+    )
+    assert account["account"]["sell_enabled"] is True
+    assert "acct-admin-test" in service.accounts
+
+    updated = service.update_source("src-admin-test", {"status": "paused"})
+    assert updated["source"]["status"] == "paused"
+
+    disabled = service.disable_source("src-admin-test", {})
+    assert disabled["source"]["status"] == "disabled"
+    health = service.source_health("src-admin-test", {})
+    assert health["health"] == "disabled_or_unknown"
+
+    listed = service.sell({"agent_id": "seller-admin-test", "units": 10})
+    cancelled = service.cancel_listing({"listing_id": listed["listing"]["listing_id"]})
+    assert cancelled["listing"]["status"] == "cancelled"
+
+    demand = service.demand({"agent_id": "agent-demand", "model": "gpt-4o-mini", "estimated_units": 123})
+    assert demand["demand"][0]["units_requested"] == 123.0
+    assert service.demand_snapshots[demand["demand"][0]["snapshot_id"]].agent_id == "agent-demand"
+
+    with pytest.raises(ValueError, match="raw inference provider credential"):
+        service.create_source({"source_id": "src-unsafe", "api_key": "raw-provider-key"})
+
+
 def test_capacity_market_reserve_and_forward_simulation_are_non_binding() -> None:
     service = default_capacity_market_service()
 
@@ -215,6 +261,21 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
         }
     )
     prices = inference.prices()
+    admin_source = inference.create_source(
+        {
+            "source_id": "src-persist-admin",
+            "source_name": "Persisted admin source",
+            "credential_ref": "secret://inference/src-persist-admin",
+        }
+    )
+    admin_account = inference.create_account(
+        {
+            "account_id": "acct-persist-admin",
+            "owner_id": "seller-persist-admin",
+            "source_id": "src-persist-admin",
+        }
+    )
+    demand_snapshot = inference.demand({"agent_id": "agent-persist-demand", "model": "gpt-4o-mini"})
 
     capacity = CapacityMarketService.seeded(store=store)
     reservation = capacity.reserve({"gpu_class": "H100", "region": "us-east", "hours": 4})
@@ -232,6 +293,9 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
     order_id = str(bought["order"]["order_id"])
     decision_id = str(opportunity["decision"]["decision_id"])
     price_id = str(prices["prices"][0]["snapshot_id"])
+    source_id = str(admin_source["source"]["source_id"])
+    account_id = str(admin_account["account"]["account_id"])
+    demand_id = str(demand_snapshot["demand"][0]["snapshot_id"])
     reservation_id = str(reservation["reservation"]["reservation_id"])
     forward_id = str(forward["contract"]["contract_id"])
     delivery_id = str(delivery["delivery_schedule"]["schedule_id"])
@@ -248,6 +312,9 @@ def test_market_simulators_persist_records_to_compute_store(tmp_path: Path) -> N
     assert reopened.get_record("inference_credit_order", order_id) is not None
     assert reopened.get_record("opportunity_cost_decision", decision_id) is not None
     assert reopened.get_record("inference_price_snapshot", price_id) is not None
+    assert reopened.get_record("inference_credit_source", source_id) is not None
+    assert reopened.get_record("inference_credit_account", account_id) is not None
+    assert reopened.get_record("inference_demand_snapshot", demand_id) is not None
     assert reopened.get_record("capacity_reservation", reservation_id) is not None
     assert reopened.get_record("forward_capacity_contract", forward_id) is not None
     assert reopened.get_record("forward_capacity_delivery_schedule", delivery_id) is not None

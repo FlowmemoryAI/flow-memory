@@ -42,19 +42,7 @@ def inference_sources(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def inference_credit_account_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {
-        "ok": True,
-        "account": {
-            "account_id": str(payload.get("account_id") or "acct-simulated"),
-            "owner_id": str(payload.get("owner_id") or payload.get("agent_id") or "agent-simulated"),
-            "source_id": str(payload.get("source_id") or "src-discount-openai-compatible"),
-            "status": "simulated",
-            "dry_run_only": True,
-            "funds_moved": False,
-        },
-        "dry_run_only": True,
-        "funds_moved": False,
-    }
+    return _ensure_mapping(_INFERENCE_SERVICE.create_account(payload))
 
 
 def inference_credit_list(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -70,17 +58,7 @@ def inference_credit_sell(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def inference_credit_cancel_listing(payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {
-        "ok": True,
-        "listing": {
-            "listing_id": str(payload.get("listing_id") or ""),
-            "status": "cancelled",
-            "dry_run_only": True,
-            "funds_moved": False,
-        },
-        "dry_run_only": True,
-        "funds_moved": False,
-    }
+    return _ensure_mapping(_INFERENCE_SERVICE.cancel_listing(payload))
 
 
 def inference_order_book(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -101,19 +79,7 @@ def inference_spreads(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def inference_demand(payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {
-        "ok": True,
-        "demand": (
-            {
-                "requested_model": str(payload.get("model") or "gpt-4o-mini"),
-                "unit_type": str(payload.get("unit_type") or "token"),
-                "units_requested": float(payload.get("estimated_units", 1000.0) or 1000.0),
-                "dry_run_only": True,
-            },
-        ),
-        "dry_run_only": True,
-        "funds_moved": False,
-    }
+    return _ensure_mapping(_INFERENCE_SERVICE.demand(payload))
 
 
 def inference_usage(payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -143,24 +109,19 @@ def inference_admin_sources(payload: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def inference_admin_source_create(payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {
-        "ok": True,
-        "source": {"source_id": str(payload.get("source_id") or "src-simulated"), "status": "simulated"},
-        "credential_storage": "secret_reference_only",
-        "dry_run_only": True,
-    }
+    return _ensure_mapping(_INFERENCE_SERVICE.create_source(payload))
 
 
 def inference_admin_source_update(source_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {"ok": True, "source": {"source_id": source_id, "status": str(payload.get("status") or "updated")}}
+    return _ensure_mapping(_INFERENCE_SERVICE.update_source(source_id, payload))
 
 
-def inference_admin_source_disable(source_id: str, _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {"ok": True, "source": {"source_id": source_id, "status": "disabled"}, "dry_run_only": True}
+def inference_admin_source_disable(source_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_INFERENCE_SERVICE.disable_source(source_id, payload))
 
 
-def inference_admin_source_health(source_id: str, _payload: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {"ok": True, "source_id": source_id, "health": "simulated_healthy", "dry_run_only": True}
+def inference_admin_source_health(source_id: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    return _ensure_mapping(_INFERENCE_SERVICE.source_health(source_id, payload))
 
 
 def inference_proxy(payload: Mapping[str, Any]) -> Mapping[str, Any]:

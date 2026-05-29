@@ -15,6 +15,7 @@ from .models import (
     InferenceCreditListing,
     InferenceCreditOrder,
     InferenceCreditSource,
+    InferenceDemandSnapshot,
     InferenceMarketPolicy,
     InferencePriceSnapshot,
     InferenceQuote,
@@ -82,6 +83,7 @@ class InferenceMarketService:
         self.usage_records: dict[str, InferenceUsageRecord] = {}
         self.price_snapshots: dict[str, InferencePriceSnapshot] = {}
         self.audit_events: list[dict[str, Any]] = []
+        self.demand_snapshots: dict[str, InferenceDemandSnapshot] = {}
         self._persist_seed_records()
         self._load_persisted_records()
 
@@ -260,6 +262,8 @@ class InferenceMarketService:
             self.usage_records[usage.usage_id] = usage
         for snapshot in self._load_records("inference_price_snapshot", InferencePriceSnapshot):
             self.price_snapshots[snapshot.snapshot_id] = snapshot
+        for demand_snapshot in self._load_records("inference_demand_snapshot", InferenceDemandSnapshot):
+            self.demand_snapshots[demand_snapshot.snapshot_id] = demand_snapshot
 
     def _load_records(self, record_type: str, model_type: type[_T]) -> tuple[_T, ...]:
         if self.store is None:
@@ -282,6 +286,170 @@ class InferenceMarketService:
             status=listing.status,
             expires_at=listing.expires_at,
         )
+
+    def create_account(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        account = InferenceCreditAccount(
+            account_id=str(payload.get("account_id") or _stable_id("acct", str(payload.get("owner_id") or payload.get("agent_id") or "agent"))),
+            owner_id=str(payload.get("owner_id") or payload.get("agent_id") or "agent-simulated"),
+            source_id=str(payload.get("source_id") or "src-discount-openai-compatible"),
+            workspace_id=str(payload.get("workspace_id") or "default"),
+            status=str(payload.get("status") or "active"),
+            credential_ref=str(payload.get("credential_ref") or ""),
+            sell_enabled=bool(payload.get("sell_enabled", False)),
+            buy_enabled=bool(payload.get("buy_enabled", True)),
+        )
+        self.accounts[account.account_id] = account
+        self._persist(
+            "inference_credit_account",
+            account.account_id,
+            account.as_record(),
+            workspace_id=account.workspace_id,
+            provider_id=account.source_id,
+            actor_id=account.owner_id,
+            status=account.status,
+        )
+        return {"ok": True, "account": account.as_record(), "dry_run_only": True, "funds_moved": False}
+
+    def create_source(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        _reject_raw_provider_credentials(payload)
+        source = InferenceCreditSource(
+            source_id=str(payload.get("source_id") or _stable_id("src", str(payload.get("source_name") or "source"))),
+            source_name=str(payload.get("source_name") or payload.get("name") or "Simulated inference source"),
+            source_type=str(payload.get("source_type") or SourceType.OPENAI_COMPATIBLE.value),
+            status=str(payload.get("status") or "active"),
+            verified=bool(payload.get("verified", False)),
+            models=_tuple_str(payload.get("models"), ("gpt-4o-mini",)),
+            supported_units=_tuple_str(payload.get("supported_units"), (CreditUnit.TOKEN.value, CreditUnit.REQUEST.value)),
+            base_url=str(payload.get("base_url") or ""),
+            credential_ref=str(payload.get("credential_ref") or ""),
+            transferable=bool(payload.get("transferable", True)),
+            seller_id=str(payload.get("seller_id") or payload.get("owner_id") or "seller-simulated"),
+            quality_score=_positive_float(payload.get("quality_score"), 1.0),
+            reliability_score=_positive_float(payload.get("reliability_score"), 1.0),
+        )
+        self.sources[source.source_id] = source
+        self._persist(
+            "inference_credit_source",
+            source.source_id,
+            source.as_record(),
+            provider_id=source.source_id,
+            actor_id=source.seller_id,
+            status=source.status,
+        )
+        return {
+            "ok": True,
+            "source": source.as_record(),
+            "credential_storage": "secret_reference_only",
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
+
+    def update_source(self, source_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        _reject_raw_provider_credentials(payload)
+        existing = self.sources.get(source_id)
+        if existing is None:
+            return self._policy_denial("unknown_source", "Unknown inference credit source.", "Create the source first.")
+        record = existing.as_record()
+        for key in (
+            "source_name",
+            "source_type",
+            "status",
+            "verified",
+            "base_url",
+            "credential_ref",
+            "transferable",
+            "seller_id",
+            "quality_score",
+            "reliability_score",
+        ):
+            if key in payload:
+                record[key] = payload[key]
+        if "models" in payload:
+            record["models"] = _tuple_str(payload.get("models"), ())
+        if "supported_units" in payload:
+            record["supported_units"] = _tuple_str(payload.get("supported_units"), ())
+        updated = InferenceCreditSource(**{key: record[key] for key in InferenceCreditSource.__dataclass_fields__})
+        self.sources[source_id] = updated
+        self._persist(
+            "inference_credit_source",
+            source_id,
+            updated.as_record(),
+            provider_id=source_id,
+            actor_id=updated.seller_id,
+            status=updated.status,
+        )
+        return {"ok": True, "source": updated.as_record(), "dry_run_only": True, "funds_moved": False}
+
+    def disable_source(self, source_id: str, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        data = payload or {}
+        self._assert_safe_payload(data)
+        return self.update_source(source_id, {**dict(data), "status": "disabled"})
+
+    def source_health(self, source_id: str, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        self._assert_safe_payload(payload or {})
+        source = self.sources.get(source_id)
+        health = "simulated_healthy" if source is not None and source.status == "active" else "disabled_or_unknown"
+        return {"ok": source is not None, "source_id": source_id, "health": health, "dry_run_only": True}
+
+    def cancel_listing(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        self._assert_safe_payload(payload)
+        listing_id = str(payload.get("listing_id") or "")
+        listing = self.listings.get(listing_id)
+        if listing is None:
+            return self._policy_denial("unknown_listing", "Unknown inference credit listing.", "List active listings first.")
+        cancelled = InferenceCreditListing(**{**listing.as_record(), "status": ListingStatus.CANCELLED.value})
+        self.listings[listing_id] = cancelled
+        self._persist_listing(cancelled)
+        return {
+            "ok": True,
+            "listing": cancelled.as_record(),
+            "dry_run_only": True,
+            "funds_moved": False,
+            "broadcast_allowed": False,
+            "private_key_required": False,
+        }
+
+    def demand(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        data = payload or {}
+        self._assert_safe_payload(data)
+        snapshot = InferenceDemandSnapshot(
+            snapshot_id=_stable_id(
+                "infdem",
+                str(data.get("workspace_id") or "default"),
+                str(data.get("agent_id") or "agent-default"),
+                str(data.get("requested_model") or data.get("model") or "gpt-4o-mini"),
+                str(data.get("estimated_units") or data.get("units_requested") or "1000"),
+            ),
+            requested_model=str(data.get("requested_model") or data.get("model") or "gpt-4o-mini"),
+            provider_class=str(data.get("provider_class") or "openai_compatible"),
+            unit_type=str(data.get("unit_type") or CreditUnit.TOKEN.value),
+            units_requested=_positive_float(data.get("units_requested", data.get("estimated_units")), 1_000.0),
+            max_price=_nonnegative_float(data.get("max_price"), 0.0),
+            urgency=str(data.get("urgency") or "normal"),
+            workspace_id=str(data.get("workspace_id") or "default"),
+            agent_id=str(data.get("agent_id") or "agent-default"),
+            accepted_route=str(data.get("accepted_route") or data.get("route_id") or ""),
+            rejected_reason=str(data.get("rejected_reason") or ""),
+        )
+        self.demand_snapshots[snapshot.snapshot_id] = snapshot
+        self._persist(
+            "inference_demand_snapshot",
+            snapshot.snapshot_id,
+            snapshot.as_record(),
+            workspace_id=snapshot.workspace_id,
+            agent_id=snapshot.agent_id,
+            route_id=snapshot.accepted_route,
+            status="recorded",
+        )
+        return {
+            "ok": True,
+            "demand": (snapshot.as_record(),),
+            "dry_run_only": True,
+            "funds_moved": False,
+        }
 
     def credits(self, payload: Mapping[str, Any] | None = None) -> dict[str, Any]:
         data = payload or {}
@@ -954,6 +1122,32 @@ def _flatten_payload(value: Any) -> str:
         return " ".join(_flatten_payload(item) for item in value)
     return str(value)
 
+
+def _tuple_str(value: Any, default: tuple[str, ...]) -> tuple[str, ...]:
+    if value in (None, ""):
+        return default
+    if isinstance(value, str):
+        return (value,)
+    if isinstance(value, (list, tuple)):
+        return tuple(str(item) for item in value)
+    return default
+
+
+def _reject_raw_provider_credentials(payload: Mapping[str, Any]) -> None:
+    banned_keys = {
+        "api_key",
+        "provider_api_key",
+        "raw_api_key",
+        "access_token",
+        "refresh_token",
+        "authorization",
+        "bearer_token",
+        "credential",
+        "credentials",
+    }
+    present = sorted(key for key in payload if str(key).lower() in banned_keys)
+    if present:
+        raise ValueError(f"raw inference provider credential rejected: {present[0]}")
 
 def _dataclass_from_record(model_type: type[_T], record: Mapping[str, Any]) -> _T:
     allowed = {field.name for field in fields(cast(Any, model_type))}

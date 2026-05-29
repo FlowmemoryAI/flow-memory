@@ -472,17 +472,27 @@ def _query_payload(query: str) -> Mapping[str, Any]:
 def _tenant_scoped_payload(context: RequestContext, payload: Mapping[str, Any]) -> Mapping[str, Any]:
     tenant_id = str(context.tenant_id or "").strip()
     workspace_id = str(context.workspace_id or "").strip()
+    explicit_tenant = str(payload.get("tenant_id", "")).strip()
+    explicit_workspace = str(payload.get("workspace_id", "")).strip()
     if ("api:admin" in context.scopes or "compute:admin" in context.scopes) and not tenant_id and not workspace_id:
         return payload
+    if not tenant_id and explicit_tenant:
+        raise forbidden_error(
+            "Authenticated credential is not bound to the requested tenant",
+            details={"requested_tenant_id": explicit_tenant, "tenant_id": ""},
+        )
+    if not workspace_id and explicit_workspace and not tenant_id:
+        raise forbidden_error(
+            "Authenticated credential is not bound to the requested workspace",
+            details={"requested_workspace_id": explicit_workspace, "workspace_id": ""},
+        )
     if not tenant_id and not workspace_id:
         return payload
-    explicit_tenant = str(payload.get("tenant_id", "")).strip()
     if tenant_id and explicit_tenant and explicit_tenant != tenant_id:
         raise forbidden_error(
             "Authenticated tenant cannot access another tenant",
             details={"tenant_id": tenant_id, "requested_tenant_id": explicit_tenant},
         )
-    explicit_workspace = str(payload.get("workspace_id", "")).strip()
     if workspace_id and explicit_workspace and explicit_workspace != workspace_id:
         raise forbidden_error(
             "Authenticated workspace cannot access another workspace",

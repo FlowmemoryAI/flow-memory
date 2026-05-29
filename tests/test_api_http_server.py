@@ -684,6 +684,46 @@ def test_http_gateway_tenantless_non_admin_key_rejects_tenant_header() -> None:
     assert with_tenant_header.body["error"]["message"] == "API key is not bound to the requested tenant"
     assert with_tenant_header.body["error"]["details"]["key_tenant_id"] == ""
 
+def test_http_gateway_tenantless_non_admin_key_rejects_tenant_payload_injection() -> None:
+    key = "fmk_global_plan_secret"
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            api_key_records=(
+                {
+                    "key_id": "tenantless-plan-key",
+                    "key_prefix": "fmk_global_",
+                    "key_hash": api_key_hash(key),
+                    "tenant_id": "",
+                    "principal": "svc-global-plan",
+                    "scopes": "compute:plan compute:billing",
+                    "enabled": True,
+                },
+            ),
+        )
+    )
+
+    body_injection = gateway.handle(
+        "POST",
+        "/compute/plan",
+        {"x-flow-memory-api-key": key, "x-flow-memory-scopes": "compute:plan"},
+        json.dumps({"task": "tenant injection attempt", "tenant_id": "tenant_other"}).encode("utf-8"),
+    )
+    query_injection = gateway.handle(
+        "GET",
+        "/billing/balance?tenant_id=tenant_other",
+        {"x-flow-memory-api-key": key, "x-flow-memory-scopes": "compute:billing"},
+    )
+
+    assert body_injection.status == 403
+    assert body_injection.body["error"]["code"] == "auth.forbidden"
+    assert body_injection.body["error"]["message"] == "Authenticated credential is not bound to the requested tenant"
+    assert body_injection.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert query_injection.status == 403
+    assert query_injection.body["error"]["code"] == "auth.forbidden"
+    assert query_injection.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+
 
 def test_http_gateway_legacy_key_rejects_tenant_header() -> None:
     service = ComputeMarketService(

@@ -708,6 +708,13 @@ def _inference(argv: list[str]) -> int:
         "sources",
         "market",
         "prices",
+        "demand",
+        "demand-summary",
+        "demand-forecast",
+        "price-history",
+        "price-spreads",
+        "price-anomalies",
+        "price-forecast",
         "usage",
         "statement",
         "buy",
@@ -747,6 +754,20 @@ def _inference(argv: list[str]) -> int:
             output = service.order_book(payload)
         elif args.command == "prices":
             output = service.prices(payload)
+        elif args.command == "demand":
+            output = service.demand(payload)
+        elif args.command == "demand-summary":
+            output = service.demand_summary(payload)
+        elif args.command == "demand-forecast":
+            output = service.demand_forecast(payload)
+        elif args.command == "price-history":
+            output = service.price_history(payload)
+        elif args.command == "price-spreads":
+            output = service.price_spreads(payload)
+        elif args.command == "price-anomalies":
+            output = service.price_anomalies(payload)
+        elif args.command == "price-forecast":
+            output = service.price_forecast(payload)
         elif args.command == "usage":
             output = service.usage(payload)
         elif args.command == "statement":

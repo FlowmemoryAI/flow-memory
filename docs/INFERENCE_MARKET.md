@@ -49,6 +49,8 @@ All behavior is simulation-only until real provider, billing, legal, compliance,
 - Tests: `tests/test_inference_capacity_futures_markets.py`
 - Demand intelligence: `GET /inference/demand`, `GET /inference/demand/summary`, `POST /inference/demand/forecast`
 - Price intelligence: `GET /inference/prices`, `GET /inference/prices/history`, `GET /inference/prices/spreads`, `GET /inference/prices/anomalies`, `POST /inference/prices/forecast`
+- CLI demand intelligence: `flow-memory inference demand-summary --json`, `flow-memory inference demand-forecast --json`
+- CLI price intelligence: `flow-memory inference price-history --json`, `flow-memory inference price-spreads --json`, `flow-memory inference price-forecast --json`
 
 ## Core objects
 

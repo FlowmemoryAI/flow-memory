@@ -292,6 +292,14 @@ def test_cli_inference_capacity_and_futures_commands(capsys: pytest.CaptureFixtu
     nested_buy = json.loads(capsys.readouterr().out)
     assert nested_buy["funds_moved"] is False
 
+    assert main(["inference", "demand-summary", "--model", "gpt-4o-mini", "--estimated-units", "50"]) == 0
+    demand_summary = json.loads(capsys.readouterr().out)
+    assert demand_summary["summary"]["snapshot_count"] >= 1
+
+    assert main(["inference", "price-forecast", "--model", "gpt-4o-mini"]) == 0
+    price_forecast = json.loads(capsys.readouterr().out)
+    assert price_forecast["forecast"]["confidence"] == "simulated"
+
     assert main(["capacity", "quote", "--gpu-class", "H100", "--region", "us-east", "--hours", "10"]) == 0
     capacity = json.loads(capsys.readouterr().out)
     assert capacity["quote"]["funds_moved"] is False

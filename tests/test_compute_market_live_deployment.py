@@ -47,6 +47,8 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND=redis",
         "FLOW_MEMORY_API_NONCE_FAIL_CLOSED=true",
         "FLOW_MEMORY_API_NONCE_REQUIRE_TLS=true",
+        "FLOW_MEMORY_API_NONCE_VERIFY_TLS=true",
+        "FLOW_MEMORY_API_NONCE_REDIS_PREFIX=flow-memory:api",
         "FLOW_MEMORY_PUBLIC_API_URL=https://api.yourdomain.com",
         "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND=postgres",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION=true",
@@ -104,7 +106,9 @@ def test_compute_market_compose_uses_postgres_redis_and_scope_enforced_api() -> 
     assert "--require-scopes" in compose
     assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK: \"true\"" in compose
     assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND: ${FLOW_MEMORY_API_NONCE_REPLAY_BACKEND:-redis}" in compose
+    assert "FLOW_MEMORY_API_NONCE_REDIS_PREFIX: ${FLOW_MEMORY_API_NONCE_REDIS_PREFIX:-flow-memory:api}" in compose
     assert "FLOW_MEMORY_API_NONCE_FAIL_CLOSED: \"true\"" in compose
+    assert "FLOW_MEMORY_API_NONCE_VERIFY_TLS: ${FLOW_MEMORY_API_NONCE_VERIFY_TLS:-true}" in compose
     assert "FLOW_MEMORY_COMPUTE_STORAGE_BACKEND: postgres" in compose
     assert "FLOW_MEMORY_COMPUTE_RATE_LIMIT_BACKEND: redis" in compose
     assert "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION: ${FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION:-false}" in compose
@@ -150,7 +154,9 @@ def test_render_blueprint_requires_explicit_tls_redis_url() -> None:
     assert "FLOW_MEMORY_API_JWT_LEEWAY_SECONDS\n        value: 60" in blueprint
     assert "FLOW_MEMORY_API_ENABLE_NONCE_CHECK\n        value: true" in blueprint
     assert "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND\n        value: redis" in blueprint
+    assert "FLOW_MEMORY_API_NONCE_REDIS_PREFIX\n        value: flow-memory:api" in blueprint
     assert "FLOW_MEMORY_API_NONCE_REQUIRE_TLS\n        value: true" in blueprint
+    assert "FLOW_MEMORY_API_NONCE_VERIFY_TLS\n        value: true" in blueprint
     assert "PRODUCTION: change every `plan: free` below to a paid Render plan" in blueprint
     assert "inference:proxy" in blueprint
 

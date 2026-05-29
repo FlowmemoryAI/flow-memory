@@ -397,6 +397,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["metrics"] == 200
     assert result["checks"]["jwt_health"] == 200
     assert result["checks"]["jwt_wrong_audience"] == 401
+    assert result["checks"]["jwt_wrong_scope"] == 403
     assert result["checks"]["alerts"] == 200
     assert text_calls == [
         (
@@ -416,9 +417,10 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert audit_export_write_calls[0][2] is not None
     assert audit_export_write_calls[0][2]["x-flow-memory-scopes"] == "compute:audit"
     assert audit_export_write_calls[0][3] == {"chain_id": "all"}
-    jwt_calls = [call for call in calls if call[1].endswith("/compute/health") and call[2] and "authorization" in call[2]]
-    assert len(jwt_calls) == 2
+    jwt_calls = [call for call in calls if call[2] and "authorization" in call[2]]
+    assert len(jwt_calls) == 3
     assert all(call[2] is not None and call[2].get("x-flow-memory-scopes") == "compute:read" for call in jwt_calls)
+    assert any(call[0] == "POST" and call[1] == "https://api.example.test/compute/plan" for call in jwt_calls)
     refund_calls = [call for call in calls if call[1].endswith("/billing/refund")]
     assert len(refund_calls) == 1
     assert refund_calls[0][2] is not None and refund_calls[0][2]["x-flow-memory-scopes"] == "compute:billing"

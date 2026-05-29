@@ -243,6 +243,12 @@ def validate(
                 audience=f"{gateway_jwt_config['audience']}-wrong",
             ),
         )
+        checks["jwt_wrong_scope"] = call_json(
+            "POST",
+            f"{base}/compute/plan",
+            gateway_jwt_headers(gateway_jwt_config, "compute:read"),
+            {"task": PUBLIC_TASK, "dry_run": True},
+        )
 
     suffix = str(int(time.time()))
     provider_id = f"provider_public_buildout_{suffix}"
@@ -466,6 +472,7 @@ def validate(
     if gateway_jwt_config is not None:
         require(checks["jwt_health"][0] == 200, "gateway JWT health check failed")
         require(checks["jwt_wrong_audience"][0] == 401, "gateway JWT wrong-audience check did not fail")
+        require(checks["jwt_wrong_scope"][0] == 403, "gateway JWT wrong-scope check did not fail")
     require(checks["external_quote_disabled"][0] == 200 and data(checks["external_quote_disabled"][1]).get("ok") is False, "external quote endpoint did not fail closed")
     require(checks["job_receipt_wrong_scope"][0] == 403, "receipt endpoint wrong scope did not fail")
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")

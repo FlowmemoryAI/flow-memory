@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `c89b318 Bind market actions to audit chains`
+Latest inspected commit: `dabba23 Harden inference proxy scope behavior`
 
 ## Current architecture
 
@@ -402,4 +402,39 @@ flowchart TD
     AuditWriter --> Chain[Chain-specific audit hash chain]
     Chain --> Verify[verify_audit_chain]
     Verify --> Evidence[Regression evidence]
+```
+
+## Checkpoint 2026-05-26 Proxy scope and streaming hardening
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commit:
+
+- `dabba23 Harden inference proxy scope behavior`
+
+Implementation:
+
+- OpenAI-compatible and Anthropic-compatible proxy responses now include a deterministic `request_id`.
+- If a caller asks for streaming while the local fake provider path is active, the response explicitly returns `streaming_not_implemented` inside `flow_memory.warnings` instead of silently pretending to stream.
+- HTTP gateway coverage now verifies the Anthropic-compatible proxy requires `inference:proxy`, denies `inference:read`, records usage, and leaves the inference audit chain valid.
+
+```mermaid
+flowchart TD
+    SDK[Compatible SDK] --> Gateway[HTTP API gateway]
+    Gateway --> Scope{Has inference proxy scope}
+    Scope -- no --> Deny[403 structured denial]
+    Scope -- yes --> Proxy[Flow Memory proxy]
+    Proxy --> Warning[streaming_not_implemented warning when requested]
+    Proxy --> Usage[Usage record]
+    Proxy --> Audit[Inference audit chain]
 ```

@@ -255,9 +255,9 @@ def _resolve_api_key_with_reasons(
         return (
             ApiKeyIdentity(
                 key_id="legacy",
-                principal=_header(headers, "x-flow-memory-principal") or "api-key",
-                tenant_id=_header(headers, "x-flow-memory-tenant"),
-                workspace_id=_header(headers, "x-flow-memory-workspace"),
+                principal="api-key",
+                tenant_id="",
+                workspace_id="",
                 scopes=scopes,
             ),
             (),

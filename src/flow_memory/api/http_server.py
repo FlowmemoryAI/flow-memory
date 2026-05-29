@@ -24,13 +24,11 @@ from flow_memory.api.request_context import RequestContext
 from flow_memory.api.scopes import COMPUTE_BILLING_SCOPE, KNOWN_SCOPES, context_from_headers, require_scopes
 from flow_memory.core.types import new_id
 
-_FORWARDED_IDENTITY_HEADERS = frozenset(
+_UNTRUSTED_FORWARD_HEADERS = frozenset(
     {
         "x-flow-memory-client",
         "x-flow-memory-client-ip",
         "x-flow-memory-principal",
-        "x-flow-memory-tenant",
-        "x-flow-memory-workspace",
     }
 )
 
@@ -235,7 +233,6 @@ class HttpApiGateway:
                 and credential_resolved
                 and context.tenant_id
                 and not auth.tenant_id
-                and auth.key_id != "legacy"
                 and not global_admin_credential
             ):
                 if api_key_authenticated:
@@ -271,6 +268,30 @@ class HttpApiGateway:
                         "requested_tenant_id": context.tenant_id,
                     },
                 )
+            if (
+                auth.ok
+                and credential_resolved
+                and context.workspace_id
+                and not auth.workspace_id
+                and not global_admin_credential
+            ):
+                if api_key_authenticated:
+                    raise forbidden_error(
+                        "API key is not bound to the requested workspace",
+                        details={
+                            "key_id": auth.key_id,
+                            "requested_workspace_id": context.workspace_id,
+                            "key_workspace_id": "",
+                        },
+                    )
+                raise forbidden_error(
+                    "JWT is not bound to the requested workspace",
+                    details={
+                        "key_id": auth.key_id,
+                        "requested_workspace_id": context.workspace_id,
+                        "jwt_workspace_id": "",
+                    },
+                )
             if auth.ok and credential_resolved and auth.workspace_id and context.workspace_id and auth.workspace_id != context.workspace_id:
                 raise forbidden_error(
                     "API key workspace does not match the requested workspace",
@@ -294,8 +315,8 @@ class HttpApiGateway:
                         },
                     )
             if auth.ok and (auth.scopes or auth.tenant_id or auth.workspace_id or auth.principal):
-                resolved_tenant_id = auth.tenant_id or (context.tenant_id if auth.key_id == "legacy" or global_admin_credential else "")
-                resolved_workspace_id = auth.workspace_id or context.workspace_id
+                resolved_tenant_id = auth.tenant_id or (context.tenant_id if global_admin_credential else "")
+                resolved_workspace_id = auth.workspace_id or (context.workspace_id if global_admin_credential else "")
                 effective_scopes = requested_scopes if requested_scopes else (() if auth.key_id == "legacy" and self.config.require_scopes else auth.scopes)
                 context = context.__class__(
                     method=context.method,
@@ -402,7 +423,7 @@ def create_http_server(gateway: HttpApiGateway | None = None, *, host: str = "12
             headers = {
                 key: value
                 for key, value in self.headers.items()
-                if key.lower() not in _FORWARDED_IDENTITY_HEADERS
+                if key.lower() not in _UNTRUSTED_FORWARD_HEADERS
             }
             headers["x-flow-memory-client-ip"] = str(self.client_address[0])
             response = resolved_gateway.handle(self.command, self.path, headers, body)

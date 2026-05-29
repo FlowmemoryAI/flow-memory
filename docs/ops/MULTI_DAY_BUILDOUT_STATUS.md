@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `f614160 Verify audit export readback in public smoke`
+Latest inspected commit: `58487f8 Require production API scopes in public validation`
 
 ## Current architecture
 
@@ -1822,4 +1822,39 @@ flowchart TD
     Readback --> EventCount[event_count >= 1]
     CheckpointHash --> PublicGate[Public validation and smoke gate]
     EventCount --> PublicGate
+```
+
+## Checkpoint 2026-05-26 Public API scope enforcement gate
+
+Files changed:
+
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 80 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 454 passed, 2 skipped
+- `git diff --check` — no whitespace errors
+
+Commit: `58487f8 Require production API scopes in public validation`.
+
+Implementation:
+
+- Public environment validation now requires `FLOW_MEMORY_API_REQUIRE_SCOPES=true` and a production API key scope set containing `compute:read`, `compute:plan`, `compute:execute`, `compute:admin`, `compute:audit`, `compute:provider-admin`, `compute:billing`, and `compute:settlement-admin`.
+- Render API deployment safety settings now reject an env file that disables API scope enforcement before provisioning.
+- Public validation fails before network calls if the configured API key cannot exercise the required production Level 1 admin, audit, planning, execution, provider, billing, and settlement-safety surfaces.
+
+```mermaid
+flowchart TD
+    Env[Public env file] --> ScopeGate[API scope prerequisite gate]
+    ScopeGate --> RequireScopes[FLOW_MEMORY_API_REQUIRE_SCOPES=true]
+    ScopeGate --> KeyScopes[API key contains required compute scopes]
+    RequireScopes --> PublicValidation[Public validation]
+    KeyScopes --> PublicValidation
+    PublicValidation --> MissingKey[401 missing key]
+    PublicValidation --> WrongScope[403 wrong scope]
 ```

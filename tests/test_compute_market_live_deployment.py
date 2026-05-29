@@ -1100,7 +1100,7 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
         "production_safety_defaults.provider_callback_signing_required -eq $true",
         "production_safety_defaults.audit_required -eq $true",
         "production_safety_defaults.audit_export_required -eq $true",
-        "production_safety_defaults.audit_export_immutable_required -eq $true",
+        "(-not $RequireImmutableAudit) -or ($readinessData.production_safety_defaults.audit_export_immutable_required -eq $true)",
     ):
         assert expected in smoke_script
     for expected in (

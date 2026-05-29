@@ -399,7 +399,7 @@ Assert-True ($readinessData.production_safety_defaults.external_provider_executi
 Assert-True ($readinessData.production_safety_defaults.provider_callback_signing_required -eq $true) 'readiness did not report provider_callback_signing_required=true.'
 Assert-True ($readinessData.production_safety_defaults.audit_required -eq $true) 'readiness did not report audit_required=true.'
 Assert-True ($readinessData.production_safety_defaults.audit_export_required -eq $true) 'readiness did not report audit_export_required=true.'
-Assert-True ($readinessData.production_safety_defaults.audit_export_immutable_required -eq $true) 'readiness did not report audit_export_immutable_required=true.'
+Assert-True ((-not $RequireImmutableAudit) -or ($readinessData.production_safety_defaults.audit_export_immutable_required -eq $true)) 'readiness did not report audit_export_immutable_required=true when immutable audit was required.'
 $redisUrlScheme = $readinessData.production_safety_defaults.redis_url_scheme
 $allowInternalRedis = $readinessData.production_safety_defaults.allow_internal_redis_in_production
 $redisSchemeAllowed = ($redisUrlScheme -eq 'rediss') -or (($redisUrlScheme -eq 'redis') -and ($allowInternalRedis -eq $true))

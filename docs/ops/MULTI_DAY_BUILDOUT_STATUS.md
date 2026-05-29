@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `58487f8 Require production API scopes in public validation`
+Latest inspected commit: `ef8d505 Keep external providers disabled for Level 1`
 
 ## Current architecture
 
@@ -1857,4 +1857,38 @@ flowchart TD
     KeyScopes --> PublicValidation
     PublicValidation --> MissingKey[401 missing key]
     PublicValidation --> WrongScope[403 wrong scope]
+```
+
+## Checkpoint 2026-05-26 Public Level 1 provider disablement gate
+
+Files changed:
+
+- `scripts/deploy_compute_market_render_level1.py`
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py -q` — 81 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py scripts/deploy_compute_market_render_level1.py tests/test_compute_market_public_validation_script.py tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 455 passed, 2 skipped
+- `git diff --check` — no whitespace errors
+
+Commit: `ef8d505 Keep external providers disabled for Level 1`.
+
+Implementation:
+
+- Public Level 1 environment validation now requires provider contracts and external quote ingestion to remain disabled until real provider credentials, allowlists, and conformance evidence exist.
+- Render API deployment safety settings now fail closed if an env file attempts to enable external providers during production-planning deployment.
+- Public validation still exercises the external quote endpoint and requires it to fail closed, matching the planning-only deployment path.
+
+```mermaid
+flowchart TD
+    Env[Public env file] --> ProviderGate[Provider disablement gate]
+    ProviderGate --> ContractsRequired[provider contracts required=false]
+    ProviderGate --> ContractsVerified[provider contracts verified=false]
+    ProviderGate --> ExternalQuotes[external quotes enabled=false]
+    ExternalQuotes --> PublicValidation[Public validation]
+    PublicValidation --> FailClosed[external quote endpoint fails closed]
 ```

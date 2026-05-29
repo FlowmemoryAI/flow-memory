@@ -308,8 +308,9 @@ class HTTPQuoteProvider:
         normalized_raw.setdefault("market_type", self.provider.market_type)
         normalized_raw.setdefault("network", normalized_raw.get("supported_network", self.provider.network))
         normalized_raw.setdefault("payment_asset", normalized_raw.get("currency_or_asset", self.provider.payment_asset))
-        normalized_raw.setdefault("settlement_options", tuple(str(item) for item in normalized_raw.get("settlement_modes", ("generic_dry_run",))))
-        normalized_raw.setdefault("dry_run_only", True)
+        normalized_raw["settlement_mode"] = "generic_dry_run"
+        normalized_raw["settlement_options"] = ("generic_dry_run",)
+        normalized_raw["dry_run_only"] = True
         normalized_raw.setdefault("original_quote", dict(raw_quote))
         required = {
             "quote_id",

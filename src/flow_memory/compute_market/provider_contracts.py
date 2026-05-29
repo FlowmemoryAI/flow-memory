@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
@@ -239,9 +240,10 @@ def _float_or_none(value: object) -> float | None:
     if value is None or value == "":
         return None
     try:
-        return float(str(value))
+        parsed = float(str(value))
     except (TypeError, ValueError):
         return None
+    return parsed if math.isfinite(parsed) else None
 
 
 def _int_or_none(value: object) -> int | None:
@@ -276,6 +278,7 @@ def _walk(value: object) -> tuple[tuple[str, object], ...]:
     if isinstance(value, (tuple, list)):
         items = []
         for nested in value:
+            items.append(("", nested))
             items.extend(_walk(nested))
         return tuple(items)
     return ()

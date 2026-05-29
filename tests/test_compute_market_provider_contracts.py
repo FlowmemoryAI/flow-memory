@@ -97,6 +97,8 @@ def test_provider_contract_rejects_missing_negative_unknown_and_expired_quotes()
         (_valid_quote(quote_ttl_seconds=0), "missing_quote_ttl"),
         (_valid_quote(expires_at="not-a-time"), "malformed_expires_at"),
         (_valid_quote(expires_at="9999-12-31TZ"), "malformed_expires_at"),
+        (_valid_quote(unit_price="NaN"), "unknown_price"),
+        (_valid_quote(estimated_total_cost="Infinity"), "unknown_total_cost"),
     ]
 
     for quote, expected in cases:
@@ -123,6 +125,16 @@ def test_provider_contract_rejects_policy_override_and_unsafe_live_requirements(
     assert "private_key_required" in result.error_codes
     assert "broadcast_required" in result.error_codes
 
+def test_provider_contract_rejects_unsafe_tokens_inside_array_values() -> None:
+    quote = _valid_quote(
+        execution_hooks=["sendTransaction", "signTransaction"],
+        settlement_instructions=["broadcast", "transfer"],
+    )
+
+    result = validate_provider_quote_contract(quote, provider_id="provider-local-gpu")
+
+    assert result.ok is False
+    assert "unsafe_payload" in result.error_codes
 
 def test_provider_contract_rejects_mismatched_provider_disallowed_asset_and_huge_response() -> None:
     quote = _valid_quote(provider_id="spoofed", currency_or_asset="RISK", notes="x" * 70000)

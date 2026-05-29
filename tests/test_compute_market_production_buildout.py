@@ -3512,6 +3512,60 @@ def test_completed_job_replay_recovers_missing_financial_side_effects() -> None:
     assert service.store.count_records("billing_invoice") == 1
     assert service.store.count_records("provider_payout") == 1
 
+def test_completed_job_releases_credit_hold_when_usage_charge_has_no_account() -> None:
+    service = _service()
+    account_id = "acct_complete_without_account"
+    _credit_account(service, account_id, 1.0, event_id="evt_complete_without_account")
+    job_id = str(
+        service.create_job(
+            {
+                **_job_payload(),
+                "job_id": "job_complete_without_account",
+                "account_id": account_id,
+                "estimated_total_cost": 0.18,
+                "currency": "USD",
+            }
+        )["job"]["job_id"]
+    )
+    dispatched = service.dispatch_job(job_id, {"account_id": account_id})
+    job_without_account = dict(service.get_job(job_id)["job"])
+    job_without_account.pop("account_id", None)
+    job_without_account.pop("tenant_id", None)
+    service.store.put_record(
+        "compute_job",
+        job_id,
+        job_without_account,
+        provider_id=str(job_without_account["provider_id"]),
+        route_id=str(job_without_account["route_id"]),
+        task_type=str(job_without_account["task_type"]),
+        status=str(job_without_account["status"]),
+        request_id="remove-account-before-completion",
+    )
+
+    completed = service.complete_job(
+        job_id,
+        {
+            "actual_units": 2,
+            "actual_total_cost": 0.18,
+            "currency": "USD",
+            "request_id": "req_complete_without_account",
+        },
+    )
+    balance = service.billing_balance({"account_id": account_id})["balance"]
+    reservation = service.store.get_record("credit_transaction", str(dispatched["job"]["credit_reservation_id"]))
+
+    assert completed["ok"] is True
+    assert completed["usage_charge"]["account_id"] == ""
+    assert completed["credit_debit"] == {}
+    assert completed["provider_payout"] == {}
+    assert completed["credit_release"]["status"] == "posted"
+    assert reservation is not None
+    assert reservation["status"] == "released"
+    assert reservation["release_reason"] == "job_completed_without_account"
+    assert balance["available_credits"] == 1.0
+    assert balance["reserved_credits"] == 0.0
+
+
 
 def test_completed_job_replay_releases_credit_hold_when_debit_is_insufficient() -> None:
     service = _service()
@@ -5414,6 +5468,30 @@ def test_compute_job_retry_rejects_missing_status_without_transition() -> None:
     assert stored["status"] == ""
     assert "job.retry_status_missing" in event_types
     assert "job.retry_queued" not in event_types
+
+def test_compute_job_retry_rejects_terminal_statuses_without_transition() -> None:
+    service = _service()
+    terminal_ids = []
+    for status in ("succeeded", "cancelled"):
+        job_id = str(service.create_job({**_job_payload(), "job_id": f"job_retry_terminal_{status}"})["job"]["job_id"])
+        job = dict(service.get_job(job_id)["job"])
+        job["status"] = status
+        service.store.put_record(
+            "compute_job",
+            job_id,
+            job,
+            provider_id=str(job.get("provider_id", "")),
+            route_id=str(job.get("route_id", "")),
+            task_type=str(job.get("task_type", "")),
+            status=status,
+        )
+        terminal_ids.append(job_id)
+
+    for job_id in terminal_ids:
+        with pytest.raises(ValueError, match="cannot retry compute job from status"):
+            service.retry_job(job_id, {})
+        assert service.get_job(job_id)["job"]["status"] in {"succeeded", "cancelled"}
+        assert not any(event["event_type"] == "job.retry_queued" for event in service.job_events(job_id)["events"])
 
 
 def test_billing_ledger_requires_external_checkout_and_verifies_webhook_signature() -> None:

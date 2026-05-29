@@ -3948,6 +3948,13 @@ class ComputeMarketService:
                     self._audit("billing.usage.debited", payload, request_id=request_id, result=str(credit_debit.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
                 if provider_payout:
                     self._audit("billing.provider_payout.accrued", payload, request_id=request_id, result=str(provider_payout.get("status", "")), provider_id=str(job.get("provider_id", "")), route_id=str(job.get("route_id", "")))
+            else:
+                credit_release = _release_credit_reservation(
+                    self.store,
+                    job,
+                    request_id=request_id,
+                    reason="job_completed_without_account",
+                )
         if not usage_charge:
             credit_release = _release_credit_reservation(
                 self.store,
@@ -4229,6 +4236,13 @@ class ComputeMarketService:
                         request_id=request_id,
                         usage_charge_id=str(usage_charge["usage_charge_id"]),
                     )
+            else:
+                credit_release = _release_credit_reservation(
+                    self.store,
+                    job,
+                    request_id=request_id,
+                    reason="job_completed_without_account",
+                )
         else:
             credit_release = _release_credit_reservation(
                 self.store,
@@ -4596,6 +4610,8 @@ class ComputeMarketService:
         request_id = _request_id(payload)
         job = dict(self.get_job(job_id, payload)["job"])
         _assert_claim_owner(job, payload, "retry")
+        if str(job.get("status", "")).strip():
+            _assert_job_status(job, ("queued", "dispatched", "running", "failed"), "retry")
         current_attempts = int(job.get("attempt", 0) or 0)
         max_retries = _job_max_retries(job)
         if current_attempts >= max_retries:

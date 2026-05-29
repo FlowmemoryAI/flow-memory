@@ -114,6 +114,9 @@ class _QuoteHandler(BaseHTTPRequestHandler):
         if self.path == "/unknown":
             self._send_json({"quote": _quote({"unit_price": None, "estimated_total_cost": None})})
             return
+        if self.path == "/nonfinite":
+            self._send_json({"quote": _quote({"unit_price": "NaN", "estimated_total_cost": "Infinity"})})
+            return
         if self.path == "/malicious":
             self._send_json(
                 {
@@ -256,6 +259,16 @@ def test_http_provider_rejects_unconfigured_route_and_missing_expiry() -> None:
 
     assert all(quote.status == "invalid_response" for quote in wrong_route)
     assert all(quote.status == "invalid_response" for quote in missing_expiry)
+
+
+def test_http_provider_rejects_nonfinite_numeric_quote_values() -> None:
+    server, base = _server()
+    try:
+        quotes = _provider(f"{base}/nonfinite").quote(build_task_profile({"task": "nonfinite"}), ComputeMarketPolicy())
+    finally:
+        server.shutdown()
+
+    assert all(quote.status == "invalid_response" for quote in quotes)
 
 
 def test_http_provider_honors_provider_marked_stale_quote() -> None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import ipaddress
+import math
 import os
 import time
 import urllib.error
@@ -349,6 +350,9 @@ class HTTPQuoteProvider:
         sanitized.setdefault("status", QuoteStatus.VALID.value)
         sanitized.setdefault("confidence", 0.75)
         sanitized["provider_id"] = self.provider.provider_id
+        sanitized["unit_price"] = _optional_float(sanitized.get("unit_price"))
+        sanitized["estimated_units"] = _optional_non_negative(sanitized.get("estimated_units"))
+        sanitized["estimated_total_cost"] = _optional_float(sanitized.get("estimated_total_cost"))
         if sanitized.get("unit_price") is None or sanitized.get("estimated_total_cost") is None:
             sanitized["status"] = QuoteStatus.UNKNOWN_PRICE.value
         if str(sanitized.get("expires_at", "")) and _expired(str(sanitized.get("expires_at", ""))):
@@ -829,15 +833,18 @@ def _tuple(value: object) -> tuple[str, ...]:
 def _optional_float(value: object) -> float | None:
     if value in (None, ""):
         return None
-    return float(cast(SupportsFloat | str | bytes | bytearray, value))
+    amount = float(cast(SupportsFloat | str | bytes | bytearray, value))
+    if not math.isfinite(amount):
+        raise ValueError("numeric values must be finite")
+    return amount
 
 
 def _optional_non_negative(value: object) -> float:
     if value in (None, ""):
         return 0.0
     amount = float(cast(SupportsFloat | str | bytes | bytearray, value))
-    if amount < 0:
-        raise ValueError("execution numeric values must be non-negative")
+    if not math.isfinite(amount) or amount < 0:
+        raise ValueError("execution numeric values must be finite and non-negative")
     return amount
 
 

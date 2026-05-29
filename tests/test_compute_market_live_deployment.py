@@ -2491,7 +2491,7 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     monkeypatch.setattr(render_deploy, "ensure_service", fake_ensure_service)
     monkeypatch.setattr(render_deploy, "find_named", fake_find_named)
     monkeypatch.setattr(render_deploy, "service_env_value", fake_service_env_value)
-    monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
+    monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id, **kwargs: {"id": "deploy_1"})
     def fake_smoke_public(
         url: str,
         api_key: str,
@@ -2683,7 +2683,7 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
     monkeypatch.setattr(render_deploy, "wait_available", fake_wait_available)
     monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
     monkeypatch.setattr(render_deploy, "ensure_service", fake_ensure_service)
-    monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id: {"id": "deploy_1"})
+    monkeypatch.setattr(render_deploy, "trigger_service_deploy", lambda api_key, service_id, **kwargs: {"id": "deploy_1"})
     monkeypatch.setattr(render_deploy, "smoke_public", fake_smoke_public)
     monkeypatch.setattr(render_deploy, "assert_branch_is_publishable", lambda branch: None)
     monkeypatch.setattr(render_deploy.time, "sleep", lambda seconds: None)
@@ -2742,6 +2742,7 @@ def test_render_deploy_ignores_placeholder_public_api_url_for_generated_render_u
 
 
 def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyPatch) -> None:
+    expected_commit = "abcdef1234567890"
     calls: dict[str, Any] = {"deploy_list": 0, "waited_for": ""}
 
     def fake_render_request(
@@ -2753,23 +2754,52 @@ def test_render_deploy_fallback_waits_for_new_deploy(monkeypatch: pytest.MonkeyP
         if method == "GET" and path == "/services/srv_1/deploys?limit=10":
             calls["deploy_list"] = int(calls["deploy_list"]) + 1
             if calls["deploy_list"] == 1:
-                return [{"deploy": {"id": "deploy_old", "status": "live"}}]
+                return [{"deploy": {"id": "deploy_old", "status": "live", "commit": {"id": "0000000"}}}]
             return [
-                {"deploy": {"id": "deploy_new", "status": "build_in_progress"}},
-                {"deploy": {"id": "deploy_old", "status": "live"}},
+                {"deploy": {"id": "deploy_other", "status": "build_in_progress", "commit": {"id": "1111111"}}},
+                {"deploy": {"id": "deploy_new", "status": "build_in_progress", "commit": {"id": expected_commit}}},
+                {"deploy": {"id": "deploy_old", "status": "live", "commit": {"id": "0000000"}}},
             ]
+        if method == "GET" and path == "/services/srv_1/deploys/deploy_other":
+            return {"deploy": {"id": "deploy_other", "status": "build_in_progress", "commit": {"id": "1111111"}}}
         if method == "POST" and path == "/services/srv_1/deploys":
+            assert body == {"clearCache": "do_not_clear", "commitId": expected_commit}
             return {"deploy": {"status": "created"}}
         raise AssertionError(f"unexpected Render call: {method} {path}")
 
-    def fake_wait_deploy_live(api_key: str, service_id: str, deploy_id: str) -> dict[str, str]:
+    def fake_wait_deploy_live(api_key: str, service_id: str, deploy_id: str) -> dict[str, object]:
         calls["waited_for"] = deploy_id
-        return {"id": deploy_id, "status": "live"}
+        return {"id": deploy_id, "status": "live", "commit": {"id": expected_commit}}
 
     monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
     monkeypatch.setattr(render_deploy, "wait_deploy_live", fake_wait_deploy_live)
 
-    result = render_deploy.trigger_service_deploy("render-key", "srv_1")
+    result = render_deploy.trigger_service_deploy("render-key", "srv_1", expected_commit_id=expected_commit)
 
     assert calls["waited_for"] == "deploy_new"
     assert result["status"] == "live"
+
+
+def test_render_deploy_rejects_live_deploy_with_wrong_commit(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_render_request(
+        api_key: str,
+        method: str,
+        path: str,
+        body: Mapping[str, object] | None = None,
+    ) -> object:
+        if method == "GET" and path == "/services/srv_1/deploys?limit=10":
+            return [{"deploy": {"id": "deploy_old", "status": "live", "commit": {"id": "0000000"}}}]
+        if method == "POST" and path == "/services/srv_1/deploys":
+            return {"deploy": {"id": "deploy_new", "status": "created", "commit": {"id": "abcdef1234567890"}}}
+        raise AssertionError(f"unexpected Render call: {method} {path}")
+
+    def fake_wait_deploy_live(api_key: str, service_id: str, deploy_id: str) -> dict[str, object]:
+        return {"id": deploy_id, "status": "live", "commit": {"id": "111111122222222"}}
+
+    monkeypatch.setattr(render_deploy, "render_request", fake_render_request)
+    monkeypatch.setattr(render_deploy, "wait_deploy_live", fake_wait_deploy_live)
+
+    with pytest.raises(SystemExit) as failed:
+        render_deploy.trigger_service_deploy("render-key", "srv_1", expected_commit_id="abcdef1234567890")
+
+    assert failed.value.code == 38

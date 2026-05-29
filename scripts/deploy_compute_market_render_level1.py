@@ -14,7 +14,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Mapping, cast
 
 API_BASE = "https://api.render.com/v1"
 SERVICE_NAME = os.environ.get("RENDER_SERVICE_NAME", "flow-memory-compute-market-api")
@@ -689,6 +689,10 @@ def current_branch() -> str:
     return run_git(["branch", "--show-current"])
 
 
+def current_commit() -> str:
+    return run_git(["rev-parse", "HEAD"])
+
+
 def assert_branch_is_publishable(branch: str) -> None:
     status = run_git(["status", "--short", "--", *DEPLOY_PATHS], check=False)
     if status:
@@ -802,9 +806,69 @@ def list_service_deploys(api_key: str, service_id: str, *, limit: int = 10) -> l
     return results
 
 
-def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
+def _deploy_commit_id(deploy: Mapping[str, Any]) -> str:
+    commit = deploy.get("commit", {})
+    if isinstance(commit, Mapping):
+        commit_id = str(commit.get("id", "")).strip()
+        if commit_id:
+            return commit_id
+    for key in ("commitId", "commit_id", "commitSha", "commitSHA", "commitHash"):
+        commit_id = str(deploy.get(key, "")).strip()
+        if commit_id:
+            return commit_id
+    return ""
+
+
+def _commit_id_matches(actual: str, expected: str) -> bool:
+    actual_clean = actual.strip().lower()
+    expected_clean = expected.strip().lower()
+    if not actual_clean or not expected_clean:
+        return False
+    if actual_clean == expected_clean:
+        return True
+    if len(actual_clean) >= 7 and expected_clean.startswith(actual_clean):
+        return True
+    return len(expected_clean) >= 7 and actual_clean.startswith(expected_clean)
+
+
+def _deploy_matches_commit(deploy: Mapping[str, Any], expected_commit_id: str) -> bool:
+    if not expected_commit_id:
+        return True
+    return _commit_id_matches(_deploy_commit_id(deploy), expected_commit_id)
+
+
+def _assert_deploy_matches_commit(deploy: Mapping[str, Any], expected_commit_id: str) -> None:
+    if not expected_commit_id:
+        return
+    actual_commit_id = _deploy_commit_id(deploy)
+    if _commit_id_matches(actual_commit_id, expected_commit_id):
+        return
+    emit(
+        "failed_deployment",
+        38,
+        reason="render_deploy_commit_mismatch" if actual_commit_id else "render_deploy_commit_missing",
+        deploy_id=str(deploy.get("id", "")),
+        expected_commit_id=expected_commit_id,
+        actual_commit_id=actual_commit_id,
+    )
+
+
+def retrieve_service_deploy(api_key: str, service_id: str, deploy_id: str) -> dict[str, Any]:
+    deploy = render_request(
+        api_key,
+        "GET",
+        f"/services/{urllib.parse.quote(service_id)}/deploys/{urllib.parse.quote(deploy_id)}",
+    )
+    envelope = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
+    return envelope if isinstance(envelope, dict) else {}
+
+
+def trigger_service_deploy(api_key: str, service_id: str, *, expected_commit_id: str = "") -> dict[str, Any]:
     before_ids = {str(deploy.get("id", "")) for deploy in list_service_deploys(api_key, service_id)}
-    deploy = render_request(api_key, "POST", f"/services/{urllib.parse.quote(service_id)}/deploys", {"clearCache": "do_not_clear"})
+    deploy_body = {"clearCache": "do_not_clear"}
+    if expected_commit_id:
+        deploy_body["commitId"] = expected_commit_id
+    deploy = render_request(api_key, "POST", f"/services/{urllib.parse.quote(service_id)}/deploys", deploy_body)
     envelope = deploy.get("deploy", deploy) if isinstance(deploy, dict) else {}
     deploy_id = str(envelope.get("id", ""))
     if not deploy_id:
@@ -812,14 +876,21 @@ def trigger_service_deploy(api_key: str, service_id: str) -> dict[str, Any]:
         while time.time() < deadline and not deploy_id:
             for candidate in list_service_deploys(api_key, service_id):
                 candidate_id = str(candidate.get("id", ""))
-                if candidate_id and candidate_id not in before_ids:
+                if not candidate_id or candidate_id in before_ids:
+                    continue
+                candidate_detail = candidate
+                if expected_commit_id and not _deploy_matches_commit(candidate_detail, expected_commit_id):
+                    candidate_detail = retrieve_service_deploy(api_key, service_id, candidate_id)
+                if _deploy_matches_commit(candidate_detail, expected_commit_id):
                     deploy_id = candidate_id
                     break
             if not deploy_id:
                 time.sleep(5)
     if not deploy_id:
         emit("failed_deployment", 35, reason="render_deploy_id_missing")
-    return wait_deploy_live(api_key, service_id, deploy_id)
+    live_deploy = wait_deploy_live(api_key, service_id, deploy_id)
+    _assert_deploy_matches_commit(live_deploy, expected_commit_id)
+    return live_deploy
 
 
 def _plan_name(resource: dict[str, Any]) -> str:
@@ -2266,7 +2337,7 @@ def main() -> int:
             provider_callback_ip_allowlist=provider_callback_ip_allowlist,
         )
         render_request(render_api_key, "PUT", f"/services/{urllib.parse.quote(str(service['id']))}/env-vars", env_vars)
-        trigger_service_deploy(render_api_key, str(service["id"]))
+        trigger_service_deploy(render_api_key, str(service["id"]), expected_commit_id=current_commit())
         last_smoke: dict[str, Any] | None = None
         for _ in range(90):
             last_smoke = smoke_public(

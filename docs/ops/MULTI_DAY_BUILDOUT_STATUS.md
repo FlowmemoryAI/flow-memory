@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `b1592e5 Add role JWT public smoke coverage`
+Latest inspected commit: `a2083b6 Align migration plan with marketplace schemas`
 
 ## Current architecture
 
@@ -1002,4 +1002,38 @@ flowchart TD
     Role --> ScopeExpansion[Role expands to inference scopes]
     ScopeExpansion --> Inference[/inference/market/order-book smoke]
     Inference --> DryRun[Dry-run public market alpha remains safe]
+```
+
+## Checkpoint 2026-05-26 Marketplace schema migration evidence
+
+Files changed:
+
+- `src/flow_memory/compute_market/storage.py`
+- `src/flow_memory/compute_market/storage_backends.py`
+- `tests/test_compute_market_storage.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_storage.py::test_compute_database_config_supports_explicit_storage_settings tests/test_compute_market_live_infra_script.py::test_postgres_schema_sql_covers_all_compute_record_types tests/test_inference_capacity_futures_markets.py::test_new_market_record_families_are_in_sqlite_and_postgres_schema -q` — 3 passed
+- `python -m pytest tests/test_compute_market_storage.py tests/test_compute_market_live_infra_script.py tests/test_inference_capacity_futures_markets.py -q` — 44 passed
+- `python -m ruff check src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_compute_market_storage.py tests/test_compute_market_live_infra_script.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m mypy src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_compute_market_storage.py tests/test_compute_market_live_infra_script.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 429 passed, 2 skipped
+- `git diff --check -- src/flow_memory/compute_market/storage.py src/flow_memory/compute_market/storage_backends.py tests/test_compute_market_storage.py` — clean
+
+Commit: `a2083b6 Align migration plan with marketplace schemas`.
+
+Implementation:
+
+- Moved the PostgreSQL record-table mapping into the core storage module so migration planning and Postgres schema generation share the same source of truth.
+- The migration plan now enumerates every marketplace record family table, including inference credit resale, capacity/forward capacity, futures simulation, agent treasury, billing, provider, audit, and observability records.
+- Added production storage tests that require migration-plan table coverage to match the generated Postgres schema table map.
+
+```mermaid
+flowchart TD
+    RecordTypes[Compute record types] --> TableMap[Shared Postgres table map]
+    TableMap --> MigrationPlan[Migration plan evidence]
+    TableMap --> SchemaSQL[Generated Postgres DDL]
+    MigrationPlan --> DeploymentAudit[Deployment readiness evidence]
+    SchemaSQL --> LiveMigrations[Managed Postgres migrations]
 ```

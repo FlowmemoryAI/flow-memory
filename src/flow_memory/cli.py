@@ -682,7 +682,18 @@ def _add_futures_cli_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--region", default="us-east")
 
 
+def _normalize_inference_argv(argv: list[str]) -> list[str]:
+    if len(argv) >= 2 and argv[0] == "credits":
+        nested = argv[1]
+        if nested == "list":
+            return ["credits", *argv[2:]]
+        if nested in {"buy", "sell"}:
+            return [nested, *argv[2:]]
+    return argv
+
+
 def _inference(argv: list[str]) -> int:
+    argv = _normalize_inference_argv(argv)
     parser = argparse.ArgumentParser(
         prog="flow-memory inference",
         description="Flow Memory Inference Market CLI. Dry-run only; no funds, private keys, or broadcast.",
@@ -753,7 +764,24 @@ def _inference(argv: list[str]) -> int:
     return _print_cli_output(output)
 
 
+def _normalize_capacity_argv(argv: list[str]) -> list[str]:
+    if len(argv) >= 2 and argv[0] == "forward":
+        nested = argv[1]
+        aliases = {
+            "quote": "forward-quote",
+            "draft": "forward-draft",
+            "simulate": "forward-simulate",
+            "simulate-delivery": "forward-simulate-delivery",
+            "simulate-settlement": "forward-simulate",
+            "list": "forward-list",
+        }
+        if nested in aliases:
+            return [aliases[nested], *argv[2:]]
+    return argv
+
+
 def _capacity_market(argv: list[str]) -> int:
+    argv = _normalize_capacity_argv(argv)
     parser = argparse.ArgumentParser(
         prog="flow-memory capacity",
         description="Flow Memory Capacity Market simulator CLI. Dry-run and non-binding.",
@@ -769,6 +797,8 @@ def _capacity_market(argv: list[str]) -> int:
             "reservations",
             "utilization",
             "order-book",
+            "index",
+            "forward-curve",
             "forward-quote",
             "forward-draft",
             "forward-simulate",
@@ -822,6 +852,10 @@ def _capacity_market(argv: list[str]) -> int:
             output = service.forward_simulate(payload)
         elif args.command == "forward-simulate-delivery":
             output = service.forward_simulate_delivery(payload)
+        elif args.command == "index":
+            output = default_futures_market_service().indexes(payload)
+        elif args.command == "forward-curve":
+            output = default_futures_market_service().forward_curve(payload)
         else:
             output = {"ok": True, "contracts": (), "dry_run_only": True, "funds_moved": False}
     except ValueError as exc:

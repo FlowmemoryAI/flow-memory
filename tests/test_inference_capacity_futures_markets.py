@@ -181,9 +181,29 @@ def test_cli_inference_capacity_and_futures_commands(capsys: pytest.CaptureFixtu
     inference = json.loads(capsys.readouterr().out)
     assert inference["dry_run_only"] is True
 
+    assert main(["inference", "credits", "list"]) == 0
+    nested_credits = json.loads(capsys.readouterr().out)
+    assert nested_credits["dry_run_only"] is True
+
+    assert main(["inference", "credits", "buy", "--units", "1"]) == 0
+    nested_buy = json.loads(capsys.readouterr().out)
+    assert nested_buy["funds_moved"] is False
+
     assert main(["capacity", "quote", "--gpu-class", "H100", "--region", "us-east", "--hours", "10"]) == 0
     capacity = json.loads(capsys.readouterr().out)
     assert capacity["quote"]["funds_moved"] is False
+
+    assert main(["capacity", "forward", "quote", "--gpu-class", "H100", "--hours", "10"]) == 0
+    nested_forward = json.loads(capsys.readouterr().out)
+    assert nested_forward["legal_review_required"] is True
+
+    assert main(["capacity", "index", "--gpu-class", "H100"]) == 0
+    capacity_index = json.loads(capsys.readouterr().out)
+    assert capacity_index["dry_run_only"] is True
+
+    assert main(["capacity", "forward-curve", "--gpu-class", "H100"]) == 0
+    forward_curve = json.loads(capsys.readouterr().out)
+    assert forward_curve["not_investment_advice"] is True
 
     assert main(["futures", "simulate-order", "--side", "buy", "--quantity", "1"]) == 0
     futures = json.loads(capsys.readouterr().out)

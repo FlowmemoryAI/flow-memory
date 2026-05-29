@@ -31,7 +31,7 @@ All behavior is simulation-only until real provider, billing, legal, compliance,
 
 - Package: `src/flow_memory/inference_market/`
 - API adapters: `src/flow_memory/api/marketplace_endpoints.py`
-- CLI: `flow-memory inference ...`
+- CLI: `flow-memory inference ...`, including `flow-memory inference credits list`, `flow-memory inference credits buy`, and `flow-memory inference credits sell`
 - Tests: `tests/test_inference_capacity_futures_markets.py`
 
 ## Core objects

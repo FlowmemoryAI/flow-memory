@@ -20,6 +20,9 @@ flowchart TD
 flow-memory capacity inventory --json
 flow-memory capacity quote --gpu-class H100 --region us-east --hours 100 --json
 flow-memory capacity reserve --gpu-class H100 --region us-east --hours 10 --json
+flow-memory capacity index --gpu-class H100 --region us-east --json
+flow-memory capacity forward-curve --gpu-class H100 --region us-east --json
+flow-memory capacity forward quote --gpu-class H100 --hours 100 --json
 ```
 
 ## API

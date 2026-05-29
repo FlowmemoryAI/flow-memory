@@ -61,6 +61,11 @@ _OBSERVABILITY_HTTPS_URL_KEYS = (
     "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
 )
+_POSTGRES_EVIDENCE_URI_KEYS = (
+    "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI",
+    "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI",
+    "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI",
+)
 _PRODUCTION_ENV_REQUIRED_KEYS = (
     "FLOW_MEMORY_API_NONCE_REPLAY_BACKEND",
     "FLOW_MEMORY_API_NONCE_REDIS_PREFIX",
@@ -84,6 +89,7 @@ _PRODUCTION_ENV_REQUIRED_KEYS = (
     "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
     "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+    *_POSTGRES_EVIDENCE_URI_KEYS,
     *_LEVEL1_EXPECTED_BOOLEAN_SETTINGS.keys(),
 )
 _PRODUCTION_ENV_EXPECTED_VALUES = {
@@ -390,6 +396,13 @@ def validate_production_env_prerequisites(values: Mapping[str, str]) -> None:
                 }
             )
 
+    for key in _POSTGRES_EVIDENCE_URI_KEYS:
+        evidence_uri = values.get(key, "").strip()
+        if not evidence_uri or has_infra_placeholder(evidence_uri):
+            continue
+        scheme = urllib.parse.urlparse(evidence_uri).scheme.lower()
+        if scheme not in {"https", "s3"}:
+            invalid.append({"key": key, "actual": scheme, "expected": "https_or_s3"})
     for key in _OBSERVABILITY_HTTPS_URL_KEYS:
         sink_url = values.get(key, "").strip()
         if not sink_url or has_infra_placeholder(sink_url):

@@ -82,6 +82,12 @@ services:
         value: true
       - key: FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN
         value: true
+      - key: FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI
+        sync: false
+      - key: FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI
+        sync: false
       - key: FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION
         value: true
       - key: FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION

@@ -197,6 +197,9 @@ $requiredKeys = @(
     'FLOW_MEMORY_COMPUTE_REDIS_URL',
     'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI',
     'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION'
+    'FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI',
+    'FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI',
+    'FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI'
 )
 
 $placeholderPattern = 'CHANGEME|<[^>]*>|<required>|<your-domain>|yourdomain\.com|api\.yourdomain\.com|<managed_postgres_url>|<managed_redis_url>|<audit_export_uri>|managed-postgres-host|managed-redis-host|high-entropy-api-key'
@@ -324,6 +327,35 @@ if (-not $auditExportUri.StartsWith('s3://')) {
         required_action = 'FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI must be an s3:// Object Lock bucket/prefix.'
     }
     exit 14
+}
+
+$postgresOperationalEvidenceKeys = @(
+    'FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI',
+    'FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI',
+    'FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI'
+)
+$invalidPostgresEvidenceUris = New-Object System.Collections.Generic.List[hashtable]
+foreach ($key in $postgresOperationalEvidenceKeys) {
+    $value = [string]$envValues[$key]
+    if (-not ($value.StartsWith('https://') -or $value.StartsWith('s3://'))) {
+        $scheme = ''
+        if ($value.Contains('://')) {
+            $scheme = $value.Split('://', 2)[0]
+        }
+        $invalidPostgresEvidenceUris.Add(@{
+            key = $key
+            actual = $scheme
+            expected = 'https_or_s3'
+        })
+    }
+}
+if ($invalidPostgresEvidenceUris.Count -gt 0) {
+    Write-Status -Status 'blocked_invalid_postgres_operational_evidence' -Fields @{
+        public_url = ''
+        invalid_values = @($invalidPostgresEvidenceUris)
+        required_action = 'Managed Postgres backup/PITR policy, restore drill, and blue/green migration rehearsal evidence must be stored at https:// or s3:// URIs.'
+    }
+    exit 17
 }
 
 $redisUri = [string]$envValues['FLOW_MEMORY_COMPUTE_REDIS_URL']

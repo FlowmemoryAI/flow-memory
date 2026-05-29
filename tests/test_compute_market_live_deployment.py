@@ -73,6 +73,9 @@ def test_live_env_template_preserves_non_settlement_safety_defaults() -> None:
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://CHANGEME-audit-object-lock-bucket/compute-market",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://CHANGEME-ops.example.com/flow-memory/postgres-backup-policy",
+        "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://CHANGEME-ops.example.com/flow-memory/postgres-restore-drill",
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://CHANGEME-ops.example.com/flow-memory/postgres-blue-green-rehearsal",
         "FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS=86400",
         "FLOW_MEMORY_COMPUTE_REDIS_URL=rediss://CHANGEME-managed-redis-host:6379/0",
         "FLOW_MEMORY_BILLING_STRIPE_CHECKOUT_ENABLED=false",
@@ -314,6 +317,9 @@ def test_render_blueprint_and_env_builder_match_level1_safety_contract() -> None
     assert "      - key: FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL\n        sync: false" in blueprint
     assert "      - key: FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI\n        sync: false" in blueprint
+    assert "      - key: FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI\n        sync: false" in blueprint
     assert blueprint_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
     assert deploy_env["FLOW_MEMORY_COMPUTE_AUDIT_CHECKPOINT_INTERVAL_SECONDS"] == "86400"
 
@@ -937,6 +943,8 @@ def test_public_powershell_preflight_rejects_placeholders_before_deploy() -> Non
     assert "'-RequireImmutableAudit'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_METRICS_ENABLED = 'true'" in deploy_script
     assert "FLOW_MEMORY_COMPUTE_TRACING_ENABLED = 'true'" in deploy_script
+    assert "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI" in deploy_script
+    assert "blocked_invalid_postgres_operational_evidence" in deploy_script
 
 def test_public_powershell_preflight_rejects_private_public_url(tmp_path: Path) -> None:
     powershell = shutil.which("powershell") or shutil.which("pwsh")
@@ -1044,6 +1052,9 @@ def test_public_powershell_preflight_rejects_placeholder_gateway_jwt_secret(tmp_
             audit_export_object_lock_mode="COMPLIANCE",
             audit_export_retention_days="30",
             audit_export_s3_region="us-east-1",
+            postgres_backup_policy_uri="https://ops.flowmemory.ai/postgres/backup-policy",
+            postgres_restore_drill_uri="https://ops.flowmemory.ai/postgres/restore-drill",
+            postgres_blue_green_rehearsal_uri="https://ops.flowmemory.ai/postgres/blue-green-rehearsal",
         )
     }
     env_values["FLOW_MEMORY_API_JWT_HS256_SECRET"] = "CHANGEME-gateway-jwt-secret-with-at-least-32-characters"
@@ -1742,6 +1753,9 @@ def test_render_deploy_main_blocks_missing_public_observability_sinks_before_ren
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
             ]
         )
         + "\n",
@@ -1767,6 +1781,115 @@ def test_render_deploy_main_blocks_missing_public_observability_sinks_before_ren
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
         "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL",
         "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL",
+    ]
+
+
+def test_render_deploy_main_blocks_missing_postgres_operational_evidence_before_render_calls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    env_file = tmp_path / "render.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RENDER_API_KEY=render_live_key_from_env_file",
+                "RENDER_OWNER_ID=owner_from_env_file",
+                "RENDER_REGION=frankfurt",
+                "RENDER_POSTGRES_PLAN=pro",
+                "RENDER_KEYVALUE_PLAN=pro",
+                "RENDER_SERVICE_PLAN=professional",
+                "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_render_call(*args: object, **kwargs: object) -> object:
+        raise AssertionError("Render provisioning must not run before Postgres operational evidence is configured")
+
+    monkeypatch.setattr(sys, "argv", ["deploy", "--env-file", str(env_file)])
+    monkeypatch.setattr(render_deploy, "ensure_postgres", fail_render_call)
+    monkeypatch.setattr(render_deploy, "ensure_keyvalue", fail_render_call)
+    monkeypatch.setattr(render_deploy, "infer_owner_id", fail_render_call)
+
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.main()
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert blocked.value.code == 41
+    assert payload["status"] == "blocked_missing_postgres_operational_evidence"
+    assert payload["missing_values"] == [
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI",
+        "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI",
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI",
+    ]
+
+
+def test_render_deploy_main_blocks_invalid_postgres_operational_evidence_before_render_calls(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    env_file = tmp_path / "render.env"
+    env_file.write_text(
+        "\n".join(
+            [
+                "RENDER_API_KEY=render_live_key_from_env_file",
+                "RENDER_OWNER_ID=owner_from_env_file",
+                "RENDER_REGION=frankfurt",
+                "RENDER_POSTGRES_PLAN=pro",
+                "RENDER_KEYVALUE_PLAN=pro",
+                "RENDER_SERVICE_PLAN=professional",
+                "RENDER_KEYVALUE_IP_ALLOWLIST=203.0.113.10/32",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_URI=s3://flow-memory-audit/compute-market",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_OBJECT_LOCK_MODE=COMPLIANCE",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
+                "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=file:///tmp/postgres-backup-policy.md",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
+                "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
+                "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fail_render_call(*args: object, **kwargs: object) -> object:
+        raise AssertionError("Render provisioning must not run before Postgres operational evidence is valid")
+
+    monkeypatch.setattr(sys, "argv", ["deploy", "--env-file", str(env_file)])
+    monkeypatch.setattr(render_deploy, "ensure_postgres", fail_render_call)
+    monkeypatch.setattr(render_deploy, "ensure_keyvalue", fail_render_call)
+    monkeypatch.setattr(render_deploy, "infer_owner_id", fail_render_call)
+
+    with pytest.raises(SystemExit) as blocked:
+        render_deploy.main()
+
+    payload = json.loads(capsys.readouterr().out)
+
+    assert blocked.value.code == 41
+    assert payload["status"] == "blocked_invalid_postgres_operational_evidence"
+    assert payload["invalid_values"] == [
+        {
+            "key": "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI",
+            "actual": "file",
+            "expected": "https_or_s3",
+        }
     ]
 
 
@@ -1808,6 +1931,9 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
             ]
         ),
         encoding="utf-8",
@@ -1962,6 +2088,9 @@ def test_render_deploy_main_uses_env_file_render_provisioning_values(
     assert env_vars_by_key["FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL"] == "https://errors.flowmemory.example/compute-market"
     assert env_vars_by_key["FLOW_MEMORY_COMPUTE_TELEMETRY_EXPORT_ENABLED"] == "true"
     assert env_vars_by_key["FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL"] == "https://otel.flowmemory.example/v1/traces"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI"] == "https://ops.flowmemory.example/postgres/backup-policy"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI"] == "https://ops.flowmemory.example/postgres/restore-drill"
+    assert env_vars_by_key["FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"] == "https://ops.flowmemory.example/postgres/blue-green-rehearsal"
     assert "compute:read" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert "compute:admin" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
     assert "inference:plan" in env_vars_by_key["FLOW_MEMORY_API_KEY_SCOPES"]
@@ -2011,6 +2140,9 @@ def test_render_deploy_main_fails_closed_when_public_smoke_fails(
                 "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL=https://alerts.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_ERROR_TRACKING_WEBHOOK_URL=https://errors.flowmemory.example/compute-market",
                 "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL=https://otel.flowmemory.example/v1/traces",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.example/postgres/backup-policy",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.example/postgres/restore-drill",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.example/postgres/blue-green-rehearsal",
             ]
         ),
         encoding="utf-8",

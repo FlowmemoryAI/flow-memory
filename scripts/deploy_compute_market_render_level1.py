@@ -43,6 +43,14 @@ DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED = os.environ.get(
 DEFAULT_AUDIT_EXPORT_S3_REGION = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION", "")
 DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL = os.environ.get("FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL", "")
 DEFAULT_STRIPE_WEBHOOK_TOLERANCE_SECONDS = os.environ.get("FLOW_MEMORY_BILLING_STRIPE_WEBHOOK_TOLERANCE_SECONDS", "300")
+POSTGRES_OPERATIONAL_EVIDENCE_URI_KEYS = (
+    "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI",
+    "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI",
+    "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI",
+)
+DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS = {
+    key: os.environ.get(key, "").strip() for key in POSTGRES_OPERATIONAL_EVIDENCE_URI_KEYS
+}
 MIN_POSTGRES_SCHEMA_TABLE_COUNT = 110
 MIN_POSTGRES_SCHEMA_INDEX_COUNT = 1311
 
@@ -227,6 +235,40 @@ def _audit_export_setting(values: dict[str, str], key: str, default: str) -> str
 
 def _env_setting(values: dict[str, str], key: str, default: str = "") -> str:
     return values.get(key) or default
+
+
+def postgres_operational_evidence_from_env(values: dict[str, str]) -> dict[str, str]:
+    evidence: dict[str, str] = {}
+    missing: list[str] = []
+    invalid: list[dict[str, str]] = []
+    for key in POSTGRES_OPERATIONAL_EVIDENCE_URI_KEYS:
+        value = (values.get(key) or DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS.get(key, "")).strip()
+        if not value or has_placeholder(value):
+            missing.append(key)
+            continue
+        scheme = url_scheme(value)
+        if scheme not in {"https", "s3"}:
+            invalid.append({"key": key, "actual": scheme, "expected": "https_or_s3"})
+            continue
+        evidence[key] = value
+    if missing:
+        emit(
+            "blocked_missing_postgres_operational_evidence",
+            41,
+            missing_values=missing,
+            required_action=(
+                "configure managed Postgres backup/PITR policy, restore drill, and blue/green "
+                "migration rehearsal evidence URIs before public Render deployment"
+            ),
+        )
+    if invalid:
+        emit(
+            "blocked_invalid_postgres_operational_evidence",
+            41,
+            invalid_values=invalid,
+            required_action="Postgres operational evidence URIs must use https:// or s3:// storage.",
+        )
+    return evidence
 
 
 def _truthy_env(value: str) -> bool:
@@ -857,6 +899,15 @@ def build_env_vars(
     audit_export_immutable_required: str = DEFAULT_AUDIT_EXPORT_IMMUTABLE_REQUIRED,
     audit_export_s3_region: str = DEFAULT_AUDIT_EXPORT_S3_REGION,
     audit_export_s3_endpoint_url: str = DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
+    postgres_backup_policy_uri: str = DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI"
+    ],
+    postgres_restore_drill_uri: str = DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI"
+    ],
+    postgres_blue_green_rehearsal_uri: str = DEFAULT_POSTGRES_OPERATIONAL_EVIDENCE_URIS[
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"
+    ],
     jwt_hs256_secret: str = "",
     jwt_issuer: str = "",
     jwt_audience: str = "",
@@ -942,6 +993,9 @@ def build_env_vars(
         "FLOW_MEMORY_COMPUTE_STORAGE_STATEMENT_TIMEOUT_MS": "5000",
         "FLOW_MEMORY_COMPUTE_MIGRATIONS_ENABLED": "true",
         "FLOW_MEMORY_COMPUTE_MIGRATIONS_AUTO_RUN": "true",
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI": postgres_backup_policy_uri,
+        "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI": postgres_restore_drill_uri,
+        "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI": postgres_blue_green_rehearsal_uri,
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_SQL_IN_PRODUCTION": "true",
         "FLOW_MEMORY_COMPUTE_REQUIRE_MANAGED_REDIS_IN_PRODUCTION": "true",
         "FLOW_MEMORY_COMPUTE_ALLOW_INTERNAL_REDIS_IN_PRODUCTION": "true" if redis_is_internal else "false",
@@ -1601,6 +1655,7 @@ def main() -> int:
         "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_ENDPOINT_URL",
         DEFAULT_AUDIT_EXPORT_S3_ENDPOINT_URL,
     )
+    postgres_operational_evidence = postgres_operational_evidence_from_env(env_values)
     alert_webhook_url = observability_sink_url_from_env(
         env_values,
         "FLOW_MEMORY_COMPUTE_ALERT_WEBHOOK_URL",
@@ -1675,6 +1730,15 @@ def main() -> int:
             audit_export_retention_days=audit_export_retention_days,
             audit_export_immutable_required=audit_export_immutable_required,
             audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
+            postgres_backup_policy_uri=postgres_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI"
+            ],
+            postgres_restore_drill_uri=postgres_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI"
+            ],
+            postgres_blue_green_rehearsal_uri=postgres_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"
+            ],
             jwt_hs256_secret=gateway_jwt["FLOW_MEMORY_API_JWT_HS256_SECRET"],
             jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
             jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],
@@ -1710,6 +1774,15 @@ def main() -> int:
             audit_export_retention_days=audit_export_retention_days,
             audit_export_immutable_required=audit_export_immutable_required,
             audit_export_s3_endpoint_url=audit_export_s3_endpoint_url,
+            postgres_backup_policy_uri=postgres_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI"
+            ],
+            postgres_restore_drill_uri=postgres_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI"
+            ],
+            postgres_blue_green_rehearsal_uri=postgres_operational_evidence[
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI"
+            ],
             jwt_hs256_secret=gateway_jwt["FLOW_MEMORY_API_JWT_HS256_SECRET"],
             jwt_issuer=gateway_jwt["FLOW_MEMORY_API_JWT_ISSUER"],
             jwt_audience=gateway_jwt["FLOW_MEMORY_API_JWT_AUDIENCE"],

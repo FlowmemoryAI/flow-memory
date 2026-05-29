@@ -44,6 +44,9 @@ def _production_env_text(api_key: str = "fmk_live_test_secret") -> str:
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_RETENTION_DAYS=365",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_IMMUTABLE_REQUIRED=true",
                 "FLOW_MEMORY_COMPUTE_AUDIT_EXPORT_S3_REGION=us-east-1",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.ai/postgres/backup-policy",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.ai/postgres/restore-drill",
+                "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.ai/postgres/blue-green-rehearsal",
             )
         )
         + "\n"
@@ -241,6 +244,62 @@ def test_public_buildout_main_blocks_missing_observability_sinks_before_network(
         assert "FLOW_MEMORY_COMPUTE_OTLP_ENDPOINT_URL" in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted missing observability sinks")
+
+
+def test_public_buildout_main_blocks_missing_postgres_operational_evidence_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text()
+        .replace("FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.ai/postgres/backup-policy\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI=https://ops.flowmemory.ai/postgres/restore-drill\n", "")
+        .replace("FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI=https://ops.flowmemory.ai/postgres/blue-green-rehearsal\n", ""),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "production environment prerequisites failed" in message
+        assert "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI" in message
+        assert "FLOW_MEMORY_COMPUTE_POSTGRES_RESTORE_DRILL_URI" in message
+        assert "FLOW_MEMORY_COMPUTE_POSTGRES_BLUE_GREEN_REHEARSAL_URI" in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing Postgres operational evidence")
+
+
+def test_public_buildout_main_blocks_invalid_postgres_operational_evidence_before_network(
+    tmp_path: Any, monkeypatch: Any
+) -> None:
+    env_file = tmp_path / "live.env"
+    env_file.write_text(
+        _production_env_text().replace(
+            "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=https://ops.flowmemory.ai/postgres/backup-policy",
+            "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI=file:///tmp/postgres-backup-policy.md",
+        ),
+        encoding="utf-8",
+    )
+
+    def fail_validate(base_url: str, api_key: str, *, require_immutable_audit: bool = False) -> Mapping[str, Any]:
+        raise AssertionError(f"network validation should not run for {base_url} with {api_key}")
+
+    monkeypatch.setattr(validator, "validate", fail_validate)
+
+    try:
+        validator.main(["--api-url", "https://api.flowmemory.ai", "--env-file", str(env_file)])
+    except SystemExit as exc:
+        message = str(exc)
+        assert "FLOW_MEMORY_COMPUTE_POSTGRES_BACKUP_POLICY_URI" in message
+        assert '"expected": "https_or_s3"' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted local Postgres operational evidence")
 
 
 

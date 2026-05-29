@@ -771,6 +771,63 @@ def test_quote_ingest_verifies_provider_callback_signature_and_replay(monkeypatc
     assert _metric_total(service, "compute_provider_callback_rejected_total", {"callback_action": "quote_ingest", "reason": "provider_callback.replay_detected"}) == 1.0
 
 
+def test_provider_callback_replay_guard_is_scoped_by_callback_action(monkeypatch: Any) -> None:
+    service = _service()
+    key = LocalKeyPair("provider-shared-callback-key", "provider-shared-callback-secret")
+    monkeypatch.setenv("FLOW_MEMORY_PROVIDER_SHARED_CALLBACK_SECRET", key.secret)
+    service.create_provider(
+        {
+            "provider_id": "provider_live_gpu_1",
+            "provider_name": "Live GPU Provider 1",
+            "provider_type": "gpu",
+            "metadata": {
+                "callback_signing_key_id": key.key_id,
+                "callback_signing_key_env": "FLOW_MEMORY_PROVIDER_SHARED_CALLBACK_SECRET",
+            },
+        }
+    )
+
+    job_id = str(service.create_job(_job_payload())["job"]["job_id"])
+    service.dispatch_job(job_id, {})
+    complete_payload = {
+        "actual_total_cost": 0.18,
+        "actual_units": 2,
+        "callback_id": "shared-callback-id",
+        "timestamp": "2099-01-01T00:00:00Z",
+    }
+    completed = service.complete_job(
+        job_id,
+        _signed_state_callback(
+            service.get_job(job_id)["job"],
+            complete_payload,
+            key,
+            callback_action="complete",
+        ),
+    )
+
+    quote_payload = {
+        "quote": {**_quote(), "quote_id": "quote_callback_shared_action"},
+        "allowed_assets": ["USDC"],
+        "allowed_networks": ["solana"],
+        "callback_id": "shared-callback-id",
+        "timestamp": "2099-01-01T00:00:01Z",
+    }
+    accepted_quote = service.broker_quote(
+        _signed_quote_ingress_callback(
+            "provider_live_gpu_1",
+            "route_live_gpu_1",
+            quote_payload,
+            key,
+        )
+    )
+
+    assert completed["ok"] is True
+    assert completed["job"]["status"] == "succeeded"
+    assert accepted_quote["ok"] is True
+    assert accepted_quote["provider_callback_verification"]["callback_id"] == "shared-callback-id"
+    assert service.store.count_records("provider_callback_replay_guard") == 2
+
+
 def test_broker_quote_ignores_payload_public_key_when_stored_key_exists() -> None:
     trusted_signer = LocalTestSigner("provider_live_gpu_1_key", "provider-live-gpu-1-seed")
     spoofing_signer = LocalTestSigner("provider_live_gpu_1_spoof", "provider-spoof-seed")
@@ -900,6 +957,23 @@ def test_quote_broker_validates_replay_cache_and_drift() -> None:
     assert accepted["quote"]["source"] == "live_provider"
     assert service.store.count_records("quote_replay_guard") == 1
     assert service.store.count_records("quote_cache_entry") == 1
+
+    replayed_same = service.broker_quote(
+        {"quote": _quote(), "allowed_assets": ["USDC"], "allowed_networks": ["solana"]}
+    )
+    quote_ingested_events = tuple(
+        event
+        for event in service.store.list_records("audit_event", limit=100).records
+        if event["action"] == "market.quote.ingested"
+    )
+
+    assert replayed_same["ok"] is True
+    assert replayed_same["idempotent_replay"] is True
+    assert replayed_same["quote"]["quote_id"] == accepted["quote"]["quote_id"]
+    assert service.store.count_records("compute_quote") == 1
+    assert service.store.count_records("quote_replay_guard") == 1
+    assert service.store.count_records("quote_cache_entry") == 1
+    assert len(quote_ingested_events) == 1
 
     invalidated = service.invalidate_quote_cache(
         {

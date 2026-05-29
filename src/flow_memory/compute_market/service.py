@@ -1374,6 +1374,25 @@ class ComputeMarketService:
             )
             self._audit("market.quote.replay_rejected", payload, request_id=request_id, result="rejected", reason_codes=("quote_replay_detected",), provider_id=provider_id, route_id=route_id)
             return {"ok": False, "error": error.as_record(), "validation": validation.as_record(), "fraud_signals": (signal,)}
+        if replay_guard and str(replay_guard.get("quote_hash", "")) == quote_hash:
+            existing_quote = _get_tenant_scoped_record(
+                self.store,
+                "compute_quote",
+                quote_id,
+                quote_record_id,
+                payload,
+            )
+            if existing_quote is not None and not _quote_is_stale_or_expired(existing_quote):
+                self._record_provider_callback_replay_guard(callback_signature_verification, request_id=request_id)
+                return {
+                    "ok": True,
+                    "quote": existing_quote,
+                    "validation": validation.as_record(),
+                    "drift": {},
+                    "fraud_signals": (),
+                    "provider_callback_verification": callback_signature_verification,
+                    "idempotent_replay": True,
+                }
         stale_same_provider_replay = _same_provider_stale_quote_replay(
             self.store,
             quote_id,
@@ -8489,10 +8508,14 @@ def _provider_state_callback_signature_payload(
     }
 
 
-def _provider_state_callback_replay_guard_id(provider_id: str, callback_id: str) -> str:
+def _provider_state_callback_replay_guard_id(provider_id: str, callback_id: str, callback_action: str) -> str:
     return deterministic_id(
         "provider_callback_replay_guard",
-        {"provider_id": provider_id, "callback_id": callback_id},
+        {
+            "provider_id": provider_id,
+            "callback_id": callback_id,
+            "callback_action": callback_action,
+        },
     )
 
 
@@ -8538,7 +8561,7 @@ def _verify_provider_state_callback(
                 "callback_action": callback_action,
             },
         }
-    replay_guard_id = _provider_state_callback_replay_guard_id(provider_id, callback_id)
+    replay_guard_id = _provider_state_callback_replay_guard_id(provider_id, callback_id, callback_action)
     if store.get_record("provider_callback_replay_guard", replay_guard_id) is not None:
         return {
             "ok": False,
@@ -8649,7 +8672,7 @@ def _verify_provider_quote_ingress_callback(
                 "callback_action": "quote_ingest",
             },
         }
-    replay_guard_id = _provider_state_callback_replay_guard_id(provider_id, callback_id)
+    replay_guard_id = _provider_state_callback_replay_guard_id(provider_id, callback_id, "quote_ingest")
     if store.get_record("provider_callback_replay_guard", replay_guard_id) is not None:
         return {
             "ok": False,
@@ -8797,6 +8820,17 @@ def _cross_provider_quote_replay(
 _STALE_QUOTE_REPLAY_STATUSES = frozenset(("stale", "expired", "invalidated", "disabled"))
 
 
+def _quote_is_stale_or_expired(quote: Mapping[str, Any]) -> bool:
+    status = str(quote.get("status", "")).lower()
+    expires_at = str(quote.get("expires_at", ""))
+    return (
+        status in _STALE_QUOTE_REPLAY_STATUSES
+        or quote.get("stale") is True
+        or quote.get("expired") is True
+        or bool(expires_at and expires_at <= utc_now_iso())
+    )
+
+
 def _same_provider_stale_quote_replay(
     store: ComputeMarketStoreProtocol,
     quote_id: str,
@@ -8828,14 +8862,7 @@ def _same_provider_stale_quote_replay(
     )
     if not existing_quote or not _tenant_can_access_record(access_payload, existing_quote):
         return {}
-    status = str(existing_quote.get("status", "")).lower()
-    expires_at = str(existing_quote.get("expires_at", ""))
-    if (
-        status in _STALE_QUOTE_REPLAY_STATUSES
-        or existing_quote.get("stale") is True
-        or existing_quote.get("expired") is True
-        or bool(expires_at and expires_at <= utc_now_iso())
-    ):
+    if _quote_is_stale_or_expired(existing_quote):
         return {"guard": existing_guard, "quote": existing_quote}
     return {}
 

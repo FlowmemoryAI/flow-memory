@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `157b078 Alert on insufficient compute credits`
+Latest inspected commit: `2ccc7eb Test deploy smoke fail closed`
 
 ## Current architecture
 
@@ -1352,4 +1352,36 @@ flowchart TD
     Metric --> Prometheus[Prometheus alert]
     Metric --> AdminAlerts[/compute/alerts]
     AdminAlerts --> Operator[Operator sees insufficient-credit warning]
+```
+
+## Checkpoint 2026-05-26 Render deploy smoke fail-closed test
+
+Files changed:
+
+- `tests/test_compute_market_live_deployment.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_live_deployment.py::test_render_deploy_main_fails_closed_when_public_smoke_fails -q` — 1 passed
+- `python -m pytest tests/test_compute_market_live_deployment.py -q` — 50 passed
+- `python -m ruff check tests/test_compute_market_live_deployment.py` — OK
+- `python -m mypy tests/test_compute_market_live_deployment.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 438 passed, 2 skipped
+- `git diff --check -- tests/test_compute_market_live_deployment.py` — clean
+
+Commit: `2ccc7eb Test deploy smoke fail closed`.
+
+Implementation:
+
+- Render Level 1 deploy orchestration now has a direct regression test for the post-deploy public smoke failure path.
+- The test proves repeated failed smoke results terminate with `failed_public_smoke_tests` and exit code 34 instead of reporting a successful deployment.
+- The smoke failure payload preserves the public URL and last smoke reason for operator diagnosis.
+
+```mermaid
+flowchart TD
+    RenderDeploy[Render deploy main] --> Service[Provision service]
+    Service --> Smoke[Post-deploy public smoke]
+    Smoke -->|ok false| Retry[Retry smoke loop]
+    Retry --> Failed[failed_public_smoke_tests exit 34]
+    Smoke -->|ok true| Live[public_level_1_live]
 ```

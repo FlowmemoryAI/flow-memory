@@ -796,3 +796,38 @@ flowchart TD
     InferenceScopes --> BuySell[Credit buy sell admin]
     ComputeScopes --> Readiness[Level 1 compute readiness]
 ```
+
+## Checkpoint 2026-05-26 Proxy smoke CLI coverage
+
+Files changed:
+
+- `src/flow_memory/cli.py`
+- `tests/test_inference_capacity_futures_markets.py`
+- `docs/INFERENCE_PROXY.md`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q` — 16 passed
+- `python -m ruff check src/flow_memory/cli.py tests/test_inference_capacity_futures_markets.py` — OK
+- `python -m mypy src/flow_memory/cli.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 427 passed, 2 skipped
+- `git diff --check -- src/flow_memory/cli.py tests/test_inference_capacity_futures_markets.py docs/INFERENCE_PROXY.md` — clean
+
+Commit: `8b23953 Add proxy smoke API selection`.
+
+Implementation:
+
+- `flow-memory inference proxy-smoke --api all` now exercises OpenAI-compatible chat completions, Responses, and Embeddings through the deterministic fake provider path.
+- The CLI keeps the previous chat-only smoke path by default, while using the local fake model when `proxy-smoke` is run without an explicit `--model`.
+- CLI coverage now verifies dry-run, no-funds, no-broadcast, and no-private-key proxy safety fields across all OpenAI-compatible local proxy surfaces.
+
+```mermaid
+flowchart TD
+    ProxySmoke[proxy-smoke api all] --> Chat[v1 chat completions]
+    ProxySmoke --> Responses[v1 responses]
+    ProxySmoke --> Embeddings[v1 embeddings]
+    Chat --> FakeProvider[Deterministic fake provider]
+    Responses --> FakeProvider
+    Embeddings --> FakeProvider
+    FakeProvider --> Safety[Dry-run no funds no broadcast]
+```

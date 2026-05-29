@@ -12225,21 +12225,34 @@ def _compute_statement(records: tuple[Mapping[str, Any], ...], *, workspace_id: 
 def _redis_rate_limit_probe(limiter: RateLimiter, *, request_id: str, redis_prefix: str) -> Mapping[str, Any]:
     if not isinstance(limiter, RedisRateLimiter):
         return {"ok": False, "skipped": True, "reason": "redis_rate_limiter_not_configured"}
-    probe = RedisRateLimiter(
+    prefix = f"{redis_prefix}:diagnostic:{request_id}:rate"
+    node_a = RedisRateLimiter(
         limiter.redis_url,
-        prefix=f"{redis_prefix}:diagnostic:{request_id}",
+        prefix=prefix,
         default_limit=1,
         window_seconds=30,
         fail_closed=limiter.fail_closed,
         client=limiter.client,
     )
-    first = probe.check_limit("diagnostic-actor", "GET /admin/redis/diagnostics")
-    second = probe.check_limit("diagnostic-actor", "GET /admin/redis/diagnostics")
-    status = probe.get_status("diagnostics")
+    node_b = RedisRateLimiter(
+        limiter.redis_url,
+        prefix=prefix,
+        default_limit=1,
+        window_seconds=30,
+        fail_closed=limiter.fail_closed,
+        client=limiter.client,
+    )
+    first = node_a.check_limit("diagnostic-actor", "GET /admin/redis/diagnostics")
+    second = node_b.check_limit("diagnostic-actor", "GET /admin/redis/diagnostics")
+    status = node_a.get_status("diagnostics")
+    shared_state = first.ok is True and second.ok is False and second.reason_code == "rate_limited"
     return {
-        "ok": bool(status.get("configured")) and first.ok is True and second.ok is False and second.reason_code == "rate_limited",
+        "ok": bool(status.get("configured")) and shared_state,
         "backend": "redis",
         "configured": bool(status.get("configured")),
+        "shared_state": shared_state,
+        "node_a": first.as_record(),
+        "node_b": second.as_record(),
         "first": first.as_record(),
         "second": second.as_record(),
         "fail_closed": limiter.fail_closed,
@@ -12249,25 +12262,39 @@ def _redis_rate_limit_probe(limiter: RateLimiter, *, request_id: str, redis_pref
 def _redis_circuit_probe(breaker: CircuitBreaker, *, request_id: str, redis_prefix: str) -> Mapping[str, Any]:
     if not isinstance(breaker, RedisCircuitBreaker):
         return {"ok": False, "skipped": True, "reason": "redis_circuit_breaker_not_configured"}
-    probe = RedisCircuitBreaker(
+    prefix = f"{redis_prefix}:diagnostic:{request_id}:circuit"
+    node_a = RedisCircuitBreaker(
         breaker.redis_url,
-        prefix=f"{redis_prefix}:diagnostic:{request_id}",
+        prefix=prefix,
+        failure_threshold=1,
+        reset_after_seconds=30,
+        fail_closed=breaker.fail_closed,
+        client=breaker.client,
+    )
+    node_b = RedisCircuitBreaker(
+        breaker.redis_url,
+        prefix=prefix,
         failure_threshold=1,
         reset_after_seconds=30,
         fail_closed=breaker.fail_closed,
         client=breaker.client,
     )
     provider_id = "diagnostic-provider"
-    before = probe.allow_request(provider_id, adapter_type="diagnostics")
-    probe.record_failure(provider_id, adapter_type="diagnostics", error_class="diagnostic_failure")
-    opened = probe.allow_request(provider_id, adapter_type="diagnostics")
-    probe.reset(provider_id, adapter_type="diagnostics")
-    recovered = probe.allow_request(provider_id, adapter_type="diagnostics")
-    status = probe.get_state(provider_id, adapter_type="diagnostics")
+    before = node_a.allow_request(provider_id, adapter_type="diagnostics")
+    node_a.record_failure(provider_id, adapter_type="diagnostics", error_class="diagnostic_failure")
+    opened = node_b.allow_request(provider_id, adapter_type="diagnostics")
+    node_b.reset(provider_id, adapter_type="diagnostics")
+    recovered = node_a.allow_request(provider_id, adapter_type="diagnostics")
+    status = node_a.get_state(provider_id, adapter_type="diagnostics")
+    shared_state = before.ok is True and opened.ok is False and opened.reason_code == "circuit_open" and recovered.ok is True
     return {
-        "ok": bool(status.get("configured")) and before.ok is True and opened.ok is False and opened.reason_code == "circuit_open" and recovered.ok is True,
+        "ok": bool(status.get("configured")) and shared_state,
         "backend": "redis",
         "configured": bool(status.get("configured")),
+        "shared_state": shared_state,
+        "node_a_before": before.as_record(),
+        "node_b_opened": opened.as_record(),
+        "node_a_recovered": recovered.as_record(),
         "before": before.as_record(),
         "opened": opened.as_record(),
         "recovered": recovered.as_record(),

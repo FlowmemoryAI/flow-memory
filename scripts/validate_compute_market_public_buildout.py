@@ -757,6 +757,12 @@ def validate(
     storage_status_map = storage_status if isinstance(storage_status, Mapping) else {}
     connection_tuning_evidence = postgres_connection_tuning_evidence(storage_status_map)
     migration_history_evidence = postgres_migration_history_evidence(storage_diag)
+    redis_rate_limit_probe = redis_diag.get("rate_limit_probe", {})
+    redis_rate_limit_probe_map = redis_rate_limit_probe if isinstance(redis_rate_limit_probe, Mapping) else {}
+    redis_circuit_breaker_probe = redis_diag.get("circuit_breaker_probe", {})
+    redis_circuit_breaker_probe_map = (
+        redis_circuit_breaker_probe if isinstance(redis_circuit_breaker_probe, Mapping) else {}
+    )
 
     audit_export_status = data(checks["admin_audit_export"][1])
     audit_export_write = data(checks["audit_export_write"][1])
@@ -858,7 +864,15 @@ def validate(
         migration_history_evidence.get("ok") is True,
         f"admin storage migration history failed: {json.dumps(migration_history_evidence, sort_keys=True)}",
     )
-    require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
+    require(
+        checks["admin_redis_diagnostics"][0] == 200
+        and redis_diag.get("ok") is True
+        and redis_rate_limit_probe_map.get("ok") is True
+        and redis_rate_limit_probe_map.get("shared_state") is True
+        and redis_circuit_breaker_probe_map.get("ok") is True
+        and redis_circuit_breaker_probe_map.get("shared_state") is True,
+        "admin redis diagnostics failed",
+    )
     require(
         redis_diag.get("rate_limit_fail_closed") is True
         and redis_diag.get("circuit_breaker_fail_closed") is True,
@@ -933,6 +947,8 @@ def validate(
         "postgres_migration_expected_version": migration_history_evidence.get("expected_version"),
         "postgres_migration_history_count": migration_history_evidence.get("history_count"),
         "postgres_migration_lock": migration_history_evidence.get("migration_lock"),
+        "redis_rate_limit_shared_state": redis_rate_limit_probe_map.get("shared_state"),
+        "redis_circuit_breaker_shared_state": redis_circuit_breaker_probe_map.get("shared_state"),
         "audit_exporter": audit_exporter_name,
     }
 

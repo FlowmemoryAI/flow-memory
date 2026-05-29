@@ -531,7 +531,9 @@ $redisDiagnostics = Invoke-ComputeMarketRequest -Method GET -Path '/admin/redis/
 Assert-Status -Response $redisDiagnostics -Expected 200 -Name 'admin redis diagnostics'
 Assert-True ($redisDiagnostics.Json.data.ok -eq $true) 'admin redis diagnostics did not return ok=true.'
 Assert-True ($redisDiagnostics.Json.data.rate_limit_probe.ok -eq $true) 'Redis rate-limit probe did not return ok=true.'
+Assert-True ($redisDiagnostics.Json.data.rate_limit_probe.shared_state -eq $true) 'Redis rate-limit probe did not prove shared multi-node state.'
 Assert-True ($redisDiagnostics.Json.data.circuit_breaker_probe.ok -eq $true) 'Redis circuit-breaker probe did not return ok=true.'
+Assert-True ($redisDiagnostics.Json.data.circuit_breaker_probe.shared_state -eq $true) 'Redis circuit-breaker probe did not prove shared multi-node state.'
 Assert-True ($redisDiagnostics.Json.data.rate_limit_fail_closed -eq $true) 'Redis rate limiter is not fail-closed.'
 Assert-True ($redisDiagnostics.Json.data.circuit_breaker_fail_closed -eq $true) 'Redis circuit breaker is not fail-closed.'
 

@@ -156,6 +156,8 @@ def test_redis_live_integration_when_url_is_configured() -> None:
     assert recovered.state == "closed"
     assert diagnostics["ok"] is True
     assert diagnostics["rate_limit_probe"]["ok"] is True
+    assert diagnostics["rate_limit_probe"]["shared_state"] is True
     assert diagnostics["circuit_breaker_probe"]["ok"] is True
+    assert diagnostics["circuit_breaker_probe"]["shared_state"] is True
     assert diagnostics["rate_limit_fail_closed"] is True
     assert diagnostics["circuit_breaker_fail_closed"] is True

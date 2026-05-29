@@ -384,8 +384,12 @@ def test_admin_redis_diagnostics_probe_shared_limiter_and_circuit_state() -> Non
     assert diagnostics["circuit_breaker"]["configured"] is True
     assert diagnostics["rate_limit_probe"]["ok"] is True
     assert diagnostics["rate_limit_probe"]["second"]["reason_code"] == "rate_limited"
+    assert diagnostics["rate_limit_probe"]["shared_state"] is True
+    assert diagnostics["rate_limit_probe"]["node_b"]["reason_code"] == "rate_limited"
     assert diagnostics["circuit_breaker_probe"]["ok"] is True
     assert diagnostics["circuit_breaker_probe"]["opened"]["reason_code"] == "circuit_open"
+    assert diagnostics["circuit_breaker_probe"]["shared_state"] is True
+    assert diagnostics["circuit_breaker_probe"]["node_b_opened"]["reason_code"] == "circuit_open"
 
 
 def test_admin_redis_diagnostics_fails_when_required_backend_is_unavailable() -> None:

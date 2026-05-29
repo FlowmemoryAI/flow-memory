@@ -345,7 +345,7 @@
             "description": "Local response"
           }
         },
-        "summary": "Verify managed Redis limiter and circuit-breaker probes through the active production backend",
+        "summary": "Verify managed Redis limiter and circuit-breaker shared-state probes through the active production backend",
         "tags": [
           "admin"
         ]

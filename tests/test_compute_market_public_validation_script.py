@@ -676,8 +676,8 @@ def _passing_public_buildout_call_json(
         if url.endswith("/admin/redis/diagnostics"):
             redis_diag = {
                 "ok": True,
-                "rate_limit_probe": {"ok": True},
-                "circuit_breaker_probe": {"ok": True},
+                "rate_limit_probe": {"ok": True, "shared_state": True},
+                "circuit_breaker_probe": {"ok": True, "shared_state": True},
                 "rate_limit_fail_closed": True,
                 "circuit_breaker_fail_closed": True,
             }
@@ -767,6 +767,32 @@ def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch
             assert "admin redis diagnostics did not report fail-closed Redis controls" in str(exc)
         else:  # pragma: no cover
             raise AssertionError("public buildout validator accepted fail-open Redis diagnostics")
+
+
+def test_public_buildout_validation_rejects_redis_without_shared_state(monkeypatch: Any) -> None:
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+    monkeypatch.setattr(
+        validator,
+        "call_json",
+        _passing_public_buildout_call_json(
+            {
+                "rate_limit_probe": {"ok": True, "shared_state": False},
+                "circuit_breaker_probe": {"ok": True, "shared_state": True},
+            }
+        ),
+    )
+
+    try:
+        validator.validate(
+            "https://api.example.test",
+            "prod-key",
+            require_immutable_audit=True,
+        )
+    except AssertionError as exc:
+        assert "admin redis diagnostics failed" in str(exc)
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted Redis diagnostics without shared state")
 
 
 def test_public_buildout_validation_requires_immutable_s3_audit_when_requested(monkeypatch: Any) -> None:
@@ -1001,8 +1027,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                 "ok": True,
                 "data": {
                     "ok": True,
-                    "rate_limit_probe": {"ok": True},
-                    "circuit_breaker_probe": {"ok": True},
+                    "rate_limit_probe": {"ok": True, "shared_state": True},
+                    "circuit_breaker_probe": {"ok": True, "shared_state": True},
                     "rate_limit_fail_closed": True,
                     "circuit_breaker_fail_closed": True,
                 },
@@ -1061,6 +1087,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["postgres_migration_expected_version"] == int(validator.migration_plan()["current_version"])
     assert result["postgres_migration_history_count"] == 1
     assert result["postgres_migration_lock"] == "postgres_advisory_lock"
+    assert result["redis_rate_limit_shared_state"] is True
+    assert result["redis_circuit_breaker_shared_state"] is True
     assert result["audit_exporter"] == "s3_object_lock"
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"

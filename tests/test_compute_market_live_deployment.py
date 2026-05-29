@@ -497,8 +497,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
                 "ok": True,
                 "data": {
                     "ok": True,
-                    "rate_limit_probe": {"ok": True},
-                    "circuit_breaker_probe": {"ok": True},
+                    "rate_limit_probe": {"ok": True, "shared_state": True},
+                    "circuit_breaker_probe": {"ok": True, "shared_state": True},
                     "rate_limit_fail_closed": True,
                     "circuit_breaker_fail_closed": True,
                 },
@@ -729,8 +729,8 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
                 "ok": True,
                 "data": {
                     "ok": True,
-                    "rate_limit_probe": {"ok": True},
-                    "circuit_breaker_probe": {"ok": True},
+                    "rate_limit_probe": {"ok": True, "shared_state": True},
+                    "circuit_breaker_probe": {"ok": True, "shared_state": True},
                     "rate_limit_fail_closed": True,
                     "circuit_breaker_fail_closed": True,
                 },

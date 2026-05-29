@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `d529f31 Preserve signed external provider quotes`
+Latest inspected commit: `a032aa6 Gate public buildout validation on schema evidence`
 
 ## Current architecture
 
@@ -1212,4 +1212,43 @@ flowchart TD
     Store --> SignedOK[signed_quote_valid true]
     Sandbox[Provider sandbox quote signer] --> Adapter
     Broker --> Safety[dry_run_only and no funds moved]
+```
+
+## Checkpoint 2026-05-26 Public buildout validator schema gates
+
+Files changed:
+
+- `scripts/validate_compute_market_public_buildout.py`
+- `tests/test_compute_market_public_validation_script.py`
+
+Tests run:
+
+- `python -m pytest tests/test_compute_market_public_validation_script.py -q` — 14 passed
+- `python -m ruff check scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — OK
+- `python -m mypy scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py --config-file pyproject.toml` — OK
+- `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 437 passed, 2 skipped
+- `git diff --check -- scripts/validate_compute_market_public_buildout.py tests/test_compute_market_public_validation_script.py` — clean
+
+Commit: `a032aa6 Gate public buildout validation on schema evidence`.
+
+Implementation:
+
+- Public buildout validation now derives the Postgres schema table/index count floors from the migration plan and fails if `/admin/storage/diagnostics` under-reports required schema coverage.
+- The validator now replays `/compute/plan` with the same idempotency key and requires a matching `decision_id` plus `idempotent_replay=true`.
+- Production env prereq checks now require nonce fail-closed settings, rate-limit/circuit-breaker enablement, metrics/tracing enablement, and Stripe checkout disabled for Level 1.
+- Optional observability sink URLs must use HTTPS, and audit export status must identify an allowed local/S3 exporter even when immutable S3 Object Lock is not required by the caller.
+
+```mermaid
+flowchart TD
+    PublicValidator[Public buildout validator] --> Plan[Plan request]
+    Plan --> Replay[Idempotent replay]
+    PublicValidator --> StorageDiag[/admin/storage/diagnostics]
+    StorageDiag --> SchemaFloor[Table and index count floors]
+    PublicValidator --> Env[Production env prerequisites]
+    Env --> Nonce[Nonce and fail-closed booleans]
+    PublicValidator --> AuditExport[Audit export status]
+    SchemaFloor --> Pass{Production evidence complete?}
+    Replay --> Pass
+    Nonce --> Pass
+    AuditExport --> Pass
 ```

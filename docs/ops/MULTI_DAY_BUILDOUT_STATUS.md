@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `51fe87e Harden inference market admin endpoints`
+Latest inspected commit: `939ad0b Add nested market CLI aliases`
 
 ## Current architecture
 
@@ -236,4 +236,46 @@ flowchart TD
     Source --> Store[Optional ComputeMarketStore persistence]
     Store --> Records[Inference source account listing demand records]
     Guard -. rejects .-> Unsafe[Raw provider keys or private key payloads]
+```
+
+## Checkpoint 2026-05-26 CLI alias coverage
+
+Files changed:
+
+- `src/flow_memory/cli.py`
+- `tests/test_inference_capacity_futures_markets.py`
+- `docs/INFERENCE_MARKET.md`
+- `docs/CAPACITY_MARKET.md`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/cli.py tests/test_inference_capacity_futures_markets.py src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py`
+- `python -m mypy src/flow_memory/cli.py src/flow_memory/inference_market src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+
+Commits:
+
+- `939ad0b Add nested market CLI aliases`
+
+Implementation:
+
+- `flow-memory inference credits list`
+- `flow-memory inference credits buy`
+- `flow-memory inference credits sell`
+- `flow-memory capacity forward quote`
+- `flow-memory capacity forward simulate`
+- `flow-memory capacity forward simulate-delivery`
+- `flow-memory capacity forward list`
+- `flow-memory capacity index`
+- `flow-memory capacity forward-curve`
+
+```mermaid
+flowchart TD
+    CLI[Flow Memory CLI] --> InferenceCredits[inference credits nested aliases]
+    CLI --> CapacityForward[capacity forward nested aliases]
+    CLI --> CapacityIndexes[capacity index and forward curve]
+    InferenceCredits --> InferenceService[Inference Market service]
+    CapacityForward --> CapacityService[Capacity Market service]
+    CapacityIndexes --> FuturesIndexes[Capacity index simulator]
 ```

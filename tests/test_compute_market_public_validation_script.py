@@ -869,12 +869,16 @@ def test_public_validator_migration_history_evidence_requires_locked_current_his
 
 
 
+def _public_metrics_text() -> str:
+    return "\n".join(f"{name} 1" for name in validator._PUBLIC_REQUIRED_PROMETHEUS_METRICS) + "\n"
+
+
 def _passing_public_buildout_call_text(
     method: str,
     url: str,
     headers: Mapping[str, str] | None = None,
 ) -> tuple[int, str]:
-    return 200, "# HELP compute_plan_requests_total Total compute plan requests\ncompute_plan_requests_total 1\n"
+    return 200, _public_metrics_text()
 
 
 def _passing_public_buildout_call_json(
@@ -1492,7 +1496,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
         headers: Mapping[str, str] | None = None,
     ) -> tuple[int, str]:
         text_calls.append((method, url, headers))
-        return 200, "# HELP compute_plan_requests_total Total compute plan requests\ncompute_plan_requests_total 1\n"
+        return 200, _public_metrics_text()
 
     monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
     monkeypatch.setattr(validator, "call_json", fake_call_json)
@@ -1524,6 +1528,8 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["audit_checkpoint_schedule_checkpoint_id"] == "checkpoint-public-schedule"
     assert result["audit_chain_monitor_ok"] is True
     assert result["audit_checkpoint_count"] == 1
+    assert result["missing_metrics"] == ()
+    assert "audit_chain_verify_fail_total" in result["required_prometheus_metrics"]
     assert result["plan_idempotent_replay"] is True
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
     assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT

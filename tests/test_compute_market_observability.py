@@ -97,6 +97,9 @@ def test_telemetry_snapshot_reset_and_prometheus_text() -> None:
     text = telemetry.prometheus_text()
     assert "# TYPE compute_plan_requests_total gauge" in text
     assert 'strategy="balanced"' in text
+    assert "compute_job_started_total 0" in text
+    assert "billing_debit_total 0" in text
+    assert "audit_chain_verify_fail_total 0" in text
 
     drained = cast(dict[str, Any], telemetry.snapshot(reset=True))
     assert len(drained["metrics"]) == 1

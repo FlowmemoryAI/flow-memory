@@ -298,6 +298,12 @@ class ComputeMarketTelemetry:
                 emitted.add(sample.name)
                 lines.append(f"# TYPE {sample.name} gauge")
             lines.append(f"{sample.name}{_prometheus_labels(sample.labels)} {sample.value:g}")
+        for name in _METRIC_NAMES:
+            if name in emitted:
+                continue
+            emitted.add(name)
+            lines.append(f"# TYPE {name} gauge")
+            lines.append(f"{name} 0")
         return "\n".join(lines) + ("\n" if lines else "")
 
 

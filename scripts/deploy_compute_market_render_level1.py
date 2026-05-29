@@ -63,6 +63,23 @@ DEFAULT_REDIS_OPERATIONAL_EVIDENCE_URIS = {
 }
 MIN_POSTGRES_SCHEMA_TABLE_COUNT = 110
 MIN_POSTGRES_SCHEMA_INDEX_COUNT = 1311
+PUBLIC_REQUIRED_PROMETHEUS_METRICS = (
+    "compute_plan_requests_total",
+    "compute_job_started_total",
+    "compute_job_completed_total",
+    "compute_job_failed_total",
+    "provider_quote_latency_ms",
+    "provider_quote_failure_total",
+    "provider_circuit_open_total",
+    "route_selected_total",
+    "policy_denied_total",
+    "quote_stale_total",
+    "capacity_reserved_total",
+    "capacity_released_total",
+    "billing_debit_total",
+    "settlement_attempt_total",
+    "audit_chain_verify_fail_total",
+)
 
 LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
@@ -1661,6 +1678,10 @@ def smoke_public(
                 futures_markets.get("live_trading_enabled") is False,
             )
         )
+    metrics_text = str(checks["metrics"][1])
+    missing_metrics = tuple(
+        metric for metric in PUBLIC_REQUIRED_PROMETHEUS_METRICS if metric not in metrics_text
+    )
     ok = all(
         (
             checks["root"][0] == 200,
@@ -1693,7 +1714,7 @@ def smoke_public(
             checks["plan_replay"][1].get("data", {}).get("idempotent_replay") is True,
             plan_replay_payload.get("decision_id") == plan_payload.get("decision_id"),
             checks["metrics"][0] == 200,
-            "compute_plan_requests_total" in str(checks["metrics"][1]),
+            not missing_metrics,
             checks["alerts"][0] == 200,
             checks["alerts"][1].get("ok") is True,
             checks["telemetry"][0] == 200,
@@ -1800,6 +1821,7 @@ def smoke_public(
         "external_provider_quotes_enabled": safety.get("external_provider_quotes_enabled"),
         "external_provider_execution_enabled": safety.get("external_provider_execution_enabled"),
         "metrics": checks["metrics"][0],
+        "missing_metrics": missing_metrics,
         "alerts": checks["alerts"][0],
         "telemetry": checks["telemetry"][0],
     }

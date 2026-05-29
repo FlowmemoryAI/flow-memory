@@ -18,6 +18,10 @@ import scripts.deploy_compute_market_render_level1 as render_deploy
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def _render_metrics_text() -> str:
+    return "\n".join(f"{name} 1" for name in render_deploy.PUBLIC_REQUIRED_PROMETHEUS_METRICS) + "\n"
+
+
 def _redis_operational_evidence_env_lines() -> list[str]:
     return [
         "FLOW_MEMORY_COMPUTE_REDIS_LIMITER_TEST_URI=https://ops.flowmemory.example/redis/limiter-test",
@@ -685,7 +689,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         headers: dict[str, str] | None = None,
     ) -> tuple[int, str]:
         calls.append((method, url, headers, None))
-        return 200, "compute_plan_requests_total 1\n"
+        return 200, _render_metrics_text()
 
     monkeypatch.setattr(render_deploy, "call_json", fake_call_json)
     monkeypatch.setattr(render_deploy, "call_text", fake_call_text)
@@ -721,6 +725,8 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["audit_required"] is True
     assert result["audit_export_required"] is True
     assert result["stripe_checkout_enabled"] is False
+    assert result["missing_metrics"] == ()
+    assert "audit_chain_verify_fail_total" in render_deploy.PUBLIC_REQUIRED_PROMETHEUS_METRICS
     assert result["external_provider_quotes_enabled"] is False
     assert result["external_provider_execution_enabled"] is False
     assert len(jwt_headers) == 5
@@ -904,7 +910,7 @@ def test_render_smoke_rejects_runtime_missing_managed_sql_requirement(monkeypatc
         raise AssertionError(f"unexpected JSON call: {method} {url}")
 
     monkeypatch.setattr(render_deploy, "call_json", fake_call_json)
-    monkeypatch.setattr(render_deploy, "call_text", lambda *_args, **_kwargs: (200, "compute_plan_requests_total 1\n"))
+    monkeypatch.setattr(render_deploy, "call_text", lambda *_args, **_kwargs: (200, _render_metrics_text()))
 
     result = render_deploy.smoke_public("https://api.flowmemory.ai", "fmk_live_smoke_secret")
 
@@ -965,6 +971,8 @@ def test_public_smoke_scripts_verify_observability_endpoints() -> None:
 
     assert 'Invoke-WebRequest -Uri "$baseUrl/metrics"' in smoke_script
     assert "compute_plan_requests_total" in smoke_script
+    assert "audit_chain_verify_fail_total" in smoke_script
+    assert "PUBLIC_REQUIRED_PROMETHEUS_METRICS" in render_script
     assert "Path '/compute/alerts'" in smoke_script
     assert "Path '/compute/telemetry'" in smoke_script
     assert '_smoke_api_headers(api_key_value, "compute:read", "metrics")' in render_script
@@ -1303,7 +1311,8 @@ def test_public_buildout_validator_requires_observability_endpoints() -> None:
     assert 'checks["otlp_export"] = call_json(' in validator_script
     assert "alert routing sink is not enabled and authenticated" in validator_script
     assert "OTLP telemetry export delivery failed" in validator_script
-    assert '"compute_plan_requests_total" in checks["metrics"][1]' in validator_script
+    assert "missing_metrics = tuple(" in validator_script
+    assert "Prometheus metrics missing required Compute Market metrics" in validator_script
     assert 'checks[name][0] == 200 and checks[name][1].get("ok") is True' in validator_script
     assert "nonce_headers(headers or {}, label=f\"{method}-json\")" in validator_script
 

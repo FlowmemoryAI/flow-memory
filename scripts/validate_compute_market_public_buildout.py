@@ -55,6 +55,23 @@ _REQUIRED_PRODUCTION_SCOPES = (
     "compute:billing",
     "compute:settlement-admin",
 )
+_PUBLIC_REQUIRED_PROMETHEUS_METRICS = (
+    "compute_plan_requests_total",
+    "compute_job_started_total",
+    "compute_job_completed_total",
+    "compute_job_failed_total",
+    "provider_quote_latency_ms",
+    "provider_quote_failure_total",
+    "provider_circuit_open_total",
+    "route_selected_total",
+    "policy_denied_total",
+    "quote_stale_total",
+    "capacity_reserved_total",
+    "capacity_released_total",
+    "billing_debit_total",
+    "settlement_attempt_total",
+    "audit_chain_verify_fail_total",
+)
 _LEVEL1_EXPECTED_BOOLEAN_SETTINGS = {
     "FLOW_MEMORY_API_REQUIRE_SCOPES": "true",
     "FLOW_MEMORY_API_JWT_REQUIRE_TENANT": "true",
@@ -978,7 +995,11 @@ def validate(
     require(checks["job_receipt_unsigned"][0] == 200 and data(checks["job_receipt_unsigned"][1]).get("ok") is False, "unsigned provider receipt did not fail closed")
     for name in ("provider_apply", "provider_verify", "provider_conformance", "provider_get", "capacity_list", "capacity_reserve", "capacity_release", "quote_ingest", "prices", "job_create", "job_get", "job_events", "job_dispatch", "job_complete", "job_artifacts", "job_fail_create", "job_fail", "job_retry_create", "job_retry", "job_cancel", "telemetry", "alerts", "alerts_route", "error_tracking", "otlp_export", "billing_provider_payouts", "billing_provider_payout_settle"):
         require(checks[name][0] == 200 and checks[name][1].get("ok") is True, f"{name} failed")
-    require(checks["metrics"][0] == 200 and "compute_plan_requests_total" in checks["metrics"][1], "Prometheus metrics did not expose compute_plan_requests_total")
+    missing_metrics = tuple(metric for metric in _PUBLIC_REQUIRED_PROMETHEUS_METRICS if metric not in checks["metrics"][1])
+    require(
+        checks["metrics"][0] == 200 and not missing_metrics,
+        f"Prometheus metrics missing required Compute Market metrics: {missing_metrics}",
+    )
     require(alert_route.get("routing_enabled") is True and int(alert_route.get("delivery_count", 0) or 0) >= 1, "alert routing did not deliver to the configured sink")
     require(error_tracking.get("status") == "delivered", "error tracking sink delivery failed")
     require(otlp_export.get("status") == "delivered", "OTLP telemetry export delivery failed")
@@ -1110,6 +1131,8 @@ def validate(
         "broadcast_allowed": False,
         "private_key_required": False,
         "plan_idempotent_replay": data(checks["plan_replay"][1]).get("idempotent_replay"),
+        "missing_metrics": missing_metrics,
+        "required_prometheus_metrics": _PUBLIC_REQUIRED_PROMETHEUS_METRICS,
         "audit_export_immutable": audit_export_status.get("immutable"),
         "audit_export_write_manifest_hash_present": bool(audit_export_write.get("manifest_hash")),
         "audit_export_write_event_count": audit_export_write.get("event_count"),

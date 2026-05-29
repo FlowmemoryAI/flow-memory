@@ -1461,6 +1461,37 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     replacement = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 10})
     assert replacement["reservation"]["status"] == "held"
 
+
+def test_capacity_listing_reports_available_units_after_active_reservations() -> None:
+    service = _service()
+    window_payload = {
+        "provider_id": "provider_live_gpu_1",
+        "route_id": "route_live_gpu_1",
+        "resource_type": "gpu_hour",
+        "gpu_type": "H100",
+        "available_units": 10,
+        "region": "us-east",
+        "starts_at": "2099-01-01T00:00:00Z",
+        "ends_at": "2099-01-01T01:00:00Z",
+        "price_floor": 2.4,
+    }
+
+    initial = service.list_capacity(window_payload)["capacity_window"]
+    held = service.reserve_capacity(
+        {"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 4}
+    )["reservation"]
+    relisted = service.list_capacity(window_payload)["capacity_window"]
+    stored_relisted = service.store.get_record("compute_capacity_window", str(relisted["window_id"]))
+    service.release_capacity({"reservation_id": held["reservation_id"]})
+    released = service.list_capacity(window_payload)["capacity_window"]
+
+    assert initial["available_units"] == 10
+    assert relisted["capacity_units"] == 10
+    assert relisted["available_units"] == 6
+    assert stored_relisted is not None
+    assert stored_relisted["available_units"] == 6
+    assert released["available_units"] == 10
+
 def test_reserve_capacity_idempotency_replay_does_not_mutate_capacity_or_metrics() -> None:
     service = _service()
     service.list_capacity(
@@ -4471,6 +4502,45 @@ def test_billing_webhook_duplicate_delivery_is_idempotent() -> None:
     assert service.store.count_records("credit_transaction") == 1
     assert service.billing_balance({"account_id": "acct_duplicate"})["balance"]["available_credits"] == 42.0
 
+
+def test_production_billing_webhook_requires_stripe_v1_raw_body_signature() -> None:
+    secret = "whsec_production_v1_required"
+    service = ComputeMarketService(
+        store=ComputeMarketStore(":memory:"),
+        config=ComputeMarketConfig(
+            database_url=":memory:",
+            compute_market_mode="production_planning",
+            rate_limits_enabled=False,
+            stripe_checkout_enabled=True,
+            stripe_secret_key="sk_live_configured_for_validation",
+            stripe_webhook_secret=secret,
+            stripe_checkout_success_url="https://billing.flowmemory.ai/success",
+            stripe_checkout_cancel_url="https://billing.flowmemory.ai/cancel",
+        ),
+    )
+    raw_event = {
+        "id": "evt_production_legacy_signature_rejected",
+        "type": "checkout.session.completed",
+        "amount_total": 2500,
+        "currency": "usd",
+        "metadata": {"account_id": "acct_production_signature"},
+    }
+    legacy_signature = hmac.new(
+        secret.encode("utf-8"),
+        content_hash(raw_event).encode("utf-8"),
+        "sha256",
+    ).hexdigest()
+    message = ""
+
+    try:
+        service.billing_webhook_stripe({"raw_event": raw_event, "stripe_signature": legacy_signature})
+    except ValueError as exc:
+        message = str(exc)
+
+    assert message == "production_planning mode requires Stripe v1 signature with raw_event_body"
+    assert service.store.count_records("payment_event") == 0
+    balance = service.billing_balance({"account_id": "acct_production_signature"})["balance"]
+    assert balance["available_credits"] == 0.0
 
 def test_billing_webhook_accepts_stripe_v1_signature_header() -> None:
     service = _service()

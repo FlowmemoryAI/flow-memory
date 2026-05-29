@@ -1707,16 +1707,25 @@ class ComputeMarketService:
         _assert_provider_catalog_access(self.store, str(payload.get("provider_id", "")), payload)
         expired_reservations = self._expire_capacity_holds(payload, request_id=request_id)
         window = _capacity_window(payload)
+        reservation_filters = {"provider_id": str(window["provider_id"]), "route_id": str(window["route_id"])}
+        reservations = self._all_records("compute_reservation", filters=reservation_filters)
         existing_window = self.store.get_record("compute_capacity_window", str(window["window_id"]))
         if existing_window is not None:
-            _assert_capacity_window_shrink_safe(
-                window,
-                existing_window,
-                self._all_records(
-                    "compute_reservation",
-                    filters={"provider_id": str(window["provider_id"]), "route_id": str(window["route_id"])},
-                ),
-            )
+            _assert_capacity_window_shrink_safe(window, existing_window, reservations)
+        now = utc_now_iso()
+        window_start = str(window.get("starts_at", ""))
+        window_end = str(window.get("ends_at", ""))
+        blocking_units = sum(
+            _capacity_reservation_blocking_units(reservation, now)
+            for reservation in reservations
+            if str(reservation.get("status", "")) in {"held", "confirmed", "consumed"}
+            and _capacity_reservation_overlaps(reservation, window_start, window_end)
+        )
+        window["available_units"] = max(
+            0.0,
+            _safe_non_negative_float(window.get("capacity_units", window.get("available_units", 0.0)))
+            - blocking_units,
+        )
         self.store.put_record(
             "compute_capacity_window",
             str(window["window_id"]),
@@ -4990,6 +4999,12 @@ class ComputeMarketService:
             secret = str(payload.get("webhook_secret", ""))
         signature = str(payload.get("stripe_signature", ""))
         raw_event_body = str(payload.get("raw_event_body", ""))
+        if (
+            self.config.compute_market_mode == "production_planning"
+            and secret
+            and ("v1=" not in signature or not raw_event_body)
+        ):
+            raise ValueError("production_planning mode requires Stripe v1 signature with raw_event_body")
         verified = bool(secret) and _verify_webhook_signature(
             raw_event,
             secret,

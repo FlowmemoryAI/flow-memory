@@ -498,7 +498,26 @@ $metricsHeaders = Add-NonceHeaders -Headers @{
 } -Label 'GET-/metrics'
 $metrics = Invoke-WebRequest -Uri "$baseUrl/metrics" -Method GET -Headers $metricsHeaders -TimeoutSec 90
 Assert-True ([int]$metrics.StatusCode -eq 200) 'Prometheus metrics did not return HTTP 200.'
-Assert-True ([string]$metrics.Content -match 'compute_plan_requests_total') 'Prometheus metrics did not expose compute_plan_requests_total.'
+$requiredPrometheusMetrics = @(
+    'compute_plan_requests_total',
+    'compute_job_started_total',
+    'compute_job_completed_total',
+    'compute_job_failed_total',
+    'provider_quote_latency_ms',
+    'provider_quote_failure_total',
+    'provider_circuit_open_total',
+    'route_selected_total',
+    'policy_denied_total',
+    'quote_stale_total',
+    'capacity_reserved_total',
+    'capacity_released_total',
+    'billing_debit_total',
+    'settlement_attempt_total',
+    'audit_chain_verify_fail_total'
+)
+foreach ($metricName in $requiredPrometheusMetrics) {
+    Assert-True ([string]$metrics.Content -match [regex]::Escape($metricName)) "Prometheus metrics did not expose required metric $metricName."
+}
 
 $alerts = Invoke-ComputeMarketRequest -Method GET -Path '/compute/alerts' -Scopes 'compute:read'
 Assert-Status -Response $alerts -Expected 200 -Name 'alerts'

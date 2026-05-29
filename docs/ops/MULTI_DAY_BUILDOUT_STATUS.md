@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `7819d2c Persist market simulator records`
+Latest inspected commit: `51fe87e Harden inference market admin endpoints`
 
 ## Current architecture
 
@@ -195,4 +195,41 @@ flowchart TD
     FuturesRecords[Futures simulation record families] --> Store
     Postgres --> ManagedDB[Managed Postgres when credentials exist]
     SQLite --> LocalTests[Persistence tests]
+```
+
+## Checkpoint 2026-05-26 Inference admin hardening
+
+Files changed:
+
+- `src/flow_memory/inference_market/service.py`
+- `src/flow_memory/api/marketplace_endpoints.py`
+- `tests/test_inference_capacity_futures_markets.py`
+
+Tests run:
+
+- `python -m pytest tests/test_inference_capacity_futures_markets.py -q`
+- `python -m ruff check src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py`
+- `python -m mypy src/flow_memory/inference_market src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py --config-file pyproject.toml`
+- `python scripts/check_compute_market_production.py`
+- `python -m mypy src tests scripts --config-file pyproject.toml`
+- `git diff --check -- src/flow_memory/inference_market/service.py src/flow_memory/api/marketplace_endpoints.py tests/test_inference_capacity_futures_markets.py`
+
+Commits:
+
+- `51fe87e Harden inference market admin endpoints`
+
+Implementation:
+
+- Inference credit account creation, source create/update/disable/health, cancel-listing, and demand snapshot endpoints now delegate to stateful service methods.
+- These state changes persist through the same compute-market record store when a store is attached.
+- Raw provider credentials are rejected; `credential_ref` remains the only accepted secret reference field.
+
+```mermaid
+flowchart TD
+    Admin[Inference admin request] --> Guard[Unsafe payload and raw credential guard]
+    Guard --> Source[Source account listing demand service]
+    Source --> Memory[In-memory simulator state]
+    Source --> Store[Optional ComputeMarketStore persistence]
+    Store --> Records[Inference source account listing demand records]
+    Guard -. rejects .-> Unsafe[Raw provider keys or private key payloads]
 ```

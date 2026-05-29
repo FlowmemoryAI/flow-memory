@@ -1588,6 +1588,62 @@ def test_capacity_reservation_hold_release_and_overbook_rejection() -> None:
     replacement = service.reserve_capacity({"provider_id": "provider_live_gpu_1", "route_id": "route_live_gpu_1", "capacity_units": 10})
     assert replacement["reservation"]["status"] == "held"
 
+def test_capacity_order_book_and_reserve_paginate_existing_reservations() -> None:
+    service = _service()
+    provider_id = "provider_capacity_paged"
+    route_id = "route_capacity_paged"
+    window = service.list_capacity(
+        {
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "available_units": 501,
+            "ends_at": "2099-01-01T00:00:00Z",
+        }
+    )["capacity_window"]
+
+    for index in range(501):
+        reservation_id = f"reservation_capacity_paged_{index:03d}"
+        reservation = {
+            "reservation_id": reservation_id,
+            "window_id": window["window_id"],
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "capacity_units": 1.0,
+            "requested_capacity_units": 1.0,
+            "remaining_capacity_units": 1.0,
+            "consumed_capacity_units": 0.0,
+            "partial_fill": False,
+            "partial_fill_reason": "",
+            "unit_type": "gpu_hour",
+            "reserved_from": window["starts_at"],
+            "reserved_until": window["ends_at"],
+            "status": "held",
+            "hold_expires_at": "2099-01-01T00:00:00Z",
+            "dry_run_only": True,
+            "tenant_id": "",
+            "workspace_id": "",
+            "funds_moved": False,
+            "created_at": "2026-01-01T00:00:00Z",
+            "updated_at": "2026-01-01T00:00:00Z",
+        }
+        service.store.put_record(
+            "compute_reservation",
+            reservation_id,
+            reservation,
+            provider_id=provider_id,
+            route_id=route_id,
+            status="held",
+            expires_at="2099-01-01T00:00:00Z",
+        )
+
+    book = service.capacity_order_book({"provider_id": provider_id, "route_id": route_id})
+
+    assert len(book["reservations"]) == 501
+    assert book["summary"]["held_capacity_units"] == 501
+    assert book["summary"]["available_capacity_units"] == 0
+    with pytest.raises(ValueError, match="requested capacity exceeds available capacity"):
+        service.reserve_capacity({"provider_id": provider_id, "route_id": route_id, "capacity_units": 1})
+
 
 def test_capacity_listing_reports_available_units_after_active_reservations() -> None:
     service = _service()

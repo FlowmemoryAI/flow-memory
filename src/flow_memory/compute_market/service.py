@@ -1751,8 +1751,9 @@ class ComputeMarketService:
         filters = payload or {}
         request_id = _request_id(filters)
         expired_reservations = self._expire_capacity_holds(filters, request_id=request_id)
-        windows = tuple(self.store.list_records("compute_capacity_window", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
-        reservations = tuple(self.store.list_records("compute_reservation", filters=filters, limit=int(filters.get("limit", 100) or 100)).records)
+        page_size = int(filters.get("limit", 500) or 500)
+        windows = self._all_records("compute_capacity_window", filters=filters, limit=page_size)
+        reservations = self._all_records("compute_reservation", filters=filters, limit=page_size)
         interval_start, interval_end = _capacity_time_range(filters)
         if _capacity_has_time_range(filters):
             windows = tuple(window for window in windows if _capacity_window_overlaps(window, interval_start, interval_end))
@@ -1939,7 +1940,9 @@ class ComputeMarketService:
         if _payload_tenant_id(payload):
             capacity_filters["tenant_id"] = _payload_tenant_id(payload)
         self._expire_capacity_holds(payload, request_id=request_id)
-        reservation = _capacity_reservation(payload, self.store.list_records("compute_capacity_window", filters=capacity_filters, limit=100).records, self.store.list_records("compute_reservation", filters=capacity_filters, limit=500).records)
+        windows = self._all_records("compute_capacity_window", filters=capacity_filters)
+        reservations = self._all_records("compute_reservation", filters=capacity_filters)
+        reservation = _capacity_reservation(payload, windows, reservations)
         if idempotency_request_hash:
             reservation["idempotency_request_hash"] = idempotency_request_hash
         self.store.put_record(
@@ -2079,12 +2082,12 @@ class ComputeMarketService:
             filters["route_id"] = route_id
         if _payload_tenant_id(payload):
             filters["tenant_id"] = _payload_tenant_id(payload)
-        page = self.store.list_records("compute_reservation", filters=filters, limit=500)
+        reservations = self._all_records("compute_reservation", filters=filters)
         now = utc_now_iso()
         interval_start, interval_end = _capacity_time_range(payload)
         restrict_to_interval = _capacity_has_time_range(payload)
         expired: list[Mapping[str, Any]] = []
-        for current in page.records:
+        for current in reservations:
             if restrict_to_interval and not _capacity_reservation_overlaps(current, interval_start, interval_end):
                 continue
             expiration_reason = _capacity_expiration_reason(current, now)

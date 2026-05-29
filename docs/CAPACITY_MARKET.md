@@ -37,3 +37,23 @@ flow-memory capacity forward quote --gpu-class H100 --hours 100 --json
 - `GET /capacity/order-book`
 
 All reservations are dry-run and non-binding: `funds_moved=false`, `legally_binding=false`.
+
+## Reservation accounting
+
+Capacity windows are treated as a dry-run inventory book. Creating a hold decrements the selected window's `available_units`; releasing the reservation restores those units exactly once. Repeating the same hold or release is idempotent, so a retry cannot double-consume or double-restore simulated capacity.
+
+```mermaid
+sequenceDiagram
+    participant Buyer as Agent or workspace
+    participant Market as Capacity Market
+    participant Window as Capacity Window
+    participant Store as Compute Store
+    Buyer->>Market: POST /capacity/reserve
+    Market->>Window: Check available units
+    Window-->>Market: Capacity available
+    Market->>Window: Decrement available units
+    Market->>Store: Persist hold and reservation
+    Buyer->>Market: POST /capacity/release
+    Market->>Window: Restore reserved units once
+    Market->>Store: Persist released reservation
+```

@@ -200,6 +200,43 @@ def test_capacity_market_reserve_and_forward_simulation_are_non_binding() -> Non
     assert forward["legal_review_required"] is True
     assert forward["compliance_review_required"] is True
 
+def test_capacity_hold_decrements_inventory_and_release_restores_capacity(tmp_path: Path) -> None:
+    db_path = tmp_path / "capacity-accounting.sqlite3"
+    store = ComputeMarketStore(f"sqlite:///{db_path}")
+    service = CapacityMarketService.seeded(store=store)
+    window_id = "capwin-h100-useast-001"
+    original_available = service.windows[window_id].available_units
+
+    reservation = service.reserve({"gpu_class": "H100", "region": "us-east", "hours": 4})
+
+    assert reservation["ok"] is True
+    assert service.windows[window_id].available_units == original_available - 4
+
+    hold_id = str(reservation["reservation"]["hold_id"])
+    repeated_hold = service.hold({"gpu_class": "H100", "region": "us-east", "hours": 4})
+    assert repeated_hold["hold"]["hold_id"] == hold_id
+    assert service.windows[window_id].available_units == original_available - 4
+
+    utilization = service.utilization()
+    assert utilization["utilization"][0]["reserved_units"] == 4.0
+
+    store.close()
+    reopened = ComputeMarketStore(f"sqlite:///{db_path}")
+    reloaded = CapacityMarketService.seeded(store=reopened)
+    assert reloaded.windows[window_id].available_units == original_available - 4
+
+    released = reloaded.release({"reservation_id": reservation["reservation"]["reservation_id"]})
+    assert released["ok"] is True
+    assert released["reservation"]["status"] == "released"
+    assert reloaded.windows[window_id].available_units == original_available
+
+    repeated_release = reloaded.release({"reservation_id": reservation["reservation"]["reservation_id"]})
+    assert repeated_release["ok"] is True
+    assert reloaded.windows[window_id].available_units == original_available
+
+    post_release_utilization = reloaded.utilization()
+    assert post_release_utilization["utilization"][0]["reserved_units"] == 0.0
+    assert post_release_utilization["utilization"][0]["released_units"] == 4.0
 
 def test_futures_simulator_rejects_live_trading_and_margin() -> None:
     service = default_futures_market_service()

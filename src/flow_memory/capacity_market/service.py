@@ -88,14 +88,25 @@ class CapacityMarketService:
 
     def _persist_seed_records(self) -> None:
         for window in self.windows.values():
-            self._persist(
-                "capacity_window",
-                window.capacity_window_id,
-                window.as_record(),
-                provider_id=window.provider_id,
-                status=window.status,
-                expires_at=window.ends_at,
-            )
+            if self._record_exists("capacity_window", window.capacity_window_id):
+                continue
+            self._persist_window(window)
+
+    def _record_exists(self, record_type: str, record_id: str) -> bool:
+        if self.store is None:
+            return False
+        get_record = getattr(self.store, "get_record", None)
+        return bool(callable(get_record) and get_record(record_type, record_id) is not None)
+
+    def _persist_window(self, window: CapacityWindow) -> None:
+        self._persist(
+            "capacity_window",
+            window.capacity_window_id,
+            window.as_record(),
+            provider_id=window.provider_id,
+            status=window.status,
+            expires_at=window.ends_at,
+        )
 
     def _load_persisted_records(self) -> None:
         for window in self._load_records("capacity_window", CapacityWindow):
@@ -203,6 +214,21 @@ class CapacityMarketService:
         }
 
     def hold(self, payload: Mapping[str, Any]) -> dict[str, Any]:
+        requested_gpu_class = str(payload.get("gpu_class") or payload.get("gpu_type") or GPUClass.H100.value)
+        requested_region = str(payload.get("region") or "us-east")
+        requested_units = _positive_float(payload.get("hours", payload.get("capacity_units")), 1.0)
+        requested_route_id = str(payload.get("route_id") or "capacity-route")
+        for existing_hold in self.holds.values():
+            if existing_hold.status != "held" or existing_hold.route_id != requested_route_id:
+                continue
+            existing_window = self.windows.get(existing_hold.capacity_window_id)
+            if (
+                existing_window is not None
+                and existing_window.gpu_class == requested_gpu_class
+                and existing_window.region == requested_region
+                and existing_hold.capacity_units == requested_units
+            ):
+                return {"ok": True, "hold": existing_hold.as_record(), "dry_run_only": True, "funds_moved": False}
         quote = self.quote(payload)
         if not bool(quote.get("ok", False)):
             return quote
@@ -216,6 +242,28 @@ class CapacityMarketService:
             capacity_units=float(quote_data.get("capacity_units", 0.0) or 0.0),
             unit_type=str(quote_data.get("unit_type", "gpu_hour")),
         )
+        duplicate_hold = self.holds.get(hold.hold_id)
+        if duplicate_hold is not None and duplicate_hold.status == "held":
+            return {"ok": True, "hold": duplicate_hold.as_record(), "dry_run_only": True, "funds_moved": False}
+
+        window = self.windows.get(hold.capacity_window_id)
+        if window is None:
+            return _denial("unknown_capacity_window", "Quoted capacity window is no longer available.", "Request a fresh capacity quote.")
+        if hold.capacity_units <= 0:
+            return _denial("invalid_capacity_units", "Capacity hold must reserve positive units.", "Request at least one capacity unit.")
+        if window.available_units < hold.capacity_units:
+            return _denial("insufficient_capacity", "Capacity was consumed before the hold could be created.", "Request a fresh quote for a smaller size.")
+
+        remaining_units = round(window.available_units - hold.capacity_units, 8)
+        updated_window = CapacityWindow(
+            **{
+                **window.as_record(),
+                "available_units": remaining_units,
+                "status": "held" if remaining_units <= 0 else "available",
+            }
+        )
+        self.windows[updated_window.capacity_window_id] = updated_window
+        self._persist_window(updated_window)
         self.holds[hold.hold_id] = hold
         self._persist(
             "capacity_hold",
@@ -269,8 +317,40 @@ class CapacityMarketService:
         reservation = self.reservations.get(reservation_id)
         if reservation is None:
             return _denial("unknown_reservation", "Unknown dry-run reservation.", "List reservations before release.")
+        if reservation.status == "released":
+            return {"ok": True, "reservation": reservation.as_record(), "dry_run_only": True, "funds_moved": False}
+
+        hold = self.holds.get(reservation.hold_id)
+        if hold is None:
+            return _denial("unknown_hold", "Reservation hold is missing, so capacity cannot be safely restored.", "Inspect reservation history before retrying release.")
+
+        window = self.windows.get(hold.capacity_window_id)
+        if window is None:
+            return _denial("unknown_capacity_window", "Reservation capacity window is missing, so capacity cannot be safely restored.", "Inspect capacity window history before retrying release.")
+
+        restored_units = round(window.available_units + reservation.capacity_units, 8)
+        restored_window = CapacityWindow(
+            **{
+                **window.as_record(),
+                "available_units": restored_units,
+                "status": "available",
+            }
+        )
+        released_hold = CapacityHold(**{**hold.as_record(), "status": "released"})
         released = CapacityReservation(**{**reservation.as_record(), "status": "released"})
+        self.windows[restored_window.capacity_window_id] = restored_window
+        self.holds[released_hold.hold_id] = released_hold
         self.reservations[reservation_id] = released
+        self._persist_window(restored_window)
+        self._persist(
+            "capacity_hold",
+            released_hold.hold_id,
+            released_hold.as_record(),
+            provider_id=released_hold.provider_id,
+            route_id=released_hold.route_id,
+            status=released_hold.status,
+            expires_at=released_hold.hold_expires_at,
+        )
         self._persist(
             "capacity_reservation",
             released.reservation_id,
@@ -301,15 +381,25 @@ class CapacityMarketService:
         self._assert_safe_payload(payload or {})
         records = []
         for window in self.windows.values():
-            reserved = sum(item.capacity_units for item in self.reservations.values() if item.provider_id == window.provider_id)
+            active_reservations = tuple(
+                item for item in self.reservations.values()
+                if item.provider_id == window.provider_id and item.status not in {"released", "cancelled", "expired"}
+            )
+            released_reservations = tuple(
+                item for item in self.reservations.values()
+                if item.provider_id == window.provider_id and item.status == "released"
+            )
+            reserved = sum(item.capacity_units for item in active_reservations)
+            released = sum(item.capacity_units for item in released_reservations)
+            total_booked = reserved + window.available_units
             record = CapacityUtilizationRecord(
-                utilization_id=_stable_id("capu", window.capacity_window_id, str(reserved)),
+                utilization_id=_stable_id("capu", window.capacity_window_id, str(reserved), str(released)),
                 provider_id=window.provider_id,
                 capacity_window_id=window.capacity_window_id,
                 reserved_units=reserved,
                 consumed_units=0.0,
-                released_units=0.0,
-                utilization_rate=reserved / window.available_units if window.available_units else 0.0,
+                released_units=released,
+                utilization_rate=reserved / total_booked if total_booked else 0.0,
             )
             records.append(record.as_record())
             self._persist(

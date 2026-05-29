@@ -6949,6 +6949,132 @@ def test_billing_refund_records_no_custody_credit_adjustment_and_reconciliation(
         raise AssertionError("over-refund was accepted")
 
 
+def test_billing_refund_rejects_usage_charge_without_posted_credit_debit() -> None:
+    service = _service()
+    account_id = "acct_refund_missing_debit"
+    provider_id = "provider_live_gpu_1"
+    route_id = "route_live_gpu_1"
+    usage_charge_id = "usage_refund_missing_debit"
+    service.store.put_record(
+        "usage_charge",
+        usage_charge_id,
+        {
+            "usage_charge_id": usage_charge_id,
+            "account_id": account_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "amount": 0.25,
+            "currency": "USD",
+            "status": "posted",
+            "created_at": "2026-05-26T00:00:00Z",
+        },
+        tenant_id=account_id,
+        provider_id=provider_id,
+        route_id=route_id,
+        status="posted",
+    )
+
+    refund = service.billing_refund(
+        {
+            "usage_charge_id": usage_charge_id,
+            "amount": 0.25,
+            "reason": "sla_credit",
+            "idempotency_key": "refund-missing-debit",
+        }
+    )
+
+    assert refund["ok"] is False
+    assert refund["refund"] == {}
+    assert refund["credit_transaction"] == {}
+    assert refund["provider_payout_adjustment"] == {}
+    assert refund["error"]["error_code"] == "billing.refund.debit_not_posted"
+    assert refund["error"]["details"]["reason"] == "missing_debit"
+    assert service.store.count_records("refund") == 0
+    assert service.store.count_records("credit_transaction") == 0
+    assert (
+        _metric_total(
+            service,
+            "billing_refund_skipped_no_debit_total",
+            {"provider_id": provider_id, "debit_status": "missing"},
+        )
+        == 0.25
+    )
+
+
+def test_billing_refund_replay_rejects_recorded_refund_without_posted_credit() -> None:
+    service = _service()
+    account_id = "acct_refund_replay_missing_debit"
+    provider_id = "provider_live_gpu_1"
+    route_id = "route_live_gpu_1"
+    usage_charge_id = "usage_refund_replay_missing_debit"
+    refund_id = "refund_replay_missing_debit"
+    service.store.put_record(
+        "usage_charge",
+        usage_charge_id,
+        {
+            "usage_charge_id": usage_charge_id,
+            "account_id": account_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "amount": 0.25,
+            "currency": "USD",
+            "status": "posted",
+            "created_at": "2026-05-26T00:00:00Z",
+        },
+        tenant_id=account_id,
+        provider_id=provider_id,
+        route_id=route_id,
+        status="posted",
+    )
+    service.store.put_record(
+        "refund",
+        refund_id,
+        {
+            "refund_id": refund_id,
+            "usage_charge_id": usage_charge_id,
+            "account_id": account_id,
+            "provider_id": provider_id,
+            "route_id": route_id,
+            "amount": 0.25,
+            "currency": "USD",
+            "reason": "sla_credit",
+            "source_event_id": usage_charge_id,
+            "status": "recorded_no_custody",
+            "dry_run_only": True,
+            "funds_moved": False,
+            "external_refund_created": False,
+            "created_at": "2026-05-26T00:00:00Z",
+            "request_id": "req_refund_replay_missing_debit",
+        },
+        tenant_id=account_id,
+        provider_id=provider_id,
+        route_id=route_id,
+        status="recorded_no_custody",
+        idempotency_key="refund-replay-missing-debit",
+        action=usage_charge_id,
+    )
+
+    replay = service.billing_refund(
+        {
+            "usage_charge_id": usage_charge_id,
+            "amount": 0.25,
+            "reason": "sla_credit",
+            "idempotency_key": "refund-replay-missing-debit",
+        }
+    )
+    audit_actions = tuple(event["action"] for event in service.store.list_records("audit_event", limit=100).records)
+
+    assert replay["ok"] is False
+    assert replay["idempotent_replay"] is True
+    assert replay["refund"]["refund_id"] == refund_id
+    assert replay["credit_transaction"] == {}
+    assert replay["provider_payout_adjustment"] == {}
+    assert replay["error"]["error_code"] == "billing.refund.credit_not_posted"
+    assert replay["error"]["details"]["reason"] == "missing_debit"
+    assert service.store.count_records("refund") == 1
+    assert service.store.count_records("credit_transaction") == 0
+    assert "billing.refund.replay_rejected" in audit_actions
+
 def test_billing_refund_surfaces_settled_provider_payout_adjustment_failure() -> None:
     service = _service()
     account_id = "acct_refund_settled"

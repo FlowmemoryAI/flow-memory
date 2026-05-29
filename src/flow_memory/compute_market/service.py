@@ -5817,6 +5817,49 @@ class ComputeMarketService:
         )
         return {"ok": True, "provider_payout": settled, "idempotent_replay": False}
 
+    def _refund_credit_replay_rejection(
+        self,
+        *,
+        payload: Mapping[str, Any],
+        refund: Mapping[str, Any],
+        request_id: str,
+        credit_failure_reason: str,
+    ) -> Mapping[str, Any]:
+        error = compute_error(
+            "billing.refund.credit_not_posted",
+            "Billing refund replay could not prove a posted refund credit.",
+            details={
+                "refund_id": str(refund.get("refund_id", "")),
+                "usage_charge_id": str(refund.get("usage_charge_id", "")),
+                "reason": credit_failure_reason,
+            },
+            request_id=request_id,
+        )
+        provider_id = str(refund.get("provider_id", ""))
+        route_id = str(refund.get("route_id", ""))
+        self.telemetry.increment(
+            "billing_refund_skipped_no_debit_total",
+            {"provider_id": provider_id, "debit_status": credit_failure_reason},
+        )
+        self._audit(
+            "billing.refund.replay_rejected",
+            payload,
+            request_id=request_id,
+            result="rejected",
+            reason_codes=("billing.refund.credit_not_posted",),
+            provider_id=provider_id,
+            route_id=route_id,
+        )
+        return {
+            "ok": False,
+            "refund": refund,
+            "credit_transaction": {},
+            "provider_payout_adjustment": {},
+            "error": error.as_record(),
+            "idempotent_replay": True,
+        }
+
+
     def billing_refund(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         _assert_no_unsafe(payload)
         request_id = _request_id(payload)
@@ -5853,7 +5896,14 @@ class ComputeMarketService:
                         "error": error.as_record(),
                         "idempotent_replay": False,
                     }
-                replay_credit_transaction = _refund_credit_transaction(self.store, existing)
+                replay_credit_transaction, replay_credit_failure_reason = _refund_credit_transaction_with_status(self.store, existing)
+                if replay_credit_failure_reason and _refund_requires_posted_credit(existing):
+                    return self._refund_credit_replay_rejection(
+                        payload=payload,
+                        refund=existing,
+                        request_id=request_id,
+                        credit_failure_reason=replay_credit_failure_reason,
+                    )
                 usage_charge = self.store.get_record("usage_charge", str(existing.get("usage_charge_id", "")))
                 replay_payout_adjustment = self._adjust_provider_payout_for_refund(
                     existing,
@@ -5891,6 +5941,46 @@ class ComputeMarketService:
             already_refunded = sum(float(refund.get("amount", 0.0) or 0.0) for refund in prior_refunds)
             if already_refunded + amount > original_amount + 0.000001:
                 raise ValueError("refund amount exceeds remaining usage charge amount")
+            debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
+            debit = self.store.get_record("credit_transaction", debit_id)
+            debit_status = str(debit.get("status", "")) if isinstance(debit, Mapping) else "missing"
+            if debit_status != "posted":
+                debit_failure_reason = "missing_debit" if debit is None else "debit_not_posted"
+                error = compute_error(
+                    "billing.refund.debit_not_posted",
+                    "Billing refund requires a posted usage debit before crediting the account.",
+                    details={
+                        "usage_charge_id": usage_charge_id,
+                        "account_id": account_id,
+                        "debit_status": debit_status,
+                        "reason": debit_failure_reason,
+                    },
+                    request_id=request_id,
+                )
+                self.telemetry.increment(
+                    "billing_refund_skipped_no_debit_total",
+                    {"provider_id": provider_id, "debit_status": debit_status},
+                    value=amount,
+                )
+                self._audit(
+                    "billing.refund.rejected",
+                    payload,
+                    request_id=request_id,
+                    result="debit_not_posted",
+                    reason_codes=("billing.refund.debit_not_posted",),
+                    provider_id=provider_id,
+                    route_id=route_id,
+                )
+                return {
+                    "ok": False,
+                    "refund": {},
+                    "credit_transaction": {},
+                    "provider_payout_adjustment": {},
+                    "provider_payout_adjustment_error": {},
+                    "error": error.as_record(),
+                    "idempotent_replay": False,
+                }
+
 
         refund_id = str(
             payload.get("refund_id")
@@ -5939,7 +6029,17 @@ class ComputeMarketService:
                     "error": error.as_record(),
                     "idempotent_replay": False,
                 }
-            existing_refund_credit_transaction = _refund_credit_transaction(self.store, existing_refund)
+            existing_refund_credit_transaction, existing_refund_credit_failure_reason = _refund_credit_transaction_with_status(
+                self.store,
+                existing_refund,
+            )
+            if existing_refund_credit_failure_reason and _refund_requires_posted_credit(existing_refund):
+                return self._refund_credit_replay_rejection(
+                    payload=payload,
+                    refund=existing_refund,
+                    request_id=request_id,
+                    credit_failure_reason=existing_refund_credit_failure_reason,
+                )
             usage_charge = self.store.get_record("usage_charge", str(existing_refund.get("usage_charge_id", "")))
             existing_payout_adjustment = self._adjust_provider_payout_for_refund(
                 existing_refund,
@@ -5989,18 +6089,15 @@ class ComputeMarketService:
         provider_payout_adjustment: Mapping[str, Any] = {}
         provider_payout_adjustment_error: Mapping[str, Any] = {}
         if usage_charge is not None:
-            debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
-            debit = self.store.get_record("credit_transaction", debit_id)
-            if debit is not None and debit.get("status") == "posted":
-                credit_transaction = _apply_refund_credit(
-                    self.store,
-                    account_id,
-                    amount=amount,
-                    currency=currency,
-                    request_id=request_id,
-                    refund_id=refund_id,
-                    usage_charge_id=usage_charge_id,
-                )
+            credit_transaction = _apply_refund_credit(
+                self.store,
+                account_id,
+                amount=amount,
+                currency=currency,
+                request_id=request_id,
+                refund_id=refund_id,
+                usage_charge_id=usage_charge_id,
+            )
             if _payload_enabled({"enabled": payload.get("adjust_provider_payout", True)}, default=True):
                 provider_payout_adjustment = self._adjust_provider_payout_for_refund(refund, usage_charge, request_id=request_id)
         provider_payout_adjustment_failed = _provider_payout_adjustment_failed(provider_payout_adjustment)
@@ -11663,29 +11760,46 @@ def _apply_refund_credit(
     return transaction
 
 
-def _refund_credit_transaction(store: ComputeMarketStoreProtocol, refund: Mapping[str, Any]) -> Mapping[str, Any]:
-    account_id = str(refund.get("account_id", ""))
-    refund_id = str(refund.get("refund_id", ""))
-    usage_charge_id = str(refund.get("usage_charge_id", ""))
+def _refund_credit_transaction_with_status(
+    store: ComputeMarketStoreProtocol,
+    refund: Mapping[str, Any],
+) -> tuple[Mapping[str, Any], str]:
+    account_id = str(refund.get("account_id", "")).strip()
+    refund_id = str(refund.get("refund_id", "")).strip()
+    usage_charge_id = str(refund.get("usage_charge_id", "")).strip()
     if not account_id or not refund_id or not usage_charge_id:
-        return {}
+        return {}, "missing_refund_identifiers"
     transaction_id = deterministic_id("credit_transaction", {"account_id": account_id, "refund_id": refund_id, "type": "refund_credit"})
     existing = store.get_record("credit_transaction", transaction_id)
     if existing is not None:
-        return existing
+        return existing, ""
     debit_id = deterministic_id("credit_transaction", {"account_id": account_id, "usage_charge_id": usage_charge_id, "type": "debit"})
     debit = store.get_record("credit_transaction", debit_id)
-    if debit is None or debit.get("status") != "posted":
-        return {}
-    return _apply_refund_credit(
-        store,
-        account_id,
-        amount=_positive_float(refund.get("amount"), "refund.amount"),
-        currency=str(refund.get("currency", "USD")),
-        request_id=str(refund.get("request_id", "")),
-        refund_id=refund_id,
-        usage_charge_id=usage_charge_id,
+    if debit is None:
+        return {}, "missing_debit"
+    if str(debit.get("status", "")) != "posted":
+        return {}, "debit_not_posted"
+    return (
+        _apply_refund_credit(
+            store,
+            account_id,
+            amount=_positive_float(refund.get("amount"), "refund.amount"),
+            currency=str(refund.get("currency", "USD")),
+            request_id=str(refund.get("request_id", "")),
+            refund_id=refund_id,
+            usage_charge_id=usage_charge_id,
+        ),
+        "",
     )
+
+
+def _refund_credit_transaction(store: ComputeMarketStoreProtocol, refund: Mapping[str, Any]) -> Mapping[str, Any]:
+    transaction, _reason = _refund_credit_transaction_with_status(store, refund)
+    return transaction
+
+
+def _refund_requires_posted_credit(refund: Mapping[str, Any]) -> bool:
+    return bool(str(refund.get("usage_charge_id", "")).strip()) and _safe_non_negative_float(refund.get("amount", 0.0)) > 0.0
 
 
 def _provider_payout_settlement_replay_requested(

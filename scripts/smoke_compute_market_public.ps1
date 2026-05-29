@@ -267,12 +267,16 @@ function Invoke-ComputeMarketRequest {
         [Parameter(Mandatory = $true)] [string]$Path,
         [Parameter(Mandatory = $true)] [string]$Scopes,
         [Parameter()] [object]$Body,
+        [Parameter()] [hashtable]$ExtraHeaders = @{},
         [Parameter()] [bool]$IncludeApiKey = $true
     )
 
     $headers = @{ 'x-flow-memory-scopes' = $Scopes }
     if ($IncludeApiKey) {
         $headers['x-flow-memory-api-key'] = $ApiKey
+    }
+    foreach ($key in $ExtraHeaders.Keys) {
+        $headers[$key] = $ExtraHeaders[$key]
     }
     $headers = Add-NonceHeaders -Headers $headers -Label "$Method-$Path"
 
@@ -606,6 +610,9 @@ Assert-Status -Response $missingKey -Expected 401 -Name 'missing-key health'
 $wrongScope = Invoke-ComputeMarketRequest -Method POST -Path '/compute/plan' -Scopes 'compute:read' -Body $planBody
 Assert-Status -Response $wrongScope -Expected 403 -Name 'wrong-scope plan'
 
+$legacyTenantHeader = Invoke-ComputeMarketRequest -Method GET -Path '/compute/health' -Scopes 'compute:read' -ExtraHeaders @{ 'x-flow-memory-tenant' = 'tenant_spoofed_public' }
+Assert-Status -Response $legacyTenantHeader -Expected 403 -Name 'legacy tenant-header health'
+
 $jwtHealth = $null
 $jwtWrongAudience = $null
 $jwtMissingTenant = $null
@@ -716,6 +723,7 @@ $result = [ordered]@{
     audit_export_immutable = [bool]$auditExport.Json.data.immutable
     missing_key = $missingKey.StatusCode
     wrong_scope = $wrongScope.StatusCode
+    legacy_tenant_header = $legacyTenantHeader.StatusCode
     jwt_health = $jwtHealthStatus
     jwt_wrong_audience = $jwtWrongAudienceStatus
     jwt_missing_tenant = $jwtMissingTenantStatus

@@ -651,6 +651,11 @@ def validate(
     checks["audit_verify"] = call_json("GET", f"{base}/compute/audit/verify", headers_audit)
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", headers_read, {"task": PUBLIC_TASK, "dry_run": True})
+    checks["legacy_tenant_header"] = call_json(
+        "GET",
+        f"{base}/compute/health",
+        {**headers_read, "x-flow-memory-tenant": "tenant_spoofed_public"},
+    )
     if gateway_jwt_config is not None:
         checks["jwt_health"] = call_json(
             "GET",
@@ -988,6 +993,7 @@ def validate(
     require(checks["audit_verify"][0] == 200 and data(checks["audit_verify"][1]).get("ok") is True, "audit verify failed")
     require(checks["missing_key"][0] == 401, "missing key did not fail")
     require(checks["wrong_scope"][0] == 403, "wrong scope did not fail")
+    require(checks["legacy_tenant_header"][0] == 403, "legacy API key tenant header did not fail")
     if gateway_jwt_config is not None:
         require(checks["jwt_health"][0] == 200, "gateway JWT health check failed")
         require(checks["jwt_wrong_audience"][0] == 401, "gateway JWT wrong-audience check did not fail")
@@ -1143,6 +1149,7 @@ def validate(
         "broadcast_allowed": False,
         "private_key_required": False,
         "plan_idempotent_replay": data(checks["plan_replay"][1]).get("idempotent_replay"),
+        "legacy_tenant_header_rejected": checks["legacy_tenant_header"][0],
         "missing_metrics": missing_metrics,
         "required_prometheus_metrics": _PUBLIC_REQUIRED_PROMETHEUS_METRICS,
         "audit_export_immutable": audit_export_status.get("immutable"),

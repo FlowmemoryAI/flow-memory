@@ -1443,6 +1443,14 @@ def smoke_public(
     checks["admin_redis_diagnostics"] = call_json("GET", f"{base}/admin/redis/diagnostics", _smoke_api_headers(api_key_value, "compute:admin", "redis-diagnostics"))
     checks["missing_key"] = call_json("GET", f"{base}/compute/health", {"x-flow-memory-scopes": "compute:read"})
     checks["wrong_scope"] = call_json("POST", f"{base}/compute/plan", _smoke_api_headers(api_key_value, "compute:read", "wrong-scope"), plan_body)
+    checks["legacy_tenant_header"] = call_json(
+        "GET",
+        f"{base}/compute/health",
+        {
+            **_smoke_api_headers(api_key_value, "compute:read", "legacy-tenant-header"),
+            "x-flow-memory-tenant": "tenant_spoofed_public",
+        },
+    )
     if include_market_alpha:
         checks["inference_opportunity_cost"] = call_json(
             "POST",
@@ -1725,6 +1733,7 @@ def smoke_public(
             (not jwt_secret or checks["jwt_missing_tenant"][0] == 401),
             (not jwt_secret or checks["jwt_wrong_tenant"][0] == 403),
             (not jwt_secret or checks["jwt_role_health"][0] == 200),
+            checks["legacy_tenant_header"][0] == 403,
             (
                 not jwt_secret
                 or not include_market_alpha
@@ -1771,6 +1780,7 @@ def smoke_public(
             audit_export_ready,
             checks["missing_key"][0] == 401,
             checks["wrong_scope"][0] == 403,
+            checks["legacy_tenant_header"][0] == 403,
             market_alpha_ok,
         )
     )

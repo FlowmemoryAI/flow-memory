@@ -531,6 +531,12 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
             return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/health") and not request_headers.get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
+        if (
+            url.endswith("/compute/health")
+            and request_headers.get("x-flow-memory-api-key")
+            and request_headers.get("x-flow-memory-tenant")
+        ):
+            return 403, {"ok": False, "error": {"code": "auth.forbidden"}}
         if url.endswith("/compute/health"):
             return 200, {"ok": True, "data": {"ok": True}}
         if url.endswith("/compute/readiness"):
@@ -715,6 +721,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
     assert result["statuses"]["jwt_missing_tenant"] == 401
     assert result["statuses"]["jwt_wrong_tenant"] == 403
     assert result["statuses"]["jwt_role_health"] == 200
+    assert result["statuses"]["legacy_tenant_header"] == 403
     assert result["postgres_required_table_count"] == 110
     assert result["postgres_required_index_count"] == 1311
     assert result["plan_idempotent_replay"] is True
@@ -744,7 +751,7 @@ def test_render_smoke_validates_gateway_jwt_when_configured(monkeypatch: pytest.
         for headers in authenticated_headers
     ]
 
-    assert len(authenticated_headers) == 21
+    assert len(authenticated_headers) == 22
     assert all(timestamp and nonce for timestamp, nonce in nonce_pairs)
     assert len(set(nonce_pairs)) == len(nonce_pairs)
     strict_audit_result = render_deploy.smoke_public(

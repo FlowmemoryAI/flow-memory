@@ -915,6 +915,12 @@ def _passing_public_buildout_call_json(
             return 200, {"ok": True, "data": {"service": "Flow Memory Compute Market"}}
         if url.endswith("/compute/health") and not (headers or {}).get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
+        if (
+            url.endswith("/compute/health")
+            and (headers or {}).get("x-flow-memory-api-key")
+            and (headers or {}).get("x-flow-memory-tenant")
+        ):
+            return 403, {"ok": False, "error": {"code": "auth.forbidden"}}
         if url.endswith("/compute/health"):
             return 200, {"ok": True, "data": {"ok": True}}
         if "/market/providers/" in url and url.endswith("/reputation"):
@@ -1275,6 +1281,12 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
             return 401, {"ok": False, "error": {"code": "auth.invalid"}}
         if url.endswith("/compute/health") and not (headers or {}).get("x-flow-memory-api-key"):
             return 401, {"ok": False, "error": {"code": "auth.required"}}
+        if (
+            url.endswith("/compute/health")
+            and (headers or {}).get("x-flow-memory-api-key")
+            and (headers or {}).get("x-flow-memory-tenant")
+        ):
+            return 403, {"ok": False, "error": {"code": "auth.forbidden"}}
         if url.endswith("/compute/health"):
             return 200, {"ok": True, "data": {"ok": True}}
         if "/market/providers/" in url and url.endswith("/reputation"):
@@ -1555,6 +1567,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["provider_reputation_stale_quote_rate"] == 0.0
     assert "audit_chain_verify_fail_total" in result["required_prometheus_metrics"]
     assert result["plan_idempotent_replay"] is True
+    assert result["legacy_tenant_header_rejected"] == 403
     assert result["postgres_required_table_count"] >= validator.MIN_POSTGRES_SCHEMA_TABLE_COUNT
     assert result["postgres_required_index_count"] >= validator.MIN_POSTGRES_SCHEMA_INDEX_COUNT
     assert result["postgres_connection_pool_size"] == 4
@@ -1600,6 +1613,7 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["checks"]["jwt_missing_tenant"] == 401
     assert result["checks"]["jwt_wrong_tenant"] == 403
     assert result["checks"]["jwt_wrong_scope"] == 403
+    assert result["checks"]["legacy_tenant_header"] == 403
     assert result["checks"]["alerts"] == 200
     assert result["checks"]["alerts_route"] == 200
     assert result["checks"]["error_tracking"] == 200

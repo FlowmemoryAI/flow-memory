@@ -322,6 +322,8 @@ def call_json(method: str, url: str, headers: Mapping[str, str] | None = None, b
             return exc.code, json.loads(text) if text.strip() else {}
         except json.JSONDecodeError:
             return exc.code, {"raw": text}
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
+        return 0, {"raw": str(exc)}
 
 
 def call_text(method: str, url: str, headers: Mapping[str, str] | None = None) -> tuple[int, str]:
@@ -331,6 +333,8 @@ def call_text(method: str, url: str, headers: Mapping[str, str] | None = None) -
             return response.status, response.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as exc:
         return exc.code, exc.read().decode("utf-8", "replace")
+    except (TimeoutError, urllib.error.URLError, OSError) as exc:
+        return 0, str(exc)
 
 
 def require(condition: bool, message: str) -> None:

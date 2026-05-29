@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import urllib.error
 from typing import Any, Mapping
 
 import scripts.validate_compute_market_public_buildout as validator
@@ -95,6 +96,32 @@ def test_public_validator_nonce_headers_are_random_per_authenticated_request(mon
     assert "x-flow-memory-nonce" not in unauthenticated
     assert existing["x-flow-memory-nonce"] == "caller-nonce"
     assert "x-flow-memory-timestamp" not in existing
+
+
+def test_public_validator_call_json_returns_fail_closed_on_transport_error(monkeypatch: Any) -> None:
+    def fail_urlopen(_request: Any, *, timeout: int) -> Any:
+        assert timeout == 90
+        raise urllib.error.URLError("expired certificate")
+
+    monkeypatch.setattr(validator.urllib.request, "urlopen", fail_urlopen)
+
+    status, body = validator.call_json("GET", "https://api.flowmemory.ai/compute/health")
+
+    assert status == 0
+    assert "expired certificate" in str(body["raw"])
+
+
+def test_public_validator_call_text_returns_fail_closed_on_transport_error(monkeypatch: Any) -> None:
+    def fail_urlopen(_request: Any, *, timeout: int) -> Any:
+        assert timeout == 90
+        raise TimeoutError("metrics endpoint timed out")
+
+    monkeypatch.setattr(validator.urllib.request, "urlopen", fail_urlopen)
+
+    status, body = validator.call_text("GET", "https://api.flowmemory.ai/metrics")
+
+    assert status == 0
+    assert "metrics endpoint timed out" in body
 
 
 def test_public_buildout_main_blocks_loopback_public_url(tmp_path: Any) -> None:

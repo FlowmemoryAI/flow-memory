@@ -14,9 +14,11 @@ from flow_memory.compute_market.config import ComputeMarketConfig
 from flow_memory.compute_market.models import ComputeQuote, ComputeRoute
 from flow_memory.compute_market.planner import budget_policy_from_payload, build_task_profile, decide_route, market_policy_from_payload
 from flow_memory.compute_market.provider_sandbox import create_provider_sandbox_server, sandbox_quote
+from flow_memory.compute_market.provider_contracts import QUOTE_SIGNATURE_CONTEXT, validate_provider_quote_contract
 from flow_memory.compute_market.service import ComputeMarketService
 from flow_memory.compute_market.storage import ComputeMarketStore
 from flow_memory.crypto.keys import LocalKeyPair
+from flow_memory.crypto.asymmetric import LocalTestSigner
 
 
 _PROVIDER_ID = "sandbox-provider"
@@ -49,6 +51,17 @@ def _provider_record(endpoint: str, signing_key: LocalKeyPair) -> dict[str, Any]
         },
         "sla": {"uptime_target": 0.99, "max_latency_ms": 1000, "refund_policy": "credit"},
     }
+
+
+
+def _signed_provider_quote(quote: Mapping[str, Any], signer: LocalTestSigner) -> dict[str, Any]:
+    unsigned = {
+        str(key): value
+        for key, value in quote.items()
+        if str(key) not in {"signature", "verification", "_signature_context"}
+    }
+    signed_payload = {**unsigned, "_signature_context": QUOTE_SIGNATURE_CONTEXT}
+    return {**unsigned, "signature": signer.sign(signed_payload).as_record()}
 
 
 def _route_record() -> dict[str, Any]:
@@ -88,6 +101,8 @@ def _get_json(url: str) -> tuple[int, Mapping[str, Any]]:
 
 def validate_provider_sandbox() -> Mapping[str, Any]:
     signing_key = LocalKeyPair("sandbox-provider-signing", "sandbox-provider-shared-secret")
+    quote_signer = LocalTestSigner("sandbox-provider-quote-key", "sandbox-provider-quote-seed")
+    quote_public_key = quote_signer.public_record().as_record()
     old_secret = os.environ.get(_SIGNING_SECRET_ENV)
     os.environ[_SIGNING_SECRET_ENV] = signing_key.secret
     server = create_provider_sandbox_server("127.0.0.1", 0, signing_key=signing_key)
@@ -113,9 +128,46 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
         health_status, health_payload = _get_json(endpoint.rsplit("/", 1)[0] + "/health")
         for contract_unsafe_key in ("broadcast_allowed", "private_key_required", "broadcast_required", "private_key"):
             sample_quote.pop(contract_unsafe_key, None)
+        sample_quote = _signed_provider_quote(sample_quote, quote_signer)
+        stale_quote = _signed_provider_quote(
+            {
+                **sample_quote,
+                "quote_id": "sandbox-stale-quote",
+                "stale": True,
+                "expires_at": "2000-01-01T00:00:00Z",
+            },
+            quote_signer,
+        )
+        stale_validation = validate_provider_quote_contract(
+            stale_quote,
+            provider_id=_PROVIDER_ID,
+            allowed_assets=("USDC",),
+            allowed_networks=("offchain",),
+            public_key=quote_public_key,
+        )
+        unsafe_settlement_quote = _signed_provider_quote(
+            {
+                **sample_quote,
+                "quote_id": "sandbox-live-settlement-quote",
+                "requires_live_settlement": True,
+            },
+            quote_signer,
+        )
+        unsafe_settlement_validation = validate_provider_quote_contract(
+            unsafe_settlement_quote,
+            provider_id=_PROVIDER_ID,
+            allowed_assets=("USDC",),
+            allowed_networks=("offchain",),
+            public_key=quote_public_key,
+        )
         conformance = service.provider_conformance(
             _PROVIDER_ID,
-            {"sample_quote": sample_quote, "allowed_assets": ("USDC",), "allowed_networks": ("offchain",)},
+            {
+                "sample_quote": sample_quote,
+                "allowed_assets": ("USDC",),
+                "allowed_networks": ("offchain",),
+                "public_key": quote_public_key,
+            },
         )
         quote_request = service.request_external_provider_quote(
             {
@@ -160,6 +212,10 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
                 provider_created.get("ok") is True,
                 route_created.get("ok") is True,
                 conformance.get("ok") is True,
+                conformance.get("signed_quote_valid") is True,
+                "stale_quote" in stale_validation.error_codes,
+                "expired_quote" in stale_validation.error_codes,
+                "live_settlement_required" in unsafe_settlement_validation.error_codes,
                 quote_request.get("ok") is True,
                 bool(quote_records),
                 provider_health.get("ok") is True,
@@ -183,6 +239,9 @@ def validate_provider_sandbox() -> Mapping[str, Any]:
             "provider_created": provider_created.get("ok") is True,
             "route_created": route_created.get("ok") is True,
             "contract_ok": conformance.get("ok") is True,
+            "signed_quote_valid": conformance.get("signed_quote_valid") is True,
+            "stale_quote_rejected": "stale_quote" in stale_validation.error_codes and "expired_quote" in stale_validation.error_codes,
+            "unsafe_live_settlement_rejected": "live_settlement_required" in unsafe_settlement_validation.error_codes,
             "quote_ingested": quote_request.get("ok") is True,
             "provider_health_checked": provider_health.get("ok") is True,
             "sandbox_health_status": health_status,

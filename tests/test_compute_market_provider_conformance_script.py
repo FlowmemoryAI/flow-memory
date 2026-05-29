@@ -16,6 +16,9 @@ def test_provider_sandbox_validator_ingests_and_selects_live_quote(monkeypatch: 
     assert result["provider_created"] is True
     assert result["route_created"] is True
     assert result["contract_ok"] is True
+    assert result["signed_quote_valid"] is True
+    assert result["stale_quote_rejected"] is True
+    assert result["unsafe_live_settlement_rejected"] is True
     assert result["quote_ingested"] is True
     assert result["provider_health_checked"] is True
     assert result["sandbox_health_status"] == 200
@@ -41,3 +44,6 @@ def test_provider_sandbox_validator_main_outputs_json(capsys: Any) -> None:
     assert payload["ok"] is True
     assert payload["selected_route_id"] == validator._ROUTE_ID
     assert payload["selected_quote_source"] == "live_provider"
+    assert payload["signed_quote_valid"] is True
+    assert payload["stale_quote_rejected"] is True
+    assert payload["unsafe_live_settlement_rejected"] is True

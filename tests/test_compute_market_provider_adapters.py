@@ -114,6 +114,17 @@ class _QuoteHandler(BaseHTTPRequestHandler):
         if self.path == "/spoofed-provider":
             self._send_json({"quote": _quote({"provider_id": "spoofed-provider"})})
             return
+        if self.path == "/wrong-route":
+            self._send_json({"quote": _quote({"route_id": "unconfigured-route"})})
+            return
+        if self.path == "/missing-expiry":
+            quote = _quote()
+            quote.pop("expires_at", None)
+            self._send_json({"quote": quote})
+            return
+        if self.path == "/marked-stale":
+            self._send_json({"quote": _quote({"stale": True})})
+            return
         if self.path == "/signed":
             self._send_json({"quote": dict(_SIGNED_QUOTE_RESPONSE or _quote())})
             return
@@ -216,6 +227,29 @@ def test_http_provider_accepts_valid_quote_and_injects_secret_without_exposing_i
     assert quotes[0].source == "live"
     assert _CAPTURED_AUTH == ["super-secret-token"]
     assert "super-secret-token" not in json.dumps(quotes[0].as_record())
+
+def test_http_provider_rejects_unconfigured_route_and_missing_expiry() -> None:
+    server, base = _server()
+    try:
+        wrong_route = _provider(f"{base}/wrong-route").quote(build_task_profile({"task": "wrong route"}), ComputeMarketPolicy())
+        missing_expiry = _provider(f"{base}/missing-expiry").quote(build_task_profile({"task": "missing expiry"}), ComputeMarketPolicy())
+    finally:
+        server.shutdown()
+
+    assert all(quote.status == "invalid_response" for quote in wrong_route)
+    assert all(quote.status == "invalid_response" for quote in missing_expiry)
+
+
+def test_http_provider_honors_provider_marked_stale_quote() -> None:
+    server, base = _server()
+    try:
+        quotes = _provider(f"{base}/marked-stale").quote(build_task_profile({"task": "stale flag"}), ComputeMarketPolicy())
+    finally:
+        server.shutdown()
+
+    assert quotes[0].route_id == "market-token-route"
+    assert quotes[0].status == "stale"
+    assert quotes[0].stale is True
 
 
 def test_service_external_quote_uses_provider_secret_ref_env_binding(monkeypatch: Any) -> None:

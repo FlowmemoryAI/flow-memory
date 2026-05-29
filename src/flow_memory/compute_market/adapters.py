@@ -167,7 +167,7 @@ class StaticConfiguredProvider:
         return {"provider_id": self.provider.provider_id, "reliability_score": self.provider.reliability_score}
 
     def get_rate_limits(self) -> Mapping[str, Any]:
-        return self.provider.rate_limit_profile
+        return dict(self.provider.rate_limit_profile)
 
 
 @dataclass(frozen=True)
@@ -311,13 +311,32 @@ class HTTPQuoteProvider:
         normalized_raw.setdefault("settlement_options", tuple(str(item) for item in normalized_raw.get("settlement_modes", ("generic_dry_run",))))
         normalized_raw.setdefault("dry_run_only", True)
         normalized_raw.setdefault("original_quote", dict(raw_quote))
-        required = {"quote_id", "provider_id", "provider_or_route", "provider_type", "route_id", "market_type", "network", "payment_asset", "unit_type", "unit_price", "estimated_units", "estimated_total_cost"}
+        required = {
+            "quote_id",
+            "provider_id",
+            "provider_or_route",
+            "provider_type",
+            "route_id",
+            "market_type",
+            "network",
+            "payment_asset",
+            "unit_type",
+            "unit_price",
+            "estimated_units",
+            "estimated_total_cost",
+            "expires_at",
+        }
         missing = tuple(key for key in required if key not in normalized_raw)
         if missing:
             raise ValueError(f"provider quote missing fields: {missing}")
         raw_provider_id = str(normalized_raw.get("provider_id", "")).strip()
         if raw_provider_id != self.provider.provider_id:
             raise ValueError("provider quote provider_id does not match configured provider")
+        raw_route_id = str(normalized_raw.get("route_id", "")).strip()
+        configured_route_ids = frozenset(route.route_id for route in self.routes)
+        synthetic_only = configured_route_ids == frozenset({f"{self.provider.provider_id}:external"})
+        if not synthetic_only and raw_route_id not in configured_route_ids:
+            raise ValueError("provider quote route_id does not match configured provider routes")
         allowed = set(ComputeQuote.__dataclass_fields__)
         sanitized = {str(key): value for key, value in normalized_raw.items() if str(key) in allowed}
         sanitized["source"] = "live"
@@ -327,6 +346,9 @@ class HTTPQuoteProvider:
         if sanitized.get("unit_price") is None or sanitized.get("estimated_total_cost") is None:
             sanitized["status"] = QuoteStatus.UNKNOWN_PRICE.value
         if str(sanitized.get("expires_at", "")) and _expired(str(sanitized.get("expires_at", ""))):
+            sanitized["status"] = QuoteStatus.STALE.value
+            sanitized["stale"] = True
+        if normalized_raw.get("stale") is True:
             sanitized["status"] = QuoteStatus.STALE.value
             sanitized["stale"] = True
         if raw_signature:
@@ -495,7 +517,7 @@ class HTTPQuoteProvider:
         return {"provider_id": self.provider.provider_id, "reliability_score": self.provider.reliability_score}
 
     def get_rate_limits(self) -> Mapping[str, Any]:
-        return self.provider.rate_limit_profile
+        return dict(self.provider.rate_limit_profile)
 
 
 def signed_provider_request_headers(
@@ -946,4 +968,4 @@ def _execution_error(error_code: str, message: str, *, provider_id: str, job_id:
 def _expired(expires_at: str) -> bool:
     if not expires_at:
         return False
-    return expires_at < utc_now_iso()
+    return expires_at < str(utc_now_iso())

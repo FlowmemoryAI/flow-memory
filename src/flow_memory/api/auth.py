@@ -227,6 +227,7 @@ class ApiAuthDecision:
     principal: str = ""
     scopes: tuple[str, ...] = ()
     key_id: str = ""
+    credential_type: str = ""
 
 
 def require_api_key(headers: Mapping[str, str], config: ApiAuthConfig) -> bool:
@@ -598,6 +599,7 @@ def authorize_request(
     api_identity, api_reasons = _resolve_api_key_with_reasons(headers, config)
     jwt_identity, jwt_reasons = resolve_bearer_jwt(headers, config)
     identity = api_identity or jwt_identity
+    credential_type = "api_key" if api_identity is not None else "jwt" if jwt_identity is not None else ""
     signature_nonce = ""
     signature_timestamp = ""
     if config.enable_nonce_check and identity is not None:
@@ -636,6 +638,7 @@ def authorize_request(
         principal=identity.principal if identity else "",
         scopes=identity.scopes if identity else (),
         key_id=identity.key_id if identity else "",
+        credential_type=credential_type,
     )
 
 def resolve_bearer_jwt(headers: Mapping[str, str], config: ApiAuthConfig) -> tuple[ApiKeyIdentity | None, tuple[str, ...]]:

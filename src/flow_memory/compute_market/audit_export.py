@@ -87,6 +87,8 @@ class AuditExportVerification:
     checkpoint_hash: str = ""
     error_code: str = ""
     message: str = ""
+    immutable_evidence: bool = False
+    warnings: tuple[str, ...] = ()
 
     def as_record(self) -> dict[str, object]:
         return {
@@ -96,6 +98,8 @@ class AuditExportVerification:
             "checkpoint_hash": self.checkpoint_hash,
             "error_code": self.error_code,
             "message": self.message,
+            "immutable_evidence": self.immutable_evidence,
+            "warnings": self.warnings,
         }
 
 
@@ -214,6 +218,7 @@ class LocalFileAuditExporter:
             manifest_error = _verify_manifest_hash(manifest)
             if manifest_error:
                 return AuditExportVerification(False, str(self.path), 0, error_code=manifest_error[0], message=manifest_error[1])
+            immutable_evidence, warnings = _manifest_immutable_verification(manifest)
             if any(event is None for event in events):
                 return AuditExportVerification(False, str(self.path), 0, error_code="invalid_event_line", message="audit export contains a malformed event line")
             event_records = tuple(event for event in events if event is not None)
@@ -230,7 +235,14 @@ class LocalFileAuditExporter:
                 return AuditExportVerification(False, str(self.path), len(event_records), checkpoint_hash, chain_error[0], chain_error[1])
             if int(manifest.get("event_count", -1)) != len(event_records):
                 return AuditExportVerification(False, str(self.path), len(event_records), checkpoint_hash, "manifest_count_mismatch", "manifest event_count does not match export")
-            return AuditExportVerification(True, str(self.path), len(event_records), checkpoint_hash)
+            return AuditExportVerification(
+                True,
+                str(self.path),
+                len(event_records),
+                checkpoint_hash,
+                immutable_evidence=immutable_evidence,
+                warnings=warnings,
+            )
         except Exception as exc:
             return AuditExportVerification(False, str(self.path), 0, error_code=type(exc).__name__, message=str(exc))
 
@@ -387,6 +399,7 @@ class S3WormAuditExporter:
             manifest_error = _verify_manifest_hash(manifest)
             if manifest_error:
                 return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=manifest_error[0], message=manifest_error[1])
+            immutable_evidence, warnings = _manifest_immutable_verification(manifest)
             signing_key = self._manifest_signing_key()
             if signing_key is not None:
                 signature_error = _verify_signed_record(
@@ -426,7 +439,14 @@ class S3WormAuditExporter:
                 expected_metadata=expected_metadata,
                 expected_retention_until=expected_retention_until,
             )
-            return AuditExportVerification(True, f"s3://{self.bucket}/{self._last_export_key}", len(event_records), checkpoint_hash)
+            return AuditExportVerification(
+                True,
+                f"s3://{self.bucket}/{self._last_export_key}",
+                len(event_records),
+                checkpoint_hash,
+                immutable_evidence=immutable_evidence,
+                warnings=warnings,
+            )
         except Exception as exc:
             return AuditExportVerification(False, f"s3://{self.bucket}/{self._last_export_key}", 0, error_code=type(exc).__name__, message=str(exc))
 
@@ -694,9 +714,7 @@ def verify_exported_chain(
     immutable_evidence = False
     warnings: tuple[str, ...] = ()
     if manifest is not None:
-        immutable_evidence = _manifest_has_immutable_evidence(manifest)
-        if not immutable_evidence:
-            warnings = ("missing_immutable_evidence",)
+        immutable_evidence, warnings = _manifest_immutable_verification(manifest)
     if error:
         return {
             "ok": False,
@@ -793,6 +811,11 @@ def _manifest_has_immutable_evidence(manifest: Mapping[str, Any]) -> bool:
     retention_until = str(manifest.get("retention_until", "")).strip()
     storage_uri = str(manifest.get("storage_uri", manifest.get("exported_to", ""))).strip()
     return object_lock_mode == "COMPLIANCE" and bool(retention_until) and storage_uri.startswith("s3://")
+
+
+def _manifest_immutable_verification(manifest: Mapping[str, Any]) -> tuple[bool, tuple[str, ...]]:
+    immutable_evidence = _manifest_has_immutable_evidence(manifest)
+    return immutable_evidence, () if immutable_evidence else ("missing_immutable_evidence",)
 
 
 def _verify_exported_chain(events: tuple[Mapping[str, Any], ...]) -> tuple[str, str] | None:

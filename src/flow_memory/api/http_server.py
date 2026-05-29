@@ -226,7 +226,7 @@ class HttpApiGateway:
                 payload=payload,
             )
             credential_resolved = bool(auth.key_id or auth.principal)
-            api_key_authenticated = bool(_header(header_map, "x-flow-memory-api-key")) or auth.key_id == "legacy"
+            api_key_authenticated = auth.credential_type == "api_key"
             global_admin_credential = "api:admin" in auth.scopes or "compute:admin" in auth.scopes
             if (
                 auth.ok
@@ -293,8 +293,17 @@ class HttpApiGateway:
                     },
                 )
             if auth.ok and credential_resolved and auth.workspace_id and context.workspace_id and auth.workspace_id != context.workspace_id:
+                if api_key_authenticated:
+                    raise forbidden_error(
+                        "API key workspace does not match the requested workspace",
+                        details={
+                            "key_id": auth.key_id,
+                            "workspace_id": auth.workspace_id,
+                            "requested_workspace_id": context.workspace_id,
+                        },
+                    )
                 raise forbidden_error(
-                    "API key workspace does not match the requested workspace",
+                    "JWT workspace does not match the requested workspace",
                     details={
                         "key_id": auth.key_id,
                         "workspace_id": auth.workspace_id,
@@ -619,6 +628,7 @@ def _stripe_webhook_signature_auth_decision(
         principal="stripe-webhook",
         scopes=(COMPUTE_BILLING_SCOPE,),
         key_id="stripe-signature",
+        credential_type="webhook",
     )
 
 def _inject_stripe_webhook_context(method: str, path: str, payload: Mapping[str, Any], headers: Mapping[str, str], body: bytes) -> Mapping[str, Any]:

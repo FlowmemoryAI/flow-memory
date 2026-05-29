@@ -266,7 +266,7 @@ def test_http_gateway_binds_jwt_tenant_to_tenant_header() -> None:
     )
     now = int(time.time())
 
-    def token(tenant_id: str) -> str:
+    def token(tenant_id: str, *, kid: str = "jwt") -> str:
         claims: dict[str, object] = {
             "sub": "jwt-user",
             "scope": "compute:read",
@@ -276,7 +276,7 @@ def test_http_gateway_binds_jwt_tenant_to_tenant_header() -> None:
         }
         if tenant_id:
             claims["tenant_id"] = tenant_id
-        return _jwt("jwt-secret", claims)
+        return _jwt("jwt-secret", claims, header={"kid": kid})
 
     matching = gateway.handle(
         "GET",
@@ -302,6 +302,22 @@ def test_http_gateway_binds_jwt_tenant_to_tenant_header() -> None:
             "x-flow-memory-tenant": "tenant_other",
         },
     )
+    custom_kid_mismatched = gateway.handle(
+        "GET",
+        "/compute/health",
+        {
+            "authorization": f"Bearer {token('tenant_jwt', kid='tenant-jwt-key-1')}",
+            "x-flow-memory-tenant": "tenant_other",
+        },
+    )
+    custom_kid_tenantless = gateway.handle(
+        "GET",
+        "/compute/health",
+        {
+            "authorization": f"Bearer {token('', kid='tenant-jwt-key-2')}",
+            "x-flow-memory-tenant": "tenant_other",
+        },
+    )
 
     assert matching.status == 200
     assert mismatched.status == 403
@@ -311,6 +327,15 @@ def test_http_gateway_binds_jwt_tenant_to_tenant_header() -> None:
     assert tenantless.status == 403
     assert tenantless.body["error"]["message"] == "JWT is not bound to the requested tenant"
     assert tenantless.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert custom_kid_mismatched.status == 403
+    assert custom_kid_mismatched.body["error"]["message"] == "JWT tenant does not match the requested tenant"
+    assert custom_kid_mismatched.body["error"]["details"]["key_id"] == "tenant-jwt-key-1"
+    assert custom_kid_mismatched.body["error"]["details"]["tenant_id"] == "tenant_jwt"
+    assert custom_kid_mismatched.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert custom_kid_tenantless.status == 403
+    assert custom_kid_tenantless.body["error"]["message"] == "JWT is not bound to the requested tenant"
+    assert custom_kid_tenantless.body["error"]["details"]["key_id"] == "tenant-jwt-key-2"
+    assert custom_kid_tenantless.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
 
 def test_http_gateway_rejects_scope_header_escalation_for_unscoped_key_record() -> None:
     gateway = HttpApiGateway(
@@ -723,6 +748,57 @@ def test_http_gateway_tenantless_non_admin_key_rejects_tenant_payload_injection(
     assert query_injection.status == 403
     assert query_injection.body["error"]["code"] == "auth.forbidden"
     assert query_injection.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+
+
+def test_http_gateway_tenantless_non_admin_jwt_rejects_payload_injection() -> None:
+    gateway = HttpApiGateway(
+        config=HttpApiConfig(
+            require_scopes=True,
+            enable_rate_limit=False,
+            jwt_hs256_secret="jwt-secret",
+            jwt_audience="flow-memory-api",
+        )
+    )
+    now = int(time.time())
+    token = _jwt(
+        "jwt-secret",
+        {
+            "sub": "tenantless-jwt-user",
+            "scope": "compute:plan",
+            "aud": "flow-memory-api",
+            "iat": now,
+            "exp": now + 300,
+        },
+        header={"kid": "tenantless-jwt-key"},
+    )
+
+    tenant_injection = gateway.handle(
+        "POST",
+        "/compute/plan",
+        {"authorization": f"Bearer {token}", "x-flow-memory-scopes": "compute:plan"},
+        json.dumps({"task": "tenantless jwt tenant injection", "tenant_id": "tenant_other"}).encode("utf-8"),
+    )
+    workspace_injection = gateway.handle(
+        "POST",
+        "/compute/plan",
+        {"authorization": f"Bearer {token}", "x-flow-memory-scopes": "compute:plan"},
+        json.dumps(
+            {"task": "tenantless jwt workspace injection", "workspace_id": "workspace_other"}
+        ).encode("utf-8"),
+    )
+
+    assert tenant_injection.status == 403
+    assert (
+        tenant_injection.body["error"]["message"]
+        == "Authenticated credential is not bound to the requested tenant"
+    )
+    assert tenant_injection.body["error"]["details"]["requested_tenant_id"] == "tenant_other"
+    assert workspace_injection.status == 403
+    assert (
+        workspace_injection.body["error"]["message"]
+        == "Authenticated credential is not bound to the requested workspace"
+    )
+    assert workspace_injection.body["error"]["details"]["requested_workspace_id"] == "workspace_other"
 
 
 def test_http_gateway_legacy_key_rejects_tenant_header() -> None:

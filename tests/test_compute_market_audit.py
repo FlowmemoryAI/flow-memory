@@ -173,6 +173,8 @@ def test_audit_export_checkpoint_and_verify_export_cli(capsys: Any, tmp_path: An
     assert exit_code == 0
     assert verified["ok"] is True
     assert verified["event_count"] >= 1
+    assert verified["immutable_evidence"] is False
+    assert "missing_immutable_evidence" in verified["warnings"]
 
     checkpoint_exit = cli_main(["compute", "audit", "checkpoint", "--json"])
     checkpointed = json.loads(capsys.readouterr().out)
@@ -309,6 +311,8 @@ def test_s3_object_lock_exporter_writes_retained_export_checkpoint_and_verifies_
     assert exported["checkpoint"]["object_lock_mode"] == "COMPLIANCE"
     assert exported["checkpoint"]["retention_until"]
     assert verified.ok is True
+    assert verified.immutable_evidence is True
+    assert verified.warnings == ()
     assert readiness["ready"] is True
     assert readiness["audit_exporter_status"]["immutable"] is True
     assert len(client.puts) == 2
@@ -420,6 +424,8 @@ def test_s3_object_lock_exporter_signs_manifest_and_checkpoint(monkeypatch: Any)
     verified = exporter.verify_export()
 
     assert verified.ok is True
+    assert verified.immutable_evidence is True
+    assert verified.warnings == ()
     export_put = next(put for put in client.puts if put["ContentType"] == "application/x-ndjson")
     export_bucket = str(export_put["Bucket"])
     export_key = str(export_put["Key"])

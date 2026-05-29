@@ -2,7 +2,7 @@
 
 Date: 2026-05-26
 Branch: `work/squire-v2`
-Latest inspected commit: `61c943d Document compute provider credential gate`
+Latest inspected commit: `932452c Require compliant audit object lock evidence`
 
 ## Current architecture
 
@@ -2172,7 +2172,7 @@ Tests run:
 - `python scripts/check_compute_market_production.py` — ruff OK, mypy OK, 465 passed, 2 skipped
 - `git diff --check -- docs/COMPUTE_MARKET.md scripts/deploy_compute_market_render_level1.py scripts/validate_compute_market_public_buildout.py tests/test_compute_market_live_deployment.py tests/test_compute_market_public_validation_script.py docs/ops/MULTI_DAY_BUILDOUT_STATUS.md` — clean
 
-Commit: pending.
+Commit: `932452c Require compliant audit object lock evidence`.
 
 Implementation:
 

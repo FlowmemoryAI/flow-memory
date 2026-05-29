@@ -405,6 +405,32 @@ def test_public_validator_connection_tuning_evidence_blocks_unbounded_postgres()
     assert missing_statement_timeout["statement_timeout_ms"] == 0
 
 
+def test_public_validator_migration_history_evidence_requires_locked_current_history() -> None:
+    expected_version = int(validator.migration_plan()["current_version"])
+    passing = validator.postgres_migration_history_evidence(
+        {
+            "migration_status": {"current": True, "version": expected_version, "expected_version": expected_version},
+            "migration_history": {
+                "ok": True,
+                "migration_lock": "postgres_advisory_lock",
+                "history": [{"version": expected_version, "name": "current"}],
+            },
+        }
+    )
+    missing_history = validator.postgres_migration_history_evidence(
+        {
+            "migration_status": {"current": True, "version": expected_version, "expected_version": expected_version},
+            "migration_history": {"ok": True, "migration_lock": "", "history": []},
+        }
+    )
+
+    assert passing["ok"] is True
+    assert passing["migration_lock"] == "postgres_advisory_lock"
+    assert missing_history["ok"] is False
+    assert missing_history["has_expected_history"] is False
+
+
+
 
 def _passing_public_buildout_call_text(
     method: str,
@@ -418,7 +444,10 @@ def _passing_public_buildout_call_json(
     redis_overrides: Mapping[str, Any] | None = None,
     audit_export_overrides: Mapping[str, Any] | None = None,
     storage_overrides: Mapping[str, Any] | None = None,
+    migration_status_overrides: Mapping[str, Any] | None = None,
+    migration_history_overrides: Mapping[str, Any] | None = None,
 ) -> Any:
+    expected_migration_version = int(validator.migration_plan()["current_version"])
     job_counter = 0
     plan_counter = 0
 
@@ -563,6 +592,18 @@ def _passing_public_buildout_call_json(
                         "migrations_auto_run": True,
                         **(storage_overrides or {}),
                     },
+                    "migration_status": {
+                        "current": True,
+                        "version": expected_migration_version,
+                        "expected_version": expected_migration_version,
+                        **(migration_status_overrides or {}),
+                    },
+                    "migration_history": {
+                        "ok": True,
+                        "migration_lock": "postgres_advisory_lock",
+                        "history": [{"version": expected_migration_version, "name": "current"}],
+                        **(migration_history_overrides or {}),
+                    },
                     "schema_verification": {
                         "ok": True,
                         "missing_tables": [],
@@ -617,6 +658,31 @@ def test_public_buildout_validation_rejects_unsafe_postgres_connection_tuning(mo
         assert '"statement_timeout_ms": 0' in message
     else:  # pragma: no cover
         raise AssertionError("public buildout validator accepted unsafe Postgres tuning")
+
+
+def test_public_buildout_validation_rejects_missing_postgres_migration_history(monkeypatch: Any) -> None:
+    monkeypatch.setattr(validator.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(validator, "call_text", _passing_public_buildout_call_text)
+    monkeypatch.setattr(
+        validator,
+        "call_json",
+        _passing_public_buildout_call_json(
+            migration_history_overrides={"migration_lock": "", "history": []}
+        ),
+    )
+
+    try:
+        validator.validate(
+            "https://api.example.test",
+            "prod-key",
+            require_immutable_audit=True,
+        )
+    except AssertionError as exc:
+        message = str(exc)
+        assert "admin storage migration history failed" in message
+        assert '"has_expected_history": false' in message
+    else:  # pragma: no cover
+        raise AssertionError("public buildout validator accepted missing migration history")
 
 
 def test_public_buildout_validation_rejects_redis_fail_open_controls(monkeypatch: Any) -> None:
@@ -851,6 +917,16 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
                         "migrations_enabled": True,
                         "migrations_auto_run": True,
                     },
+                    "migration_status": {
+                        "current": True,
+                        "version": int(validator.migration_plan()["current_version"]),
+                        "expected_version": int(validator.migration_plan()["current_version"]),
+                    },
+                    "migration_history": {
+                        "ok": True,
+                        "migration_lock": "postgres_advisory_lock",
+                        "history": [{"version": int(validator.migration_plan()["current_version"]), "name": "current"}],
+                    },
                     "schema_verification": {
                         "ok": True,
                         "missing_tables": [],
@@ -922,6 +998,10 @@ def test_public_buildout_validation_checks_unsigned_provider_receipts(monkeypatc
     assert result["postgres_connection_timeout_ms"] == 5000
     assert result["postgres_statement_timeout_ms"] == 5000
     assert result["postgres_migrations_auto_run"] is True
+    assert result["postgres_migration_version"] == int(validator.migration_plan()["current_version"])
+    assert result["postgres_migration_expected_version"] == int(validator.migration_plan()["current_version"])
+    assert result["postgres_migration_history_count"] == 1
+    assert result["postgres_migration_lock"] == "postgres_advisory_lock"
     assert result["audit_exporter"] == "s3_object_lock"
     assert result["require_managed_redis_in_production"] is True
     assert result["redis_url_scheme"] == "rediss"

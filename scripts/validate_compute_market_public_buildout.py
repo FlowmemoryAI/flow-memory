@@ -185,6 +185,37 @@ def postgres_connection_tuning_evidence(storage: Mapping[str, Any]) -> Mapping[s
     }
 
 
+def postgres_migration_history_evidence(storage_diag: Mapping[str, Any]) -> Mapping[str, Any]:
+    migration_status = storage_diag.get("migration_status", {})
+    migration_status_map = migration_status if isinstance(migration_status, Mapping) else {}
+    migration_history = storage_diag.get("migration_history", {})
+    migration_history_map = migration_history if isinstance(migration_history, Mapping) else {}
+    expected_version = _int_field(migration_status_map.get("expected_version"))
+    version = _int_field(migration_status_map.get("version"))
+    raw_history = migration_history_map.get("history", ())
+    history_rows = raw_history if isinstance(raw_history, (list, tuple)) else ()
+    has_expected_history = any(
+        isinstance(row, Mapping) and _int_field(row.get("version")) >= expected_version
+        for row in history_rows
+    )
+    return {
+        "ok": (
+            migration_status_map.get("current") is True
+            and expected_version > 0
+            and version >= expected_version
+            and migration_history_map.get("ok") is True
+            and migration_history_map.get("migration_lock") == "postgres_advisory_lock"
+            and has_expected_history
+        ),
+        "version": version,
+        "expected_version": expected_version,
+        "migration_history_ok": migration_history_map.get("ok") is True,
+        "migration_lock": migration_history_map.get("migration_lock"),
+        "history_count": len(history_rows),
+        "has_expected_history": has_expected_history,
+    }
+
+
 def parse_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     if not path.exists():
@@ -712,6 +743,7 @@ def validate(
     storage_status = storage_diag.get("storage", {})
     storage_status_map = storage_status if isinstance(storage_status, Mapping) else {}
     connection_tuning_evidence = postgres_connection_tuning_evidence(storage_status_map)
+    migration_history_evidence = postgres_migration_history_evidence(storage_diag)
 
     audit_export_status = data(checks["admin_audit_export"][1])
     audit_export_write = data(checks["audit_export_write"][1])
@@ -809,6 +841,10 @@ def validate(
         connection_tuning_evidence.get("ok") is True,
         f"admin storage connection tuning failed: {json.dumps(connection_tuning_evidence, sort_keys=True)}",
     )
+    require(
+        migration_history_evidence.get("ok") is True,
+        f"admin storage migration history failed: {json.dumps(migration_history_evidence, sort_keys=True)}",
+    )
     require(checks["admin_redis_diagnostics"][0] == 200 and redis_diag.get("ok") is True and redis_diag.get("rate_limit_probe", {}).get("ok") is True and redis_diag.get("circuit_breaker_probe", {}).get("ok") is True, "admin redis diagnostics failed")
     require(
         redis_diag.get("rate_limit_fail_closed") is True
@@ -880,6 +916,10 @@ def validate(
         "postgres_connection_timeout_ms": connection_tuning_evidence.get("timeout_ms"),
         "postgres_statement_timeout_ms": connection_tuning_evidence.get("statement_timeout_ms"),
         "postgres_migrations_auto_run": connection_tuning_evidence.get("migrations_auto_run"),
+        "postgres_migration_version": migration_history_evidence.get("version"),
+        "postgres_migration_expected_version": migration_history_evidence.get("expected_version"),
+        "postgres_migration_history_count": migration_history_evidence.get("history_count"),
+        "postgres_migration_lock": migration_history_evidence.get("migration_lock"),
         "audit_exporter": audit_exporter_name,
     }
 

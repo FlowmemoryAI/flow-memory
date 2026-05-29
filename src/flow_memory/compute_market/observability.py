@@ -192,6 +192,7 @@ DEFAULT_ALERT_RULES: tuple[AlertRule, ...] = (
     AlertRule("billing-payment-failures", "billing_payment_failed_total", 1.0, ">=", "warning", "Stripe reported failed customer payment events."),
     AlertRule("billing-ledger-mismatch", "billing_ledger_mismatch_total", 1.0, ">=", "critical", "Credit balance ledger drift was detected during reconciliation."),
     AlertRule("billing-refund-skipped-no-debit", "billing_refund_skipped_no_debit_total", 1.0, ">=", "critical", "Refund or SLA credit reconciliation was skipped because no posted debit exists."),
+    AlertRule("billing-insufficient-credit", "billing_insufficient_credit_total", 1.0, ">=", "warning", "Compute usage completed without enough prepaid credit to debit."),
     AlertRule("redis-unavailable", "redis_unavailable_total", 1.0, ">=", "critical", "Managed Redis backend is unavailable or unconfigured."),
     AlertRule("postgres-unavailable", "postgres_unavailable_total", 1.0, ">=", "critical", "Managed PostgreSQL backend is unavailable."),
     AlertRule("external-provider-allowlist-missing", "external_provider_allowlist_missing_total", 1.0, ">=", "critical", "External provider mode is enabled without an allowlist."),

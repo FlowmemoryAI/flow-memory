@@ -671,6 +671,7 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     service.telemetry.increment("billing_payment_failed_total")
     service.telemetry.increment("billing_ledger_mismatch_total")
     service.telemetry.increment("billing_refund_skipped_no_debit_total")
+    service.telemetry.increment("billing_insufficient_credit_total")
     service.telemetry.increment("provider_sla_penalty_total")
     service.telemetry.increment("compute_provider_receipt_rejected_total")
     service.telemetry.increment("compute_provider_callback_rejected_total")
@@ -687,6 +688,7 @@ def test_billing_webhook_failure_and_readiness_failures_emit_alert_metrics() -> 
     assert "billing-payment-failures" in rule_names
     assert "billing-ledger-mismatch" in rule_names
     assert "billing-refund-skipped-no-debit" in rule_names
+    assert "billing-insufficient-credit" in rule_names
     assert "provider-sla-penalty" in rule_names
     assert "provider-receipt-rejected" in rule_names
     assert "provider-callback-rejected" in rule_names
